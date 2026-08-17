@@ -2,6 +2,13 @@
 
 Scored 2026-08-17 against the state of the toolchain at commit `2ae7003`.
 
+**Sprint 1 status (2026-08-17):** ✅ B1 fixed (`a8792c8`) · ✅ B9 + B8
+shipped (`92ef617`) · ✅ F18 shipped (`docs/bringup.md`) · 🏗 F1 + B3
+scaffolded (`runtime/sample/`, `tools/framediff.py`,
+`tools/make_testcard.py`, `.github/workflows/hw.yml`) — the emulator CI
+job is experimental until its first proven run; the ELF-compile job is
+expected to be authoritative immediately.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two

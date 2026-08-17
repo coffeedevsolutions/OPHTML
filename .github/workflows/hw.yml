@@ -1,0 +1,112 @@
+# Hardware-path verification scaffold (backlog F1).
+#
+# Job graph:
+#   bake      — host toolchain builds the example blob + previewer PNGs
+#               and the alignment test card (backlog B3)
+#   elf       — the real ps2ui.c + sample compile inside the ps2dev
+#               toolchain container; proves the console build, uploads
+#               the ELF for anyone to run on hardware/emulator
+#   emulator  — EXPERIMENTAL (continue-on-error): boots the ELF in the
+#               Play! emulator (HLE BIOS, so legally runnable in CI),
+#               captures a frame, and image-diffs it against the
+#               previewer ground truth with tools/framediff.py.
+#               Until its first green run, treat results as advisory;
+#               docs/bringup.md holds the local PCSX2 procedure.
+
+name: hw
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install baker deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-dejavu-core
+          python3 -m pip install Pillow
+      - name: Bake example + test card
+        run: |
+          ./examples/memcard/build.sh
+          python3 tools/make_testcard.py examples/memcard/build/testcard.uib \
+            --preview examples/memcard/build/testcard-expected.png
+          python3 tools/framediff.py --self-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baked
+          path: |
+            examples/memcard/build/ui.uib
+            examples/memcard/build/preview.png
+            examples/memcard/build/testcard.uib
+            examples/memcard/build/testcard-expected.png
+
+  elf:
+    needs: bake
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2dev/ps2dev:latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: baked
+          path: examples/memcard/build
+      - name: Build sample ELF with the PS2SDK toolchain
+        run: |
+          apk add --no-cache make
+          make -C runtime/sample
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ps2ui-sample-elf
+          path: runtime/sample/ps2ui_sample.elf
+
+  emulator:
+    needs: [bake, elf]
+    runs-on: ubuntu-latest
+    continue-on-error: true # experimental until the first proven run
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: baked
+          path: baked
+      - uses: actions/download-artifact@v4
+        with:
+          name: ps2ui-sample-elf
+          path: elf
+      - name: Install Play! and capture tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb imagemagick libgl1 fuse
+          python3 -m pip install Pillow
+          curl -L -o Play.AppImage \
+            https://github.com/jpd002/Play-/releases/latest/download/Play_x86_64.AppImage
+          chmod +x Play.AppImage
+          ./Play.AppImage --appimage-extract >/dev/null
+      - name: Boot ELF headless and capture a frame
+        run: |
+          xvfb-run -s "-screen 0 1280x960x24" sh -c '
+            ./squashfs-root/AppRun --disc "" elf/ps2ui_sample.elf &
+            PLAY_PID=$!
+            sleep 25
+            import -window root captured.png
+            kill $PLAY_PID || true
+          '
+      - name: Diff against previewer ground truth
+        run: |
+          python3 tools/framediff.py baked/preview.png captured.png \
+            --out framediff.png --rmse 8 --tile-rmse 32
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-frames
+          path: |
+            captured.png
+            framediff.png

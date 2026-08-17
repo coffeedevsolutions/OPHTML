@@ -112,10 +112,13 @@ text loses tinting).
 ## Status and caveats
 
 The host toolchain is verified end to end. The gsKit path is written
-against the documented API but **not yet hardware-verified** — if you
-run it on a console or PCSX2, the first thing to check is text tinting
-(`GSTEXTURE::Function`). See [docs/architecture.md](docs/architecture.md)
-for the decision log and known next steps (multi-screen documents,
+against the documented API but **not yet hardware-verified** — the
+first console or emulator run should follow the ordered procedure in
+[docs/bringup.md](docs/bringup.md) (`runtime/sample/` is the standalone
+ELF for it, and `tools/make_testcard.py` builds the texel-alignment
+card). See [docs/architecture.md](docs/architecture.md) for the
+decision log and [docs/BACKLOG.md](docs/BACKLOG.md) for the
+RICE-prioritized roadmap (multi-screen documents, dynamic text,
 precompiled DMA chains, per-locale builds).
 
 ## License
