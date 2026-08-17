@@ -1,58 +1,48 @@
 # OPHTML / ps2ui
 
-Write your PlayStation 2 homebrew UI in HTML and CSS. Ship it as draw
-commands.
+Build PlayStation 2 homebrew UIs from HTML and CSS.
 
-ps2ui is a build-time toolchain: it parses HTML + CSS, solves flexbox
-layout, wraps text, solves D-pad navigation and rasterizes chrome — all
-on your build machine — and emits a single `.uib` blob that a tiny C99
-runtime replays through [gsKit] on the console. The PS2 never parses,
-lays out, rasterizes or allocates.
+The toolchain does all the heavy lifting on your build machine: parsing, flexbox layout, text wrapping, D-pad navigation, and chrome rasterization. The output is a single `.uib` blob that a small C99 runtime replays through [gsKit]. The PS2 itself never parses, lays out, rasterizes, or allocates.
 
-Built for UIs delivered on an SD2PSX / PSxMemCard GEN2 virtual memory
-card, useful for any PS2 homebrew that wants a modern authoring workflow
-on 2001 silicon.
+Originally built for UIs shipped on an SD2PSX / PSxMemCard GEN2 virtual memory card. Works for any PS2 homebrew project.
 
 ```
-ui/*.html,css ──▶ @ps2ui/layout ──▶ ui.json (IR) ──▶ ps2ui-bake ──▶ ui.uib ──▶ runtime (C99 + gsKit)
-                  Node, zero deps                    Python, Pillow only
+ui/*.html,css -> @ps2ui/layout -> ui.json (IR) -> ps2ui-bake -> ui.uib -> runtime (C99 + gsKit)
+                 Node, zero deps                  Python, Pillow only
 ```
 
 ![memcard example preview](examples/memcard/screenshots/preview.png)
 
-That image is not a browser screenshot: it is the Python previewer
-replaying the exact baked command list — same quad order, scissor
-stack, CLUT lookups and GS alpha domain the console will see. The
-previewer can also render [every focus state on one
-sheet](examples/memcard/screenshots/states.png) for couch-QA at a
-glance.
+The image above comes from the Python previewer, which replays the baked command list with the same quad order, scissor stack, CLUT lookups, and GS alpha domain the console uses. It can also render [every focus state on one sheet](examples/memcard/screenshots/states.png).
 
 ## Quick start
 
-Requirements: Node ≥ 18, Python 3 with Pillow, a C compiler for the
-host tests, DejaVu Sans (or edit `fonts/fonts.json` to point at your
-TTF).
+Requirements:
+
+- Node 18+
+- Python 3 with Pillow
+- A C compiler for the host tests
+- DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 
 ```sh
-# 1. compile HTML+CSS to the IR
+# compile HTML+CSS to the IR
 node packages/layout/bin/ps2ui-layout.js \
     examples/memcard/ui/library.html examples/memcard/ui/library.css \
-    -o build/ui.json
+    -o build/library.json
 
-# 2. bake the IR to a console blob (+ a verification PNG)
-PYTHONPATH=packages/baker python3 -m ps2ui_bake build/ui.json \
-    -o build/ui.uib --preview build/preview.png --montage build/states.png
+# bake the IR into a console blob, plus a verification PNG
+PYTHONPATH=packages/baker python3 -m ps2ui_bake build/library.json \
+    -o build/ui.uib --preview build/preview.png
 
-# or run both stages + all tests for the example:
+# or run both stages plus all tests for the example:
 ./examples/memcard/build.sh
 
-# or live-rebuild on every edit (the dev loop, ~200ms per build):
+# or live-rebuild on every edit (~200ms per build):
 node packages/layout/bin/ps2ui-dev.js \
     examples/memcard/ui/library.html examples/memcard/ui/library.css -o build/dev
 ```
 
-On the console side, drop `runtime/ps2ui.c` + `runtime/ps2ui.h` into
-your ps2sdk/gsKit project:
+Console side: drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKit project.
 
 ```c
 ps2ui_ctx ui;
@@ -60,107 +50,114 @@ ps2ui_load(&ui, uib_data, uib_len);   /* validates, points into the blob */
 ps2ui_upload(&ui, gsGlobal);          /* textures + CSM1-permuted CLUTs  */
 
 /* per frame */
-ps2ui_render(&ui, gsGlobal);          /* replays, filtered by focus      */
+ps2ui_render(&ui, gsGlobal);
 if (pad_pressed & PAD_RIGHT) ps2ui_move(&ui, PS2UI_RIGHT);
 if (pad_pressed & PAD_CROSS) launch(ps2ui_focus_name(&ui));
 ```
 
-## What subset of CSS?
+## Supported CSS
 
-Flexbox (direction, wrap, grow/shrink/basis, gap, justify/align),
-box model (border-box; padding, margin, borders, border-radius via
-baked nine-patches), flat colors with real translucency, `font-size` /
-`font-weight` / `line-height` / `letter-spacing` / `text-align`,
-`white-space: nowrap` + `text-overflow: ellipsis`, `overflow: hidden`
-(GS scissor), `display: none`, `<img>` (see below), and `:focus` as a
-**paint-only** state (a `:focus` rule that changes geometry is a
-compile error). Unknown properties warn; unsupported values error with
-line numbers.
+- Flexbox: direction, wrap, grow/shrink/basis, gap, justify/align
+- Box model (border-box): padding, margin, borders, border-radius (baked as nine-patch textures)
+- Flat colors with real translucency
+- `font-size`, `font-weight`, `line-height`, `letter-spacing`, `text-align`
+- `white-space: nowrap` with `text-overflow: ellipsis`
+- `overflow: hidden` (GS scissor), `display: none`
+- `<img>`, see below
+- `:focus` as a paint-only state. A `:focus` rule that changes geometry is a compile error.
 
-**Images.** Keep art in an `assets/` folder next to your HTML and
-reference it with `<img src="assets/badge.png">` (PNG only at build
-time). Paths resolve relative to the HTML document; the baker decodes,
-pre-scales to the laid-out size, and packs the pixels into the `.uib`
-as textures — the console never touches a filesystem. Add the
-`palettize` attribute (or bake with `--palettize-images`) to quantize
-an image to 8-bit indexed + CLUT: 4× less VRAM per texel for art that
-fits 256 colors. One deliberate CSS deviation: flex `stretch` never
-distorts an image's aspect ratio — give it an explicit size if you
-want stretching.
+Unknown properties warn. Unsupported values error with line numbers.
 
-**Dynamic text.** A real memory-card browser can't know its titles at
-build time. Mark an element `data-slot="name"` (with an optional
-`data-slot-capacity`): its text becomes a build-time placeholder, and
-the console sets the real string with
-`ps2ui_slot_set(&ui, "name", text_from_the_card)` — composed per frame
-from a baked glyph table with the same advances and baseline as static
-text (the example's preview is pixel-identical either way). Geometry,
-font, colors and ellipsis policy stay compile-time; `.uib` files carry
-a CRC-32 and feature flags so older runtimes reject newer blobs loudly.
+## Images
 
-**Multiple screens.** Pass several IR files to one bake
-(`ps2ui-bake library.json saves.json -o ui.uib`) and each becomes a
-named screen in the same blob — textures, atlases and font tables
-shared, commands and focus graphs partitioned. At runtime,
-`ps2ui_screen_set(&ui, "saves")` switches instantly and each screen
-remembers where its focus was. The example ships two screens
-([saves screen](examples/memcard/screenshots/saves.png)).
+- Keep art in an `assets/` folder next to your HTML: `<img src="assets/badge.png">` (PNG only at build time)
+- Paths resolve relative to the HTML document
+- The baker decodes, pre-scales to the laid-out size, and packs the pixels into the `.uib`. The console never touches a filesystem
+- Add the `palettize` attribute (or bake with `--palettize-images`) to quantize an image to 8-bit indexed + CLUT. 4x less VRAM per texel for art within 256 colors
+- One deliberate CSS deviation: flex `stretch` never distorts an image's aspect ratio. Give it an explicit size if you want stretching
 
-Interactivity is D-pad-shaped: mark elements `focusable` (and one
-`autofocus`); the compiler solves the spatial navigation graph at build
-time and the runtime walks it with table lookups. `--focus-wrap` adds
-wrap-around edges (right off a row's end lands on its start), solved at
-build time like everything else, and `ps2ui_focus_set(ctx, "name")`
-restores focus programmatically. Targeting PAL? `--mode pal` sets the
-640×512 canvas and re-derives the CRT linter's safe areas.
+## Dynamic text
 
-There is also a CRT linter: overscan-unsafe text, sub-14px fonts, 1px
-horizontal lines (interlace flicker), saturated NTSC reds and
-low-contrast text are warnings, because your desktop preview will not
-show you what a 2001 living-room television does.
+A real memory card browser reads its titles off the card at runtime, so baked strings alone don't cut it. Mark an element with `data-slot`:
+
+```html
+<p class="title" data-slot="save-0" data-slot-capacity="31">Placeholder</p>
+```
+
+```c
+ps2ui_slot_set(&ui, "save-0", title_from_card);
+```
+
+The runtime composes glyph quads each frame from a baked glyph table, using the same advances and baseline as static text. The example preview is pixel-identical either way. Geometry, font, colors, and ellipsis policy stay compile-time. Fixed per-slot buffers, no allocation.
+
+`.uib` files carry a CRC-32 and feature flags, so an older runtime rejects a newer blob with a clear error instead of misrendering it.
+
+## Multiple screens
+
+Pass several IR files to one bake:
+
+```sh
+ps2ui-bake library.json saves.json -o ui.uib
+```
+
+- Each file becomes a named screen in the same blob (name = file stem)
+- Textures, atlases, and font tables are shared across screens
+- `ps2ui_screen_set(&ui, "saves")` switches instantly
+- Each screen remembers its own focus position
+
+The example ships two screens ([saves screen](examples/memcard/screenshots/saves.png)).
+
+## Focus and navigation
+
+- Mark elements `focusable`, one per screen `autofocus`
+- The compiler solves the spatial navigation graph at build time; the runtime walks it with table lookups
+- `--focus-wrap` adds wrap-around edges (right off a row's end lands on its start)
+- `ps2ui_focus_set(ctx, "name")` moves focus programmatically
+
+Targeting PAL? `--mode pal` sets the 640x512 canvas and adjusts the CRT linter's safe areas.
+
+## CRT linter
+
+Your desktop preview won't show you what a 2001 television does. The compiler warns about:
+
+- Text outside the title-safe area (overscan)
+- Fonts under 14px
+- 1px horizontal lines (interlace flicker)
+- Saturated reds (NTSC composite bleed)
+- Low-contrast text
+- Focusables unreachable by D-pad
 
 ## Repository layout
 
 | path | what |
 |------|------|
-| `packages/layout` | HTML/CSS → `ui.json`. Node, zero dependencies. |
-| `packages/baker`  | `ui.json` → `ui.uib` + PNG previews. Python, Pillow only. |
-| `runtime`         | `.uib` loader + gsKit replay + D-pad nav. C99, no allocation. |
-| `fonts`           | metrics JSON (the layout↔baker seam) + `ps2ui-fontgen`. |
-| `docs`            | [architecture](docs/architecture.md) · [IR format](docs/format-ir.md) · [.uib format](docs/format-uib.md) |
-| `examples/memcard`| the memory-card library browser from the screenshots. |
+| `packages/layout` | HTML/CSS to `ui.json`. Node, zero dependencies. |
+| `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow only. |
+| `runtime`         | `.uib` loader, gsKit replay, D-pad nav. C99, no allocation. |
+| `fonts`           | metrics JSON (the layout/baker seam) and `ps2ui-fontgen`. |
+| `docs`            | [architecture](docs/architecture.md) / [IR format](docs/format-ir.md) / [.uib format](docs/format-uib.md) |
+| `examples/memcard`| the two-screen memory card browser from the screenshots. |
 
-Any stage can be replaced by someone who reads the two format specs.
+The two interchange formats are fully documented, so any stage can be swapped out for another implementation.
 
 ## Tests
 
 ```sh
-cd packages/layout && node --test 'test/*.test.js'   # parser, cascade, flexbox, focus, lint
+cd packages/layout && node --test test/*.test.js
 cd packages/baker  && python3 -m unittest discover -s tests
-cd runtime         && make test test-compat           # real ps2ui.c, -Werror, over a real blob
+cd runtime         && make test test-compat
 ```
 
-The runtime test compiles the actual `ps2ui.c` against a stub gsKit and
-replays a real baked blob, checking struct layouts against the file
-format, blob validation, CSM1 permutation, focus-state draw-cost parity
-and the D-pad walk. `test-compat` re-runs everything with
-`PS2UI_GSKIT_HAS_FUNCTION=0` (older gsKit without `GSTEXTURE::Function`;
-text loses tinting).
+The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `test-compat` repeats everything with `PS2UI_GSKIT_HAS_FUNCTION=0` for older gsKit (text loses tinting).
 
-## Status and caveats
+## Status
 
-The host toolchain is verified end to end. The gsKit path is written
-against the documented API but **not yet hardware-verified** — the
-first console or emulator run should follow the ordered procedure in
-[docs/bringup.md](docs/bringup.md) (`runtime/sample/` is the standalone
-ELF for it, and `tools/make_testcard.py` builds the texel-alignment
-card). See [docs/architecture.md](docs/architecture.md) for the
-decision log and [docs/BACKLOG.md](docs/BACKLOG.md) for the
-RICE-prioritized roadmap (multi-screen documents, dynamic text,
-precompiled DMA chains, per-locale builds).
+The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain. Nothing has run on real hardware yet. For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF for it, and `tools/make_testcard.py` builds a texel-alignment card.
+
+See [docs/architecture.md](docs/architecture.md) for the decision log and [docs/BACKLOG.md](docs/BACKLOG.md) for the roadmap.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
 
 [gsKit]: https://github.com/ps2dev/gsKit
