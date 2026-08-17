@@ -21,6 +21,21 @@ extern unsigned int size_ui_uib;
 /* Frames to hold each focus state — long enough for a screenshot. */
 #define FRAMES_PER_STATE 150
 
+/* Build with -DPS2UI_SAMPLE_STATIC to hold the baked initial focus
+ * forever instead of walking the graph.
+ *
+ * Cycling is what you want when a person is watching, and exactly what
+ * you cannot have when a machine is diffing: an automated capture lands
+ * at whatever wall-clock moment the screenshot fires, so the frame it
+ * grabs is not the frame `--preview` rendered, and the comparison is
+ * non-deterministic by construction. The CI emulator job builds with
+ * this defined; docs/bringup.md drives the cycling build by hand. */
+#ifdef PS2UI_SAMPLE_STATIC
+#define PS2UI_SAMPLE_CYCLE 0
+#else
+#define PS2UI_SAMPLE_CYCLE 1
+#endif
+
 int main(void)
 {
     GSGLOBAL *gs;
@@ -73,7 +88,7 @@ int main(void)
          * one: hold, then move right (wrapping via down) through the
          * graph; when movement dead-ends, jump back to the initial. */
         frame++;
-        if (frame % FRAMES_PER_STATE == 0) {
+        if (PS2UI_SAMPLE_CYCLE && frame % FRAMES_PER_STATE == 0) {
             if (!ps2ui_move(&ui, PS2UI_RIGHT) && !ps2ui_move(&ui, PS2UI_DOWN))
                 ui.focus = ui.hdr->initial_focus;
         }
