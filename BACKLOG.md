@@ -62,10 +62,25 @@ and `--display-aspect W:H` set the aspect, the IR and the `.uib` header
 (format v4) carry it, and `--preview-display` writes the PNG resampled
 to what the television draws. A new `aspect-distortion` lint warns when
 rounded corners or images will visibly stretch, and `probe-aspect` puts
-two boxes on the conformance screen so the panel itself reports which
-aspect it is applying. Finding along the way: 640x448 is not
-square-pixel even at 4:3 (PAR 0.9333), so every 1:1 preview this
-project has ever produced was 7% wrong, and 24% wrong at 16:9.
+three boxes on the conformance screen, pre-squashed for 1:1, 4:3 and
+16:9, so whichever reads square names the aspect the panel is applying.
+`examples/channel6/build.sh` bakes the same UI at both aspects, which
+makes the two-way panel test in bring-up step 10 two files rather than
+a procedure. Finding along the way: 640x448 is not square-pixel even at
+4:3 (PAR 0.9333), so every 1:1 preview this project has ever produced
+was 7% wrong, and 24% wrong at 16:9.
+
+Two defects fell out of testing it. ✅ **B14** the contrast lint
+composited text against the nearest containing rect's raw RGB and
+discarded that rect's alpha, so a translucent scrim linted identically
+to an opaque background — structurally blind to the one class of
+problem an overlay has. It now composites the whole containing chain in
+paint order, and where light still gets through it brackets the unknown
+host frame between black and white and reports the worse end. That
+immediately caught the channel-6 `CH 6` badge at 2.93:1 over a bright
+frame. ✅ **B15** the probe screen overflowed a 448-line frame when the
+aspect cell made a seventh grid cell; the footer and the FLEX cell were
+off-screen and four overscan warnings had been saying so.
 
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
@@ -99,6 +114,8 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | B11 | ✅ **`ps2ui_slot_set` split UTF-8 sequences.** Truncation was a byte-wise `strncpy` at the slot capacity, so an accented or CJK title cut mid-character left a partial sequence the pen decoded as U+FFFD and drew as `?`. Fixed by trimming back to the last complete sequence. | 5 | 2 | 1.0 | 0.25 | **40** |
 | B13 | ✅ **Charset lint fired on PlayStation face buttons.** The rule warned on every codepoint above U+24FF, which includes ○ (U+25CB) and △ (U+25B3). Every PS2 footer carries those hints, so the lint trained authors to ignore it. Now whitelists punctuation, arrows, math operators, geometric shapes and dingbats, all single glyphs with no line-breaking rules of their own. | 7 | 0.5 | 1.0 | 0.1 | **35** |
 | B12 | ✅ **A slot could not be blanked.** `""` reverted to the baked placeholder because the check was `slot_text[i][0] != '\0'`, so an app with no data for a row could not empty it. `NULL` already meant revert, so `""` now means blank. | 4 | 1 | 1.0 | 0.25 | **16** |
+| B14 | ✅ **Contrast lint discarded background alpha.** It read the nearest containing rect's raw RGB, so a 60%-opaque scrim scored the same as an opaque fill. A `.uib` is replayed over whatever the host app drew, so this is exactly backwards: the translucent case is the one where contrast is at risk and the one the rule could not see. Now composites the full containing chain in paint order and, when the chain still transmits, evaluates against black and white backdrops and reports the worse. | 6 | 2 | 1.0 | 0.25 | **48** |
+| B15 | ✅ **Probe screen overflowed the canvas.** A seventh 178px cell in a wrapping grid sized for six pushed a third row past y=448, putting the FLEX cell and the whole footer off-screen. The linter emitted four overscan warnings that went unread; the example is meant to be warning-free so that a warning means something. Cells are 135px, wrapping 4 + 3. | 3 | 1 | 1.0 | 0.1 | **30** |
 
 \* numbered to match the working notes; ordering below is by score.
 

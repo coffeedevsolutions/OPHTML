@@ -202,6 +202,7 @@ Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)
 - [ ] npm / PyPI releases
+- [x] Widescreen and per-mode pixel aspect (`.uib` v4)
 - [x] Dynamic text slots, multi-screen blobs, images with palettization (0.2.0)
 
 ## License
