@@ -62,6 +62,25 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | F5 | **Precompiled GIF/DMA chains.** The roadmap's performance endgame: bake per-state GIF packets so a frame is a DMA kick instead of per-quad gsKit calls. Near-zero CPU per frame, but the biggest hardware-knowledge item in the backlog and pointless to attempt before F1 exists to validate it. | 7 | 2 | 0.5 | 6 | **1.2** |
 | F16 | **Non-Latin text.** CJK/greedy-break rules, font fallback chains, larger atlases (PSMT8 CLUT pressure). Real for localization, small audience today, large effort. Pair with F17 when demand appears. | 2 | 2 | 0.5 | 4 | **0.5** |
 
+## Security & abuse (added 2026-08-17 after CI review)
+
+Context: the repo is public, so GitHub-hosted Actions minutes are free and
+un-billable — "bombing the Actions count" is not a cost risk. Fork pushes burn
+the fork owner's quota, and first-time-contributor PRs require maintainer
+approval before workflows run (keep that default setting on). The real vectors
+are queue-congestion noise, CI supply chain, and parsing untrusted inputs.
+
+| ID | Item | R | I | C | E | Score |
+|----|------|---|---|---|---|-------|
+| S1 | **CI hardening.** Explicit `permissions: contents: read` on every workflow (default token is broader), `concurrency` groups so rapid pushes cancel superseded runs instead of queuing, artifact `retention-days` trimmed from 90, and narrowed `push` triggers (`main` + working branches) so branch pushes and their PRs don't double-run. Never attach a self-hosted runner to this public repo. | 3 | 1 | 1.0 | 0.1 | **30** |
+| S4 | **CI supply chain.** Pin third-party actions to commit SHAs (tags are mutable), add Dependabot for actions updates, pin + checksum the Play! AppImage download in `hw.yml` (currently `latest`, a moving target executed in CI), and add SECURITY.md with a reporting contact. SHA pinning needs upstream SHA lookups — done at next maintainer touch. | 3 | 1 | 1.0 | 0.25 | **12** |
+| S2 | **Fuzz the .uib loader.** `ps2ui_load` bounds-checks every table, but users will share blobs and themes; a libFuzzer/AFL harness over `ps2ui_load` + a stubbed `ps2ui_render` walk (plus a Python fuzz pass over `read_uib`) turns "carefully reviewed" into "mechanically hammered". Wire into CI as a short smoke pass, longer runs nightly. | 4 | 2 | 0.8 | 1 | **6.4** |
+| S3 | **Resource-exhaustion limits in the compilers.** Untrusted HTML/CSS/IR (third-party themes) can request a 30000px canvas, 10k-deep nesting, or atlases that swallow gigabytes at bake time. Add hard caps with clear errors: canvas dimensions, node count, tree depth, per-bake texture bytes (the VRAM budget already bounds the output side). | 3 | 1 | 0.8 | 0.5 | **4.8** |
+
+S1 ships immediately (this commit). If the repo ever goes **private**, minutes
+become metered: narrow triggers further, confirm the Actions spending limit is
+$0 (the default), and re-read this section.
+
 ## Priority order (pure RICE)
 
 | Rank | Item | Score |
@@ -77,6 +96,9 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | 9 | F14 integrity/flags | 4 |
 | 10 | F4 multi-screen · F12 packaging · F9 kerning | ~3 |
 | — | everything else | <2.5 |
+
+Security items interleave as: S1 (30) after B1; S4 (12) with rank 3; S2 (6.4)
+with rank 7; S3 (4.8) between ranks 9 and 10.
 
 ## Sequenced plan (RICE + dependencies)
 

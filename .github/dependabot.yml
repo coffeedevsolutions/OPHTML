@@ -1,0 +1,13 @@
+# Keep GitHub Actions references current (S4). Code dependencies are
+# nearly nonexistent by design (layout: zero deps; baker: Pillow only),
+# so pip is included mostly for Pillow security releases.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: pip
+    directory: /packages/baker
+    schedule:
+      interval: monthly

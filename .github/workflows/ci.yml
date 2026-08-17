@@ -2,8 +2,19 @@ name: ci
 
 on:
   push:
-    branches: ["**"]
+    # Narrowed from "**" (S1): PR branches are covered by the
+    # pull_request trigger; running both doubled every run.
+    branches: [main, "claude/**"]
   pull_request:
+
+# The workflows only read the repo; never grant the default write token.
+permissions:
+  contents: read
+
+# Rapid push series cancel superseded runs instead of queuing them all.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   toolchain:
@@ -39,6 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: memcard-previews
+          retention-days: 14
           path: |
             examples/memcard/build/preview.png
             examples/memcard/build/states.png

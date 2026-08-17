@@ -17,8 +17,15 @@ name: hw
 
 on:
   push:
-    branches: ["**"]
+    branches: [main, "claude/**"]
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hw-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   bake:
@@ -42,6 +49,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: baked
+          retention-days: 14
           path: |
             examples/memcard/build/ui.uib
             examples/memcard/build/preview.png
@@ -65,6 +73,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ps2ui-sample-elf
+          retention-days: 14
           path: runtime/sample/ps2ui_sample.elf
 
   emulator:
@@ -107,6 +116,7 @@ jobs:
         if: always()
         with:
           name: emulator-frames
+          retention-days: 14
           path: |
             captured.png
             framediff.png
