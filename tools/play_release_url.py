@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Pick the Linux AppImage out of a GitHub release payload.
 
-    curl -sSfL https://api.github.com/repos/jpd002/Play-/releases/latest \
+    curl -sSfL https://api.github.com/repos/jpd002/Play-/releases \
         | python3 tools/play_release_url.py
 
-Prints one download URL on stdout, or exits non-zero with the asset
-names it did see.
+Accepts either a single release object or the list endpoint's array,
+and prints one download URL on stdout. Exits non-zero, naming what it
+did see, when there is no AppImage to pick.
+
+Use the *list* endpoint. `/releases/latest` excludes prereleases and
+draft releases, and a project publishing only rolling prerelease builds
+(which Play! does) has no "latest" at all, so that endpoint 404s and no
+amount of getting the asset name right helps.
 
 Why this exists: `hw.yml` used to fetch a hardcoded
 `releases/latest/download/Play_x86_64.AppImage`. That path 404s, and
@@ -31,13 +37,34 @@ import sys
 PREFERRED = ("x86_64", "amd64")
 
 
-def pick(release: dict) -> str:
-    """Return the best AppImage download URL in `release`.
+def pick(payload) -> str:
+    """Return the best AppImage download URL in `payload`.
 
-    Raises LookupError naming every asset when there is no candidate,
-    because "no AppImage" and "renamed AppImage" need different fixes
-    and the log should say which one happened.
+    `payload` is a release object or a list of them, newest first, as
+    the two GitHub endpoints return. Drafts are skipped (their assets
+    are not publicly downloadable); prereleases are not, because rolling
+    prerelease builds are the only kind some projects publish.
+
+    Raises LookupError naming what it saw when there is no candidate,
+    because "no AppImage in any release" and "the AppImage was renamed"
+    need different fixes and the log should say which happened.
     """
+    releases = payload if isinstance(payload, list) else [payload]
+    published = [r for r in releases if not r.get("draft")]
+    for release in published:
+        try:
+            return _pick_one(release)
+        except LookupError:
+            continue
+    seen = ", ".join(
+        f"{r.get('tag_name', '?')}["
+        + ", ".join(a.get("name", "?") for a in (r.get("assets") or [])) + "]"
+        for r in published[:3]
+    ) or "(no published releases)"
+    raise LookupError(f"no .AppImage in any published release; saw: {seen}")
+
+
+def _pick_one(release: dict) -> str:
     assets = release.get("assets") or []
     appimages = [a for a in assets if a.get("name", "").endswith(".AppImage")]
     if not appimages:
@@ -98,26 +125,50 @@ def self_test() -> int:
         failures += not ok
         print(f"  {'ok  ' if ok else 'FAIL'} {label}")
 
+    # The list endpoint is what the workflow actually uses, and rolling
+    # prerelease builds are the case that broke /releases/latest.
+    listed = [
+        {"tag_name": "draft", "draft": True,
+         "assets": [{"name": "Play_x86_64.AppImage",
+                     "browser_download_url": "wrong"}]},
+        {"tag_name": "continuous", "prerelease": True,
+         "assets": [{"name": "Play_x86_64.AppImage",
+                     "browser_download_url": url}]},
+    ]
+    got = pick(listed)
+    ok = got == url
+    failures += not ok
+    print(f"  {'ok  ' if ok else 'FAIL'} takes a prerelease and skips a draft")
+
+    # Newest first, and the newest release may ship no Linux build; fall
+    # through rather than give up.
+    got = pick([
+        {"tag_name": "newest", "assets": [{"name": "Play.dmg"}]},
+        {"tag_name": "older",
+         "assets": [{"name": "Play.AppImage", "browser_download_url": url}]},
+    ])
+    ok = got == url
+    failures += not ok
+    print(f"  {'ok  ' if ok else 'FAIL'} falls through a release with no AppImage")
+
     # The whole point is a loud failure rather than a saved error page.
-    for label, release in [
-        ("no assets at all", {"tag_name": "v4", "assets": []}),
-        (
-            "assets but no AppImage",
-            {"tag_name": "v5", "assets": [{"name": "Play.dmg"}]},
-        ),
+    for label, payload, want in [
+        ("no assets at all", {"tag_name": "v4", "assets": []}, "v4"),
+        ("assets but no AppImage",
+         {"tag_name": "v5", "assets": [{"name": "Play.dmg"}]}, "Play.dmg"),
+        ("an empty list", [], "no published releases"),
+        ("only drafts",
+         [{"tag_name": "d", "draft": True,
+           "assets": [{"name": "Play.AppImage"}]}], "no published releases"),
     ]:
         try:
-            pick(release)
+            pick(payload)
         except LookupError as exc:
-            ok = "assets were" in str(exc)
+            ok = want in str(exc)
         else:
             ok = False
         failures += not ok
-        print(f"  {'ok  ' if ok else 'FAIL'} raises with the asset list: {label}")
-
-    print(f"play_release_url self-test: {'PASS' if not failures else f'{failures} FAILURE(S)'}")
-    return 1 if failures else 0
-
+        print(f"  {'ok  ' if ok else 'FAIL'} raises, naming what it saw: {label}")
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="play_release_url")
@@ -127,16 +178,17 @@ def main(argv=None) -> int:
         return self_test()
 
     try:
-        release = json.load(sys.stdin)
+        payload = json.load(sys.stdin)
     except json.JSONDecodeError as exc:
         print(f"release payload is not JSON: {exc}", file=sys.stderr)
         return 2
-    if not isinstance(release, dict):
-        print(f"expected a release object, got {type(release).__name__}", file=sys.stderr)
+    if not isinstance(payload, (dict, list)):
+        print(f"expected a release object or a list of them, got "
+              f"{type(payload).__name__}", file=sys.stderr)
         return 2
 
     try:
-        print(pick(release))
+        print(pick(payload))
     except LookupError as exc:
         print(str(exc), file=sys.stderr)
         return 1
