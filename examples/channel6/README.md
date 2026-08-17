@@ -1,5 +1,7 @@
 # channel6 — a game browser that lives on a PSxMemCard GEN2 channel
 
+The `probe` screen is this repository's conformance target for console bring-up: [docs/bringup.md](../../docs/bringup.md) maps each of its cells to the step that fails when the cell looks wrong.
+
 A two-screen `.uib` for the channel you keep your homebrew on. It exists
 to answer one question — *does this toolchain's HTML actually come out
 the other end looking like the previewer said it would?* — and to keep

@@ -6,10 +6,34 @@ ordered procedure for the first run on a console or emulator. Work the
 steps in order — each one isolates a single subsystem, and later steps
 are meaningless while an earlier one fails.
 
-Reference material: `runtime/sample/` (the standalone ELF used by CI),
-`tools/make_testcard.py` (the alignment test card), and the previewer
-PNGs from `examples/memcard/build.sh`, which are the ground truth every
-step compares against.
+Reference material, in the order you will reach for it:
+
+- `examples/channel6/` — the **conformance target**. Its `probe` screen
+  puts one labelled cell per feature on a single frame, so most steps
+  below reduce to "look at cell X and compare it to the previewer PNG".
+  Build it with `./examples/channel6/build.sh`; the per-screen previews
+  land in `examples/channel6/build/`.
+- `runtime/sample/` — the standalone ELF, which embeds whatever blob you
+  point `UIB=` at.
+- `tools/make_testcard.py` — the texel-alignment card, a narrower
+  instrument for step 6 alone.
+- The previewer PNGs are ground truth throughout. They replay the same
+  baked blob the console does.
+
+### Probe cells to bring-up steps
+
+| probe cell | proves | step that fails without it |
+|------------|--------|----------------------------|
+| `probe-alpha`  | alpha ladder, GS 0-128 domain     | 2 |
+| `probe-radius` | nine-patch corners, slice seams   | 6 |
+| `probe-type`   | glyph atlas, CLUT, tinting        | 3, 4, 5 |
+| `probe-clip`   | ellipsis and scissor clipping     | 7 |
+| `probe-image`  | the same PNG as PSMCT32 and PSMT8 + CLUT, side by side | 3, 5 |
+| `probe-flex`   | grow/basis and text alignment     | geometry sanity |
+
+A cell that matches the previewer PNG clears its steps. A cell that
+differs tells you which step to work, which is the whole reason the
+screen exists.
 
 **Emulators.** [Play!](https://purei.org/) needs no BIOS (HLE) and is
 what CI uses; PCSX2 is more accurate but requires your own BIOS dump,
