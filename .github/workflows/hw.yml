@@ -70,7 +70,11 @@ jobs:
       - name: Build sample ELF with the PS2SDK toolchain
         run: |
           apk add --no-cache make
-          make -C runtime/sample
+          # STATIC=1: hold the baked initial focus. The emulator job
+          # screenshots at a wall-clock moment, so a build that cycles
+          # focus would be compared against whichever state happened to
+          # be up, which is not a test.
+          make -C runtime/sample STATIC=1
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
