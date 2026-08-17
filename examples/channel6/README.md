@@ -2,10 +2,17 @@
 
 The `probe` screen is this repository's conformance target for console bring-up: [docs/bringup.md](../../docs/bringup.md) maps each of its cells to the step that fails when the cell looks wrong.
 
-A two-screen `.uib` for the channel you keep your homebrew on. It exists
-to answer one question — *does this toolchain's HTML actually come out
-the other end looking like the previewer said it would?* — and to keep
+A two-screen `.uib` for the channel you keep your homebrew on, and the
+starting point this repository recommends for a new UI. It exists to
+answer one question — *does this toolchain's HTML actually come out the
+other end looking like the previewer said it would?* — and to keep
 answering it as the toolchain changes.
+
+Copy the directory, keep `build.sh` and `check.py`, replace the markup.
+The parts worth keeping are the shape of the build (layout → bake →
+per-screen previews → assert the blob), the budget discipline the
+stylesheet is built around, and the probe screen, which stays useful
+long after your own screens have replaced the browser.
 
 | screen | file | what it is |
 |--------|------|------------|
@@ -16,8 +23,24 @@ Both compile against one stylesheet, [ui/channel6.css](ui/channel6.css),
 and bake into one blob that shares its textures, atlases and font tables
 across the two screens.
 
+It is an **overlay**, so that is how it should be judged. The blob has no
+background of its own beyond a translucent scrim, and `ps2ui_render()`
+draws straight into the framebuffer — skip the `gsKit_clear()` the sample
+ELF does, and the game underneath stays visible:
+
+![the browser composited over a game frame](screenshots/in-game.png)
+
+Over flat navy, which is the ground truth every bring-up step compares
+against:
+
 ![games screen](screenshots/games.png)
 ![probe screen](screenshots/probe.png)
+
+The game frame is drawn from flat shapes by
+[preview_in_game.py](preview_in_game.py), not captured — shipping a real
+game's pixels into a repository is a licensing problem, and a synthetic
+frame is the better test anyway because you can put the bright band
+exactly where the UI is darkest.
 
 ## What the device actually does, and what it doesn't
 
@@ -63,19 +86,26 @@ Writes into `examples/channel6/build/`:
 | `ui.uib` | the console blob — both screens, 22 textures, 43% of the default VRAM budget |
 | `preview.png` / `states.png` | the games screen, and every one of its 9 focus states on one sheet |
 | `probe.png` / `probe-states.png` | the same pair for the probe screen |
+| `in-game.png` | the browser composited over a synthetic game frame |
 | `games.json` / `probe.json` | the IR, if you need to look at what layout decided |
 
 Then it runs [check.py](check.py), which re-reads the blob and asserts
 its contract in TAP — 24 checks; a red one names what broke.
 
-Three `charset` warnings are expected and deliberate — they are the ×, ○
-and △ face-button glyphs in the footer hints, which is exactly the
-codepoint range the linter is unsure about. Any *other* warning is news.
+The build is expected to be **silent**. Earlier revisions emitted three
+`charset` warnings for the ×, ○ and △ face-button glyphs in the footer
+hints; B13 whitelisted those ranges and gave them real metrics, so any
+warning at all is now news.
 
-### The budget the compiler does not enforce
+### The runtime's table caps
 
 `ps2ui.h` sizes the runtime context statically, and `ps2ui_load()`
-rejects anything past those bounds with `PS2UI_ERR_TOO_MANY`:
+rejects anything past those bounds with `PS2UI_ERR_TOO_MANY`. Every bake
+prints where you stand:
+
+```
+runtime tables: 22/32 textures, 15/16 slots, 2/8 screens
+```
 
 | cap | value | this blob |
 |-----|-------|-----------|
@@ -84,19 +114,18 @@ rejects anything past those bounds with `PS2UI_ERR_TOO_MANY`:
 | `PS2UI_MAX_SCREENS` | 8 | 2 |
 | `PS2UI_SLOT_BUFSZ` | 96 | 30 max |
 
-Nothing upstream checks these. The baker enforces a *VRAM* budget, which
-is a different limit — a blob can sit at 43% of VRAM and still be
-unloadable because it declared a seventeenth slot. On hardware that is a
-red screen with no explanation, so `check.py` asserts all four, reading
-the numbers out of `ps2ui.h` rather than copying them.
+Writing this example is what surfaced the gap: an earlier revision
+declared **seventeen** slots, and it laid out, baked, previewed and
+passed every check while `ps2ui_load()` would have rejected it — the
+sample ELF's red screen with nothing to explain it. The VRAM budget did
+not catch it because that is a different limit; the blob sat at 43% of
+VRAM and was still unloadable. Since B10 the baker parses the caps out
+of `ps2ui.h` and refuses to write the file, naming the count and where
+to raise it. `check.py` still asserts all four from the far side of the
+format, which is cheap and independent.
 
-The counts are why the stylesheet looks the way it does. Every distinct
-rounded-box *style* bakes one nine-patch texture and every distinct
-(size, weight) pair bakes one glyph atlas, so the sheet deliberately
-reuses one panel style, one focus style and five atlases across both
-screens. Six covers cost six more textures; the alpha ladder and the
-flex bars are square on purpose, because rounding them would have cost
-seven textures to prove something the RADIUS cell already proves.
+The counts are why the stylesheet looks the way it does — see the
+[design notes](#deliberate-choices-worth-keeping) below.
 
 ## Getting it onto channel 6
 
@@ -136,6 +165,24 @@ ps2ui_load(&ui, ui_uib, size_ui_uib);
 ps2ui_upload(&ui, gs);
 ps2ui_screen_set(&ui, "probe");   /* or "games" */
 ```
+
+### Drawing it as an overlay
+
+The sample ELF clears every frame, which is what you want while you are
+proving the GS path. To get `in-game.png` instead, draw your scene and
+then call `ps2ui_render()` without clearing in between:
+
+```c
+render_my_game(gs);           /* whatever is underneath */
+if (ui_visible)
+    ps2ui_render(&ui, gs);    /* composites over it, no clear */
+gsKit_queue_exec(gs);
+gsKit_sync_flip(gs);
+```
+
+`ps2ui_render()` never clears and never touches the Z buffer, so the two
+compose in paint order. Toggle `ui_visible` on your menu button and the
+overlay costs nothing on the frames it is hidden.
 
 ## Reading the probe screen
 
@@ -193,11 +240,27 @@ costs five `strncpy`s per D-pad press.
 
 ## Deliberate choices worth keeping
 
-- **The root is a translucent scrim** (`#060a14e6`), not an opaque fill.
-  The blob is meant to be replayed over whatever the host app already
-  drew, so the alpha path is under test from the first quad. The
-  previewer composites it over the same dark navy the sample ELF clears
-  to, which is why the PNGs and a console frame should match.
+- **The root is a translucent scrim** (`#060a1499`, 60%), not an opaque
+  fill. The blob is meant to be replayed over whatever the host app
+  already drew, so the alpha path is under test from the first quad. 60%
+  is a judgement call you should expect to retune: heavier and the game
+  disappears, lighter and the text on the scrim starts to struggle over
+  bright content. The rule that survives retuning is **the scrim sets
+  the mood, panels guarantee legibility** — every string here sits on an
+  opaque panel except the footer, which is why the footer grew a backing
+  bar of its own (square, so it costs no nine-patch texture).
+- **One panel style, one focus style, five glyph atlases.** Every
+  distinct rounded-box style bakes a nine-patch texture and every
+  distinct (size, weight) pair bakes an atlas, so tiles, the detail
+  column, the action buttons and the probe cells all share one look on
+  purpose. Six covers cost six textures; the alpha ladder and flex bars
+  are square because rounding them would have cost seven more to prove
+  what the RADIUS cell already proves. That is what keeps 22/32.
+- **The CRT contrast lint cannot see this.** It composites text against
+  the nearest rect's raw RGB and ignores that rect's alpha, so a scrim
+  at 60% lints identically to one at 100%. Over a bright game frame the
+  real contrast is worse than the linter believes. Judge the overlay
+  from `in-game.png`, not from the lint being quiet.
 - **The browser does not wrap, the probe screen does.** One
   `--focus-wrap` flag, both of its behaviours, checked in `check.py`.
   Walking off the cover grid dead-ends on purpose: a stuck D-pad should

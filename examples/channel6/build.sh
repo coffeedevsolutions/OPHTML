@@ -43,6 +43,11 @@ print(f"ps2ui-bake: preview -> {out}/probe.png", file=sys.stderr)
 print(f"ps2ui-bake: montage -> {out}/probe-states.png", file=sys.stderr)
 PY
 
+# The overlay in situ: the same blob composited over a game frame,
+# which is what it looks like when the host app skips its clear.
+PYTHONPATH="$repo/packages/baker" python3 "$here/preview_in_game.py" \
+    "$out/ui.uib" "$out/in-game.png"
+
 PYTHONPATH="$repo/packages/baker" python3 "$here/check.py" "$out/ui.uib"
 
 echo "channel6 browser: $out/ui.uib"
