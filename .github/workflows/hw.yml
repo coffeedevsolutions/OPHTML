@@ -81,6 +81,10 @@ jobs:
     needs: [bake, elf]
     runs-on: ubuntu-latest
     continue-on-error: true # experimental until the first proven run
+    # An emulator that comes up but never draws would otherwise sit on a
+    # runner until the 6-hour default. Everything here is bounded work:
+    # install, download, boot, one screenshot.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -95,7 +99,13 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y xvfb imagemagick libgl1 fuse
+          # libgl1 alone is not enough: Play! links libOpenGL.so.0 and
+          # libEGL, which on Ubuntu live in libopengl0 and libegl1. A
+          # hosted runner has no GPU, so mesa's software rasteriser is
+          # what actually serves GL here.
+          sudo apt-get install -y \
+            xvfb imagemagick fuse \
+            libgl1 libopengl0 libegl1 libglx0 libgl1-mesa-dri
           python3 -m pip install Pillow
 
           # Play! is distributed from purei.org, not from GitHub releases
@@ -123,6 +133,11 @@ jobs:
           ./Play.AppImage --appimage-extract >/dev/null
           test -x squashfs-root/AppRun
       - name: Boot ELF headless and capture a frame
+        env:
+          # No GPU on a hosted runner, so force the software path rather
+          # than let Play! fail probing for one.
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
         run: |
           xvfb-run -s "-screen 0 1280x960x24" sh -c '
             ./squashfs-root/AppRun --disc "" elf/ps2ui_sample.elf >play.log 2>&1 &
@@ -137,7 +152,11 @@ jobs:
               exit 1
             fi
             import -window root captured.png
-            kill $PLAY_PID || true
+            kill $PLAY_PID 2>/dev/null || true
+            # TERM is a request. Give it a moment, then insist, so a
+            # wedged emulator cannot hold the step open.
+            sleep 2
+            kill -9 $PLAY_PID 2>/dev/null || true
           '
       - name: Diff against previewer ground truth
         run: |
