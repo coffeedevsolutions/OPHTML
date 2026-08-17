@@ -8,8 +8,10 @@
 EE_BIN  = ps2ui_sample.elf
 EE_OBJS = main.o ps2ui.o ui_uib.o
 EE_LIBS = -lgskit -ldmakit
-EE_CFLAGS += -std=c99 -Wall -Werror -I$(PS2SDK)/ports/include
-EE_LDFLAGS += -L$(PS2SDK)/ports/lib
+# gsKit installs under $PS2DEV/gsKit in the ps2dev toolchain image,
+# not inside $PS2SDK/ports.
+EE_CFLAGS += -std=c99 -Wall -Werror -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ports/include
+EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib
 

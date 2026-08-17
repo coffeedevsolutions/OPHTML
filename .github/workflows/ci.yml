@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install baker deps
         run: |
@@ -34,7 +34,9 @@ jobs:
 
       - name: Layout tests
         working-directory: packages/layout
-        run: node --test 'test/*.test.js'
+        # Unquoted so the shell expands the glob — Node itself only
+        # learned to glob --test arguments after Node 20.
+        run: node --test test/*.test.js
 
       - name: Baker tests
         working-directory: packages/baker
