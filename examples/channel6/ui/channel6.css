@@ -345,3 +345,14 @@ h1 {
 .bar-1 { flex-grow: 1; }
 .bar-2 { flex-grow: 2; background: #4f8fd0; }
 .bar-3 { flex-grow: 3; background: #a67fd0; }
+
+
+/* ---- aspect probe (widescreen) ----
+ * Two boxes: one authored square in pixels, one pre-squashed for the
+ * 4:3 pixel aspect (PAR 0.9333, so 40 / 0.9333 = 43px wide reads square
+ * on a 4:3 panel). Whichever looks square tells you which aspect the
+ * television is actually applying, which no amount of previewing can. */
+.aspect-row { flex-direction: row; gap: 10px; align-items: center; }
+.aspect-square { width: 40px; height: 40px; background: #e8b64c; }
+.aspect-tall   { width: 43px; height: 40px; background: #5b9bd8; }
+.cell-note { font-size: 11px; color: #8b94a7; }

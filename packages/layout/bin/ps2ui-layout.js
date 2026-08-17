@@ -5,26 +5,22 @@
 
 import { writeFileSync } from 'node:fs';
 import { compileFiles } from '../src/index.js';
+import { MODES, parseAspect } from '../src/aspect.js';
+
 
 function usage(code) {
   console.error('usage: ps2ui-layout <page.html> <page.css> -o <ui.json> '
-    + '[--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] [--focus-wrap] [--strict]');
+    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--focus-wrap] [--strict]');
   process.exit(code);
 }
 
-// Video-mode presets: canvas size drives layout AND the CRT linter's
-// safe-area math (5% of canvas). The runtime side of PAL is your
-// gsKit init (GS_MODE_PAL) — the blob itself is mode-agnostic.
-const MODES = {
-  ntsc: { w: 640, h: 448 },
-  pal: { w: 640, h: 512 },
-};
 
 const args = process.argv.slice(2);
 const positional = [];
 let out = null;
 let canvas = null;
 let mode = null;
+let aspectArg = null;
 let fontDir;
 let strict = false;
 let focusWrap = false;
@@ -34,6 +30,7 @@ for (let i = 0; i < args.length; i++) {
     case '-o': out = args[++i]; break;
     case '--canvas': canvas = args[++i]; break;
     case '--mode': mode = args[++i]; break;
+    case '--display-aspect': aspectArg = args[++i]; break;
     case '--font-dir': fontDir = args[++i]; break;
     case '--focus-wrap': focusWrap = true; break;
     case '--strict': strict = true; break;
@@ -48,7 +45,9 @@ if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;
   options.canvasH = MODES[mode].h;
+  options.displayAspect = MODES[mode].aspect;
 }
+if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode
 if (canvas) { // explicit --canvas beats --mode
   const m = /^(\d+)x(\d+)$/.exec(canvas);
   if (!m) usage(2);

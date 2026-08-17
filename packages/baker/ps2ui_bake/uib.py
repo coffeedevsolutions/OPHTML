@@ -1,9 +1,9 @@
-""".uib writer and reader (format version 3).
+""".uib writer and reader (format version 4).
 
 Little-endian throughout (the EE is little-endian; so is every host we
 care about). Full layout in docs/format-uib.md; summary:
 
-    header       72 bytes, magic "UIB1", crc32, feature flags
+    header       76 bytes, magic "UIB1", crc32, feature flags, display aspect
     tex table    n_tex    x 16 bytes
     clut table   n_clut   x  8 bytes
     cmd list     n_cmd    x 32 bytes
@@ -37,12 +37,12 @@ from .quads import (
 )
 
 MAGIC = 0x31424955  # "UIB1"
-VERSION = 3
+VERSION = 4
 
 FEAT_DYNAMIC_TEXT = 1 << 0
 FEAT_KNOWN = FEAT_DYNAMIC_TEXT
 
-_HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHI")  # 72 bytes
+_HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHIHH")  # 76 bytes
 _TEX = struct.Struct("<BBHHHII")               # 16 bytes
 _CLUT = struct.Struct("<HHI")                  # 8 bytes
 _CMD = struct.Struct("<BBHhhHHBBBBHHHHH6x")    # 32 bytes
@@ -55,7 +55,7 @@ _SCREEN = struct.Struct("<IIIHHHHH2x")        # 24 bytes
 _CRC_OFFSET = 48
 _GLYF = struct.Struct("<IHHHHhhH2x")           # 20 bytes, in blob
 
-assert _HEADER.size == 72 and _TEX.size == 16 and _CLUT.size == 8
+assert _HEADER.size == 76 and _TEX.size == 16 and _CLUT.size == 8
 assert _SCREEN.size == 24
 assert _CMD.size == 32 and _FOCUS.size == 24
 assert _FONT.size == 16 and _SLOT.size == 32 and _GLYF.size == 20
@@ -67,9 +67,13 @@ def _align16(buf: bytearray):
 
 
 def write_uib(path, canvas, records, textures, cluts, focus_nodes,
-              initial_focus, fonts=(), slots=(), screens=None):
+              initial_focus, fonts=(), slots=(), screens=None,
+              display_aspect=(4, 3)):
     """focus_nodes: IR focus graph nodes (document order == table order).
     initial_focus: focus-table index or None.
+    display_aspect: (num, den) the panel shows the framebuffer at. The
+    framebuffer is not square-pixel on this hardware even at 4:3, so
+    this travels with the blob for the previewer and the video setup.
     screens: [{name, cmd_first, cmd_count, focus_first, focus_count,
                slot_first, slot_count, initial (global focus index or
                None)}] — omitted means one screen named "main" covering
@@ -189,6 +193,7 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         0,  # crc32, patched below
         len(font_entries), len(slot_entries), off_font, off_slot,
         len(screen_entries), 0, off_screen,
+        int(display_aspect[0]), int(display_aspect[1]),
     )
     for e in tex_entries:
         out += _TEX.pack(*e)
@@ -230,6 +235,7 @@ class UibFile:
     fonts: list = field(default_factory=list)   # dicts incl. glyphs by codepoint
     slots: list = field(default_factory=list)
     screens: list = field(default_factory=list)
+    display_aspect: tuple = (4, 3)
 
 
 def read_uib(path) -> UibFile:
@@ -240,6 +246,7 @@ def read_uib(path) -> UibFile:
     (magic, version, feature_flags, cw, ch, n_tex, n_clut, n_cmd, n_focus,
      initial, off_tex, off_clut, off_cmd, off_focus, off_blob, blob_len,
      crc, n_font, n_slot, off_font, off_slot, n_screen, _pad, off_screen,
+     dar_num, dar_den,
      ) = _HEADER.unpack_from(data, 0)
     if magic != MAGIC:
         raise ValueError(f"{path}: not a .uib (magic {magic:#x})")
@@ -261,6 +268,7 @@ def read_uib(path) -> UibFile:
         return blob[off:end].decode("utf-8")
 
     out = UibFile(cw, ch, initial, feature_flags)
+    out.display_aspect = (dar_num, dar_den)
     for i in range(n_tex):
         fmt, _pad, w, h, clut, doff, dlen = _TEX.unpack_from(data, off_tex + i * _TEX.size)
         out.textures.append(BakedTexture(

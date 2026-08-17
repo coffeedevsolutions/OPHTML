@@ -68,6 +68,28 @@ def _tint(img: Image.Image, rgba_gs) -> Image.Image:
     return Image.merge("RGBA", (ir_, ig, ib, ia))
 
 
+def display_size(uib: UibFile):
+    """Frame size as the panel shows it. Anamorphic stretching is
+    horizontal, so height is authoritative and the width comes from the
+    ratio directly rather than from a PAR float."""
+    num, den = uib.display_aspect
+    return (round(uib.canvas_h * num / den), uib.canvas_h)
+
+
+def to_display_space(img: Image.Image, uib: UibFile) -> Image.Image:
+    """Resample a framebuffer-space render to what the television draws.
+
+    The GS framebuffer is not square-pixel on this hardware, not even at
+    4:3 (640x448 shown as 4:3 is PAR 0.9333), so a 1:1 PNG has always
+    been a slightly wrong picture of the console. At 16:9 it is wrong by
+    24%. Compare hardware photographs against this, and framebuffer
+    captures against the 1:1 render."""
+    target = display_size(uib)
+    if target == img.size:
+        return img
+    return img.resize(target, Image.LANCZOS)
+
+
 def _screen_index(uib: UibFile, screen) -> int:
     if isinstance(screen, str):
         for i, sc in enumerate(uib.screens):

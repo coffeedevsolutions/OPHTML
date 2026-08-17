@@ -41,7 +41,7 @@ GAMES_FOCUS = [
 ]
 PROBE_FOCUS = [
     "probe-alpha", "probe-radius", "probe-type",
-    "probe-clip", "probe-image", "probe-flex",
+    "probe-clip", "probe-image", "probe-aspect", "probe-flex",
 ]
 # name -> capacity, the buffer the runtime is allowed to write into.
 GAMES_SLOTS = {

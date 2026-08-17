@@ -114,7 +114,34 @@ The example ships two screens ([saves screen](examples/memcard/screenshots/saves
 - `--focus-wrap` adds wrap-around edges (right off a row's end lands on its start)
 - `ps2ui_focus_set(ctx, "name")` moves focus programmatically
 
-Targeting PAL? `--mode pal` sets the 640x512 canvas and adjusts the CRT linter's safe areas.
+## Widescreen and video modes
+
+`--mode ntsc|ntsc16x9|pal|pal16x9` sets the canvas and the aspect the
+panel shows it at. `--display-aspect 16:9` sets the aspect on its own.
+
+The framebuffer is a pixel grid; the television decides how wide it is
+drawn, and on this hardware they disagree even at 4:3:
+
+| mode | framebuffer | panel shows | pixel aspect |
+|------|-------------|-------------|--------------|
+| `ntsc` | 640x448 | 597x448 | 0.933 |
+| `ntsc16x9` | 640x448 | 796x448 | 1.244 |
+| `pal` | 640x512 | 683x512 | 1.067 |
+| `pal16x9` | 640x512 | 910x512 | 1.422 |
+
+PS2 widescreen is anamorphic, so a 16:9 UI uses the same 640x448 grid
+and every square in it comes out 24% wider on screen. Two consequences:
+
+- Bake with `--preview-display out.png` to get a PNG resampled to the
+  panel's aspect. Compare photographs of the television against that
+  one, and framebuffer captures against the 1:1 `--preview`.
+- The linter warns when rounded corners or images will visibly
+  distort, with the divisor to author against.
+
+The aspect travels in the `.uib` header, so the runtime can report it
+(`ps2ui_pixel_aspect_x1000`) and an app can assert its video setup
+matches. Targeting PAL alone? `--mode pal` also adjusts the CRT
+linter's safe areas.
 
 ## CRT linter
 

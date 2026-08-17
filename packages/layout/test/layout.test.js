@@ -376,6 +376,32 @@ test('lint: real non-Latin script still warns', () => {
   assert.match(ir.warnings.join('\n'), /charset/);
 });
 
+test('aspect: PAR derives from canvas and display ratio', () => {
+  // The GS framebuffer is not square-pixel even at 4:3.
+  const four = compile('<div class="p">x</div>', '.p { background: #202020 }',
+    { fonts, displayAspect: [4, 3] });
+  assert.equal(four.canvas.par, 0.9333);
+  assert.deepEqual(four.canvas.display, { w: 597, h: 448 });
+
+  const wide = compile('<div class="p">x</div>', '.p { background: #202020 }',
+    { fonts, displayAspect: [16, 9] });
+  assert.equal(wide.canvas.par, 1.2444);
+  assert.deepEqual(wide.canvas.display, { w: 796, h: 448 });
+
+  // PAL 640x512 is a different framebuffer shape, so a different PAR.
+  const pal = compile('<div class="p">x</div>', '.p { background: #202020 }',
+    { fonts, canvasW: 640, canvasH: 512, displayAspect: [16, 9] });
+  assert.equal(pal.canvas.par, 1.4222);
+});
+
+test('aspect: distortion lint fires at 16:9 and stays quiet at 4:3', () => {
+  const css = '.p { background: #202020; border-radius: 8px; width: 90px; height: 40px }';
+  const wide = compile('<div class="p">x</div>', css, { fonts, displayAspect: [16, 9] });
+  assert.match(wide.warnings.join('\n'), /aspect-distortion.*24% wider/);
+  const four = compile('<div class="p">x</div>', css, { fonts, displayAspect: [4, 3] });
+  assert.equal(four.warnings.filter((w) => w.startsWith('aspect-distortion')).length, 0);
+});
+
 // ------------------------------------------------------- integration
 
 test('integration: the memcard example compiles to the documented shape', () => {

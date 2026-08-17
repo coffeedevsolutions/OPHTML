@@ -56,6 +56,17 @@ conformance target: `docs/bringup.md` maps each probe cell to the step
 that fails when the cell looks wrong, so bring-up is a comparison
 against a previewer PNG rather than a judgement call.
 
+**Sprint 5 status (2026-08-17):** ✅ F25 widescreen. The framebuffer and
+the panel are now separate concepts: `--mode ntsc|ntsc16x9|pal|pal16x9`
+and `--display-aspect W:H` set the aspect, the IR and the `.uib` header
+(format v4) carry it, and `--preview-display` writes the PNG resampled
+to what the television draws. A new `aspect-distortion` lint warns when
+rounded corners or images will visibly stretch, and `probe-aspect` puts
+two boxes on the conformance screen so the panel itself reports which
+aspect it is applying. Finding along the way: 640x448 is not
+square-pixel even at 4:3 (PAR 0.9333), so every 1:1 preview this
+project has ever produced was 7% wrong, and 24% wrong at 16:9.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two

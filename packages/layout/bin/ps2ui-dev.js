@@ -24,12 +24,13 @@ function usage(code) {
   process.exit(code);
 }
 
-const MODES = { ntsc: { w: 640, h: 448 }, pal: { w: 640, h: 512 } };
+import { MODES, parseAspect } from '../src/aspect.js';
 
 const args = process.argv.slice(2);
 const positional = [];
 let outDir = null;
 let mode = null;
+let aspectArg = null;
 let canvas = null;
 let fontDir;
 let focusWrap = false;
@@ -41,6 +42,7 @@ for (let i = 0; i < args.length; i++) {
   switch (args[i]) {
     case '-o': outDir = args[++i]; break;
     case '--mode': mode = args[++i]; break;
+    case '--display-aspect': aspectArg = args[++i]; break;
     case '--canvas': canvas = args[++i]; break;
     case '--font-dir': fontDir = args[++i]; break;
     case '--focus-wrap': focusWrap = true; break;
@@ -61,7 +63,9 @@ if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;
   options.canvasH = MODES[mode].h;
+  options.displayAspect = MODES[mode].aspect;
 }
+if (aspectArg) options.displayAspect = parseAspect(aspectArg);
 if (canvas) {
   const m = /^(\d+)x(\d+)$/.exec(canvas);
   if (!m) usage(2);

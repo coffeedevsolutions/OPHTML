@@ -46,7 +46,7 @@ extern "C" {
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */
-#define PS2UI_VERSION 3
+#define PS2UI_VERSION 4
 
 /* Feature bits. Unknown bits in a file are a load error — a blob that
  * needs a capability this runtime lacks must fail loudly, not render
@@ -81,6 +81,12 @@ typedef struct ps2ui_header {
     uint32_t off_font, off_slot;
     uint16_t n_screen, pad0;
     uint32_t off_screen;
+    /* The aspect the panel shows the framebuffer at, as an exact ratio.
+     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
+     * widescreen is anamorphic: the same 640x448 grid stretched. Your
+     * app sets the video mode; this says what the UI was authored for
+     * so a mismatch is detectable rather than merely ugly. */
+    uint16_t display_aspect_num, display_aspect_den;
 } ps2ui_header;
 
 /* A screen is a contiguous slice of the command, focus and slot
@@ -254,6 +260,12 @@ int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name);
 
 /* Name of the current screen ("library"), never NULL after load. */
 const char *ps2ui_screen_name(const ps2ui_ctx *ctx);
+
+/* Pixel aspect ratio the blob was authored for, x1000 to stay integral
+ * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
+ * wider than tall. Useful for asserting your video setup matches the
+ * blob; ps2ui itself draws in framebuffer pixels regardless. */
+uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);
 
 /* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed
  * for tests. */

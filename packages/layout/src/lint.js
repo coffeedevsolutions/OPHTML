@@ -20,6 +20,10 @@ export const DEFAULT_LINT_OPTIONS = Object.freeze({
   safeInsetY: null,
   minFontSize: 14,
   minContrast: 3.0,
+  // Pixel aspect ratio; 1.0 is square. Anything else distorts shapes.
+  par: 1.0,
+  // Distortion a round shape can absorb before it reads as an ellipse.
+  maxShapeDistortion: 0.08,
 });
 
 function luminance([r, g, b]) {
@@ -80,6 +84,32 @@ export function lintDocument(commands, focusGraph, options = {}) {
     x1: opt.canvasW - opt.safeInsetX,
     y1: opt.canvasH - opt.safeInsetY,
   };
+
+  // Shapes meant to read as round come out elliptical when the panel
+  // stretches the framebuffer. Flagged once per document, because the
+  // fix is authoring rather than rendering: geometry is frozen at build
+  // time, so a corner meant to look 6px round needs a smaller px radius
+  // on a stretched display.
+  if (Math.abs(opt.par - 1) > opt.maxShapeDistortion) {
+    const rounded = commands.filter((c) => c.op === 'rect' && c.radius > 0).length;
+    const images = commands.filter((c) => c.op === 'image').length;
+    const pct = Math.round(Math.abs(opt.par - 1) * 100);
+    const dir = opt.par > 1 ? 'wider' : 'narrower';
+    if (rounded > 0) {
+      warnings.push({
+        rule: 'aspect-distortion',
+        message: `${rounded} rounded corner(s) draw ${pct}% ${dir} than tall `
+          + `at PAR ${opt.par.toFixed(4)}; divide the radius by ${opt.par.toFixed(3)} to look round`,
+      });
+    }
+    if (images > 0) {
+      warnings.push({
+        rule: 'aspect-distortion',
+        message: `${images} image(s) draw ${pct}% ${dir} than tall at PAR `
+          + `${opt.par.toFixed(4)}; pre-squash the art or set an explicit width`,
+      });
+    }
+  }
 
   // Track the nearest opaque background under each command for contrast.
   // Paint order means "last rect fully containing this command wins" is

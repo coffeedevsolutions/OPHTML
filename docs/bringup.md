@@ -30,6 +30,7 @@ Reference material, in the order you will reach for it:
 | `probe-clip`   | ellipsis and scissor clipping     | 7 |
 | `probe-image`  | the same PNG as PSMCT32 and PSMT8 + CLUT, side by side | 3, 5 |
 | `probe-flex`   | grow/basis and text alignment     | geometry sanity |
+| `probe-aspect` | which aspect the panel is applying | 10 |
 
 A cell that matches the previewer PNG clears its steps. A cell that
 differs tells you which step to work, which is the whole reason the
@@ -155,9 +156,29 @@ what the budget assumed.
 leaves free, and treat the printed per-texture breakdown as the
 negotiation table.
 
+## 10. Display aspect
+
+**Do:** look at `probe-aspect`. It draws two boxes: a gold one authored
+square in pixels, and a blue one pre-squashed for the 4:3 pixel aspect.
+**Expect:** on a 4:3 display (or a 16:9 panel in pillarbox mode) the
+**blue** box reads square and the gold one looks slightly tall. With
+the panel stretching to 16:9, neither is square and both are visibly
+wide, which means the blob and the television disagree.
+**Fix:** bake with the aspect you are actually displaying at:
+`--mode ntsc16x9` for a stretching panel, `--mode ntsc` for 4:3 or
+pillarbox. Compare against the `--preview-display` PNG rather than the
+1:1 one; the 1:1 render is a picture of the framebuffer, not of the
+television.
+
+Testing both on one panel is worth doing deliberately: bake the same UI
+twice, switch the TV between stretch and pillarbox, and confirm each
+blob reads correct in its own mode and wrong in the other. That
+confirms the whole chain, since a UI that looks the same in both modes
+means the aspect never reached the hardware.
+
 ---
 
-## When all nine pass
+## When all ten pass
 
 Update `docs/architecture.md`'s status section ("not hardware-verified"
 → verified, with the gsKit version and hardware/emulator used), close

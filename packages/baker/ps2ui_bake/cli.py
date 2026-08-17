@@ -55,6 +55,10 @@ def main(argv=None) -> int:
     ap.add_argument("--fonts", default=None, help="fonts.json manifest (default: repo fonts/)")
     ap.add_argument("--preview", default=None, help="write a PNG replay of the initial state")
     ap.add_argument("--montage", default=None, help="write a PNG sheet of every focus state")
+    ap.add_argument("--preview-display", default=None, metavar="PNG",
+                    help="write the preview resampled to the panel's aspect. "
+                         "The 1:1 preview matches a framebuffer capture; this "
+                         "one matches a photograph of the television.")
     ap.add_argument("--palettize-images", action="store_true",
                     help="quantize every image to 8-bit indexed PSMT8+CLUT "
                          "(4x less VRAM per texel; <=256 colors per image). "
@@ -120,6 +124,7 @@ def main(argv=None) -> int:
     write_uib(
         args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
         flat.focus_nodes, initial, flat.fonts, flat.slots, flat.screens,
+        tuple(ir["canvas"].get("displayAspect", (4, 3))),
     )
 
     n_tex_bytes = sum(len(t.data) for t in flat.textures)
@@ -130,11 +135,18 @@ def main(argv=None) -> int:
         file=sys.stderr,
     )
 
-    if args.preview or args.montage:
+    if args.preview or args.montage or args.preview_display:
         uib = read_uib(args.out)  # replay what we wrote, not what we meant
         if args.preview:
             preview_mod.render(uib).save(args.preview)
             print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)
+        if args.preview_display:
+            preview_mod.to_display_space(
+                preview_mod.render(uib), uib).save(args.preview_display)
+            dw, dh = preview_mod.display_size(uib)
+            num, den = uib.display_aspect
+            print(f"ps2ui-bake: display preview {dw}x{dh} at {num}:{den} "
+                  f"-> {args.preview_display}", file=sys.stderr)
         if args.montage:
             preview_mod.montage(uib).save(args.montage)
             print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)
