@@ -46,9 +46,11 @@ jobs:
       - name: Runtime compat build (old gsKit, no GSTEXTURE::Function)
         run: make -C runtime UIB=../examples/memcard/build/ui.uib test-compat
 
-      # The bring-up overlay: two screens, images, slots and the feature
-      # probe grid. Its own check.py asserts the blob's contract.
-      - name: Channel-6 overlay end to end
+      # The channel-6 game browser: two screens, palettized cover art,
+      # slots and the feature probe grid. Its check.py asserts the blob's
+      # contract, including the runtime table caps from ps2ui.h that
+      # neither the layout compiler nor the baker knows about.
+      - name: Channel-6 browser end to end
         run: ./examples/channel6/build.sh
 
       - name: Upload previews

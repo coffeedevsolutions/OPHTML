@@ -1,10 +1,10 @@
 #!/bin/sh
-# Build the channel-6 overlay end to end: HTML+CSS -> ui.json -> ui.uib
-# (+ per-screen preview PNGs), then verify the blob's contract.
+# Build the channel-6 game browser end to end: HTML+CSS -> ui.json ->
+# ui.uib (+ per-screen preview PNGs), then verify the blob's contract.
 #
-# The blob carries two screens: `overlay` (screen 0, what you look at on
-# channel 6) and `probe` (screen 1, the conformance grid). Both compile
-# against one stylesheet.
+# The blob carries two screens: `games` (screen 0, the browser you look
+# at) and `probe` (screen 1, the conformance grid). Both compile against
+# one stylesheet.
 set -eu
 
 here=$(dirname "$0")
@@ -12,19 +12,19 @@ repo=$(cd "$here/../.." && pwd)
 out="$here/build"
 mkdir -p "$out"
 
-# The overlay navigates without wrap on purpose: walking off the chip
+# The browser navigates without wrap on purpose: walking off the cover
 # grid must dead-end, so a stuck D-pad is visible immediately. The probe
 # screen wraps, which exercises the other half of --focus-wrap.
 node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/overlay.html" "$here/ui/overlay.css" \
-    -o "$out/overlay.json"
+    "$here/ui/games.html" "$here/ui/channel6.css" \
+    -o "$out/games.json"
 
 node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/probe.html" "$here/ui/overlay.css" --focus-wrap \
+    "$here/ui/probe.html" "$here/ui/channel6.css" --focus-wrap \
     -o "$out/probe.json"
 
 PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
-    "$out/overlay.json" "$out/probe.json" \
+    "$out/games.json" "$out/probe.json" \
     -o "$out/ui.uib" \
     --preview "$out/preview.png" \
     --montage "$out/states.png"
@@ -45,4 +45,4 @@ PY
 
 PYTHONPATH="$repo/packages/baker" python3 "$here/check.py" "$out/ui.uib"
 
-echo "channel6 overlay: $out/ui.uib"
+echo "channel6 browser: $out/ui.uib"

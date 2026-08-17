@@ -8,35 +8,47 @@ asserts the memcard example's own focus and slot names, so it cannot
 double as this example's check. This does the equivalent job on the
 Python side: it re-reads the .uib (CRC, version and feature bits are
 validated on the way in) and asserts what the console is entitled to
-assume — screen names, the D-pad graph, slot names and capacities, the
-palettized image, and the two domain rules the bring-up checklist warns
-about (GS alpha 0-128, modulate RGB in the 0x80-identity domain).
+assume.
 
-Output is TAP, matching the runtime test, so the two read the same in a
-build log. Exit status is 0 only when every check passes.
+The first group is the one that matters most. ps2ui.h sizes its context
+struct statically — PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS,
+PS2UI_MAX_SCREENS — and ps2ui_load() refuses a blob that exceeds any of
+them with PS2UI_ERR_TOO_MANY. Neither the layout compiler nor the baker
+knows those numbers: the baker enforces a VRAM budget, which is a
+different limit, and a blob can sit comfortably inside it while still
+being unloadable. The failure mode is the sample ELF's solid red screen
+with nothing to explain it, so the numbers are asserted here, against
+the values parsed out of ps2ui.h rather than copies of them.
 """
 
+import os
+import re
 import sys
 
 from ps2ui_bake.quads import FOCUS_NONE, OP_QUAD, OP_TEXQUAD
 from ps2ui_bake import gs
 from ps2ui_bake.uib import FEAT_DYNAMIC_TEXT, read_uib
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+PS2UI_H = os.path.join(HERE, "..", "..", "runtime", "ps2ui.h")
+
 CANVAS = (640, 448)
 
-OVERLAY_FOCUS = [
-    "ch-1", "ch-2", "ch-3", "ch-4", "ch-5", "ch-6", "ch-7", "ch-8",
-    "act-mount", "act-rename", "act-probe",
+GAMES_FOCUS = [
+    "game-aurora", "game-cartography", "game-harbor",
+    "game-turbo", "game-moth", "game-kaiju",
+    "act-launch", "act-saves", "act-probe",
 ]
 PROBE_FOCUS = [
     "probe-alpha", "probe-radius", "probe-type",
     "probe-clip", "probe-image", "probe-flex",
 ]
 # name -> capacity, the buffer the runtime is allowed to write into.
-OVERLAY_SLOTS = {
-    "channel": 3, "card-name": 26, "card-sub": 30,
-    "blocks": 18, "gameid": 18, "mode": 18, "autoboot": 18,
-    **{f"ch{i}": 10 for i in range(1, 9)},
+GAMES_SLOTS = {
+    "count": 4, "card": 30,
+    "sel-title": 24, "sel-sub": 30,
+    "sel-id": 16, "sel-from": 16, "sel-save": 16,
+    **{f"title-{i}": 24 for i in range(1, 7)},
 }
 PROBE_SLOTS = {"build": 12, "probe-text": 18}
 
@@ -46,6 +58,20 @@ _checks = []
 def check(ok: bool, label: str) -> bool:
     _checks.append((bool(ok), label))
     return bool(ok)
+
+
+def runtime_caps() -> dict:
+    """Read the caps out of ps2ui.h so this file cannot drift from it."""
+    with open(PS2UI_H, encoding="utf-8") as fh:
+        src = fh.read()
+    caps = {}
+    for name in ("PS2UI_MAX_TEXTURES", "PS2UI_MAX_SLOTS",
+                 "PS2UI_MAX_SCREENS", "PS2UI_SLOT_BUFSZ"):
+        m = re.search(rf"^#define\s+{name}\s+(\d+)", src, re.M)
+        if not m:
+            raise SystemExit(f"error: {name} not found in {PS2UI_H}")
+        caps[name] = int(m.group(1))
+    return caps
 
 
 def screen_focus(uib, sc):
@@ -75,40 +101,56 @@ def reachable(uib, sc):
 
 def main(path: str) -> int:
     uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
+    caps = runtime_caps()
+
+    # --- what ps2ui_load() will actually accept ----------------------
+    check(len(uib.textures) <= caps["PS2UI_MAX_TEXTURES"],
+          f"{len(uib.textures)} textures within PS2UI_MAX_TEXTURES "
+          f"({caps['PS2UI_MAX_TEXTURES']})")
+    check(len(uib.slots) <= caps["PS2UI_MAX_SLOTS"],
+          f"{len(uib.slots)} slots within PS2UI_MAX_SLOTS "
+          f"({caps['PS2UI_MAX_SLOTS']})")
+    check(len(uib.screens) <= caps["PS2UI_MAX_SCREENS"],
+          f"{len(uib.screens)} screens within PS2UI_MAX_SCREENS "
+          f"({caps['PS2UI_MAX_SCREENS']})")
+    over = [s["name"] for s in uib.slots
+            if s["capacity"] >= caps["PS2UI_SLOT_BUFSZ"]]
+    check(not over, f"every slot capacity below PS2UI_SLOT_BUFSZ "
+                    f"({caps['PS2UI_SLOT_BUFSZ']}): {over or 'ok'}")
 
     check((uib.canvas_w, uib.canvas_h) == CANVAS,
           f"canvas is {CANVAS[0]}x{CANVAS[1]} NTSC")
     names = [sc["name"] for sc in uib.screens]
-    check(names == ["overlay", "probe"],
+    check(names == ["games", "probe"],
           f"two screens in document order: {names}")
     check(uib.feature_flags & FEAT_DYNAMIC_TEXT, "dynamic-text feature bit set")
-    if names != ["overlay", "probe"]:
+    if names != ["games", "probe"]:
         return report()
-    overlay, probe = uib.screens
+    games, probe = uib.screens
 
     # --- focus graph -------------------------------------------------
-    for sc, want in ((overlay, OVERLAY_FOCUS), (probe, PROBE_FOCUS)):
+    for sc, want in ((games, GAMES_FOCUS), (probe, PROBE_FOCUS)):
         got = [n["name"] for n in screen_focus(uib, sc)]
         check(got == want, f"{sc['name']}: focusables {want}")
         check(reachable(uib, sc) == set(want),
               f"{sc['name']}: every focusable reachable by D-pad")
 
-    initial = uib.focus[overlay["initial"]]["name"]
-    check(initial == "ch-6", f"overlay opens focused on the mounted channel "
-                             f"(ch-6, got {initial})")
+    initial = uib.focus[games["initial"]]["name"]
+    check(initial == "game-aurora",
+          f"games opens on the first cover (got {initial})")
     check(uib.focus[probe["initial"]]["name"] == "probe-alpha",
           "probe opens on its first cell")
 
-    # --focus-wrap was passed for probe only: the overlay must dead-end
+    # --focus-wrap was passed for probe only: the browser must dead-end
     # at its edges, the probe must come back around.
     by_name = {n["name"]: n for n in uib.focus}
-    check(by_name["ch-1"]["left"] == FOCUS_NONE,
-          "overlay does not wrap: left off the first chip dead-ends")
+    check(by_name["game-aurora"]["left"] == FOCUS_NONE,
+          "games does not wrap: left off the first cover dead-ends")
     check(by_name["probe-type"]["right"] != FOCUS_NONE,
           "probe wraps: right off the last column comes back around")
 
     # --- dynamic text ------------------------------------------------
-    for sc, want in ((overlay, OVERLAY_SLOTS), (probe, PROBE_SLOTS)):
+    for sc, want in ((games, GAMES_SLOTS), (probe, PROBE_SLOTS)):
         got = {s["name"]: s["capacity"] for s in screen_slots(uib, sc)}
         check(got == want, f"{sc['name']}: {len(want)} slots with the "
                            f"declared capacities")
@@ -116,11 +158,14 @@ def main(path: str) -> int:
               f"{sc['name']}: every slot ships a placeholder")
 
     # --- images ------------------------------------------------------
-    art = [t for t in uib.textures if (t.width, t.height) == (64, 48)]
-    check(any(t.fmt == gs.PSMT8 and t.clut is not None for t in art),
-          "card art baked once as PSMT8 + CLUT (palettize)")
-    check(any(t.fmt == gs.PSMCT32 for t in art),
-          "card art baked once as PSMCT32 (probe comparison)")
+    covers = [t for t in uib.textures
+              if t.fmt == gs.PSMT8 and t.clut is not None and t.width < 200]
+    check(len(covers) >= 6, f"six palettized covers (PSMT8 + CLUT), got "
+                            f"{len(covers)}")
+    card = [t for t in uib.textures if (t.width, t.height) == (64, 48)]
+    check(any(t.fmt == gs.PSMT8 for t in card)
+          and any(t.fmt == gs.PSMCT32 for t in card),
+          "probe card art baked both ways, PSMCT32 and PSMT8 + CLUT")
 
     # --- domain rules the bring-up checklist warns about --------------
     check(all(r.rgba[3] <= 0x80 for r in uib.records
