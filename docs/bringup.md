@@ -66,28 +66,46 @@ Nothing ps2ui-specific is involved yet.
 involved, so nothing in this repository's compiler or baker can be at
 fault: it draws four solid-fill cases straight through gsKit.
 
-| what | how | where |
-|------|-----|-------|
+| what | how | expected |
+|------|-----|----------|
 | ground `#0a0e1a` | `gsKit_clear`, blending **off** | whole frame |
-| red `#ff0000` | sprite, blending **off** | top left |
-| green `#00ff00` | sprite, blending **on**, alpha `0x80` | top right |
-| blue `#0000ff` | sprite, blending **on**, alpha `0x40` | bottom left |
+| red `#ff0000` | sprite, blending **off** | top left, full strength |
+| magenta ladder | five sprites, blending **on**, alpha `0x20` `0x40` `0x60` `0x7f` `0x80` | bottom row |
 
-**Expect:** all four. Blue is half-strength over the dark ground, so it
-composites to roughly `#05070d`, not full blue.
+Every rung of the ladder is the same colour and differs only in alpha,
+so a missing rung cannot be blamed on the colour register. Over the
+`#0a0e1a` ground, `(Cs - Cd) * As >> 7 + Cd` predicts each one exactly:
 
-**If wrong**, the missing case names the fault:
+| alpha | composites to |
+|-------|---------------|
+| `0x20` | `#470a53` |
+| `0x40` | `#84078c` |
+| `0x60` | `#c103c5` |
+| `0x7f` | `#fd00fd` |
+| `0x80` | `#ff00ff` |
+
+**Expect:** the clear, the red control, and all five rungs.
+
+**If wrong**, what is missing names the fault:
 
 - **Nothing but black** → solid sprites are not reaching the GS at all.
-  The clear is plain gsKit, so at that point suspect video mode init or
-  your gsKit build before anything in ps2ui.
-- **Red only** → the alpha blend unit is dropping blended primitives.
-- **Red and green, no blue** → translucent sprites specifically. Check
-  the blend equation is the gsKit default `(Cs - Cd) * As >> 7 + Cd`.
-- **Blue at full strength** → alpha is being ignored rather than
-  applied. Do not "fix" this by scaling alpha up: quads carry GS-domain
-  alpha where `0x80` is opaque, and the file domain is correct (see
-  `docs/format-uib.md`).
+  The clear is plain gsKit, so suspect video mode init or your gsKit
+  build before anything in ps2ui.
+- **Clear and red only, no ladder** → the blend unit is dropping every
+  blended primitive.
+- **The ladder stops short of `0x80`** → the interesting one, and what
+  Play! 0.72 does. `0x80` is the value the `.uib` calls opaque, so if it
+  is the only rung missing then every opaque quad in every blob will be
+  invisible while text, whose alpha comes from the atlas, still draws.
+  That is a host defect, not a file one: do **not** "fix" it by scaling
+  alpha down to `0x7f`. The file domain is correct (see
+  `docs/format-uib.md`), and a real GS treats `0x80` as 1.0.
+- **Rungs present but the wrong colours** → compare against the table
+  above. Values above the prediction mean alpha is being ignored;
+  values below mean it is applied twice.
+- **All rungs the same colour** → the colour register is not being
+  reloaded between primitives, which is a gsKit queue problem rather
+  than a blend one.
 - **Wrong colours entirely** → RGBAQ packing order; verify
   `GS_SETREG_RGBAQ(r, g, b, a, q)` against your gsKit.
 

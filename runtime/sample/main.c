@@ -61,19 +61,38 @@ extern unsigned int size_ui_uib;
  * blue at all means translucent sprites are dropped. Each quadrant is
  * 200x160, roughly 16% of the frame, far above the noise in a palette
  * listing. */
+/* Alphas for the ladder, straddling the 0x80 boundary. Every quad in a
+ * .uib that is meant to be opaque carries exactly 0x80, so whether that
+ * value works is the whole question. */
+static const unsigned char probe_alphas[] = { 0x20, 0x40, 0x60, 0x7f, 0x80 };
+
 static void probe_frame(GSGLOBAL *gs)
 {
+    int i;
+
     gs->PrimAlphaEnable = GS_SETTING_OFF;
     gsKit_clear(gs, GS_SETREG_RGBAQ(0x0a, 0x0e, 0x1a, 0x80, 0x00));
 
+    /* Control: unblended, and a colour used nowhere else. */
     gsKit_prim_sprite(gs, 40.0f, 40.0f, 240.0f, 200.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
 
+    /* Same colour every time, only the alpha varies, so a missing rung
+     * cannot be blamed on the colour register. Over the #0a0e1a ground
+     * the blend equation predicts each rung exactly:
+     *
+     *   0x20 -> #470a53   0x40 -> #84078c   0x60 -> #c103c5
+     *   0x7f -> #fd00fd   0x80 -> #ff00ff
+     *
+     * A fingerprint missing only the last one puts the fault precisely
+     * at As = 128, which is the value the .uib calls opaque. */
     gs->PrimAlphaEnable = GS_SETTING_ON;
-    gsKit_prim_sprite(gs, 400.0f, 40.0f, 600.0f, 200.0f, 0,
-                      GS_SETREG_RGBAQ(0x00, 0xff, 0x00, 0x80, 0x00));
-    gsKit_prim_sprite(gs, 40.0f, 248.0f, 240.0f, 408.0f, 0,
-                      GS_SETREG_RGBAQ(0x00, 0x00, 0xff, 0x40, 0x00));
+    for (i = 0; i < 5; i++) {
+        float x = 20.0f + 120.0f * (float)i;
+        gsKit_prim_sprite(gs, x, 248.0f, x + 120.0f, 408.0f, 0,
+                          GS_SETREG_RGBAQ(0xff, 0x00, 0xff,
+                                          probe_alphas[i], 0x00));
+    }
 }
 #endif
 
