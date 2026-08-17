@@ -154,7 +154,21 @@ The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit
 
 The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain. Nothing has run on real hardware yet. For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF for it, and `tools/make_testcard.py` builds a texel-alignment card.
 
-See [docs/architecture.md](docs/architecture.md) for the decision log and [docs/BACKLOG.md](docs/BACKLOG.md) for the roadmap.
+See [docs/architecture.md](docs/architecture.md) for the decision log.
+
+## Roadmap
+
+Rough priority order. Scoring and detail live in [docs/BACKLOG.md](docs/BACKLOG.md).
+
+- [ ] First run on real hardware / PCSX2 ([docs/bringup.md](docs/bringup.md) is the procedure)
+- [ ] Working emulator screenshot job in CI
+- [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
+- [ ] List templating and scrolling for data taller than the screen
+- [ ] Kerning
+- [ ] `position: absolute` for overlays and dialogs
+- [ ] Localization workflow (per-locale builds)
+- [ ] npm / PyPI releases
+- [x] Dynamic text slots, multi-screen blobs, images with palettization (0.2.0)
 
 ## License
 
