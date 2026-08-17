@@ -50,7 +50,11 @@ error naming the constant to raise. ✅ B11 `ps2ui_slot_set` backs off
 to the last complete UTF-8 sequence instead of splitting a character.
 ✅ B12 `""` blanks a slot, `NULL` still reverts to the placeholder.
 ✅ B13 the charset lint no longer fires on face buttons and arrows;
-those glyphs joined the default font charset.
+those glyphs joined the default font charset. ✅ F23 the channel-6
+example landed with its `probe` screen promoted to the repository's
+conformance target: `docs/bringup.md` maps each probe cell to the step
+that fails when the cell looks wrong, so bring-up is a comparison
+against a previewer PNG rather than a judgement call.
 
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 

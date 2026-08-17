@@ -1,0 +1,354 @@
+/* Game browser for a PSxMemCard GEN2 channel — 640x448 NTSC canvas.
+ *
+ * Shared stylesheet for both screens in the blob: `games` (the browser
+ * you actually look at) and `probe` (the conformance grid you compare
+ * against the previewer PNG).
+ *
+ * The root is a translucent scrim, not an opaque background: the blob is
+ * meant to be replayed *over* whatever the host app already drew, so the
+ * alpha domain (CSS 0-255 -> GS 0-128) is under test from the very first
+ * quad. Everything else obeys the house rules — 2px borders (1px
+ * shimmers on an interlaced CRT), nothing below 14px, no saturated reds,
+ * and :focus only ever repaints.
+ *
+ * Two budgets are load-bearing here: PS2UI_MAX_TEXTURES (32) and
+ * PS2UI_MAX_SLOTS (16) in ps2ui.h. Every distinct rounded-box *style*
+ * bakes one nine-patch texture and every distinct (size, weight) bakes
+ * one glyph atlas, so this sheet deliberately reuses a handful of each
+ * rather than styling every element freely. Since B10 the baker fails
+ * the bake outright when a change would push either count past what
+ * ps2ui_load() accepts, and prints the occupancy on every build. */
+
+.screen {
+  flex-direction: column;
+  background: #060a1499;
+  padding: 26px 34px;
+  gap: 12px;
+}
+
+/* Five glyph atlases, and no sixth: 14/16 regular, 16/20/22 bold. */
+
+/* ---------------------------------------------------------- titlebar */
+
+.titlebar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand { flex-direction: row; align-items: center; gap: 8px; }
+
+h1 {
+  font-size: 22px;
+  font-weight: bold;
+  color: #f2f5fa;
+  letter-spacing: 2px;
+}
+
+/* Which channel this card is served on — an identity label, not the
+ * subject of the screen. */
+.gen {
+  font-size: 14px;
+  color: #7fd0c4;
+  letter-spacing: 2px;
+  border: 2px solid #1f4a45;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.count-badge {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  background: #10203a;
+  border: 2px solid #2b6ea8;
+  border-radius: 6px;
+  padding: 4px 12px;
+}
+
+.count-badge .label {
+  font-size: 14px;
+  color: #8fb4d8;
+  letter-spacing: 2px;
+}
+
+.count-badge .value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+/* -------------------------------------------------------------- body */
+
+.body {
+  flex-direction: row;
+  flex-grow: 1;
+  gap: 16px;
+}
+
+.caption {
+  font-size: 14px;
+  color: #8b94a7;
+  letter-spacing: 2px;
+}
+
+/* ------------------------------------------------------- cover grid */
+
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  flex-grow: 1;
+  gap: 10px;
+}
+
+/* The one panel style: tiles, the detail column and the action buttons
+ * all share it, so they share a single nine-patch texture. */
+.tile {
+  width: 112px;
+  background: #12182a;
+  border: 2px solid #1c2336;
+  border-radius: 6px;
+  padding: 6px;
+  gap: 4px;
+}
+
+.tile:focus {
+  background: #16233c;
+  border-color: #e8b64c;
+}
+
+.cover { width: 96px; height: 58px; }
+
+/* 14px bold, not 16: at 96px of cover width every title but the
+ * deliberately-long one then fits without the ellipsis firing, and it
+ * reuses an atlas the rest of the sheet already pays for. */
+.tile-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e8ecf4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.tile:focus .tile-title { color: #ffffff; }
+
+.tile-meta {
+  font-size: 14px;
+  color: #8b94a7;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------- detail column */
+
+.detail {
+  flex-direction: column;
+  width: 196px;
+  gap: 8px;
+  background: #12182a;
+  border: 2px solid #1c2336;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.detail-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #f2f5fa;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.detail-sub {
+  font-size: 14px;
+  color: #8b94a7;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.stats { gap: 6px; }
+
+.stat {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  border: 2px solid #161d2e;
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+
+.stat .k { font-size: 14px; color: #8b94a7; letter-spacing: 1px; }
+
+.stat .v {
+  font-size: 14px;
+  color: #dbe2ee;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  text-align: right;
+}
+
+.spacer { flex-grow: 1; }
+
+/* ----------------------------------------------------------- actions */
+
+.actions { flex-direction: row; gap: 10px; }
+
+.action {
+  flex-grow: 1;
+  flex-basis: 0;
+  background: #12182a;
+  border: 2px solid #1c2336;
+  border-radius: 6px;
+  padding: 6px 4px;
+  align-items: center;
+}
+
+.action:focus {
+  background: #16233c;
+  border-color: #e8b64c;
+}
+
+.action .name {
+  font-size: 16px;
+  color: #c8cfdc;
+  white-space: nowrap;
+}
+
+.action:focus .name { color: #ffffff; }
+
+/* ------------------------------------------------------------ footer */
+
+/* The footer is the one row of text with no panel under it, so over a
+ * bright game frame it is the first thing to lose contrast. It gets its
+ * own backing bar — square, so it bakes as a plain quad and costs no
+ * nine-patch texture. This is the general rule for an overlay: the scrim
+ * sets the mood, panels guarantee legibility. */
+.footer {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  background: #070c18e6;
+  padding: 5px 8px;
+}
+
+.hints { flex-direction: row; gap: 20px; }
+
+.hint { font-size: 14px; color: #9aa3b5; }
+
+.build-tag { font-size: 14px; color: #5f6878; letter-spacing: 1px; }
+
+/* Card, channel and free space — what the device's own OLED shows,
+ * restated on the television. `Card 1` is a directory on the microSD,
+ * `CH 6` the .mcd inside it. */
+.card-tag {
+  font-size: 14px;
+  color: #7c869a;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* ================================================== probe screen ==== */
+/* A deliberate torture test: one labelled cell per supported feature,
+ * so a console frame can be diffed against the previewer PNG feature by
+ * feature instead of "the whole screen looks off". Cells reuse the tile
+ * panel and focus styles above — same textures, no new budget. */
+
+.probe-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  flex-grow: 1;
+  gap: 10px;
+}
+
+.cell {
+  width: 178px;
+  background: #12182a;
+  border: 2px solid #1c2336;
+  border-radius: 6px;
+  padding: 8px;
+  gap: 6px;
+}
+
+.cell:focus { background: #16233c; border-color: #e8b64c; }
+
+.cell-label {
+  font-size: 14px;
+  color: #7fd0c4;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.cell:focus .cell-label { color: #ffd98a; }
+
+.note { font-size: 14px; color: #9aa3b5; }
+
+/* Alpha ladder: one color at four CSS alphas. Square on purpose — a
+ * radius here would cost four more nine-patch textures and prove
+ * nothing the RADIUS cell doesn't already prove. */
+.ladder { flex-direction: row; gap: 4px; }
+.rung { flex-grow: 1; height: 26px; }
+.rung-25 { background: #6fa8dc40; }
+.rung-50 { background: #6fa8dc80; }
+.rung-75 { background: #6fa8dcbf; }
+.rung-100 { background: #6fa8dc; }
+
+/* Radius ladder: nine-patch corners at four radii on one row. */
+.radii { flex-direction: row; gap: 4px; }
+.knob { flex-grow: 1; height: 26px; background: #24314e; border: 2px solid #4f8fd0; }
+.knob-0 { border-radius: 0; }
+.knob-3 { border-radius: 3px; }
+.knob-8 { border-radius: 8px; }
+.knob-13 { border-radius: 13px; }
+
+/* Type ramp: the same five atlases the browser screen uses. */
+.type-14 { font-size: 14px; color: #dbe2ee; }
+.type-16 { font-size: 16px; color: #dbe2ee; }
+.type-20 { font-size: 20px; font-weight: bold; color: #f2f5fa; }
+.tracked { font-size: 16px; color: #dbe2ee; letter-spacing: 4px; }
+
+/* Alignment: three lines in one fixed-width box. */
+.align-box { background: #0b1120; border-radius: 4px; padding: 4px 6px; gap: 2px; }
+.a-left { font-size: 14px; color: #dbe2ee; text-align: left; }
+.a-center { font-size: 14px; color: #dbe2ee; text-align: center; }
+.a-right { font-size: 14px; color: #dbe2ee; text-align: right; }
+
+/* Clipping: nowrap + ellipsis, and a hard scissor clip. */
+.clip-line {
+  font-size: 14px;
+  color: #dbe2ee;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.scissor {
+  height: 22px;
+  overflow: hidden;
+  background: #0b1120;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.scissor .runner { font-size: 14px; color: #e8b64c; white-space: nowrap; }
+
+/* Images: identical source, PSMCT32 on the left, PSMT8+CLUT right. */
+.img-row { flex-direction: row; align-items: center; gap: 8px; }
+.img-col { align-items: center; gap: 3px; }
+.img-sample { width: 64px; height: 48px; }
+.img-cap { font-size: 14px; color: #8b94a7; }
+
+/* Must never paint. If you can see it, display:none regressed. */
+.gone { display: none; }
+
+/* flex-grow / basis: three bars sharing one row 1:2:3. */
+.grow-row { flex-direction: row; gap: 4px; }
+.bar { height: 22px; flex-basis: 0; background: #3f8f7e; }
+.bar-1 { flex-grow: 1; }
+.bar-2 { flex-grow: 2; background: #4f8fd0; }
+.bar-3 { flex-grow: 3; background: #a67fd0; }
