@@ -11,17 +11,17 @@
  * shimmers on an interlaced CRT), nothing below 14px, no saturated reds,
  * and :focus only ever repaints.
  *
- * Two budgets are load-bearing here, and neither is enforced by the
- * compiler: PS2UI_MAX_TEXTURES (32) and PS2UI_MAX_SLOTS (16) in
- * ps2ui.h. Every distinct rounded-box *style* bakes one nine-patch
- * texture and every distinct (size, weight) bakes one glyph atlas, so
- * this sheet deliberately reuses a handful of each rather than styling
- * every element freely. check.py fails the build if a change pushes
- * either count past what the runtime will load. */
+ * Two budgets are load-bearing here: PS2UI_MAX_TEXTURES (32) and
+ * PS2UI_MAX_SLOTS (16) in ps2ui.h. Every distinct rounded-box *style*
+ * bakes one nine-patch texture and every distinct (size, weight) bakes
+ * one glyph atlas, so this sheet deliberately reuses a handful of each
+ * rather than styling every element freely. Since B10 the baker fails
+ * the bake outright when a change would push either count past what
+ * ps2ui_load() accepts, and prints the occupancy on every build. */
 
 .screen {
   flex-direction: column;
-  background: #060a14e6;
+  background: #060a1499;
   padding: 26px 34px;
   gap: 12px;
 }
@@ -46,11 +46,18 @@ h1 {
 }
 
 /* Which channel this card is served on — an identity label, not the
- * subject of the screen. */
+ * subject of the screen.
+ *
+ * Bordered but unfilled is what it wants to look like, and the contrast
+ * lint says it cannot have that: sitting on nothing but the 60% scrim,
+ * teal-on-whatever-the-game-is-doing bottoms out at 2.93:1 over a
+ * bright frame. It gets a fill for the same reason the footer got a
+ * bar. Same nine-patch either way, so the fill is free. */
 .gen {
   font-size: 14px;
   color: #7fd0c4;
   letter-spacing: 2px;
+  background: #0c2321;
   border: 2px solid #1f4a45;
   border-radius: 4px;
   padding: 1px 6px;
@@ -223,10 +230,17 @@ h1 {
 
 /* ------------------------------------------------------------ footer */
 
+/* The footer is the one row of text with no panel under it, so over a
+ * bright game frame it is the first thing to lose contrast. It gets its
+ * own backing bar — square, so it bakes as a plain quad and costs no
+ * nine-patch texture. This is the general rule for an overlay: the scrim
+ * sets the mood, panels guarantee legibility. */
 .footer {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  background: #070c18e6;
+  padding: 5px 8px;
 }
 
 .hints { flex-direction: row; gap: 20px; }

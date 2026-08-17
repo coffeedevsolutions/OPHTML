@@ -10,15 +10,17 @@ Python side: it re-reads the .uib (CRC, version and feature bits are
 validated on the way in) and asserts what the console is entitled to
 assume.
 
-The first group is the one that matters most. ps2ui.h sizes its context
-struct statically — PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS,
-PS2UI_MAX_SCREENS — and ps2ui_load() refuses a blob that exceeds any of
-them with PS2UI_ERR_TOO_MANY. Neither the layout compiler nor the baker
-knows those numbers: the baker enforces a VRAM budget, which is a
-different limit, and a blob can sit comfortably inside it while still
-being unloadable. The failure mode is the sample ELF's solid red screen
-with nothing to explain it, so the numbers are asserted here, against
-the values parsed out of ps2ui.h rather than copies of them.
+The first group covers the runtime's static table caps —
+PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS, PS2UI_MAX_SCREENS,
+PS2UI_SLOT_BUFSZ — which ps2ui_load() enforces with PS2UI_ERR_TOO_MANY,
+and whose console symptom is the sample ELF's red screen with no
+diagnostic. Writing this example is what surfaced that gap; since B10
+the baker refuses to write an over-cap blob at all, so these four are
+now a second line of defence rather than the only one. They stay
+because they cost nothing and they assert the property from the far
+side of the file format: the baker checks what it is about to write,
+this checks what a loader will actually find. Both read the numbers out
+of ps2ui.h rather than copying them.
 """
 
 import os

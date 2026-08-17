@@ -69,6 +69,37 @@ function over(top, bottom) {
   ];
 }
 
+/** Paint `chain` (bottom-first RGBA fills) over `backdrop` RGB. */
+function compositeChain(chain, backdrop) {
+  let out = backdrop;
+  for (const fill of chain) out = over(fill, out);
+  return out;
+}
+
+/**
+ * How much of whatever is *under* the whole chain still shows through.
+ * 0 means some fill in the chain is opaque and the backdrop cannot
+ * matter; anything above 0 means the effective background depends on
+ * content this compiler has never seen.
+ */
+function transmittance(chain) {
+  let t = 1;
+  for (const fill of chain) t *= 1 - fill[3] / 255;
+  return t;
+}
+
+// A .uib is replayed over whatever the host app already drew, so when
+// the stack under a run of text is translucent the true background is
+// not knowable at compile time. Bracket it: black and white are the
+// extremes any game frame lives between, so text that clears both
+// clears everything, and text that fails either has a frame where it
+// goes unreadable. Without this the rule reads the scrim's raw RGB and
+// a 60%-opaque overlay lints exactly like an opaque background.
+const BACKDROP_EXTREMES = [
+  [0, 0, 0],
+  [255, 255, 255],
+];
+
 /**
  * Lint a compiled document. Takes the display list plus focus graph and
  * returns an array of { rule, message } warnings.
@@ -162,22 +193,37 @@ export function lintDocument(commands, focusGraph, options = {}) {
         break;
       }
     }
-    // Contrast against the innermost background containing the text.
-    let bg = null;
-    for (let i = bgStack.length - 1; i >= 0; i--) {
-      const r = bgStack[i];
+    // Contrast against every background containing the text, composited
+    // in paint order. Taking only the innermost rect's raw RGB would
+    // read a translucent scrim as though it were opaque.
+    const chain = [];
+    for (const r of bgStack) {
       if (cmd.x >= r.x && cmd.y >= r.y && cmd.x <= r.x + r.w && cmd.y <= r.y + r.h) {
-        bg = r.fill;
-        break;
+        chain.push(r.fill);
       }
     }
-    if (bg && cmd.color[3] > 0) {
-      const fg = cmd.color[3] < 255 ? over(cmd.color, bg) : cmd.color.slice(0, 3);
-      const ratio = contrastRatio(fg, bg.slice(0, 3));
-      if (ratio < opt.minContrast) {
+    if (chain.length && cmd.color[3] > 0) {
+      const seeThrough = transmittance(chain) > 0;
+      const backdrops = seeThrough ? BACKDROP_EXTREMES : [[0, 0, 0]];
+      let worst = Infinity;
+      let worstBg = null;
+      for (const backdrop of backdrops) {
+        const bg = compositeChain(chain, backdrop);
+        const fg = cmd.color[3] < 255 ? over(cmd.color, bg) : cmd.color.slice(0, 3);
+        const ratio = contrastRatio(fg, bg);
+        if (ratio < worst) {
+          worst = ratio;
+          worstBg = backdrop;
+        }
+      }
+      if (worst < opt.minContrast) {
+        const where = seeThrough
+          ? `, over a ${worstBg[0] ? 'bright' : 'dark'} frame showing through the `
+            + `${Math.round(transmittance(chain) * 100)}%-transparent background`
+          : '';
         warnings.push({
           rule: 'contrast',
-          message: `"${cmd.text.slice(0, 24)}" contrast ${ratio.toFixed(2)}:1 < ${opt.minContrast}:1 — CRTs crush shadows harder than your monitor`,
+          message: `"${cmd.text.slice(0, 24)}" contrast ${worst.toFixed(2)}:1 < ${opt.minContrast}:1${where} — CRTs crush shadows harder than your monitor`,
         });
       }
     }

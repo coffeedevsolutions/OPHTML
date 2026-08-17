@@ -358,6 +358,45 @@ test('lint: overscan, font size, flicker and contrast all fire', () => {
   assert.match(all, /contrast/);
 });
 
+test('lint: contrast sees through a translucent scrim', () => {
+  // A .uib is replayed over whatever the host app drew, so text sitting
+  // on nothing but a translucent scrim has no compile-time background.
+  // Reading the scrim's raw RGB made a 20%-opaque overlay lint exactly
+  // like an opaque one, which is how a scrim retuned too thin reached a
+  // console looking fine on every preview.
+  const scrim = (alpha, color) => compileCss(
+    '<div class="s"><p class="t">barely there</p></div>',
+    `.s { background: #10141e${alpha} } .t { font-size: 20px; color: ${color} }`,
+  ).warnings.filter((w) => w.startsWith('contrast'));
+
+  // Pale text on a near-black scrim: fine when the scrim is opaque,
+  // unreadable the moment a bright frame shows through it. The old rule
+  // read the scrim's raw RGB and could not tell these two apart.
+  assert.equal(scrim('ff', '#b8c0d0').length, 0);
+  const pale = scrim('33', '#b8c0d0');
+  assert.equal(pale.length, 1);
+  assert.match(pale[0], /bright frame showing through the 80%-transparent/);
+
+  // Dark text brackets the other way, so the rule has to try both ends
+  // rather than assume the backdrop is bright.
+  const dark = scrim('33', '#3b4252');
+  assert.equal(dark.length, 1);
+  assert.match(dark[0], /dark frame showing through the 80%-transparent/);
+});
+
+test('lint: an opaque panel over a scrim is judged on the panel alone', () => {
+  // The counterpart rule the example is built around: the scrim sets the
+  // mood, panels guarantee legibility. Once an opaque fill is in the
+  // chain the backdrop cannot reach the text, so no warning.
+  const ir = compileCss(
+    '<div class="s"><div class="panel"><p class="t">legible</p></div></div>',
+    `.s { background: #10141e99 }
+     .panel { background: #12182a; padding: 8px }
+     .t { font-size: 20px; color: #ffffff }`,
+  );
+  assert.equal(ir.warnings.filter((w) => w.startsWith('contrast')).length, 0);
+});
+
 test('lint: face-button glyphs do not trip the charset rule', () => {
   // Backlog B13: every PS2 footer carries these hints, so warning about
   // them trains authors to ignore the linter.
