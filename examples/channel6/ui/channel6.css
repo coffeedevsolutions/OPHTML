@@ -259,8 +259,11 @@ h1 {
   gap: 10px;
 }
 
+/* Seven cells at 135px wrap 4 + 3 inside the 572px content width
+ * (4*135 + 3*10 gap = 570), which is what keeps the third row from
+ * pushing the footer off a 448-line frame. */
 .cell {
-  width: 178px;
+  width: 135px;
   background: #12182a;
   border: 2px solid #1c2336;
   border-radius: 6px;
@@ -348,11 +351,20 @@ h1 {
 
 
 /* ---- aspect probe (widescreen) ----
- * Two boxes: one authored square in pixels, one pre-squashed for the
- * 4:3 pixel aspect (PAR 0.9333, so 40 / 0.9333 = 43px wide reads square
- * on a 4:3 panel). Whichever looks square tells you which aspect the
- * television is actually applying, which no amount of previewing can. */
-.aspect-row { flex-direction: row; gap: 10px; align-items: center; }
-.aspect-square { width: 40px; height: 40px; background: #e8b64c; }
-.aspect-tall   { width: 43px; height: 40px; background: #5b9bd8; }
-.cell-note { font-size: 11px; color: #8b94a7; }
+ * Three boxes, each 34 framebuffer lines tall and pre-squashed for a
+ * different pixel aspect, so exactly one of them reads square on any
+ * given television:
+ *
+ *   gold  34px wide  square in framebuffer pixels (PAR 1.0, no TV)
+ *   blue  36px wide  34 / 0.9333, square on a 4:3 panel
+ *   green 27px wide  34 / 1.2444, square on a panel stretching to 16:9
+ *
+ * Which one looks square is the one measurement the previewer cannot
+ * make for you, because it is a fact about the display and not about
+ * the blob. Widths are baked, so this cell reads the same in a 4:3 and
+ * a 16:9 build; only the television changes the answer. */
+.aspect-row { flex-direction: row; gap: 6px; align-items: center; }
+.aspect-square { width: 34px; height: 34px; background: #e8b64c; }
+.aspect-tall   { width: 36px; height: 34px; background: #5b9bd8; }
+.aspect-wide   { width: 27px; height: 34px; background: #6fbf7f; }
+.cell-note { font-size: 14px; color: #8b94a7; }

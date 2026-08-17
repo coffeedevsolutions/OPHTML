@@ -60,17 +60,25 @@ Writes into `examples/channel6/build/`:
 
 | file | what |
 |------|------|
-| `ui.uib` | the console blob — both screens, 22 textures, 43% of the default VRAM budget |
+| `ui.uib` | the console blob — both screens, 23 textures, 43% of the default VRAM budget |
 | `preview.png` / `states.png` | the games screen, and every one of its 9 focus states on one sheet |
 | `probe.png` / `probe-states.png` | the same pair for the probe screen |
+| `preview-display.png` | the games screen resampled to what a 4:3 television shows |
+| `ui-16x9.uib` / `preview-16x9-display.png` | the same UI baked for a panel that stretches to 16:9 |
 | `games.json` / `probe.json` | the IR, if you need to look at what layout decided |
 
 Then it runs [check.py](check.py), which re-reads the blob and asserts
 its contract in TAP — 24 checks; a red one names what broke.
 
-Three `charset` warnings are expected and deliberate — they are the ×, ○
-and △ face-button glyphs in the footer hints, which is exactly the
-codepoint range the linter is unsure about. Any *other* warning is news.
+The 4:3 bake is warning-free on purpose, so any warning from it is
+news. The 16:9 bake warns about `aspect-distortion` on the rounded
+corners and the covers, which is the linter doing its job: this
+stylesheet is authored for 4:3 pixels, and nothing in it has been
+pre-squashed for a stretching panel.
+
+Both blobs exist so you can run the two-way panel test in
+[docs/bringup.md](../../docs/bringup.md) step 10 — same television,
+same UI, one blob correct in each TV mode.
 
 ### The budget the compiler does not enforce
 
@@ -79,7 +87,7 @@ rejects anything past those bounds with `PS2UI_ERR_TOO_MANY`:
 
 | cap | value | this blob |
 |-----|-------|-----------|
-| `PS2UI_MAX_TEXTURES` | 32 | 22 |
+| `PS2UI_MAX_TEXTURES` | 32 | 23 |
 | `PS2UI_MAX_SLOTS` | 16 | 15 |
 | `PS2UI_MAX_SCREENS` | 8 | 2 |
 | `PS2UI_SLOT_BUFSZ` | 96 | 30 max |
@@ -124,7 +132,7 @@ seven textures to prove something the RADIUS cell already proves.
 Emulator first is the cheaper loop — PCSX2 in software-renderer mode is
 the most trustworthy stand-in short of the console, and Play! needs no
 BIOS. Either way, work [docs/bringup.md](../../docs/bringup.md) in order:
-each of its nine steps isolates one subsystem, and this example was built
+each of its ten steps isolates one subsystem, and this example was built
 to give every one of them something to look at.
 
 The sample ELF shows screen 0 and walks its focus states on a timer,
@@ -149,7 +157,15 @@ own recognizable way:
 | TYPE | 14/16/20px, regular vs bold, then wide tracking | banded noise = CLUT/CSM1 (step 3); flat white = no `GSTEXTURE::Function` (step 4); washed out = modulate domain (step 5) |
 | CLIP | the first line ellipsizes, the amber line is cut mid-glyph at the padding edge | 1px bleed = the inclusive-scissor off-by-one (step 7) |
 | IMAGE | the two cards are indistinguishable | CLUT8 wrong = palettization or CLUT upload |
+| ASPECT | exactly one of gold / blue / green reads square | see below — this cell measures the television, not the blob |
 | FLEX | bars in a 1:2:3 ratio, three lines left/centre/right | layout, not the GS |
+
+The ASPECT cell is three boxes of equal height, each pre-squashed for a
+different pixel aspect: **gold** is square in framebuffer pixels,
+**blue** at 4:3 (PAR 0.9333), **green** at 16:9 (PAR 1.2444). Whichever
+looks square names what your panel is doing. Gold reads square in a
+screen capture and never on a television. The widths are baked, so the
+cell is identical in the 4:3 and 16:9 blobs.
 
 The `display: none` paragraph in the ALPHA cell must never appear. If you
 can read it, that's a compiler regression, not a console one.

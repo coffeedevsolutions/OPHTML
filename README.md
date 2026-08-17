@@ -143,6 +143,12 @@ The aspect travels in the `.uib` header, so the runtime can report it
 matches. Targeting PAL alone? `--mode pal` also adjusts the CRT
 linter's safe areas.
 
+To find out what a given television is actually doing, the channel-6
+probe screen has an ASPECT cell: three boxes pre-squashed for 1:1, 4:3
+and 16:9, of which exactly one reads square. `build.sh` bakes the same
+UI at both aspects so you can check one panel in both TV modes
+([docs/bringup.md](docs/bringup.md) step 10).
+
 ## CRT linter
 
 Your desktop preview won't show you what a 2001 television does. The compiler warns about:
