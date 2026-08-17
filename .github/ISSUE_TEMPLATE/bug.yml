@@ -1,0 +1,35 @@
+name: Bug report
+description: Something compiles wrong, bakes wrong, or renders wrong
+labels: [bug]
+body:
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options:
+        - layout (HTML/CSS -> ui.json)
+        - baker (ui.json -> ui.uib / preview)
+        - runtime (C / gsKit / hardware)
+        - not sure
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest HTML+CSS (or IR / blob) that shows the problem.
+      render: html
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      description: Attach the previewer PNG if the problem is visual — and say whether hardware/emulator agrees with the preview.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Environment
+      placeholder: node 22 / python 3.11 / Pillow 12 / gsKit commit, if runtime

@@ -121,6 +121,29 @@ export function measureNode(box, availW, availH, ctx) {
     };
   }
 
+  if (box.image) {
+    // Replaced element: CSS size wins; a single specified axis keeps
+    // the intrinsic aspect ratio; otherwise intrinsic pixels 1:1 —
+    // the baker pre-scales to the laid-out size, so whatever comes
+    // out of here is exactly what the GS draws.
+    let w = resolveLength(s.width, availW);
+    let h = resolveLength(s.height, availH);
+    if (w == null && h == null) {
+      w = box.image.w + pb.left + pb.right;
+      h = box.image.h + pb.top + pb.bottom;
+    } else if (h == null) {
+      h = roundHalfUp((w - pb.left - pb.right) * box.image.h / box.image.w)
+        + pb.top + pb.bottom;
+    } else if (w == null) {
+      w = roundHalfUp((h - pb.top - pb.bottom) * box.image.w / box.image.h)
+        + pb.left + pb.right;
+    }
+    return {
+      w: clampSize(w, resolveLength(s.minWidth, availW), resolveLength(s.maxWidth, availW)),
+      h: clampSize(h, resolveLength(s.minHeight, availH), resolveLength(s.maxHeight, availH)),
+    };
+  }
+
   let w = resolveLength(s.width, availW);
   let h = resolveLength(s.height, availH);
   if (w != null && h != null) return { w, h };
@@ -422,7 +445,11 @@ export function placeNode(box, x, y, w, h, ctx) {
 
       let itemCross = it.crossSize;
       const crossProp = axis === ROW ? cs.height : cs.width;
-      if (align === 'stretch' && crossProp.unit === 'auto') {
+      // Deliberate CSS deviation: browsers stretch auto-cross images in
+      // flex containers (distorting them); here a replaced element
+      // keeps its intrinsic aspect unless the cross size is explicit.
+      // Pixel art on a CRT beats spec fidelity on this one.
+      if (align === 'stretch' && crossProp.unit === 'auto' && !it.box.image) {
         itemCross = line.crossSize - marginCross(axis, cs);
         const min = resolveLength(axis === ROW ? cs.minHeight : cs.minWidth, innerCross);
         const max = resolveLength(axis === ROW ? cs.maxHeight : cs.maxWidth, innerCross);

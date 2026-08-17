@@ -144,6 +144,16 @@ int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
 /* Name of the focused node ("tile-okami"), or NULL. */
 const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
 
+/* Set focus by node name (the id/name attribute from the HTML).
+ * Returns 1 on success, 0 if no node has that name. Use this to
+ * restore focus after a screen swap or to implement shortcuts. */
+int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
+
+/* Activation convention: ps2ui owns *where* focus is, the app owns
+ * *what happens* — on your accept button, switch on
+ * ps2ui_focus_name(ctx). There is deliberately no callback table in
+ * the blob; game logic does not belong in a UI file. */
+
 #ifdef __cplusplus
 }
 #endif

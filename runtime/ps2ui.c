@@ -267,3 +267,20 @@ const char *ps2ui_focus_name(const ps2ui_ctx *ctx)
         return NULL;
     return (const char *)(ctx->blob + ctx->focus_nodes[ctx->focus].name_off);
 }
+
+int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)
+{
+    uint32_t i;
+    if (name == NULL)
+        return 0;
+    /* Linear scan: n_focus is a screenful of widgets, not a database,
+     * and focus_set runs on a button press, not per frame. */
+    for (i = 0; i < ctx->hdr->n_focus; i++) {
+        const char *n = (const char *)(ctx->blob + ctx->focus_nodes[i].name_off);
+        if (strcmp(n, name) == 0) {
+            ctx->focus = (uint16_t)i;
+            return 1;
+        }
+    }
+    return 0;
+}

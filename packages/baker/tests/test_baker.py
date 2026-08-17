@@ -211,6 +211,21 @@ class TestAtlas(unittest.TestCase):
         b = self.build()
         self.assertIs(b.add("Q"), b.add("Q"))
 
+    def test_ink_hangs_from_metrics_baseline(self):
+        # Backlog B2: 'A' sits on the baseline, so across sizes its ink
+        # bottom (bearing_y + h, measured from the line-box top) must
+        # land on metrics_ascent_px within a pixel of AA slop — even
+        # where Pillow's own ascent disagrees with the metrics ascent.
+        for size in (12, 13, 15, 20, 26):
+            b = self.build(size)
+            g = b.add("A")
+            baseline = b.metrics_ascent_px
+            self.assertLessEqual(abs((g.bearing_y + g.h) - baseline), 1,
+                                 f"size {size}: ink bottom {g.bearing_y + g.h} vs baseline {baseline}")
+            # And a descender reaches below it.
+            gy = b.add("g")
+            self.assertGreater(gy.bearing_y + gy.h, baseline)
+
     def test_atlas_height_is_multiple_of_8(self):
         b = self.build()
         for ch in "The quick brown fox jumps over the lazy dog 0123456789":
@@ -376,6 +391,105 @@ class TestVram(unittest.TestCase):
         small = [BakedTexture(gs.PSMT8, 256, 64, 0, b"")]
         _lines, _total, _budget, ok = vram.report(small, [gs.coverage_clut()], 640, 448)
         self.assertTrue(ok)
+
+
+class TestImages(unittest.TestCase):
+    def _write_png(self, td, colors=4, size=(16, 12)):
+        path = os.path.join(td, "art.png")
+        img = Image.new("RGBA", size)
+        palette = [(255, 0, 0, 255), (0, 255, 0, 255),
+                   (0, 0, 255, 255), (255, 255, 0, 128)]
+        for x in range(size[0]):
+            for y in range(size[1]):
+                img.putpixel((x, y), palette[(x + y) % colors])
+        img.save(path)
+        return path
+
+    def image_cmd(self, src, w=16, h=12, palettize=False):
+        return {
+            "op": "image", "x": 5, "y": 5, "w": w, "h": h,
+            "src": src, "palettize": palettize,
+            "state": "always", "focusId": None,
+        }
+
+    def test_rgba_image_bakes_psmct32_texquad(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src)]), font_paths())
+            f.run()
+            self.assertEqual(len(f.records), 1)
+            rec = f.records[0]
+            self.assertEqual(rec.op, OP_TEXQUAD)
+            self.assertEqual(rec.rgba, (0x80, 0x80, 0x80, 0x80))
+            tex = f.textures[rec.tex]
+            self.assertEqual(tex.fmt, gs.PSMCT32)
+            self.assertEqual((tex.width, tex.height), (16, 12))
+            # Alpha crossed into the GS domain exactly once.
+            self.assertLessEqual(max(tex.data[3::4]), 0x80)
+
+    def test_palettized_image_bakes_psmt8_with_clut(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src, palettize=True)]), font_paths())
+            f.run()
+            tex = f.textures[f.records[0].tex]
+            self.assertEqual(tex.fmt, gs.PSMT8)
+            self.assertIsNotNone(tex.clut)
+            self.assertEqual(len(tex.data), 16 * 12)  # 1 byte per texel
+            clut = f.cluts[tex.clut]
+            self.assertLessEqual(max(clut[3::4]), 0x80)  # GS-domain alpha
+
+    def test_palettize_all_overrides_per_image(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src, palettize=False)]),
+                          font_paths(), palettize_all=True)
+            f.run()
+            self.assertEqual(f.textures[f.records[0].tex].fmt, gs.PSMT8)
+
+    def test_image_prescaled_to_layout_size(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src, w=32, h=24)]), font_paths())
+            f.run()
+            tex = f.textures[f.records[0].tex]
+            self.assertEqual((tex.width, tex.height), (32, 24))
+
+    def test_same_image_same_size_shares_texture(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src), self.image_cmd(src)]),
+                          font_paths())
+            f.run()
+            self.assertEqual(len(f.textures), 1)
+
+    def test_palettized_image_round_trips_through_preview(self):
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src, palettize=True)]), font_paths())
+            f.run()
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 320, "h": 240}, f.records, f.textures,
+                      f.cluts, [], None)
+            img = preview.render(read_uib(path), background=(0, 0, 0, 255))
+            # Pixel (5,5) is palette color (x+y)%4 = 0 -> pure red; 4
+            # distinct colors quantize losslessly into 256 slots.
+            r, g, b, _ = img.getpixel((5, 5))
+            self.assertGreater(r, 240)
+            self.assertLess(g, 15)
+
+    def test_vram_savings_reported_for_psmt8(self):
+        from ps2ui_bake import vram
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_png(td, size=(256, 128))
+            f32 = Flattener(tiny_ir([self.image_cmd(src, w=256, h=128)]), font_paths())
+            f32.run()
+            f8 = Flattener(tiny_ir([self.image_cmd(src, w=256, h=128, palettize=True)]),
+                           font_paths())
+            f8.run()
+            _l, total32, _b, _ok = vram.report(f32.textures, f32.cluts, 640, 448)
+            _l, total8, _b, _ok = vram.report(f8.textures, f8.cluts, 640, 448)
+            self.assertLess(total8, total32 / 2)
 
 
 class TestUib(unittest.TestCase):

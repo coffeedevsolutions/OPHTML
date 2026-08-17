@@ -70,14 +70,16 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   warnings.push(...sheet.warnings);
 
   resetBoxIds();
-  const root = buildBoxTree(dom, sheet, null, null, warnings);
+  const root = buildBoxTree(dom, sheet, null, null, warnings, null, {
+    assetDir: options.assetDir ?? null,
+  });
   if (!root) throw new Error('layout: root element is display: none');
 
   const ctx = { fonts };
   layoutTree(root, canvasW, canvasH, ctx);
 
   const { commands, focusables } = buildDisplayList(root);
-  const focus = solveFocusGraph(focusables);
+  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });
   for (const w of checkReachability(focus)) warnings.push(w);
 
   const lints = lintDocument(commands, focus, {
@@ -97,11 +99,12 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   };
 }
 
-/** Convenience: compile from file paths. */
+/** Convenience: compile from file paths. <img> src attributes resolve
+ * relative to the HTML file unless options.assetDir overrides. */
 export function compileFiles(htmlPath, cssPath, options = {}) {
   return compile(
     readFileSync(htmlPath, 'utf8'),
     readFileSync(cssPath, 'utf8'),
-    options,
+    { assetDir: dirname(htmlPath), ...options },
   );
 }

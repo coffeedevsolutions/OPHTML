@@ -83,6 +83,26 @@ not re-measure it, only advance the pen by the shared rounding rule
 `floor(units * size / 1000 + 0.5)` per glyph (see
 `docs/architecture.md`, "Font metrics are the seam").
 
+### `image`
+
+```jsonc
+{
+  "op": "image", "x": 44, "y": 100, "w": 32, "h": 24,
+  "src": "/abs/path/to/ui/assets/badge.png",  // build-host path
+  "palettize": false,          // true = bake as PSMT8 + 256-color CLUT
+  "state": "always", "focusId": 9
+}
+```
+
+`w`/`h` is the final on-screen size; the baker pre-scales the decoded
+pixels to exactly that and the GS never scales at runtime. `src` is a
+build-host absolute path (the .uib contains texels, never paths).
+`palettize: true` asks the baker to quantize this image to 8-bit
+indexed PSMT8 with a per-image CLUT — 4× less VRAM per texel, ≤256
+colors; the whole bake can be forced with `ps2ui-bake
+--palettize-images`. Images have no focus variants: `state` is always
+`"always"`.
+
 ### `scissor_push` / `scissor_pop`
 
 ```jsonc

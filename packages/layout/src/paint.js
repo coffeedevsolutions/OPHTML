@@ -118,6 +118,25 @@ export function buildDisplayList(root) {
       }
     }
 
+    if (box.image) {
+      // The image fills the content box; chrome (background/border)
+      // was already emitted above. No focus variant: image pixels are
+      // identical in both states, so 'always' keeps the state filter
+      // free for the chrome around it.
+      const b = box.style.borderWidth;
+      commands.push({
+        op: 'image',
+        x: box.x + box.style.padding[3] + b,
+        y: box.y + box.style.padding[0] + b,
+        w: box.width - box.style.padding[1] - box.style.padding[3] - 2 * b,
+        h: box.height - box.style.padding[0] - box.style.padding[2] - 2 * b,
+        src: box.image.src,
+        palettize: box.image.palettize,
+        state: 'always',
+        focusId: box.focusId,
+      });
+    }
+
     const clip = !box.isText() && box.style.overflow === 'hidden';
     if (clip) {
       commands.push({

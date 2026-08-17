@@ -62,14 +62,51 @@ function findTarget(from, candidates, dir) {
   return best;
 }
 
+const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
+/**
+ * Wrap target for a dead-end direction: the farthest in-beam candidate
+ * on the opposite side, so pressing right off the row's end lands on
+ * its leftmost member. Solved here at build time — wrap edges are just
+ * ordinary graph edges to the runtime.
+ */
+function findWrapTarget(from, candidates, dir) {
+  let best = null;
+  let bestKey = null;
+  for (const cand of candidates) {
+    if (cand === from) continue;
+    const inBeam = dir === 'left' || dir === 'right'
+      ? overlap1D(from.y, from.y + from.height, cand.y, cand.y + cand.height)
+      : overlap1D(from.x, from.x + from.width, cand.x, cand.x + cand.width);
+    if (!inBeam) continue;
+    const fc = center(from);
+    const cc = center(cand);
+    const delta = dir === 'left' || dir === 'right' ? cc.x - fc.x : cc.y - fc.y;
+    // Wrapping right seeks the farthest candidate to the LEFT, etc.
+    const wantNegative = dir === 'right' || dir === 'down';
+    if (wantNegative ? delta >= 0 : delta <= 0) continue;
+    const key = [Math.abs(delta), -cand.id];
+    if (bestKey === null || key[0] > bestKey[0]
+      || (key[0] === bestKey[0] && key[1] > bestKey[1])) {
+      best = cand;
+      bestKey = key;
+    }
+  }
+  return best;
+}
+
 /**
  * Solve the focus graph for a set of focusable boxes.
  * Returns { nodes, initial } where nodes is an array of
  *   { id, name, rect, up, down, left, right }  (neighbor ids or null)
  * ordered by document order. `initial` is the box carrying the
  * `autofocus` attribute, else the first focusable in document order.
+ *
+ * options.wrap: fill dead-end directions with wrap-around edges
+ * (per-axis, in-beam only — pressing right on the last tile of a row
+ * wraps to that row's first tile, never to another row).
  */
-export function solveFocusGraph(focusables) {
+export function solveFocusGraph(focusables, options = {}) {
   const list = [...focusables.values()];
   const nodes = list.map((box) => {
     const node = {
@@ -78,7 +115,8 @@ export function solveFocusGraph(focusables) {
       rect: [box.x, box.y, box.width, box.height],
     };
     for (const dir of DIRS) {
-      const target = findTarget(box, list, dir);
+      let target = findTarget(box, list, dir);
+      if (!target && options.wrap) target = findWrapTarget(box, list, dir);
       node[dir] = target ? target.id : null;
     }
     return node;

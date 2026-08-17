@@ -51,6 +51,10 @@ def main(argv=None) -> int:
     ap.add_argument("--fonts", default=None, help="fonts.json manifest (default: repo fonts/)")
     ap.add_argument("--preview", default=None, help="write a PNG replay of the initial state")
     ap.add_argument("--montage", default=None, help="write a PNG sheet of every focus state")
+    ap.add_argument("--palettize-images", action="store_true",
+                    help="quantize every image to 8-bit indexed PSMT8+CLUT "
+                         "(4x less VRAM per texel; <=256 colors per image). "
+                         "Per-image opt-in: the `palettize` attribute on <img>.")
     ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",
                     help="texture VRAM budget (default: 4 MiB minus a "
                          "double-buffered framebuffer pair + Z at canvas size)")
@@ -70,7 +74,7 @@ def main(argv=None) -> int:
         fonts_path = os.path.join(here, "..", "..", "..", "fonts", "fonts.json")
     font_paths = load_font_manifest(fonts_path)
 
-    flat = Flattener(ir, font_paths)
+    flat = Flattener(ir, font_paths, palettize_all=args.palettize_images)
     flat.run()
 
     # VRAM accounting before writing anything: an over-budget UI should

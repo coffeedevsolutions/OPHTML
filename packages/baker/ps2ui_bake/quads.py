@@ -67,16 +67,20 @@ class BakedTexture:
 
 
 class Flattener:
-    def __init__(self, ir: dict, font_paths: dict):
+    def __init__(self, ir: dict, font_paths: dict, palettize_all: bool = False):
         """font_paths: {"regular": {"ttf": ..., "metrics": ...},
-                        "bold":    {"ttf": ..., "metrics": ...}}"""
+                        "bold":    {"ttf": ..., "metrics": ...}}
+        palettize_all: quantize every image to PSMT8+CLUT regardless of
+        per-element opt-in."""
         self.ir = ir
         self.font_paths = font_paths
+        self.palettize_all = palettize_all
         self.textures: list[BakedTexture] = []
         self.cluts: list[bytes] = []
         self.records: list[DrawRecord] = []
         self._atlases = {}      # (weight_bucket, size) -> (AtlasBuilder, tex_index)
         self._patches = {}      # patch_key -> (NinePatch, tex_index)
+        self._images = {}       # (src, w, h) -> tex_index
         self._coverage_clut = None
         # box-id -> focus-table index, from the IR focus graph
         self.focus_index = {
@@ -172,6 +176,63 @@ class Flattener:
                         OP_QUAD, state, focus, ex, ey, ew, eh, c,
                     ))
 
+    # -------------------------------------------------------------- images
+
+    def _image_texture(self, src: str, w: int, h: int, palettize: bool) -> int:
+        """Decode + pre-scale an image to its laid-out size. Keyed by
+        (src, w, h, palettize): the same asset at two sizes is two
+        textures, because the GS never scales at runtime here.
+
+        palettize=False bakes PSMCT32 (32bpp, exact colors).
+        palettize=True quantizes to <=256 colors and bakes PSMT8 with a
+        per-image CLUT — 8 bits per texel, a 4x VRAM cut, for art that
+        survives a palette (opt in via the `palettize` attribute on
+        <img>, or --palettize-images for the whole bake)."""
+        from PIL import Image  # deferred so text-only bakes never import it twice
+
+        key = (src, w, h, palettize)
+        if key not in self._images:
+            try:
+                img = Image.open(src).convert("RGBA")
+            except OSError as err:
+                raise ValueError(f"image: cannot decode {src!r}: {err}") from err
+            if img.size != (w, h):
+                img = img.resize((w, h), Image.LANCZOS)
+            if palettize:
+                # FASTOCTREE is the quantizer that keeps RGBA (alpha
+                # lands in the palette entries, not a separate band).
+                q = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE)
+                pal = q.getpalette(rawmode="RGBA")
+                clut = bytearray()
+                for i in range(0, len(pal), 4):
+                    clut += gs.pack_rgba_gs(pal[i], pal[i + 1], pal[i + 2], pal[i + 3])
+                self.cluts.append(bytes(clut))
+                self.textures.append(BakedTexture(
+                    gs.PSMT8, w, h, len(self.cluts) - 1, q.tobytes(),
+                ))
+            else:
+                self.textures.append(BakedTexture(
+                    gs.PSMCT32, w, h, None, gs.encode_psmct32(img.getdata()),
+                ))
+            self._images[key] = len(self.textures) - 1
+        return self._images[key]
+
+    def _flatten_image(self, cmd):
+        state = _STATE_NAMES[cmd["state"]]
+        focus = self._focus_of(cmd)
+        x, y, w, h = cmd["x"], cmd["y"], cmd["w"], cmd["h"]
+        if w <= 0 or h <= 0:
+            return
+        tex = self._image_texture(
+            cmd["src"], w, h,
+            bool(cmd.get("palettize")) or self.palettize_all,
+        )
+        # Identity tint in the modulate domain; the texels carry the art.
+        self.records.append(DrawRecord(
+            OP_TEXQUAD, state, focus, x, y, w, h, (128, 128, 128, 128),
+            tex, 0, 0, w, h,
+        ))
+
     # --------------------------------------------------------------- text
 
     def _flatten_text(self, cmd):
@@ -202,6 +263,8 @@ class Flattener:
                 self._flatten_rect(cmd)
             elif op == "text":
                 self._flatten_text(cmd)
+            elif op == "image":
+                self._flatten_image(cmd)
             elif op == "scissor_push":
                 self.records.append(DrawRecord(
                     OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,

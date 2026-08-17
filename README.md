@@ -45,6 +45,10 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake build/ui.json \
 
 # or run both stages + all tests for the example:
 ./examples/memcard/build.sh
+
+# or live-rebuild on every edit (the dev loop, ~200ms per build):
+node packages/layout/bin/ps2ui-dev.js \
+    examples/memcard/ui/library.html examples/memcard/ui/library.css -o build/dev
 ```
 
 On the console side, drop `runtime/ps2ui.c` + `runtime/ps2ui.h` into
@@ -68,13 +72,29 @@ box model (border-box; padding, margin, borders, border-radius via
 baked nine-patches), flat colors with real translucency, `font-size` /
 `font-weight` / `line-height` / `letter-spacing` / `text-align`,
 `white-space: nowrap` + `text-overflow: ellipsis`, `overflow: hidden`
-(GS scissor), `display: none`, and `:focus` as a **paint-only** state
-(a `:focus` rule that changes geometry is a compile error). Unknown
-properties warn; unsupported values error with line numbers.
+(GS scissor), `display: none`, `<img>` (see below), and `:focus` as a
+**paint-only** state (a `:focus` rule that changes geometry is a
+compile error). Unknown properties warn; unsupported values error with
+line numbers.
+
+**Images.** Keep art in an `assets/` folder next to your HTML and
+reference it with `<img src="assets/badge.png">` (PNG only at build
+time). Paths resolve relative to the HTML document; the baker decodes,
+pre-scales to the laid-out size, and packs the pixels into the `.uib`
+as textures — the console never touches a filesystem. Add the
+`palettize` attribute (or bake with `--palettize-images`) to quantize
+an image to 8-bit indexed + CLUT: 4× less VRAM per texel for art that
+fits 256 colors. One deliberate CSS deviation: flex `stretch` never
+distorts an image's aspect ratio — give it an explicit size if you
+want stretching.
 
 Interactivity is D-pad-shaped: mark elements `focusable` (and one
 `autofocus`); the compiler solves the spatial navigation graph at build
-time and the runtime walks it with table lookups.
+time and the runtime walks it with table lookups. `--focus-wrap` adds
+wrap-around edges (right off a row's end lands on its start), solved at
+build time like everything else, and `ps2ui_focus_set(ctx, "name")`
+restores focus programmatically. Targeting PAL? `--mode pal` sets the
+640×512 canvas and re-derives the CRT linter's safe areas.
 
 There is also a CRT linter: overscan-unsafe text, sub-14px fonts, 1px
 horizontal lines (interlace flicker), saturated NTSC reds and

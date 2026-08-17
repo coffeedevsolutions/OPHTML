@@ -7,7 +7,10 @@
 // `background` and `border` repainted its parent's chrome on top of
 // itself, doubling every panel's border.
 
+import { resolve, isAbsolute } from 'node:path';
+
 import { computeStyle, cloneStyle, INITIAL_STYLE } from './css.js';
+import { readPngSize } from './image.js';
 
 let nextBoxId = 1;
 
@@ -23,6 +26,7 @@ export class Box {
     this.children = [];
     this.parent = null;
     this.text = null;           // for text boxes
+    this.image = null;          // for <img>: { src, w, h } (intrinsic px)
     // Filled by the solver:
     this.x = 0; this.y = 0; this.width = 0; this.height = 0;
     this.lines = null;          // laid-out text lines
@@ -59,7 +63,7 @@ function anonymousTextStyle(parentStyle) {
  * subtree). An element with the `focusable` attribute opens a scope; every
  * box inside carries that focusId so the baker can tag paint deltas.
  */
-export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings, focusScope = null) {
+export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings, focusScope = null, env = {}) {
   const { style, focusStyle, focusDeclared } = computeStyle(
     el, sheet, parentStyle,
     // Inside a focus scope, children inherit from the parent's focus style
@@ -69,17 +73,33 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   );
   if (style.display === 'none') return null;
 
-  if (el.tag === 'img') {
-    // Parsed as a void element, laid out as an empty box, but nothing
-    // paints it yet (backlog F3). Silence here costs someone an
-    // afternoon, so it does not get to be silent.
-    warnings.push(
-      `layout: <img> on line ${el.line} is not painted yet — image baking `
-      + 'is not implemented (backlog F3); the element only reserves layout space',
-    );
-  }
-
   const box = new Box('element', el, style, focusStyle);
+  if (el.tag === 'img') {
+    const src = el.attrs.src;
+    if (!src) {
+      throw new Error(`layout: <img> on line ${el.line} has no src attribute`);
+    }
+    let resolved;
+    if (isAbsolute(src)) {
+      resolved = src;
+    } else if (env.assetDir) {
+      // The convention: assets live next to the HTML that names them
+      // (ui/assets/*.png), resolved relative to the document.
+      resolved = resolve(env.assetDir, src);
+    } else {
+      throw new Error(
+        `layout: <img src="${src}"> on line ${el.line}: relative path but no `
+        + 'asset base — compile from files (compileFiles) or pass options.assetDir',
+      );
+    }
+    const size = readPngSize(resolved);
+    // palettize: opt-in PSMT8+CLUT quantization at bake time — 8 bits
+    // per texel instead of 32, for art that fits in 256 colors.
+    box.image = {
+      src: resolved, w: size.w, h: size.h,
+      palettize: 'palettize' in el.attrs,
+    };
+  }
   const focusable = 'focusable' in el.attrs;
   if (focusable && focusScope !== null) {
     throw new Error(
@@ -107,7 +127,7 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
       tbox.parent = box;
       box.children.push(tbox);
     } else {
-      const cbox = buildBoxTree(child, sheet, style, focusStyle, warnings, scope);
+      const cbox = buildBoxTree(child, sheet, style, focusStyle, warnings, scope, env);
       if (cbox) {
         cbox.parent = box;
         box.children.push(cbox);

@@ -1,0 +1,19 @@
+name: Feature request
+description: Propose an addition to the toolchain
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What UI are you trying to build?
+      description: Concrete need beats abstract capability — what does the screen look like, and what stops you today?
+    validations:
+      required: true
+  - type: textarea
+    id: fit
+    attributes:
+      label: Where does it fit?
+      description: >
+        Which stage(s) — layout, baker, runtime — and does it respect
+        "everything moves to build time"? Check docs/BACKLOG.md first;
+        if it's already there, comment on the item instead.

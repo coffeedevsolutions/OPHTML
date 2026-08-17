@@ -34,7 +34,8 @@ class Glyph:
     w: int
     h: int
     bearing_x: int  # ink offset from pen x
-    bearing_y: int  # ink offset from the line-box *top* (not baseline)
+    bearing_y: int  # ink offset from the line-box top, measured via the
+                    # METRICS ascent — see AtlasBuilder.add (backlog B2)
     advance: int    # px, from metrics — matches layout exactly
 
 
@@ -66,6 +67,12 @@ class AtlasBuilder:
         ascent, descent = self.font.getmetrics()
         self.ascent = ascent
         self.descent = descent
+        # The layout stage positioned every line box using the METRICS
+        # ascent (units -> px via the shared rounding rule). Pillow's
+        # per-size ascent can differ by a pixel, so ink placement must
+        # go through the metrics value or text drifts off its measured
+        # box (backlog B2).
+        self.metrics_ascent_px = glyph_advance_px(self.metrics["ascent"], size)
 
     def _grow(self, needed_h: int):
         if needed_h <= self.image.height:
@@ -108,11 +115,16 @@ class AtlasBuilder:
         self._grow(self.shelf_y + h + 1)
         self.image.paste(ink, (self.shelf_x, self.shelf_y))
 
+        # Pillow's default anchor puts the FreeType ascender at y=pad,
+        # so (y0 - pad) is ink-below-PIL-ascender. Re-express it as
+        # ink-below-baseline, then hang it from the metrics ascent that
+        # layout actually measured with.
+        ink_from_baseline = (y0 - pad) - self.ascent
         g = Glyph(
             codepoint=cp,
             u=self.shelf_x, v=self.shelf_y, w=w, h=h,
             bearing_x=x0 - pad,
-            bearing_y=y0 - pad,
+            bearing_y=self.metrics_ascent_px + ink_from_baseline,
             advance=advance,
         )
         self.shelf_x += w + 1

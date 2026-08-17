@@ -242,18 +242,70 @@ test('focus: autofocus wins over document order', () => {
   assert.equal(initial.name, 'two');
 });
 
+test('focus: --focus-wrap fills dead ends within the beam only', () => {
+  const ir = compile(
+    `<div class="o"><div class="grid">
+       <div class="c" id="a" focusable>a</div><div class="c" id="b" focusable>b</div>
+       <div class="c" id="c" focusable>c</div><div class="c" id="d" focusable>d</div>
+     </div></div>`,
+    `.grid { flex-direction: row; flex-wrap: wrap; gap: 10px; width: 230px }
+     .c { width: 100px; height: 40px; background: #101010 }`,
+    { fonts, focusWrap: true },
+  );
+  const byName = Object.fromEntries(ir.focus.nodes.map((n) => [n.name, n]));
+  const byId = Object.fromEntries(ir.focus.nodes.map((n) => [n.id, n]));
+  // Right off b wraps to a (same row), never to c or d.
+  assert.equal(byId[byName.b.right].name, 'a');
+  assert.equal(byId[byName.a.left].name, 'b');
+  // Vertical wrap within the column beam.
+  assert.equal(byId[byName.c.down].name, 'a');
+  assert.equal(byId[byName.a.up].name, 'c');
+});
+
 test('focus: nested focusables are a compile error', () => {
   assert.throws(() => compileCss(
     '<div focusable><div focusable>x</div></div>', 'div { }',
   ), /nested focusable/);
 });
 
-test('paint: <img> warns instead of vanishing silently', () => {
-  const ir = compileCss(
-    '<div><img src="assets/logo.png" class="logo">text</div>',
-    '.logo { width: 32px; height: 32px }',
+test('image: <img> measures intrinsically and emits an image command', () => {
+  const ir = compile(
+    '<div class="row"><img src="badge.png"><p>x</p></div>',
+    '.row { flex-direction: row }',
+    { fonts, assetDir: fixtureDir() },
   );
-  assert.match(ir.warnings.join('\n'), /<img> on line 1 is not painted/);
+  const img = ir.commands.find((c) => c.op === 'image');
+  assert.ok(img, 'image command emitted');
+  assert.equal(img.w, 8);
+  assert.equal(img.h, 6);
+  assert.match(img.src, /badge\.png$/);
+  assert.equal(img.state, 'always');
+});
+
+test('image: one specified axis keeps the intrinsic aspect ratio', () => {
+  const ir = compile(
+    '<div><img class="wide" src="badge.png"></div>',
+    '.wide { width: 32px }',
+    { fonts, assetDir: fixtureDir() },
+  );
+  const img = ir.commands.find((c) => c.op === 'image');
+  assert.equal(img.w, 32);
+  assert.equal(img.h, 24); // 32 * 6/8
+});
+
+test('image: missing src and missing files are compile errors', () => {
+  assert.throws(
+    () => compile('<div><img></div>', 'div {}', { fonts, assetDir: fixtureDir() }),
+    /no src attribute/,
+  );
+  assert.throws(
+    () => compile('<div><img src="nope.png"></div>', 'div {}', { fonts, assetDir: fixtureDir() }),
+    /cannot read/,
+  );
+  assert.throws(
+    () => compile('<div><img src="x.png"></div>', 'div {}', { fonts }),
+    /no asset base/,
+  );
 });
 
 // ------------------------------------------------------------------ lint
@@ -299,4 +351,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 function readFixture(rel) {
   return readFileSync(join(dirname(fileURLToPath(import.meta.url)), rel), 'utf8');
+}
+function fixtureDir() {
+  return join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 }

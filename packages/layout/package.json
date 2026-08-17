@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "ps2ui-layout": "bin/ps2ui-layout.js"
+    "ps2ui-layout": "bin/ps2ui-layout.js",
+    "ps2ui-dev": "bin/ps2ui-dev.js"
   },
   "exports": {
     ".": "./src/index.js"

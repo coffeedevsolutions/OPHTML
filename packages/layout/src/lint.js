@@ -12,10 +12,12 @@ const DIRS = ['up', 'down', 'left', 'right'];
 export const DEFAULT_LINT_OPTIONS = Object.freeze({
   canvasW: 640,
   canvasH: 448,
-  // Title-safe area, 5% inset per side (SMPTE ST 2046 is stricter; 5%
-  // matches what PS2-era games actually shipped).
-  safeInsetX: 32,
-  safeInsetY: 22,
+  // Title-safe area: 5% inset per side, derived from the canvas so PAL
+  // (640x512) gets its own numbers (SMPTE ST 2046 is stricter; 5%
+  // matches what PS2-era games actually shipped). Override with
+  // explicit safeInsetX/safeInsetY when targeting a known display.
+  safeInsetX: null,
+  safeInsetY: null,
   minFontSize: 14,
   minContrast: 3.0,
 });
@@ -51,6 +53,8 @@ function over(top, bottom) {
  */
 export function lintDocument(commands, focusGraph, options = {}) {
   const opt = { ...DEFAULT_LINT_OPTIONS, ...options };
+  if (opt.safeInsetX == null) opt.safeInsetX = Math.round(opt.canvasW * 0.05);
+  if (opt.safeInsetY == null) opt.safeInsetY = Math.round(opt.canvasH * 0.05);
   const warnings = [];
   const safe = {
     x0: opt.safeInsetX,
