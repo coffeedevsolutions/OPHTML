@@ -36,6 +36,66 @@ extern unsigned int size_ui_uib;
 #define PS2UI_SAMPLE_CYCLE 1
 #endif
 
+#ifdef PS2UI_SAMPLE_PROBE
+/* Bring-up step 2 as a program, for when solid fills do not appear.
+ *
+ * The first emulator capture came back 92.8% pure black with every text
+ * colour present and correct to within one unit. So textured sprites
+ * work — atlas, CLUT, CSM1 swizzle, modulate domain, all of it — and
+ * nothing untextured drew at all, including `gsKit_clear`, which is not
+ * ps2ui's code. That narrows the fault to solid sprites, and leaves
+ * four candidates it cannot separate: the clear, blending-off sprites,
+ * blending-on opaque sprites, and blending-on translucent sprites.
+ *
+ * This draws one of each in a colour that appears nowhere in either
+ * example, so `framediff --stats` names exactly which survived. No
+ * .uib is involved: if this frame is wrong, ps2ui is not why.
+ *
+ *   ground  #0a0e1a   gsKit_clear, blending off
+ *   red     #ff0000   sprite, blending off
+ *   green   #00ff00   sprite, blending on, alpha 0x80 (GS opaque)
+ *   blue    #0000ff   sprite, blending on, alpha 0x40 (half)
+ *
+ * A half-alpha blue over the dark ground composites to about #05070d,
+ * so blue at full strength means the blend unit ignored alpha, and no
+ * blue at all means translucent sprites are dropped. Each quadrant is
+ * 200x160, roughly 16% of the frame, far above the noise in a palette
+ * listing. */
+/* Alphas for the ladder, straddling the 0x80 boundary. Every quad in a
+ * .uib that is meant to be opaque carries exactly 0x80, so whether that
+ * value works is the whole question. */
+static const unsigned char probe_alphas[] = { 0x20, 0x40, 0x60, 0x7f, 0x80 };
+
+static void probe_frame(GSGLOBAL *gs)
+{
+    int i;
+
+    gs->PrimAlphaEnable = GS_SETTING_OFF;
+    gsKit_clear(gs, GS_SETREG_RGBAQ(0x0a, 0x0e, 0x1a, 0x80, 0x00));
+
+    /* Control: unblended, and a colour used nowhere else. */
+    gsKit_prim_sprite(gs, 40.0f, 40.0f, 240.0f, 200.0f, 0,
+                      GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
+
+    /* Same colour every time, only the alpha varies, so a missing rung
+     * cannot be blamed on the colour register. Over the #0a0e1a ground
+     * the blend equation predicts each rung exactly:
+     *
+     *   0x20 -> #470a53   0x40 -> #84078c   0x60 -> #c103c5
+     *   0x7f -> #fd00fd   0x80 -> #ff00ff
+     *
+     * A fingerprint missing only the last one puts the fault precisely
+     * at As = 128, which is the value the .uib calls opaque. */
+    gs->PrimAlphaEnable = GS_SETTING_ON;
+    for (i = 0; i < 5; i++) {
+        float x = 20.0f + 120.0f * (float)i;
+        gsKit_prim_sprite(gs, x, 248.0f, x + 120.0f, 408.0f, 0,
+                          GS_SETREG_RGBAQ(0xff, 0x00, 0xff,
+                                          probe_alphas[i], 0x00));
+    }
+}
+#endif
+
 int main(void)
 {
     GSGLOBAL *gs;
@@ -58,6 +118,15 @@ int main(void)
     /* ps2ui blobs carry GS-domain alpha; the standard blend equation
      * (Cs - Cd) * As >> 7 + Cd is exactly what the baker assumed. */
     gs->PrimAlphaEnable = GS_SETTING_ON;
+
+#ifdef PS2UI_SAMPLE_PROBE
+    /* No blob, no ps2ui: just the four primitive cases. */
+    while (1) {
+        probe_frame(gs);
+        gsKit_queue_exec(gs);
+        gsKit_sync_flip(gs);
+    }
+#endif
 
     rc = ps2ui_load(&ui, ui_uib, size_ui_uib);
     if (rc != PS2UI_OK) {

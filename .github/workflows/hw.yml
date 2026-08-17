@@ -84,11 +84,22 @@ jobs:
           # focus would be compared against whichever state happened to
           # be up, which is not a test.
           make -C runtime/sample STATIC=1
+          mv runtime/sample/ps2ui_sample.elf runtime/sample/ui.elf
+          # The bring-up step 2 instrument: four solid-fill cases, no
+          # .uib involved. Built here because it needs the same
+          # toolchain, and it is the frame to read when the UI capture
+          # comes back missing its backgrounds.
+          make -C runtime/sample clean
+          make -C runtime/sample PROBE=1
+          mv runtime/sample/ps2ui_sample.elf runtime/sample/probe.elf
+          mv runtime/sample/ui.elf runtime/sample/ps2ui_sample.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
           retention-days: 14
-          path: runtime/sample/ps2ui_sample.elf
+          path: |
+            runtime/sample/ps2ui_sample.elf
+            runtime/sample/probe.elf
 
   emulator:
     needs: [bake, elf]
@@ -191,10 +202,42 @@ jobs:
             sleep 2
             kill -9 $PLAY_PID 2>/dev/null || true
           '
+      - name: Bring-up step 2 — do solid fills draw at all?
+        if: always()
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
+        run: |
+          # Reports, never fails. The UI diff answers "is the frame
+          # right"; this answers "which primitive paths work", which is
+          # the question you actually need when the answer to the first
+          # one is no. Its four colours appear in no example, so the
+          # fingerprint alone identifies what survived.
+          xvfb-run -s "-screen 0 640x448x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf elf/probe.elf \
+              >probe.log 2>&1 &
+            P=$!
+            sleep 20
+            if kill -0 $P 2>/dev/null; then
+              import -window root probe.png
+            else
+              echo "probe ELF exited early:"; cat probe.log
+            fi
+            kill -9 $P 2>/dev/null || true
+          ' || true
+          if [ -f probe.png ]; then
+            python3 tools/framediff.py probe.png probe.png --stats \
+              --rmse 1e9 --tile-rmse 1e9 || true
+          fi
       - name: Diff against previewer ground truth
         run: |
+          # --stats prints a colour fingerprint of both frames. An RMSE
+          # says they differ; the palette says how, which is the only
+          # way to read this failure without opening the artifact.
           python3 tools/framediff.py baked/preview.png captured.png \
-            --out framediff.png --rmse 8 --tile-rmse 32
+            --out framediff.png --rmse 8 --tile-rmse 32 --stats
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -203,3 +246,4 @@ jobs:
           path: |
             captured.png
             framediff.png
+            probe.png

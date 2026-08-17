@@ -62,18 +62,60 @@ Nothing ps2ui-specific is involved yet.
 
 ## 2. Solid quads and the alpha blend unit
 
-**Do:** let the sample draw only `OP_QUAD` records (build it with
-`-DPS2UI_SAMPLE_SOLID_ONLY` or comment out the TEXQUAD branch).
-**Expect:** the panel layout of the memcard example in flat colors,
-matching the previewer geometry exactly; translucent panels (the
-`#11162400` card-info fill is fully transparent) must not double-darken.
-**If wrong:**
-- Everything half-transparent → alpha domain regression: quads carry
-  GS-domain alpha (0x80 = opaque) and the blend equation must be the
-  gsKit default `(Cs - Cd) * As >> 7 + Cd`. Do not "fix" it by scaling
-  alpha up — the file domain is correct (see `docs/format-uib.md`).
-- Wrong colors entirely → RGBAQ packing order; verify
-  `GS_SETREG_RGBAQ(r, g, b, a, q)` argument order against your gsKit.
+**Do:** `make -C runtime/sample PROBE=1` and run it. No `.uib` is
+involved, so nothing in this repository's compiler or baker can be at
+fault: it draws four solid-fill cases straight through gsKit.
+
+| what | how | expected |
+|------|-----|----------|
+| ground `#0a0e1a` | `gsKit_clear`, blending **off** | whole frame |
+| red `#ff0000` | sprite, blending **off** | top left, full strength |
+| magenta ladder | five sprites, blending **on**, alpha `0x20` `0x40` `0x60` `0x7f` `0x80` | bottom row |
+
+Every rung of the ladder is the same colour and differs only in alpha,
+so a missing rung cannot be blamed on the colour register. Over the
+`#0a0e1a` ground, `(Cs - Cd) * As >> 7 + Cd` predicts each one exactly:
+
+| alpha | composites to |
+|-------|---------------|
+| `0x20` | `#470a53` |
+| `0x40` | `#84078c` |
+| `0x60` | `#c103c5` |
+| `0x7f` | `#fd00fd` |
+| `0x80` | `#ff00ff` |
+
+**Expect:** the clear, the red control, and all five rungs.
+
+**If wrong**, what is missing names the fault:
+
+- **Nothing but black** → solid sprites are not reaching the GS at all.
+  The clear is plain gsKit, so suspect video mode init or your gsKit
+  build before anything in ps2ui.
+- **Clear and red only, no ladder** → the blend unit is dropping every
+  blended primitive.
+- **The ladder stops short of `0x80`** → the interesting one, and what
+  Play! 0.72 does. `0x80` is the value the `.uib` calls opaque, so if it
+  is the only rung missing then every opaque quad in every blob will be
+  invisible while text, whose alpha comes from the atlas, still draws.
+  That is a host defect, not a file one: do **not** "fix" it by scaling
+  alpha down to `0x7f`. The file domain is correct (see
+  `docs/format-uib.md`), and a real GS treats `0x80` as 1.0.
+- **Rungs present but the wrong colours** → compare against the table
+  above. Values above the prediction mean alpha is being ignored;
+  values below mean it is applied twice.
+- **All rungs the same colour** → the colour register is not being
+  reloaded between primitives, which is a gsKit queue problem rather
+  than a blend one.
+- **Wrong colours entirely** → RGBAQ packing order; verify
+  `GS_SETREG_RGBAQ(r, g, b, a, q)` against your gsKit.
+
+CI runs this every time and prints the palette of what it captured, so
+the `hw` workflow log answers this step without a console. The colours
+appear in neither example on purpose: whatever shows up in the
+fingerprint came from the probe.
+
+Once the probe is clean, the UI capture's own backgrounds (`#0a0e1a`
+canvas, `#12182a` panels) should be its two most common colours.
 
 ## 3. CLUT upload and the CSM1 swizzle
 
