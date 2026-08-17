@@ -6,7 +6,7 @@ parsing, no allocation, and no packing pragmas (every u32 sits at a
 4-aligned offset).
 
 ```
-offset 0            header        72 bytes
+offset 0            header        76 bytes
 header.off_tex      tex table     n_tex   × 16 bytes
 header.off_clut     clut table    n_clut  ×  8 bytes
 header.off_cmd      command list  n_cmd   × 32 bytes
@@ -20,12 +20,12 @@ header.off_blob     blob          header.blob_len bytes
 All `data_off`/`name_off` fields are relative to the **blob**, so tools
 can rewrite tables without re-basing data pointers.
 
-## Header (72 bytes)
+## Header (76 bytes)
 
 | off | type | field         | notes                          |
 |-----|------|---------------|--------------------------------|
 | 0   | u32  | magic         | `0x31424955` — "UIB1"          |
-| 4   | u16  | version       | 3                              |
+| 4   | u16  | version       | 4                              |
 | 6   | u16  | feature_flags | bit 0 = dynamic text; a reader that sees a bit it does not know MUST reject the file |
 | 8   | u16  | canvas_w      | 640 for NTSC                   |
 | 10  | u16  | canvas_h      | 448 (NTSC) / 512 (PAL)         |
@@ -42,6 +42,19 @@ can rewrite tables without re-basing data pointers.
 | 64  | u16  | n_screen      | ≥ 1 — every file has a screen table |
 | 66  | u16  | pad           |                                |
 | 68  | u32  | off_screen    |                                |
+| 72  | u16  | display_aspect_num | panel aspect numerator, e.g. 16 |
+| 74  | u16  | display_aspect_den | denominator, e.g. 9        |
+
+**Display aspect.** The framebuffer is a pixel grid; the television
+decides how wide it is drawn, and on this hardware the two disagree
+even in the ordinary case. 640x448 shown as 4:3 has a pixel aspect
+ratio of 0.9333, and shown as 16:9 it is 1.2444. PS2 widescreen is
+anamorphic: the same grid, stretched. Consumers derive
+`PAR = (num/den) / (canvas_w/canvas_h)`; the runtime exposes it as
+`ps2ui_pixel_aspect_x1000()`. The renderer draws in framebuffer pixels
+regardless, so this field exists to keep the previewer honest and to
+let an app assert its video setup matches what the UI was authored
+for.
 
 ## Texture entry (16 bytes)
 

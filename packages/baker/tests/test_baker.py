@@ -556,7 +556,7 @@ class TestUib(unittest.TestCase):
             return read_uib(path)
 
     def test_struct_sizes_match_c_runtime(self):
-        self.assertEqual(_HEADER.size, 72)
+        self.assertEqual(_HEADER.size, 76)
         self.assertEqual(_CMD.size, 32)
         self.assertEqual(_FOCUS.size, 24)
 
@@ -688,6 +688,41 @@ class TestDynamicText(unittest.TestCase):
                 fh.write(bytes(data))
             with self.assertRaisesRegex(ValueError, "crc"):
                 read_uib(path)
+
+
+class TestDisplayAspect(unittest.TestCase):
+    """Widescreen: the framebuffer is not what the panel shows."""
+
+    def bake(self, aspect, canvas=(640, 448)):
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": canvas[0], "h": canvas[1]}, [], [], [], [],
+                      None, (), (), None, aspect)
+            return read_uib(path)
+
+    def test_aspect_round_trips(self):
+        self.assertEqual(self.bake((16, 9)).display_aspect, (16, 9))
+        self.assertEqual(self.bake((4, 3)).display_aspect, (4, 3))
+
+    def test_display_size_is_derived_from_height(self):
+        self.assertEqual(preview.display_size(self.bake((4, 3))), (597, 448))
+        self.assertEqual(preview.display_size(self.bake((16, 9))), (796, 448))
+        self.assertEqual(
+            preview.display_size(self.bake((16, 9), canvas=(640, 512))), (910, 512))
+
+    def test_display_space_resamples_only_when_needed(self):
+        uib43 = self.bake((4, 3))
+        img = Image.new("RGBA", (640, 448), (0, 0, 0, 255))
+        self.assertEqual(preview.to_display_space(img, uib43).size, (597, 448))
+        # A square-pixel target leaves the image alone.
+        square = self.bake((10, 7))   # 640x448 is exactly 10:7
+        self.assertEqual(preview.to_display_space(img, square).size, (640, 448))
+
+    def test_default_is_four_three(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 640, "h": 448}, [], [], [], [], None)
+            self.assertEqual(read_uib(path).display_aspect, (4, 3))
 
 
 class TestPreview(unittest.TestCase):

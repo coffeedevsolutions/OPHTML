@@ -46,11 +46,18 @@ h1 {
 }
 
 /* Which channel this card is served on — an identity label, not the
- * subject of the screen. */
+ * subject of the screen.
+ *
+ * Bordered but unfilled is what it wants to look like, and the contrast
+ * lint says it cannot have that: sitting on nothing but the 60% scrim,
+ * teal-on-whatever-the-game-is-doing bottoms out at 2.93:1 over a
+ * bright frame. It gets a fill for the same reason the footer got a
+ * bar. Same nine-patch either way, so the fill is free. */
 .gen {
   font-size: 14px;
   color: #7fd0c4;
   letter-spacing: 2px;
+  background: #0c2321;
   border: 2px solid #1f4a45;
   border-radius: 4px;
   padding: 1px 6px;
@@ -266,8 +273,11 @@ h1 {
   gap: 10px;
 }
 
+/* Seven cells at 135px wrap 4 + 3 inside the 572px content width
+ * (4*135 + 3*10 gap = 570), which is what keeps the third row from
+ * pushing the footer off a 448-line frame. */
 .cell {
-  width: 178px;
+  width: 135px;
   background: #12182a;
   border: 2px solid #1c2336;
   border-radius: 6px;
@@ -352,3 +362,23 @@ h1 {
 .bar-1 { flex-grow: 1; }
 .bar-2 { flex-grow: 2; background: #4f8fd0; }
 .bar-3 { flex-grow: 3; background: #a67fd0; }
+
+
+/* ---- aspect probe (widescreen) ----
+ * Three boxes, each 34 framebuffer lines tall and pre-squashed for a
+ * different pixel aspect, so exactly one of them reads square on any
+ * given television:
+ *
+ *   gold  34px wide  square in framebuffer pixels (PAR 1.0, no TV)
+ *   blue  36px wide  34 / 0.9333, square on a 4:3 panel
+ *   green 27px wide  34 / 1.2444, square on a panel stretching to 16:9
+ *
+ * Which one looks square is the one measurement the previewer cannot
+ * make for you, because it is a fact about the display and not about
+ * the blob. Widths are baked, so this cell reads the same in a 4:3 and
+ * a 16:9 build; only the television changes the answer. */
+.aspect-row { flex-direction: row; gap: 6px; align-items: center; }
+.aspect-square { width: 34px; height: 34px; background: #e8b64c; }
+.aspect-tall   { width: 36px; height: 34px; background: #5b9bd8; }
+.aspect-wide   { width: 27px; height: 34px; background: #6fbf7f; }
+.cell-note { font-size: 14px; color: #8b94a7; }

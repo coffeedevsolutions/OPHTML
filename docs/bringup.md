@@ -30,6 +30,7 @@ Reference material, in the order you will reach for it:
 | `probe-clip`   | ellipsis and scissor clipping     | 7 |
 | `probe-image`  | the same PNG as PSMCT32 and PSMT8 + CLUT, side by side | 3, 5 |
 | `probe-flex`   | grow/basis and text alignment     | geometry sanity |
+| `probe-aspect` | which aspect the panel is applying | 10 |
 
 A cell that matches the previewer PNG clears its steps. A cell that
 differs tells you which step to work, which is the whole reason the
@@ -155,9 +156,61 @@ what the budget assumed.
 leaves free, and treat the printed per-texture breakdown as the
 negotiation table.
 
+## 10. Display aspect
+
+**Do:** look at `probe-aspect`. It draws three boxes, all 34
+framebuffer lines tall, each pre-squashed for a different pixel aspect.
+Exactly one reads square, and which one it is names what the television
+is doing:
+
+| box | width | reads square when |
+|-----|-------|-------------------|
+| gold  | 34px | pixels are drawn square (PAR 1.0 — a framebuffer capture, no TV) |
+| blue  | 36px | the panel is showing 4:3 (PAR 0.9333) |
+| green | 27px | the panel is stretching to 16:9 (PAR 1.2444) |
+
+The widths are baked, so this cell reads identically in a `ntsc` and a
+`ntsc16x9` build. It measures the display, not the blob.
+
+**Expect:** blue square on a 4:3 set or a 16:9 panel in pillarbox mode;
+green square with the panel stretching. Gold square means you are
+looking at a screenshot, not a television.
+
+**Then:** compare the rest of the screen against the right reference.
+`--preview-display` writes the PNG resampled to the panel's aspect;
+that is the one to hold up against a photograph. The 1:1 `--preview` is
+a picture of the framebuffer and will disagree with the TV by 7% at 4:3
+and 24% at 16:9.
+
+**Fix:** bake with the aspect you are actually displaying at —
+`--mode ntsc16x9` for a stretching panel, `--mode ntsc` for 4:3 or
+pillarbox.
+
+### Testing both aspects on one panel
+
+Worth doing deliberately, and `./examples/channel6/build.sh` bakes both
+blobs for it:
+
+| blob | mode | reference PNG |
+|------|------|---------------|
+| `build/ui.uib` | `ntsc` (4:3) | `build/preview-display.png` |
+| `build/ui-16x9.uib` | `ntsc16x9` | `build/preview-16x9-display.png` |
+
+1. Boot `ui.uib` with the TV in 4:3 / pillarbox. Blue reads square, the
+   screen matches `preview-display.png`.
+2. Switch the TV to stretch without changing the blob. Green now reads
+   square and everything is 33% too wide. This is the failure you are
+   learning to recognize.
+3. Boot `ui-16x9.uib` with the TV still stretching. Green still reads
+   square (it is a display measurement) but the layout matches
+   `preview-16x9-display.png` again.
+
+A UI that looks the same in both TV modes means the aspect never
+reached the hardware at all.
+
 ---
 
-## When all nine pass
+## When all ten pass
 
 Update `docs/architecture.md`'s status section ("not hardware-verified"
 → verified, with the gsKit version and hardware/emulator used), close

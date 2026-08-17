@@ -4,3 +4,11 @@ __pycache__/
 build/
 examples/*/build/
 runtime/build/
+
+# The sample Makefile copies ps2ui.[ch] beside main.c so the PS2SDK
+# implicit rules pick them up, and bin2c generates ui_uib.c.
+runtime/sample/ps2ui.c
+runtime/sample/ps2ui.h
+runtime/sample/ui_uib.c
+runtime/sample/*.o
+runtime/sample/*.elf

@@ -16,6 +16,7 @@ import { buildDisplayList } from './paint.js';
 import { solveFocusGraph, checkReachability } from './focus.js';
 import { lintDocument } from './lint.js';
 import { loadFont } from './text.js';
+import { pixelAspect, displaySize } from './aspect.js';
 
 export { parseHTML } from './html.js';
 export { parseStylesheet, computeStyle, INITIAL_STYLE } from './css.js';
@@ -62,6 +63,9 @@ export class FontContext {
 export function compile(htmlSrc, cssSrc, options = {}) {
   const canvasW = options.canvasW ?? 640;
   const canvasH = options.canvasH ?? 448;
+  // The panel's aspect, which is not the framebuffer's. Default 4:3.
+  const displayAspect = options.displayAspect ?? [4, 3];
+  const par = pixelAspect(canvasW, canvasH, displayAspect);
   const fonts = options.fonts ?? FontContext.fromDir(options.fontDir);
   const warnings = [];
 
@@ -83,12 +87,20 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   for (const w of checkReachability(focus)) warnings.push(w);
 
   const lints = lintDocument(commands, focus, {
-    canvasW, canvasH, ...options.lint,
+    canvasW, canvasH, par, ...options.lint,
   }).map((l) => `${l.rule}: ${l.message}`);
 
   return {
     version: IR_VERSION,
-    canvas: { w: canvasW, h: canvasH },
+    canvas: {
+      w: canvasW,
+      h: canvasH,
+      // Authored display aspect as an exact ratio; par is derived and
+      // carried for consumers that would otherwise recompute it.
+      displayAspect,
+      par: Math.round(par * 10000) / 10000,
+      display: displaySize(canvasW, canvasH, displayAspect),
+    },
     fonts: {
       regular: { family: fonts.regular.family, weight: fonts.regular.weight },
       bold: { family: fonts.bold.family, weight: fonts.bold.weight },

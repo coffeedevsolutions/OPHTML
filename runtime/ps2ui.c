@@ -599,6 +599,17 @@ const char *ps2ui_screen_name(const ps2ui_ctx *ctx)
     return (const char *)(ctx->blob + ctx->screen_table[ctx->screen].name_off);
 }
 
+uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx)
+{
+    /* PAR = displayAspect / (w / h), scaled by 1000 with no floats. */
+    uint32_t num = ctx->hdr->display_aspect_num;
+    uint32_t den = ctx->hdr->display_aspect_den;
+    if (den == 0 || ctx->hdr->canvas_w == 0)
+        return 1000;
+    return (num * (uint32_t)ctx->hdr->canvas_h * 1000u)
+         / (den * (uint32_t)ctx->hdr->canvas_w);
+}
+
 /* -------------------------------------------------------------- focus */
 
 int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)

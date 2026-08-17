@@ -55,7 +55,7 @@ int main(int argc, char **argv)
     gs.Width = 640; gs.Height = 448;
 
     /* ---- struct layout matches the on-disk format ---- */
-    CHECK(sizeof(ps2ui_header) == 72, "header struct is 72 bytes");
+    CHECK(sizeof(ps2ui_header) == 76, "header struct is 76 bytes");
     CHECK(sizeof(ps2ui_screen_entry) == 24, "screen entry struct is 24 bytes");
     CHECK(sizeof(ps2ui_font_entry) == 16, "font entry struct is 16 bytes");
     CHECK(sizeof(ps2ui_glyph) == 20, "glyph struct is 20 bytes");
@@ -264,6 +264,14 @@ int main(int argc, char **argv)
         }
         ps2ui_slot_set(&ctx, "count", NULL);
     }
+
+    /* ---- display aspect (widescreen support) ---- */
+    CHECK(ctx.hdr->display_aspect_num == 4 && ctx.hdr->display_aspect_den == 3,
+          "memcard example is authored for 4:3");
+    /* 640x448 at 4:3 is PAR 0.9333, not 1.0: the GS framebuffer is not
+     * square-pixel even in the ordinary case. */
+    CHECK(ps2ui_pixel_aspect_x1000(&ctx) == 933,
+          "pixel aspect derives to 933 for 4:3 at 640x448");
 
     /* ---- multi-screen (F4) ---- */
     {
