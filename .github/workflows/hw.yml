@@ -89,8 +89,16 @@ jobs:
           # `clean` currently spares the renamed file, but only by
           # accident, and adding *.elf to it later would silently drop
           # the UI ELF from the artifact.
-          make -C runtime/sample clean
+          # objclean, not clean: `clean` removes $(EE_BIN), which
+          # defaults to the UI ELF, so cleaning here silently threw the
+          # first build away and the emulator job booted nothing.
+          make -C runtime/sample objclean
           make -C runtime/sample PROBE=1 EE_BIN=probe.elf
+          # Both must survive; the artifact is useless with either one
+          # missing, and a missing ELF shows up downstream as a boot
+          # failure rather than as a build error.
+          test -f runtime/sample/ps2ui_sample.elf
+          test -f runtime/sample/probe.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
