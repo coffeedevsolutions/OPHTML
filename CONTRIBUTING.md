@@ -56,7 +56,7 @@ Rules that PRs must not break:
   (clips square — backlog B6's cheap half).
 - PAL example: a 640×512 variant of the memcard screen.
 
-Bigger items live in [docs/BACKLOG.md](docs/BACKLOG.md), RICE-scored —
+Bigger items live in [BACKLOG.md](BACKLOG.md), RICE-scored —
 comment on an item before starting so effort isn't duplicated.
 
 ## Security

@@ -158,7 +158,7 @@ See [docs/architecture.md](docs/architecture.md) for the decision log.
 
 ## Roadmap
 
-Rough priority order. Scoring and detail live in [docs/BACKLOG.md](docs/BACKLOG.md).
+Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 
 - [ ] First run on real hardware / PCSX2 ([docs/bringup.md](docs/bringup.md) is the procedure)
 - [ ] Working emulator screenshot job in CI
