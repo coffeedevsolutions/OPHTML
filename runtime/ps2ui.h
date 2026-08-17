@@ -1,0 +1,150 @@
+/* ps2ui runtime — .uib loader and gsKit replay.
+ *
+ * The console side of the toolchain. It does four things and nothing
+ * else: validate a baked blob, upload textures (applying the CSM1 CLUT
+ * permutation), replay the command list filtered by focus state, and
+ * walk the precomputed D-pad graph. No parsing, no layout, no
+ * rasterization, no allocation beyond the caller-provided blob and one
+ * GSTEXTURE array.
+ *
+ * Build-time switches:
+ *   PS2UI_HOST_TEST           compile against runtime/stub/ instead of gsKit
+ *   PS2UI_GSKIT_HAS_FUNCTION  0 for older gsKit without GSTEXTURE::Function;
+ *                             text renders untinted (white) in that case
+ */
+#ifndef PS2UI_H
+#define PS2UI_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef PS2UI_GSKIT_HAS_FUNCTION
+#define PS2UI_GSKIT_HAS_FUNCTION 1
+#endif
+
+#ifdef PS2UI_HOST_TEST
+#include "gskit_stub.h"
+#else
+#include <gsKit.h>
+#include <gsToolkit.h>
+#endif
+
+/* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
+
+#define PS2UI_MAGIC   0x31424955u /* "UIB1" */
+#define PS2UI_VERSION 1
+
+#define PS2UI_OP_QUAD          0
+#define PS2UI_OP_TEXQUAD       1
+#define PS2UI_OP_SCISSOR_PUSH  2
+#define PS2UI_OP_SCISSOR_POP   3
+
+#define PS2UI_STATE_ALWAYS     0
+#define PS2UI_STATE_UNFOCUSED  1
+#define PS2UI_STATE_FOCUSED    2
+
+#define PS2UI_TEXFMT_PSMT8     0
+#define PS2UI_TEXFMT_PSMCT32   1
+
+#define PS2UI_NONE 0xFFFFu
+
+typedef struct ps2ui_header {
+    uint32_t magic;
+    uint16_t version, flags;
+    uint16_t canvas_w, canvas_h;
+    uint16_t n_tex, n_clut;
+    uint32_t n_cmd;
+    uint16_t n_focus, initial_focus;
+    uint32_t off_tex, off_clut, off_cmd, off_focus, off_blob, blob_len;
+} ps2ui_header;
+
+typedef struct ps2ui_tex_entry {
+    uint8_t  format, pad0;
+    uint16_t width, height;
+    uint16_t clut;            /* CLUT index or PS2UI_NONE */
+    uint32_t data_off, data_len; /* relative to blob */
+} ps2ui_tex_entry;
+
+typedef struct ps2ui_clut_entry {
+    uint16_t ncolors, pad0;
+    uint32_t data_off;
+} ps2ui_clut_entry;
+
+typedef struct ps2ui_cmd {
+    uint8_t  op, state;
+    uint16_t focus;           /* focus index or PS2UI_NONE */
+    int16_t  x, y;
+    uint16_t w, h;
+    uint8_t  r, g, b, a;      /* a already in the GS 0..128 domain */
+    uint16_t tex;             /* texture index or PS2UI_NONE */
+    uint16_t u0, v0, u1, v1;  /* texel rect */
+    uint8_t  pad0[6];
+} ps2ui_cmd;
+
+typedef struct ps2ui_focus_node {
+    uint16_t id;
+    uint16_t up, down, left, right; /* focus indices or PS2UI_NONE */
+    uint16_t pad0;
+    uint32_t name_off;              /* NUL-terminated UTF-8 in blob */
+    int16_t  x, y;
+    uint16_t w, h;
+} ps2ui_focus_node;
+
+typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_dir;
+
+/* ---------------------------------- context ---------------------------- */
+
+#define PS2UI_MAX_SCISSOR_DEPTH 8
+#define PS2UI_MAX_TEXTURES      32
+
+typedef struct ps2ui_ctx {
+    const uint8_t         *data;     /* the whole .uib, caller-owned      */
+    size_t                 size;
+    const ps2ui_header    *hdr;
+    const ps2ui_tex_entry *tex;
+    const ps2ui_clut_entry*clut;
+    const ps2ui_cmd       *cmd;
+    const ps2ui_focus_node*focus_nodes;
+    const uint8_t         *blob;
+
+    uint16_t  focus;                 /* current focus index or PS2UI_NONE */
+    GSTEXTURE gs_tex[PS2UI_MAX_TEXTURES];
+    int       uploaded;
+} ps2ui_ctx;
+
+/* Errors returned by ps2ui_load. */
+#define PS2UI_OK              0
+#define PS2UI_ERR_TRUNCATED  -1
+#define PS2UI_ERR_MAGIC      -2
+#define PS2UI_ERR_VERSION    -3
+#define PS2UI_ERR_BOUNDS     -4
+#define PS2UI_ERR_TOO_MANY   -5
+
+/* Validate a blob and point the context into it. The blob must stay
+ * alive and unmoved for the context's lifetime; nothing is copied. */
+int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size);
+
+/* The CSM1 index permutation (swap bit 3 and bit 4). Exposed for tests;
+ * mirrors clut_csm1_order in packages/baker/ps2ui_bake/gs.py. */
+uint32_t ps2ui_clut_csm1(uint32_t index);
+
+/* Allocate VRAM and upload every texture + permuted CLUT. */
+int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs);
+
+/* Replay one frame's command list for the current focus state. */
+void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs);
+
+/* D-pad move. Returns 1 when focus changed. */
+int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
+
+/* Name of the focused node ("tile-okami"), or NULL. */
+const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* PS2UI_H */

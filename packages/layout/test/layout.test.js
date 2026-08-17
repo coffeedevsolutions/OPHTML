@@ -1,0 +1,294 @@
+// Flexbox solver, text measurement, and the paint/focus/lint stages,
+// exercised through the public compile() entry point.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import { compile, FontContext, loadFont } from '../src/index.js';
+import { wrapText, ellipsize } from '../src/text.js';
+import { roundHalfUp } from '../src/values.js';
+
+const fonts = FontContext.fromDir();
+const font = fonts.resolve(400);
+
+function compileCss(html, css) {
+  return compile(html, css, { fonts });
+}
+
+/** First rect command matching a predicate. */
+function rects(ir) { return ir.commands.filter((c) => c.op === 'rect'); }
+function texts(ir) { return ir.commands.filter((c) => c.op === 'text'); }
+
+// ------------------------------------------------------------------ text
+
+test('text: the shared rounding rule is floor(units*size/1000 + 0.5)', () => {
+  // 'i' in DejaVu Sans is 278/1000em. At 13px: 278*13/1000 = 3.614 -> 4.
+  const units = font.advanceUnits('i'.codePointAt(0));
+  assert.equal(units, 278);
+  assert.equal(font.glyphAdvance(105, 13), roundHalfUp(278 * 13 / 1000));
+  assert.equal(font.glyphAdvance(105, 13), 4);
+});
+
+test('text: measure sums integral advances, never float widths', () => {
+  const w = font.measure('iii', 13);
+  assert.equal(w, 12); // 3 * round(3.614) = 12, not round(10.842) = 11
+});
+
+test('text: greedy wrap breaks at spaces only', () => {
+  const lines = wrapText('aaa bbb ccc', font, 16, font.measure('aaa bbb', 16) + 1);
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0].text, 'aaa bbb');
+  assert.equal(lines[1].text, 'ccc');
+});
+
+test('text: a single overlong word overflows as its own line', () => {
+  const lines = wrapText('abc supercalifragilistic xyz', font, 16, 40);
+  assert.ok(lines.some((l) => l.text === 'supercalifragilistic'));
+  const long = lines.find((l) => l.text === 'supercalifragilistic');
+  assert.ok(long.width > 40);
+});
+
+test('text: ellipsize truncates to fit and appends …', () => {
+  const full = 'Shadow of the Colossus';
+  const out = ellipsize(full, font, 14, 100);
+  assert.ok(out.text.endsWith('…'));
+  assert.ok(out.width <= 100);
+  assert.ok(out.text.length < full.length);
+});
+
+// ------------------------------------------------------------------ flex
+
+test('flex: row places children left to right with gap', () => {
+  const ir = compileCss(
+    '<div class="r"><div class="a">x</div><div class="a">y</div></div>',
+    '.r { flex-direction: row; gap: 10px } .a { width: 50px; height: 20px; background: #333333 }',
+  );
+  const [a, b] = rects(ir);
+  assert.equal(b.x - (a.x + a.w), 10);
+  assert.equal(a.y, b.y);
+});
+
+test('flex: flex-grow distributes free space proportionally', () => {
+  const ir = compileCss(
+    '<div class="o"><div class="r"><div class="a">x</div><div class="b">y</div></div></div>',
+    `.r { flex-direction: row; width: 300px; height: 40px }
+     .a { flex: 1; background: #111111 }
+     .b { flex: 2; background: #222222 }`,
+  );
+  const [a, b] = rects(ir);
+  assert.equal(a.w + b.w, 300);
+  assert.ok(Math.abs(b.w - 2 * a.w) <= 1, `${b.w} should be ~2x ${a.w}`);
+});
+
+test('flex: bug #3 — auto-sized siblings are content-sized, not stretched', () => {
+  const ir = compileCss(
+    '<div class="row"><div class="fixed">x</div><div class="auto">hi</div></div>',
+    `.row { flex-direction: row; }
+     .fixed { width: 80px; height: 30px; background: #101010 }
+     .auto { background: #202020; height: 30px }`,
+  );
+  const [fixed, auto] = rects(ir);
+  assert.equal(fixed.w, 80);
+  // "hi" at 16px is ~17px wide; a measurement-as-stretched bug would
+  // report the whole remaining canvas width instead.
+  assert.ok(auto.w < 40, `auto width ${auto.w} should hug content`);
+});
+
+test('flex: bug #5 — single line in a definite-height row centers its items', () => {
+  const ir = compileCss(
+    '<div class="o"><div class="row"><div class="item">x</div></div></div>',
+    `.row { flex-direction: row; height: 100px; align-items: center }
+     .item { width: 20px; height: 20px; background: #303030 }`,
+  );
+  const [item] = rects(ir);
+  // Without the container-cross-size rule the line hugs the 20px item
+  // and center degenerates to top (y = 0).
+  assert.equal(item.y, 40);
+});
+
+test('flex: shrink respects the min-content floor of a fixed-width item', () => {
+  const ir = compileCss(
+    '<div class="row"><div class="side">x</div><div class="wide">y</div></div>',
+    `.row { flex-direction: row }
+     .side { width: 100px; height: 10px; background: #101010 }
+     .wide { width: 900px; height: 10px; background: #202020 }`,
+  );
+  const [side] = rects(ir);
+  assert.equal(side.w, 100, 'explicit width survives a shrinking sibling');
+});
+
+test('flex: justify-content space-between and center', () => {
+  const ir = compileCss(
+    '<div class="row"><div class="i">a</div><div class="i">b</div></div>',
+    `.row { flex-direction: row; justify-content: space-between }
+     .i { width: 50px; height: 10px; background: #101010 }`,
+  );
+  const [a, b] = rects(ir);
+  assert.equal(a.x, 0);
+  assert.equal(b.x + b.w, 640);
+});
+
+test('flex: wrap produces rows and respects gaps', () => {
+  const ir = compileCss(
+    '<div class="o"><div class="grid"><div class="c">1</div><div class="c">2</div><div class="c">3</div></div></div>',
+    `.grid { flex-direction: row; flex-wrap: wrap; gap: 8px; width: 220px }
+     .c { width: 100px; height: 30px; background: #101010 }`,
+  );
+  const cs = rects(ir);
+  assert.equal(cs[0].y, cs[1].y);
+  assert.ok(cs[2].y > cs[0].y, 'third cell wrapped');
+  assert.equal(cs[2].y - cs[0].y, 38); // 30 row height + 8 row gap
+});
+
+test('flex: padding and border inset the content box (border-box model)', () => {
+  const ir = compileCss(
+    '<div class="o"><div class="p"><div class="c">x</div></div></div>',
+    `.p { width: 200px; height: 100px; padding: 10px; border: 3px solid #444444; background: #111111 }
+     .c { background: #222222 }`,
+  );
+  const all = rects(ir);
+  const outer = all.find((r) => r.fill && r.fill[0] === 0x11);
+  const inner = all.find((r) => r.fill && r.fill[0] === 0x22);
+  assert.equal(outer.w, 200);
+  assert.equal(inner.x - outer.x, 13);
+  assert.equal(inner.w, 200 - 2 * 13);
+});
+
+test('flex: display:none removes the subtree entirely', () => {
+  const ir = compileCss(
+    '<div><div class="gone"><p>invisible</p></div><p>visible</p></div>',
+    '.gone { display: none }',
+  );
+  assert.equal(texts(ir).length, 1);
+  assert.equal(texts(ir)[0].text, 'visible');
+});
+
+// ----------------------------------------------------------------- paint
+
+test('paint: bug #4 — anonymous text boxes repaint no parent chrome', () => {
+  const ir = compileCss(
+    '<div class="panel">hello</div>',
+    '.panel { background: #202020; border: 2px solid #555555; padding: 8px }',
+  );
+  // One background fill + 4 border edges collapse to ONE rect command
+  // here (borders are painted by the baker); the text adds text
+  // commands, never another rect.
+  assert.equal(rects(ir).length, 1);
+  assert.equal(texts(ir).length, 1);
+});
+
+test('paint: focus delta emits paired unfocused/focused commands', () => {
+  const ir = compileCss(
+    '<div class="b" focusable id="btn">go</div>',
+    '.b { background: #111111 } .b:focus { background: #333333 }',
+  );
+  const rs = rects(ir);
+  assert.equal(rs.length, 2);
+  assert.deepEqual(rs.map((r) => r.state).sort(), ['focused', 'unfocused']);
+  assert.equal(rs[0].focusId, rs[1].focusId);
+  // Identical geometry, different fill.
+  assert.deepEqual([rs[0].x, rs[0].y, rs[0].w, rs[0].h], [rs[1].x, rs[1].y, rs[1].w, rs[1].h]);
+  assert.notDeepEqual(rs[0].fill, rs[1].fill);
+});
+
+test('paint: unfocus-identical paint stays a single always command', () => {
+  const ir = compileCss(
+    '<div class="b" focusable>go</div>',
+    '.b { background: #111111 } .b:focus { border-color: #ffffff }', // no border-width -> no visible change
+  );
+  const rs = rects(ir);
+  assert.equal(rs.length, 1);
+  assert.equal(rs[0].state, 'always');
+});
+
+test('paint: overflow hidden brackets children with a scissor pair', () => {
+  const ir = compileCss(
+    '<div class="clip"><p>long text that overflows</p></div>',
+    '.clip { width: 60px; height: 20px; overflow: hidden }',
+  );
+  const ops = ir.commands.map((c) => c.op);
+  const push = ops.indexOf('scissor_push');
+  const pop = ops.lastIndexOf('scissor_pop');
+  assert.ok(push !== -1 && pop !== -1 && push < pop);
+  assert.ok(ops.slice(push + 1, pop).includes('text'));
+});
+
+// ----------------------------------------------------------------- focus
+
+test('focus: grid neighbors resolve spatially', () => {
+  const ir = compileCss(
+    `<div class="o"><div class="grid">
+       <div class="c" id="a" focusable>a</div><div class="c" id="b" focusable>b</div>
+       <div class="c" id="c" focusable>c</div><div class="c" id="d" focusable>d</div>
+     </div></div>`,
+    `.grid { flex-direction: row; flex-wrap: wrap; gap: 10px; width: 230px }
+     .c { width: 100px; height: 40px; background: #101010 }`,
+  );
+  const byName = Object.fromEntries(ir.focus.nodes.map((n) => [n.name, n]));
+  const byId = Object.fromEntries(ir.focus.nodes.map((n) => [n.id, n]));
+  assert.equal(byId[byName.a.right].name, 'b');
+  assert.equal(byId[byName.a.down].name, 'c');
+  assert.equal(byId[byName.d.up].name, 'b');
+  assert.equal(byId[byName.d.left].name, 'c');
+  assert.equal(byName.a.up, null);
+});
+
+test('focus: autofocus wins over document order', () => {
+  const ir = compileCss(
+    '<div><div id="one" focusable>1</div><div id="two" focusable autofocus>2</div></div>',
+    'div { }',
+  );
+  const initial = ir.focus.nodes.find((n) => n.id === ir.focus.initial);
+  assert.equal(initial.name, 'two');
+});
+
+test('focus: nested focusables are a compile error', () => {
+  assert.throws(() => compileCss(
+    '<div focusable><div focusable>x</div></div>', 'div { }',
+  ), /nested focusable/);
+});
+
+// ------------------------------------------------------------------ lint
+
+test('lint: overscan, font size, flicker and contrast all fire', () => {
+  const ir = compileCss(
+    `<div class="screen">
+       <p class="tiny">edge text</p>
+       <div class="hair"></div>
+       <p class="dim">low contrast</p>
+     </div>`,
+    `.screen { background: #202020 }
+     .tiny { font-size: 10px }
+     .hair { height: 1px; background: #ffffff; }
+     .dim { font-size: 20px; color: #2a2a2a; margin-top: 40px; margin-left: 60px }`,
+  );
+  const all = ir.warnings.join('\n');
+  assert.match(all, /min-font-size/);
+  assert.match(all, /overscan/);
+  assert.match(all, /interlace-flicker/);
+  assert.match(all, /contrast/);
+});
+
+// ------------------------------------------------------- integration
+
+test('integration: the memcard example compiles to the documented shape', () => {
+  const ir = compile(
+    readFixture('../../../examples/memcard/ui/library.html'),
+    readFixture('../../../examples/memcard/ui/library.css'),
+    { fonts },
+  );
+  assert.equal(ir.canvas.w, 640);
+  assert.equal(ir.focus.nodes.length, 9);
+  const initial = ir.focus.nodes.find((n) => n.id === ir.focus.initial);
+  assert.equal(initial.name, 'nav-games');
+  // Every tile got its focused border delta.
+  const focused = ir.commands.filter((c) => c.state === 'focused' && c.op === 'rect');
+  assert.ok(focused.length >= 9);
+});
+
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+function readFixture(rel) {
+  return readFileSync(join(dirname(fileURLToPath(import.meta.url)), rel), 'utf8');
+}

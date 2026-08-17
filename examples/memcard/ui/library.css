@@ -1,0 +1,156 @@
+/* PS2 memory-card library browser — 640x448 NTSC canvas.
+ * Focus is a paint-only delta: borders and fills change, geometry never
+ * does (the compiler enforces this). */
+
+.screen {
+  flex-direction: row;
+  background: #0a0e1a;
+  padding: 24px 28px 18px 28px;
+  gap: 24px;
+}
+
+/* ---------------------------------------------------------- sidebar */
+
+.sidebar {
+  flex-direction: column;
+  width: 128px;
+  gap: 18px;
+}
+
+.brand { gap: 2px; }
+
+h1 {
+  font-size: 26px;
+  font-weight: bold;
+  color: #f2f5fa;
+  letter-spacing: 3px;
+}
+
+.sub {
+  font-size: 12px;
+  color: #8b94a7;
+  letter-spacing: 1px;
+}
+
+.nav { gap: 10px; }
+
+.nav-btn {
+  background: #141a2b;
+  border: 2px solid #1d2438;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 15px;
+  color: #c8cfdc;
+}
+
+.nav-btn:focus {
+  background: #10203a;
+  border-color: #4f8fd0;
+  color: #ffffff;
+}
+
+.spacer { flex-grow: 1; }
+
+.card-info {
+  background: #11162400;
+  border: 2px solid #1d2438;
+  border-radius: 6px;
+  padding: 10px 12px;
+  gap: 2px;
+}
+
+.card-info p {
+  font-size: 13px;
+  color: #aab3c4;
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------------- main */
+
+.main {
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 12px;
+}
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: bold;
+  color: #f2f5fa;
+}
+
+.count { font-size: 13px; color: #8b94a7; }
+
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.tile {
+  width: 128px;
+  background: #12182a;
+  border: 2px solid #1c2336;
+  border-radius: 6px;
+  padding: 6px;
+  gap: 4px;
+}
+
+.tile:focus {
+  background: #16233c;
+  border-color: #e8b64c;
+}
+
+.thumb {
+  height: 72px;
+  border-radius: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumb-label {
+  font-size: 11px;
+  color: #ffffff96;
+  letter-spacing: 2px;
+}
+
+.thumb-ico  { background: #5b7fa6; }
+.thumb-sotc { background: #a68a52; }
+.thumb-ktm  { background: #b05a78; }
+.thumb-gt4  { background: #4f8a56; }
+.thumb-ffx  { background: #6f62b8; }
+.thumb-oka  { background: #b06a4a; }
+
+.title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e8ecf4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.tile:focus .title { color: #ffffff; }
+
+.meta {
+  font-size: 12px;
+  color: #8b94a7;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------- footer */
+
+.footer {
+  flex-direction: row;
+  gap: 22px;
+}
+
+.hint { font-size: 13px; color: #9aa3b5; }

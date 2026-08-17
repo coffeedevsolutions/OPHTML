@@ -1,0 +1,20 @@
+{
+  "regular": {
+    "ttf": [
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      "/usr/share/fonts/TTF/DejaVuSans.ttf",
+      "/opt/homebrew/share/fonts/DejaVuSans.ttf",
+      "/Library/Fonts/DejaVuSans.ttf"
+    ],
+    "metrics": "default.metrics.json"
+  },
+  "bold": {
+    "ttf": [
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+      "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+      "/opt/homebrew/share/fonts/DejaVuSans-Bold.ttf",
+      "/Library/Fonts/DejaVuSans-Bold.ttf"
+    ],
+    "metrics": "default-bold.metrics.json"
+  }
+}
