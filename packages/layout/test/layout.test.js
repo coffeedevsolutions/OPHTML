@@ -358,6 +358,24 @@ test('lint: overscan, font size, flicker and contrast all fire', () => {
   assert.match(all, /contrast/);
 });
 
+test('lint: face-button glyphs do not trip the charset rule', () => {
+  // Backlog B13: every PS2 footer carries these hints, so warning about
+  // them trains authors to ignore the linter.
+  const ir = compileCss(
+    '<div class="s"><p class="hint">\u00d7 Launch \u25cb Back \u25b3 Options \u25a1 Sort</p></div>',
+    '.s { background: #202020 } .hint { font-size: 16px; color: #ffffff }',
+  );
+  assert.equal(ir.warnings.filter((w) => w.startsWith('charset')).length, 0);
+});
+
+test('lint: real non-Latin script still warns', () => {
+  const ir = compileCss(
+    '<div class="s"><p class="hint">\u30bb\u30fc\u30d6\u30c7\u30fc\u30bf</p></div>',
+    '.s { background: #202020 } .hint { font-size: 16px; color: #ffffff }',
+  );
+  assert.match(ir.warnings.join('\n'), /charset/);
+});
+
 // ------------------------------------------------------- integration
 
 test('integration: the memcard example compiles to the documented shape', () => {

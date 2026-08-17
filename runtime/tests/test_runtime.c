@@ -230,6 +230,39 @@ int main(int argc, char **argv)
         ps2ui_slot_set(&ctx, "count", NULL);
         CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "6 titles") == 0,
               "NULL reverts to placeholder");
+
+        /* B12: "" blanks the slot instead of reverting. */
+        ps2ui_slot_set(&ctx, "count", "");
+        CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "") == 0,
+              "empty string blanks a slot");
+        {
+            int blank_prims = render_and_count(&ctx, &gs);
+            ps2ui_slot_set(&ctx, "count", NULL);
+            CHECK(blank_prims < render_and_count(&ctx, &gs),
+                  "a blanked slot draws no glyphs");
+        }
+
+        /* B11: byte-wise truncation must not split a UTF-8 sequence.
+         * The "count" slot has capacity 15; each 'e' with an acute is
+         * two bytes, so a naive strncpy would cut the 8th in half and
+         * the pen would draw a replacement glyph. */
+        ps2ui_slot_set(&ctx, "count", "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9");
+        {
+            const char *got = ps2ui_slot_get(&ctx, "count");
+            size_t n = strlen(got), k;
+            int trailing_partial = 0;
+            for (k = 0; k < n; k++) {
+                unsigned char c = (unsigned char)got[k];
+                if ((c & 0xE0u) == 0xC0u) {   /* 2-byte lead */
+                    if (k + 1 >= n) { trailing_partial = 1; break; }
+                    k++;
+                }
+            }
+            CHECK(n <= 15, "truncated at the slot capacity");
+            CHECK(n % 2 == 0, "truncation landed on a character boundary");
+            CHECK(!trailing_partial, "no split UTF-8 sequence survives");
+        }
+        ps2ui_slot_set(&ctx, "count", NULL);
     }
 
     /* ---- multi-screen (F4) ---- */

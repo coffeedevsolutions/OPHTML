@@ -366,6 +366,51 @@ class TestFlattener(unittest.TestCase):
             Flattener(ir, font_paths()).run()
 
 
+class TestCaps(unittest.TestCase):
+    """Backlog B10: the baker must reject blobs ps2ui_load() would."""
+
+    def slots(self, n, capacity=31):
+        return [{"name": f"s{i}", "capacity": capacity} for i in range(n)]
+
+    def test_caps_match_the_runtime_header(self):
+        # The fallback exists for pip installs with no runtime source.
+        # If it drifts from ps2ui.h, an over-sized blob ships silently.
+        from ps2ui_bake import caps
+        self.assertTrue(os.path.exists(caps.header_path()), caps.header_path())
+        self.assertEqual(caps.parse_header(), caps.FALLBACK)
+
+    def test_fallback_used_when_header_is_missing(self):
+        from ps2ui_bake import caps
+        self.assertEqual(caps.parse_header("/nonexistent/ps2ui.h"), caps.FALLBACK)
+
+    def test_too_many_slots_rejected(self):
+        from ps2ui_bake import caps
+        limit = caps.FALLBACK["PS2UI_MAX_SLOTS"]
+        errors, _ = caps.check([], [], self.slots(limit), [{}])
+        self.assertEqual(errors, [])
+        errors, _ = caps.check([], [], self.slots(limit + 1), [{}])
+        self.assertEqual(len(errors), 1)
+        self.assertIn("PS2UI_ERR_TOO_MANY", errors[0])
+        self.assertIn("PS2UI_MAX_SLOTS", errors[0])
+
+    def test_too_many_textures_and_screens_rejected(self):
+        from ps2ui_bake import caps
+        tex = [None] * (caps.FALLBACK["PS2UI_MAX_TEXTURES"] + 1)
+        errors, _ = caps.check(tex, [], [], [{}])
+        self.assertTrue(any("textures" in e for e in errors))
+        screens = [{}] * (caps.FALLBACK["PS2UI_MAX_SCREENS"] + 1)
+        errors, _ = caps.check([], [], [], screens)
+        self.assertTrue(any("screens" in e for e in errors))
+
+    def test_slot_capacity_must_fit_the_runtime_buffer(self):
+        from ps2ui_bake import caps
+        bufsz = caps.FALLBACK["PS2UI_SLOT_BUFSZ"]
+        errors, _ = caps.check([], [], self.slots(1, capacity=bufsz - 1), [{}])
+        self.assertEqual(errors, [])
+        errors, _ = caps.check([], [], self.slots(1, capacity=bufsz), [{}])
+        self.assertIn("PS2UI_SLOT_BUFSZ", errors[0])
+
+
 class TestVram(unittest.TestCase):
     def test_page_rounding_ct32(self):
         from ps2ui_bake import vram

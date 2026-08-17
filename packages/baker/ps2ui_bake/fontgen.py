@@ -20,7 +20,7 @@ from PIL import ImageFont
 # codepoint number cannot be corrupted by an editor.
 DEFAULT_CHARSET = (
     chr(32) + string.printable.strip()
-    + " ·–—‘’“”…×△○"
+    + " ·–—‘’“”…×△○□◇✕✓←→↑↓"
 )
 
 

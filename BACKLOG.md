@@ -41,6 +41,17 @@ fontgen charset had shadowed the real space — every space measured at
 regenerated. F12 packaging prep: CHANGELOG, package metadata, version
 0.2.0.
 
+**Sprint 4 status (2026-08-17):** surfaced by building the channel-6
+hardware mockup, all four fixed on `runtime-caps-and-slot-fixes`.
+✅ B10 the baker now reads the runtime's static caps out of `ps2ui.h`
+and fails the bake when a blob would hit `PS2UI_ERR_TOO_MANY`; the
+17-slot blob that reached the console as a red screen is now a build
+error naming the constant to raise. ✅ B11 `ps2ui_slot_set` backs off
+to the last complete UTF-8 sequence instead of splitting a character.
+✅ B12 `""` blanks a slot, `NULL` still reverts to the placeholder.
+✅ B13 the charset lint no longer fires on face buttons and arrows;
+those glyphs joined the default font charset.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two
@@ -68,6 +79,11 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | B4 | **`row-reverse` / `column-reverse` only reverse order, not main-axis start.** With `justify-content: flex-start`, a `-reverse` container should pack from the main-end; ps2ui packs from main-start with reversed items (only coincidentally correct for `center`/`space-between`). | 2 | 0.5 | 1.0 | 0.5 | **2** |
 | B5 | **`opacity` is per-box, not group opacity.** A container's opacity doesn't multiply into descendants, diverging from CSS. True group opacity needs offscreen composition the GS makes painful; the honest fix is inherited multiplied opacity (close enough for flat UI) plus a doc note. | 3 | 0.5 | 1.0 | 1 | **1.5** |
 | B6 | **`overflow: hidden` + `border-radius` clips square.** The GS scissor is rectangular; rounded clipping would need stencil/alpha tricks. Cheap first step: lint warning when both are set on one box. | 4 | 0.5 | 1.0 | 2 | **1** |
+
+| B10 | ✅ **Baker never checked the runtime's static table caps.** `ps2ui.h` sizes four tables (`MAX_TEXTURES` 32, `MAX_SLOTS` 16, `MAX_SCREENS` 8, `SLOT_BUFSZ` 96) and `ps2ui_load` rejects anything past them, but nothing on the host knew those numbers. An over-sized blob laid out, baked, previewed and passed every host test while being unloadable: the sample ELF's red screen with no diagnostic. Same failure shape as B1, host says fine and console says no. Fixed in `caps.py`, parsed from the header so it cannot drift. | 8 | 3 | 1.0 | 0.25 | **96** |
+| B11 | ✅ **`ps2ui_slot_set` split UTF-8 sequences.** Truncation was a byte-wise `strncpy` at the slot capacity, so an accented or CJK title cut mid-character left a partial sequence the pen decoded as U+FFFD and drew as `?`. Fixed by trimming back to the last complete sequence. | 5 | 2 | 1.0 | 0.25 | **40** |
+| B13 | ✅ **Charset lint fired on PlayStation face buttons.** The rule warned on every codepoint above U+24FF, which includes ○ (U+25CB) and △ (U+25B3). Every PS2 footer carries those hints, so the lint trained authors to ignore it. Now whitelists punctuation, arrows, math operators, geometric shapes and dingbats, all single glyphs with no line-breaking rules of their own. | 7 | 0.5 | 1.0 | 0.1 | **35** |
+| B12 | ✅ **A slot could not be blanked.** `""` reverted to the baked placeholder because the check was `slot_text[i][0] != '\0'`, so an app with no data for a row could not empty it. `NULL` already meant revert, so `""` now means blank. | 4 | 1 | 1.0 | 0.25 | **16** |
 
 \* numbered to match the working notes; ordering below is by score.
 

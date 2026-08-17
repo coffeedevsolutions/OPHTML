@@ -13,6 +13,7 @@ from .quads import Flattener
 from .uib import write_uib, read_uib
 from . import preview as preview_mod
 from . import vram
+from . import caps as caps_mod
 
 
 def load_font_manifest(path: str) -> dict:
@@ -89,6 +90,18 @@ def main(argv=None) -> int:
 
     flat = Flattener(ir, font_paths, palettize_all=args.palettize_images)
     flat.run_screens(named_irs)
+
+    # Runtime table caps before anything else: a blob past them loads
+    # nowhere, and every host stage downstream would happily accept it
+    # (backlog B10).
+    cap_errors, caps = caps_mod.check(
+        flat.textures, flat.cluts, flat.slots, flat.screens)
+    print(caps_mod.summary(flat.textures, flat.cluts, flat.slots,
+                           flat.screens, caps), file=sys.stderr)
+    if cap_errors:
+        for e in cap_errors:
+            print(f"error: {e}", file=sys.stderr)
+        return 1
 
     # VRAM accounting before writing anything: an over-budget UI should
     # die here with a breakdown, not on the console with an alloc error.
