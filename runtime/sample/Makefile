@@ -16,6 +16,12 @@ EE_CFLAGS += -std=c99 -Wall -Werror -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ports/
 ifdef STATIC
 EE_CFLAGS += -DPS2UI_SAMPLE_STATIC
 endif
+# `make PROBE=1` builds the bring-up step 2 instrument instead of the UI:
+# four solid-fill cases in colours no example uses, so a capture names
+# which primitive paths draw. No .uib is involved.
+ifdef PROBE
+EE_CFLAGS += -DPS2UI_SAMPLE_PROBE
+endif
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib

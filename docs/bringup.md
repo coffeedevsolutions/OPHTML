@@ -62,18 +62,42 @@ Nothing ps2ui-specific is involved yet.
 
 ## 2. Solid quads and the alpha blend unit
 
-**Do:** let the sample draw only `OP_QUAD` records (build it with
-`-DPS2UI_SAMPLE_SOLID_ONLY` or comment out the TEXQUAD branch).
-**Expect:** the panel layout of the memcard example in flat colors,
-matching the previewer geometry exactly; translucent panels (the
-`#11162400` card-info fill is fully transparent) must not double-darken.
-**If wrong:**
-- Everything half-transparent → alpha domain regression: quads carry
-  GS-domain alpha (0x80 = opaque) and the blend equation must be the
-  gsKit default `(Cs - Cd) * As >> 7 + Cd`. Do not "fix" it by scaling
-  alpha up — the file domain is correct (see `docs/format-uib.md`).
-- Wrong colors entirely → RGBAQ packing order; verify
-  `GS_SETREG_RGBAQ(r, g, b, a, q)` argument order against your gsKit.
+**Do:** `make -C runtime/sample PROBE=1` and run it. No `.uib` is
+involved, so nothing in this repository's compiler or baker can be at
+fault: it draws four solid-fill cases straight through gsKit.
+
+| what | how | where |
+|------|-----|-------|
+| ground `#0a0e1a` | `gsKit_clear`, blending **off** | whole frame |
+| red `#ff0000` | sprite, blending **off** | top left |
+| green `#00ff00` | sprite, blending **on**, alpha `0x80` | top right |
+| blue `#0000ff` | sprite, blending **on**, alpha `0x40` | bottom left |
+
+**Expect:** all four. Blue is half-strength over the dark ground, so it
+composites to roughly `#05070d`, not full blue.
+
+**If wrong**, the missing case names the fault:
+
+- **Nothing but black** → solid sprites are not reaching the GS at all.
+  The clear is plain gsKit, so at that point suspect video mode init or
+  your gsKit build before anything in ps2ui.
+- **Red only** → the alpha blend unit is dropping blended primitives.
+- **Red and green, no blue** → translucent sprites specifically. Check
+  the blend equation is the gsKit default `(Cs - Cd) * As >> 7 + Cd`.
+- **Blue at full strength** → alpha is being ignored rather than
+  applied. Do not "fix" this by scaling alpha up: quads carry GS-domain
+  alpha where `0x80` is opaque, and the file domain is correct (see
+  `docs/format-uib.md`).
+- **Wrong colours entirely** → RGBAQ packing order; verify
+  `GS_SETREG_RGBAQ(r, g, b, a, q)` against your gsKit.
+
+CI runs this every time and prints the palette of what it captured, so
+the `hw` workflow log answers this step without a console. The colours
+appear in neither example on purpose: whatever shows up in the
+fingerprint came from the probe.
+
+Once the probe is clean, the UI capture's own backgrounds (`#0a0e1a`
+canvas, `#12182a` panels) should be its two most common colours.
 
 ## 3. CLUT upload and the CSM1 swizzle
 
