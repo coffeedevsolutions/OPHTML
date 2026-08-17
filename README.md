@@ -208,7 +208,15 @@ The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit
 
 ## Status
 
-The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain. Nothing has run on real hardware yet. For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF for it, and `tools/make_testcard.py` builds a texel-alignment card.
+The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain, boots it in the Play! emulator and fingerprints the frame.
+
+Still not hardware-verified, but no longer entirely unverified. What the emulator has confirmed:
+
+- **Textured rendering is correct.** Every text colour in a captured frame matches the stylesheet to within one unit, which exercises the glyph atlas, the CLUT upload, the CSM1 bit-3/bit-4 swizzle, `GSTEXTURE::Function` modulate and the 0x80-identity colour domain. Bring-up steps 3, 4 and 5.
+- **The blend equation is right.** `(Cs - Cd) * As >> 7 + Cd` reproduces predicted composites exactly at several alphas.
+- **Solid fills at high alpha do not draw** under Play! 0.72, which is bring-up step 2 and is why the emulator diff is still red. Whether a real GS agrees is exactly the open question, and an emulator pass was never a hardware pass.
+
+For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF, `make -C runtime/sample PROBE=1` builds the step 2 instrument, and `tools/make_testcard.py` builds a texel-alignment card.
 
 See [docs/architecture.md](docs/architecture.md) for the decision log.
 

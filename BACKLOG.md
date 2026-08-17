@@ -94,6 +94,33 @@ geometry on its first run, now filed as F24. ✅ **S4-partial** the Play!
 download no longer hardcodes an asset name that 404s, and no longer
 saves and executes the error page when it does.
 
+**Sprint 7 status (2026-08-17):** the emulator job runs. Six layers had
+to come off before it did: the download pointed at GitHub releases that
+`jpd002/Play-` does not publish (Play! ships from purei.org), curl had
+no `--fail` so a 404 body was saved and executed, `libOpenGL.so.0` was
+missing, ALSA had no device, `--disc ""` was the wrong boot flag, and
+the capture was of the whole desktop rather than the frame. ✅ **S4** is
+now genuinely partial rather than nominal: the asset is discovered, not
+guessed, and every step fails loudly.
+
+**First results from something that is not our own previewer.** The
+captured frame's palette matches the stylesheet's text colours to
+within one unit (`#8b94a7` → `#8c94a8`, `#e8ecf4` exact), so the glyph
+atlas, CLUT upload, CSM1 swizzle, modulate function and 0x80-identity
+domain are all correct — bring-up steps 3, 4 and 5, and independent
+confirmation of the **B1** fix.
+
+Solid fills are a different story: the frame is 92.8% black. The step 2
+probe (`make PROBE=1`, no `.uib` involved) shows the clear and an
+unblended sprite drawing, blended sprites at alpha 0x20/0x40/0x60
+drawing with composites matching `(Cs - Cd) * As >> 7 + Cd` exactly,
+and blended sprites at 0x7f/0x80 rasterising with the *previous*
+primitive's colour. 0x80 is what every opaque quad in a `.uib` carries.
+This is characterised, not diagnosed: Play! is HLE, and whether a real
+GS behaves the same way is the open question. Not worth more rounds
+against the wrong oracle — PCSX2 in software mode or the console
+decides it.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two
