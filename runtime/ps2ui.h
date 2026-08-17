@@ -194,9 +194,11 @@ typedef struct ps2ui_ctx {
     uint16_t  screen_focus[PS2UI_MAX_SCREENS];
     GSTEXTURE gs_tex[PS2UI_MAX_TEXTURES];
     int       uploaded;
-    /* Runtime slot text; empty string = render the baked placeholder.
-     * Caller-free storage keeps the no-allocation rule. */
+    /* Runtime slot text. slot_is_set distinguishes "never set" (draw
+     * the baked placeholder) from "set to an empty string" (draw
+     * nothing). Caller-free storage keeps the no-allocation rule. */
     char      slot_text[PS2UI_MAX_SLOTS][PS2UI_SLOT_BUFSZ];
+    uint8_t   slot_is_set[PS2UI_MAX_SLOTS];
 } ps2ui_ctx;
 
 /* Errors returned by ps2ui_load. */
@@ -235,8 +237,9 @@ const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
 int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
 
 /* Set a dynamic-text slot's current string (UTF-8; copied, truncated
- * at the slot's baked capacity). NULL or "" reverts to the baked
- * placeholder. Returns 1 on success, 0 if no slot has that name.
+ * at the slot's baked capacity without splitting a character). NULL
+ * reverts to the baked placeholder; "" blanks the slot.
+ * Returns 1 on success, 0 if no slot has that name.
  * The runtime lays the glyphs out per frame from the baked glyph
  * table: advance walk + optional ellipsis, no wrapping, no allocation. */
 int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);

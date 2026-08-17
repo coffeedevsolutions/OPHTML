@@ -37,6 +37,24 @@ function contrastRatio(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+// Codepoints above the Latin range that are still safe to lay out: they
+// are single glyphs with known advances and no line-breaking rules of
+// their own. The charset lint exists to flag scripts whose wrapping the
+// greedy breaker has never been tested against (CJK, Thai, Arabic), and
+// warning about ○ or △ trains authors to ignore it, since every PS2
+// footer carries face-button hints (backlog B13).
+const SAFE_SYMBOL_RANGES = [
+  [0x2000, 0x206F], // general punctuation: – — ' ' " " …
+  [0x2190, 0x21FF], // arrows: D-pad hints
+  [0x2200, 0x22FF], // mathematical operators: × ÷ ≤
+  [0x25A0, 0x25FF], // geometric shapes: □ △ ○ ◇ face buttons
+  [0x2700, 0x27BF], // dingbats: ✕ ✓
+];
+
+function isSafeSymbol(cp) {
+  return SAFE_SYMBOL_RANGES.some(([lo, hi]) => cp >= lo && cp <= hi);
+}
+
 /** Composite `top` over `bottom` (both RGBA 0-255), returning RGB. */
 function over(top, bottom) {
   const a = top[3] / 255;
@@ -106,10 +124,10 @@ export function lintDocument(commands, focusGraph, options = {}) {
     }
     for (const ch of cmd.text) {
       const cp = ch.codePointAt(0);
-      if (cp > 0x24FF && !(cp >= 0x2000 && cp <= 0x206F)) {
+      if (cp > 0x24FF && !isSafeSymbol(cp)) {
         warnings.push({
           rule: 'charset',
-          message: `codepoint U+${cp.toString(16).toUpperCase()} in "${cmd.text.slice(0, 24)}" — non-Latin text wrapping is untested`,
+          message: `codepoint U+${cp.toString(16).toUpperCase()} in "${cmd.text.slice(0, 24)}": non-Latin text wrapping is untested`,
         });
         break;
       }

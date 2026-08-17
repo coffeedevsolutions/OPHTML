@@ -440,7 +440,9 @@ static int slot_measure(const ps2ui_ctx *ctx, const ps2ui_slot_entry *s,
 
 static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)
 {
-    if (index < PS2UI_MAX_SLOTS && ctx->slot_text[index][0] != '\0')
+    /* An explicitly set slot wins even when its text is empty, so an
+     * app can blank a row it has no data for (backlog B12). */
+    if (index < PS2UI_MAX_SLOTS && ctx->slot_is_set[index])
         return ctx->slot_text[index];
     return (const char *)(ctx->blob + ctx->slots[index].placeholder_off);
 }
@@ -513,6 +515,33 @@ static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)
     return PS2UI_NONE;
 }
 
+/* Drop a trailing partial UTF-8 sequence left by a byte-wise truncation
+ * (backlog B11). Without this, a title cut mid-character decodes as
+ * U+FFFD and the pen draws '?' where half a glyph used to be. */
+static void utf8_trim_partial(char *s)
+{
+    size_t n = strlen(s);
+    size_t start = n;
+    unsigned char lead;
+    size_t need;
+
+    while (start > 0 && ((unsigned char)s[start - 1] & 0xC0u) == 0x80u)
+        start--;
+    if (start == 0)
+        return; /* nothing but continuation bytes; leave it to the decoder */
+    start--;    /* index of the last sequence's lead byte */
+
+    lead = (unsigned char)s[start];
+    if (lead < 0x80u) need = 1;
+    else if ((lead & 0xE0u) == 0xC0u) need = 2;
+    else if ((lead & 0xF0u) == 0xE0u) need = 3;
+    else if ((lead & 0xF8u) == 0xF0u) need = 4;
+    else return; /* malformed lead; the decoder substitutes and moves on */
+
+    if (start + need > n)
+        s[start] = '\0';
+}
+
 int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)
 {
     uint32_t i = slot_index_by_name(ctx, name);
@@ -520,7 +549,10 @@ int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)
     if (i == PS2UI_NONE)
         return 0;
     if (text == NULL) {
+        /* Revert to the baked placeholder. "" is a different request:
+         * it blanks the slot (backlog B12). */
         ctx->slot_text[i][0] = '\0';
+        ctx->slot_is_set[i] = 0;
         return 1;
     }
     cap = ctx->slots[i].capacity;
@@ -528,6 +560,8 @@ int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)
         cap = PS2UI_SLOT_BUFSZ - 1;
     strncpy(ctx->slot_text[i], text, cap);
     ctx->slot_text[i][cap] = '\0';
+    utf8_trim_partial(ctx->slot_text[i]);
+    ctx->slot_is_set[i] = 1;
     return 1;
 }
 
