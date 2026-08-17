@@ -47,6 +47,15 @@ jobs:
             --preview examples/memcard/build/testcard-expected.png
           python3 tools/framediff.py --self-test
           python3 tools/play_release_url.py --self-test
+      - name: Validate every blob against the runtime's assumptions
+        run: |
+          # Independent of the bakers that produced them: ps2ui-check
+          # re-reads each file and asserts the invariants ps2ui.c relies
+          # on but cannot afford to verify at load time.
+          for blob in examples/memcard/build/ui.uib \
+                      examples/memcard/build/testcard.uib; do
+            PYTHONPATH=packages/baker python3 -m ps2ui_bake.check "$blob"
+          done
       - uses: actions/upload-artifact@v7
         with:
           name: baked

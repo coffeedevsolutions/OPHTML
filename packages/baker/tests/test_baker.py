@@ -821,3 +821,174 @@ class TestPreview(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCheck(unittest.TestCase):
+    """ps2ui-check (backlog F22).
+
+    Each test builds a blob that violates exactly one invariant and
+    asserts the check fires. A validator nobody has watched fail is a
+    validator that reports PASS on everything.
+    """
+
+    def build(self, records, **kw):
+        from ps2ui_bake.check import check_blob
+        kw.setdefault("textures", [])
+        kw.setdefault("cluts", [])
+        kw.setdefault("nodes", [])
+        kw.setdefault("initial", None)
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 320, "h": 240}, list(records),
+                      list(kw["textures"]), list(kw["cluts"]),
+                      list(kw["nodes"]), kw["initial"],
+                      fonts=list(kw.get("fonts", ())),
+                      slots=list(kw.get("slots", ())),
+                      screens=kw.get("screens"))
+            return check_blob(read_uib(path))
+
+    def failures(self, report):
+        return [label for ok, _sev, label in report.results if not ok]
+
+    def quad(self, **kw):
+        d = dict(op=OP_QUAD, state=STATE_ALWAYS, focus=FOCUS_NONE,
+                 x=0, y=0, w=10, h=10, rgba=(1, 2, 3, 0x80))
+        d.update(kw)
+        return DrawRecord(d["op"], d["state"], d["focus"], d["x"], d["y"],
+                          d["w"], d["h"], d["rgba"])
+
+    def test_a_plain_blob_passes_everything(self):
+        rep = self.build([self.quad()])
+        self.assertEqual(self.failures(rep), [])
+        self.assertEqual(rep.errors, 0)
+
+    def test_alpha_above_the_gs_domain_is_an_error(self):
+        # B1's failure shape: legal in CSS, twice as opaque on console.
+        rep = self.build([self.quad(rgba=(1, 2, 3, 0xFF))])
+        self.assertEqual(rep.errors, 1)
+        self.assertTrue(any("0-128 domain" in f for f in self.failures(rep)))
+
+    def test_texquad_naming_a_missing_texture_is_an_error(self):
+        rec = DrawRecord(OP_TEXQUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 8, 8,
+                         (0x80, 0x80, 0x80, 0x80), 7, 0, 0, 8, 8)
+        rep = self.build([rec])
+        self.assertTrue(any("real texture" in f for f in self.failures(rep)))
+
+    def test_unbalanced_scissor_is_an_error(self):
+        rep = self.build([
+            DrawRecord(OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
+                       0, 0, 100, 100, (0, 0, 0, 0)),
+            self.quad(),
+        ])
+        self.assertTrue(any("scissor" in f and "left open" in f
+                            for f in self.failures(rep)))
+
+    def test_scissor_underflow_is_an_error(self):
+        rep = self.build([
+            DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
+                       0, 0, 0, 0, (0, 0, 0, 0)),
+        ])
+        self.assertTrue(any("underflow" in f for f in self.failures(rep)))
+
+    def test_focus_dependent_command_without_a_focus_index_is_an_error(self):
+        rep = self.build([self.quad(state=STATE_FOCUSED)])
+        self.assertTrue(any("names a focus node" in f
+                            for f in self.failures(rep)))
+
+    def test_quad_outside_its_scissor_is_a_warning_not_an_error(self):
+        # Real and common: a nowrap run inside overflow:hidden bakes the
+        # glyphs past the edge and lets the GS clip them.
+        rep = self.build([
+            DrawRecord(OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
+                       0, 0, 50, 50, (0, 0, 0, 0)),
+            self.quad(x=200, y=0),
+            DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
+                       0, 0, 0, 0, (0, 0, 0, 0)),
+        ])
+        self.assertEqual(rep.errors, 0)
+        self.assertTrue(any("never" not in f and "for nothing" in f
+                            for f in self.failures(rep)))
+
+    def test_quad_inside_its_scissor_is_not_flagged(self):
+        rep = self.build([
+            DrawRecord(OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
+                       0, 0, 50, 50, (0, 0, 0, 0)),
+            self.quad(x=10, y=10),
+            DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
+                       0, 0, 0, 0, (0, 0, 0, 0)),
+        ])
+        self.assertEqual(self.failures(rep), [])
+
+    def test_hairline_quad_is_a_warning(self):
+        rep = self.build([self.quad(h=1)])
+        self.assertEqual(rep.errors, 0)
+        self.assertEqual(rep.warnings, 1)
+        self.assertTrue(any("shimmer" in f for f in self.failures(rep)))
+
+    def test_unreachable_focusable_is_an_error(self):
+        # Two nodes, no edges between them: the D-pad can never reach the
+        # second one, and on console that is a control that does nothing.
+        nodes = [
+            {"id": 1, "name": "a", "rect": [0, 0, 40, 40],
+             "up": None, "down": None, "left": None, "right": None},
+            {"id": 2, "name": "b", "rect": [80, 0, 40, 40],
+             "up": None, "down": None, "left": None, "right": None},
+        ]
+        rep = self.build([self.quad()], nodes=nodes, initial=0)
+        self.assertTrue(any("stranded" in f for f in self.failures(rep)))
+
+    def test_check_cli_exit_codes(self):
+        from ps2ui_bake.check import main
+        with tempfile.TemporaryDirectory() as td:
+            good = os.path.join(td, "good.uib")
+            write_uib(good, {"w": 320, "h": 240}, [self.quad()], [], [], [], None)
+            bad = os.path.join(td, "bad.uib")
+            write_uib(bad, {"w": 320, "h": 240},
+                      [self.quad(rgba=(1, 2, 3, 0xFF))], [], [], [], None)
+            hair = os.path.join(td, "hair.uib")
+            write_uib(hair, {"w": 320, "h": 240}, [self.quad(h=1)], [], [], [], None)
+
+            buf = io.StringIO()
+            stdout, sys.stdout = sys.stdout, buf
+            try:
+                self.assertEqual(main([good]), 0)
+                self.assertEqual(main([bad]), 1)
+                # A warning alone passes, and fails under --strict.
+                self.assertEqual(main([hair]), 0)
+                self.assertEqual(main([hair, "--strict"]), 1)
+            finally:
+                sys.stdout = stdout
+            self.assertIn("PASS", buf.getvalue())
+
+    def test_check_rejects_a_corrupt_file_without_traceback(self):
+        from ps2ui_bake.check import main
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "junk.uib")
+            with open(path, "wb") as fh:
+                fh.write(b"not a uib at all, not even close")
+            err = io.StringIO()
+            stderr, sys.stderr = sys.stderr, err
+            try:
+                self.assertEqual(main([path]), 2)
+            finally:
+                sys.stderr = stderr
+            self.assertIn("ps2ui-check", err.getvalue())
+
+    def test_the_shipped_examples_pass(self):
+        # The blobs in the repo are the real regression corpus; a check
+        # that only ever sees synthetic input drifts from what the baker
+        # actually emits.
+        from ps2ui_bake.check import check_blob
+        root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "..", "..", "..")
+        seen = 0
+        for rel in ("examples/memcard/build/ui.uib",
+                    "examples/channel6/build/ui.uib"):
+            path = os.path.normpath(os.path.join(root, rel))
+            if not os.path.exists(path):
+                continue  # not built in this checkout
+            seen += 1
+            rep = check_blob(read_uib(path))
+            self.assertEqual(rep.errors, 0, f"{rel}: {self.failures(rep)}")
+        if seen == 0:
+            self.skipTest("no example blobs built")

@@ -53,6 +53,19 @@ jobs:
       - name: Channel-6 browser end to end
         run: ./examples/channel6/build.sh
 
+      # check.py asserts what these particular blobs promise (their focus
+      # names, slot capacities, screen order). ps2ui-check asserts what
+      # *any* blob owes the runtime, so it covers the 16:9 bake and the
+      # memcard example too. The two overlap on the table caps by design:
+      # one reads the file, the other reads what the baker wrote.
+      - name: Validate every blob against the runtime's assumptions
+        run: |
+          for blob in examples/memcard/build/ui.uib \
+                      examples/channel6/build/ui.uib \
+                      examples/channel6/build/ui-16x9.uib; do
+            PYTHONPATH=packages/baker python3 -m ps2ui_bake.check "$blob"
+          done
+
       - name: Upload previews
         uses: actions/upload-artifact@v7
         with:

@@ -16,6 +16,7 @@ Repository = "https://github.com/coffeedevsolutions/OPHTML"
 
 [project.scripts]
 ps2ui-bake = "ps2ui_bake.cli:main"
+ps2ui-check = "ps2ui_bake.check:main"
 ps2ui-fontgen = "ps2ui_bake.fontgen:main"
 
 [tool.setuptools]
