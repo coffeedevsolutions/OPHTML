@@ -133,6 +133,29 @@ int main(int argc, char **argv)
         CHECK(any_diff_content, "focus state changes what is drawn");
     }
 
+    /* ---- modulate color domain (backlog B1) ----
+     * TEXQUADs draw with TEX MODULATE where 0x80 is identity; a channel
+     * above 0x80 means the baker leaked a full-range color and hardware
+     * would render it overbright. Solid QUADs are flat-shaded and may
+     * use the full 0..255 RGB range. */
+    {
+        uint32_t k;
+        int domain_ok = 1;
+        for (k = 0; k < ctx.hdr->n_cmd; k++) {
+            const ps2ui_cmd *c = &ctx.cmd[k];
+            if (c->op == PS2UI_OP_TEXQUAD
+                && (c->r > 0x80 || c->g > 0x80 || c->b > 0x80 || c->a > 0x80)) {
+                domain_ok = 0;
+                break;
+            }
+            if (c->op == PS2UI_OP_QUAD && c->a > 0x80) {
+                domain_ok = 0;
+                break;
+            }
+        }
+        CHECK(domain_ok, "texquad colors in the 0x80 modulate domain");
+    }
+
     /* ---- render: geometry stays on canvas ---- */
     {
         int k, in_bounds = 1;

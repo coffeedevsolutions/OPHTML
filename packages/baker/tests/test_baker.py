@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from PIL import Image
 
 from ps2ui_bake.rounding import (
-    round_half_up, glyph_advance_px, css_alpha_to_gs, gs_alpha_to_css,
+    round_half_up, glyph_advance_px, css_alpha_to_gs, css_channel_to_gs,
+    gs_alpha_to_css,
 )
 from ps2ui_bake import gs
 from ps2ui_bake.atlas import AtlasBuilder
@@ -100,6 +101,53 @@ class TestAlphaDomain(unittest.TestCase):
             css_alpha_to_gs(256)
         with self.assertRaises(ValueError):
             gs_alpha_to_css(200)
+
+
+class TestModulateDomain(unittest.TestCase):
+    """Backlog B1: TEXQUAD vertex colors live in the GS 0x80-identity
+    modulate domain; QUAD vertex RGB stays full-range."""
+
+    def test_channel_identity_is_0x80(self):
+        self.assertEqual(css_channel_to_gs(255), 0x80)
+        self.assertEqual(css_channel_to_gs(0), 0)
+        self.assertEqual(css_channel_to_gs(128), 64)
+
+    def test_solid_quad_keeps_full_range_rgb(self):
+        ir = tiny_ir([{
+            "op": "rect", "x": 0, "y": 0, "w": 10, "h": 10,
+            "fill": [200, 30, 30, 255], "borderWidth": 0, "borderColor": None,
+            "radius": 0, "state": "always", "focusId": None,
+        }])
+        f = Flattener(ir, font_paths())
+        f.run()
+        self.assertEqual(f.records[0].rgba, (200, 30, 30, 0x80))
+
+    def test_ninepatch_tint_is_modulate_identity(self):
+        ir = tiny_ir([{
+            "op": "rect", "x": 0, "y": 0, "w": 40, "h": 40,
+            "fill": [1, 2, 3, 255], "borderWidth": 0, "borderColor": None,
+            "radius": 5, "state": "always", "focusId": None,
+        }])
+        f = Flattener(ir, font_paths())
+        f.run()
+        for r in f.records:
+            self.assertEqual(r.op, OP_TEXQUAD)
+            self.assertEqual(r.rgba, (0x80, 0x80, 0x80, 0x80))
+
+    @unittest.skipIf(TTF is None, "DejaVu Sans not installed")
+    def test_every_texquad_channel_at_most_0x80(self):
+        # The baker never emits overbright; the C runtime test carries
+        # the same fence over the real example blob.
+        ir = tiny_ir([{
+            "op": "text", "x": 0, "y": 0, "text": "hi", "size": 14,
+            "weight": 400, "letterSpacing": 0, "color": [255, 255, 255, 255],
+            "state": "always", "focusId": None,
+        }])
+        f = Flattener(ir, font_paths())
+        f.run()
+        for r in f.records:
+            if r.op == OP_TEXQUAD:
+                self.assertTrue(all(c <= 0x80 for c in r.rgba), r.rgba)
 
 
 class TestGS(unittest.TestCase):
@@ -267,7 +315,8 @@ class TestFlattener(unittest.TestCase):
         self.assertEqual(len(glyphs), 2)
         adv = glyph_advance_px(278, 13)
         self.assertEqual(glyphs[1].x - glyphs[0].x, adv)
-        self.assertEqual(glyphs[0].rgba, (255, 0, 0, 0x80))
+        # Modulate domain: pure red tint is (0x80, 0, 0), not (255, 0, 0).
+        self.assertEqual(glyphs[0].rgba, (0x80, 0, 0, 0x80))
 
     def test_focus_ids_remap_to_table_indices(self):
         nodes = [
@@ -290,6 +339,43 @@ class TestFlattener(unittest.TestCase):
         ir = tiny_ir([{"op": "gradient"}])
         with self.assertRaises(ValueError):
             Flattener(ir, font_paths()).run()
+
+
+class TestVram(unittest.TestCase):
+    def test_page_rounding_ct32(self):
+        from ps2ui_bake import vram
+        # 64x32 fits one CT32 page exactly; 65x33 spills into 4.
+        self.assertEqual(vram.page_rounded_size(64, 32, gs.PSMCT32), 8192)
+        self.assertEqual(vram.page_rounded_size(65, 33, gs.PSMCT32), 4 * 8192)
+        # 640x448 framebuffer: 10 x 14 pages.
+        self.assertEqual(vram.framebuffer_size(640, 448), 10 * 14 * 8192)
+
+    def test_page_rounding_t8(self):
+        from ps2ui_bake import vram
+        self.assertEqual(vram.page_rounded_size(128, 64, gs.PSMT8), 8192)
+        self.assertEqual(vram.page_rounded_size(256, 40, gs.PSMT8), 2 * 8192)
+
+    def test_default_budget_subtracts_framebuffers(self):
+        from ps2ui_bake import vram
+        self.assertEqual(
+            vram.default_budget(640, 448),
+            4 * 1024 * 1024 - 3 * vram.framebuffer_size(640, 448),
+        )
+
+    def test_report_flags_over_budget(self):
+        from ps2ui_bake import vram
+        from ps2ui_bake.quads import BakedTexture
+        big = [BakedTexture(gs.PSMCT32, 1024, 1024, None, b"")] * 4
+        _lines, total, budget, ok = vram.report(big, [], 640, 448)
+        self.assertGreater(total, budget)
+        self.assertFalse(ok)
+
+    def test_report_passes_small_set(self):
+        from ps2ui_bake import vram
+        from ps2ui_bake.quads import BakedTexture
+        small = [BakedTexture(gs.PSMT8, 256, 64, 0, b"")]
+        _lines, _total, _budget, ok = vram.report(small, [gs.coverage_clut()], 640, 448)
+        self.assertTrue(ok)
 
 
 class TestUib(unittest.TestCase):
@@ -417,6 +503,19 @@ class TestPreview(unittest.TestCase):
         unfocused = preview.render(uib, focus_current=FOCUS_NONE)
         self.assertEqual(focused.getpixel((30, 30)), (250, 250, 250, 255))
         self.assertEqual(unfocused.getpixel((30, 30)), (10, 10, 10, 255))
+
+    def test_modulate_round_trip_preserves_color(self):
+        # A rounded rect goes: CSS fill -> patch texels (GS alpha) ->
+        # identity modulate tint (0x80s) -> preview. The center pixel
+        # must come back as the authored color, proving the tint path
+        # divides by 128, not 255 (backlog B1).
+        img = preview.render(
+            self.bake([self.rect_cmd(radius=6, fill=[200, 30, 30, 255])]),
+            background=(0, 0, 0, 255),
+        )
+        r, g, b, _ = img.getpixel((35, 35))
+        self.assertTrue(abs(r - 200) <= 3 and abs(g - 30) <= 3 and abs(b - 30) <= 3,
+                        f"got {(r, g, b)}")
 
     def test_unbalanced_scissors_rejected(self):
         cmds = [{"op": "scissor_push", "x": 0, "y": 0, "w": 5, "h": 5,

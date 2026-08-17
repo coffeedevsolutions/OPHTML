@@ -21,17 +21,28 @@ def glyph_advance_px(units: int, size: int) -> int:
     return round_half_up(units * size / 1000)
 
 
-def css_alpha_to_gs(a255: int) -> int:
-    """CSS alpha (0..255) -> GS alpha (0..128), converted exactly once.
+def css_channel_to_gs(v255: int) -> int:
+    """CSS channel (0..255) -> GS 0x80-identity domain (0..128).
 
-    The GS blend unit treats 0x80 as 1.0 and values above as >1
-    (used for additive overbright, never by this compiler). Mapping
-    0xFF -> 0x80 here is the difference between correct translucency
+    The GS treats 0x80 as 1.0 in two places, and both matter:
+    - the blend unit reads vertex/texel *alpha* that way, and
+    - TEX0 MODULATE multiplies texels by vertex *RGB* the same way
+      (Cv = Ct * Cf >> 7), so tint colors for textured quads must live
+      in this domain too. Full-range RGB on a modulated quad renders
+      up to 2x overbright on hardware (backlog B1).
+
+    Mapping 0xFF -> 0x80 here is the difference between correct output
     and the classic 'everything is half transparent' PS2 bug.
     """
-    if not 0 <= a255 <= 255:
-        raise ValueError(f"alpha {a255} outside 0..255")
-    return round_half_up(a255 * 128 / 255)
+    if not 0 <= v255 <= 255:
+        raise ValueError(f"channel {v255} outside 0..255")
+    return round_half_up(v255 * 128 / 255)
+
+
+def css_alpha_to_gs(a255: int) -> int:
+    """Alias of css_channel_to_gs kept for the alpha call sites, where
+    the conversion applies regardless of texturing."""
+    return css_channel_to_gs(a255)
 
 
 def gs_alpha_to_css(a128: int) -> int:

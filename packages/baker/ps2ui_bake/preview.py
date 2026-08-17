@@ -49,21 +49,22 @@ def _state_visible(record, focus_current: int) -> bool:
 
 
 def _tint(img: Image.Image, rgba_gs) -> Image.Image:
-    r, g, b, a_gs = rgba_gs
-    a = gs_alpha_to_css(min(a_gs, 128))
-    if (r, g, b, a) == (255, 255, 255, 255):
+    """GS TEX MODULATE: Cv = Ct * Cf >> 7, identity at 0x80, values
+    above 0x80 overbright (and clamp). Every channel of a TEXQUAD
+    vertex color is in that domain — mirroring the hardware exactly is
+    what lets the previewer catch domain bugs instead of hiding them."""
+    r, g, b, a = rgba_gs
+    if (r, g, b, a) == (128, 128, 128, 128):
         return img
-    # Modulate: texel x vertex color (the GS TEX_FUNCTION=MODULATE path,
-    # where 0x80 vertex alpha is identity).
     ir_, ig, ib, ia = img.split()
-    if r != 255:
-        ir_ = ir_.point(lambda v: v * r // 255)
-    if g != 255:
-        ig = ig.point(lambda v: v * g // 255)
-    if b != 255:
-        ib = ib.point(lambda v: v * b // 255)
-    if a != 255:
-        ia = ia.point(lambda v: v * a // 255)
+    if r != 128:
+        ir_ = ir_.point(lambda v: min(v * r // 128, 255))
+    if g != 128:
+        ig = ig.point(lambda v: min(v * g // 128, 255))
+    if b != 128:
+        ib = ib.point(lambda v: min(v * b // 128, 255))
+    if a != 128:
+        ia = ia.point(lambda v: min(v * a // 128, 255))
     return Image.merge("RGBA", (ir_, ig, ib, ia))
 
 

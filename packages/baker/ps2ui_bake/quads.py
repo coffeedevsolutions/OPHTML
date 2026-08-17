@@ -21,7 +21,7 @@ both just walk the list.
 from dataclasses import dataclass, replace
 from typing import Optional
 
-from .rounding import css_alpha_to_gs
+from .rounding import css_alpha_to_gs, css_channel_to_gs
 from . import gs
 from .atlas import AtlasBuilder
 from .ninepatch import patch_key, rasterize_patch, slice_quads
@@ -92,8 +92,16 @@ class Flattener:
         return self.focus_index.get(fid, FOCUS_NONE)
 
     def _gs_color(self, rgba255) -> tuple:
+        """Vertex color for an untextured QUAD: GS flat shading reads
+        full-range 0..255 RGB; only alpha crosses into the 0..128 domain."""
         r, g, b, a = rgba255
         return (r, g, b, css_alpha_to_gs(a))
+
+    def _gs_modulate_color(self, rgba255) -> tuple:
+        """Vertex color for a TEXQUAD drawn with TEX MODULATE: the GS
+        multiplies texels as Cv = Ct * Cf >> 7, so *every* channel must
+        be in the 0x80-identity domain (backlog B1)."""
+        return tuple(css_channel_to_gs(v) for v in rgba255)
 
     def _coverage_clut_index(self) -> int:
         if self._coverage_clut is None:
@@ -136,8 +144,9 @@ class Flattener:
 
         if radius > 0:
             patch, tex = self._patch_for(radius, bw, fill, bc)
-            # The patch is premixed fill+border; tint white, real alpha in texels.
-            white = (255, 255, 255, 128)
+            # The patch is premixed fill+border; identity tint (0x80 per
+            # channel in the modulate domain), real alpha in the texels.
+            white = (128, 128, 128, 128)
             for (dx, dy, dw, dh), (su, sv, sw, sh) in slice_quads(patch, x, y, w, h):
                 self.records.append(DrawRecord(
                     OP_TEXQUAD, state, focus, dx, dy, dw, dh, white,
@@ -169,7 +178,7 @@ class Flattener:
         state = _STATE_NAMES[cmd["state"]]
         focus = self._focus_of(cmd)
         builder, tex = self._atlas_for(cmd["weight"], cmd["size"])
-        tint = self._gs_color(cmd["color"])
+        tint = self._gs_modulate_color(cmd["color"])
         pen_x = cmd["x"]
         top_y = cmd["y"]
         spacing = cmd.get("letterSpacing", 0)

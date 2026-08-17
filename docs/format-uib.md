@@ -74,10 +74,19 @@ CLUT reads in palette order.
 | 6   | i16  | y       |                                             |
 | 8   | u16  | w       |                                             |
 | 10  | u16  | h       |                                             |
-| 12  | u8×4 | r g b a | vertex color; a in GS 0–128 domain          |
+| 12  | u8×4 | r g b a | vertex color, see domain note below         |
 | 16  | u16  | tex     | texture index (TEXQUAD), else `0xFFFF`      |
 | 18  | u16×4| u0 v0 u1 v1 | texel source rect, u1/v1 exclusive      |
 | 26  | u8×6 | pad     |                                             |
+
+**Color domain note.** Alpha is always in the GS 0–128 domain (0x80 =
+opaque). RGB depends on the op: a **QUAD** is flat-shaded, so `r g b`
+are full-range 0–255; a **TEXQUAD** is drawn with `TEX MODULATE`
+(`Cv = Ct·Cf >> 7`), so its `r g b` are in the 0x80-identity domain —
+`0x80 0x80 0x80` is an untinted texture, and values above 0x80
+overbright. The baker converts exactly once; writers of .uib files
+must do the same or tinted textures render up to 2× too bright on
+hardware.
 
 Draw rule per frame with current focus index `F`:
 
