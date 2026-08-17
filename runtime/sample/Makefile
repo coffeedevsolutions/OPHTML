@@ -17,14 +17,20 @@ UIB = ../../examples/memcard/build/ui.uib
 
 all: $(EE_BIN)
 
-ps2ui.o: ../ps2ui.c ../ps2ui.h
-	$(EE_CC) $(EE_CFLAGS) -c $< -o $@
+# Copy the runtime sources next to main.c so PS2SDK's implicit %.o
+# rule builds them with its full include set (a custom compile rule
+# here misses tamtypes.h and friends from ee/include).
+ps2ui.c: ../ps2ui.c ../ps2ui.h
+	cp ../ps2ui.h ps2ui.h
+	cp ../ps2ui.c ps2ui.c
+
+ps2ui.o: ps2ui.c
 
 ui_uib.c: $(UIB)
 	$(PS2SDK)/bin/bin2c $(UIB) ui_uib.c ui_uib
 
 clean:
-	rm -f $(EE_BIN) $(EE_OBJS) ui_uib.c
+	rm -f $(EE_BIN) $(EE_OBJS) ui_uib.c ps2ui.c ps2ui.h
 
 include $(PS2SDK)/samples/Makefile.pref
 include $(PS2SDK)/samples/Makefile.eeglobal

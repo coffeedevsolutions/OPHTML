@@ -9,6 +9,15 @@ scaffolded (`runtime/sample/`, `tools/framediff.py`,
 job is experimental until its first proven run; the ELF-compile job is
 expected to be authoritative immediately.
 
+**Sprint 2 status (2026-08-17):** ✅ F3 images shipped incl. opt-in
+palettization (`palettize` attr / `--palettize-images`: PSMT8+CLUT, 4×
+VRAM cut) · ✅ F10 `ps2ui_focus_set` + `--focus-wrap` · ✅ F7 `--mode
+ntsc|pal` with canvas-derived safe areas · ✅ F11 `ps2ui-dev` watch mode
+· ✅ B2 baseline seam fixed · ✅ F13 CONTRIBUTING + issue templates ·
+✅ S1/S4-partial CI hardening. First Actions results: `ci` **green**
+from commit `e26f606`; `hw` elf job fixed iteratively (gsKit include
+path, implicit-rule includes) — emulator job remains experimental.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two
