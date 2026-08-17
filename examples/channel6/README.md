@@ -108,6 +108,20 @@ Both blobs exist so you can run the two-way panel test in
 [docs/bringup.md](../../docs/bringup.md) step 10 — same television,
 same UI, one blob correct in each TV mode.
 
+`ps2ui-check` on either blob reports one warning, and it is the CLIP
+cell working as designed:
+
+```
+20 command(s) fall entirely outside their clip and are submitted every
+frame for nothing (from command 628)
+```
+
+Those are the tail glyphs of `Scissor clips this line at the padding
+edge`, a `nowrap` run inside `overflow: hidden`. The baker emits the
+whole string and lets the GS clip it, which is the behaviour the cell
+exists to demonstrate. Any *other* ps2ui-check output from this example
+is news.
+
 ### The runtime's table caps
 
 `ps2ui.h` sizes the runtime context statically, and `ps2ui_load()`

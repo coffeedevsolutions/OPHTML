@@ -82,6 +82,18 @@ frame. ✅ **B15** the probe screen overflowed a 448-line frame when the
 aspect cell made a seventh grid cell; the footer and the FLEX cell were
 off-screen and four overscan warnings had been saying so.
 
+**Sprint 6 status (2026-08-17):** post-consolidation cleanup, both items
+picked because neither needs hardware. ✅ **F22** `ps2ui-check`
+generalizes `examples/channel6/check.py` into a validator any project
+can point at any blob: table caps, every index the runtime dereferences
+unchecked, screens partitioning the command/focus/slot tables, scissor
+balance, both GS colour domains, glyph-table sort order, placeholder
+coverage, focus reachability, VRAM. Errors mean the console misbehaves
+with no diagnostic; warnings mean legal but wasteful. It found real dead
+geometry on its first run, now filed as F24. ✅ **S4-partial** the Play!
+download no longer hardcodes an asset name that 404s, and no longer
+saves and executes the error page when it does.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two
@@ -141,6 +153,11 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | F6 | **List templating / scrolling regions.** Data-driven repeats (`data-repeat` on a template child) with a runtime-scrollable window over more items than fit — the full solution to "the card has 40 saves". Depends on F2; large runtime surface (scissor + per-item focus), which is why it scores below its obvious value. Revisit the score once F2 lands. | 6 | 3 | 0.5 | 6 | **1.5** |
 | F5 | **Precompiled GIF/DMA chains.** The roadmap's performance endgame: bake per-state GIF packets so a frame is a DMA kick instead of per-quad gsKit calls. Near-zero CPU per frame, but the biggest hardware-knowledge item in the backlog and pointless to attempt before F1 exists to validate it. | 7 | 2 | 0.5 | 6 | **1.2** |
 | F16 | **Non-Latin text.** CJK/greedy-break rules, font fallback chains, larger atlases (PSMT8 CLUT pressure). Real for localization, small audience today, large effort. Pair with F17 when demand appears. | 2 | 2 | 0.5 | 4 | **0.5** |
+| F22 | ✅ **`ps2ui-check`, a validator for any blob.** `examples/channel6/check.py` asserted the right properties but had one example's focus names and slot capacities hardcoded, so nobody else's build got them. Generalized into `ps2ui_bake.check`: table caps, every index the runtime dereferences unchecked, screens partitioning the command/focus/slot tables, scissor balance per screen, both GS colour domains, codepoint-sorted glyph tables, placeholder coverage, focus reachability, VRAM. Errors mean the console misbehaves with no diagnostic; warnings mean legal but wasteful. TAP output, `--strict`, wired into both workflows. | 8 | 1 | 1.0 | 0.5 | **16** |
+| F19 | **`ps2ui_unload()` and VRAM bookkeeping.** The runtime uploads once and never releases, so an app cannot swap one blob for another. Needed before a shell-and-module example is possible: the shell's UI and a module's UI cannot both be resident under a 4 MB budget. Deliberately deferred until the GS path is hardware-verified, since it changes how VRAM is managed and debugging that against an unproven renderer means debugging two things at once. | 5 | 2 | 0.8 | 2 | **4** |
+| F20 | **Runtime image slots.** `data-slot` covers text; cover art discovered at runtime (an OPL-style ART folder) still cannot be shown, because textures are baked. Needs F19's VRAM bookkeeping first. | 5 | 2 | 0.7 | 3 | **2.3** |
+| F21 | **Runtime visibility toggle.** `display: none` is compile-time only, so an app cannot hide a row it has no data for; today the workaround is blanking every slot in it, which leaves the panel drawn. A per-focus-node or per-element visibility bit the render loop honours. | 4 | 1 | 0.9 | 1 | **3.6** |
+| F24 | **Trim geometry that cannot draw.** A `nowrap` run inside `overflow: hidden` bakes every glyph and lets the GS clip, so the channel-6 probe submits 20 quads per frame that are outside their scissor. F22 measures it; the baker could drop them at flatten time once the clip is known. Small, safe, and it shrinks the command list on exactly the data-heavy screens where it matters. | 6 | 0.5 | 0.9 | 0.5 | **5.4** |
 
 ## Security & abuse (added 2026-08-17 after CI review)
 

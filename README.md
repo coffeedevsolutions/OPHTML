@@ -174,6 +174,28 @@ Your desktop preview won't show you what a 2001 television does. The compiler wa
 
 The two interchange formats are fully documented, so any stage can be swapped out for another implementation.
 
+## Validating a blob
+
+`ps2ui-check` re-reads a baked `.uib` and asserts what the C runtime
+assumes but cannot afford to verify. The loader already rejects bad
+magic, an unknown version, a failed CRC and unknown feature bits; this
+covers the contents:
+
+```sh
+PYTHONPATH=packages/baker python3 -m ps2ui_bake.check build/ui.uib
+```
+
+- **Errors** mean the console will misbehave with no diagnostic: a table
+  past what `ps2ui_load` accepts, an index into a table that isn't there,
+  screens that don't partition the command list, unbalanced scissors,
+  colors outside the GS domains, an unreachable focusable.
+- **Warnings** are legal but known to look wrong or waste the GS: 1px
+  lines on an interlaced CRT, commands that fall entirely outside their
+  clip, textures nothing draws. `--strict` makes them fail.
+
+Output is TAP. Useful on any blob, including ones this toolchain didn't
+bake.
+
 ## Tests
 
 ```sh
