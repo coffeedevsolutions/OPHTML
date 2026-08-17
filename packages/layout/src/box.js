@@ -69,6 +69,16 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   );
   if (style.display === 'none') return null;
 
+  if (el.tag === 'img') {
+    // Parsed as a void element, laid out as an empty box, but nothing
+    // paints it yet (backlog F3). Silence here costs someone an
+    // afternoon, so it does not get to be silent.
+    warnings.push(
+      `layout: <img> on line ${el.line} is not painted yet — image baking `
+      + 'is not implemented (backlog F3); the element only reserves layout space',
+    );
+  }
+
   const box = new Box('element', el, style, focusStyle);
   const focusable = 'focusable' in el.attrs;
   if (focusable && focusScope !== null) {

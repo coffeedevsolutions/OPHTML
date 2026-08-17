@@ -248,6 +248,14 @@ test('focus: nested focusables are a compile error', () => {
   ), /nested focusable/);
 });
 
+test('paint: <img> warns instead of vanishing silently', () => {
+  const ir = compileCss(
+    '<div><img src="assets/logo.png" class="logo">text</div>',
+    '.logo { width: 32px; height: 32px }',
+  );
+  assert.match(ir.warnings.join('\n'), /<img> on line 1 is not painted/);
+});
+
 // ------------------------------------------------------------------ lint
 
 test('lint: overscan, font size, flicker and contrast all fire', () => {

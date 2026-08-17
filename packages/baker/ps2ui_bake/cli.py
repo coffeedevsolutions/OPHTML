@@ -12,6 +12,7 @@ import sys
 from .quads import Flattener
 from .uib import write_uib, read_uib
 from . import preview as preview_mod
+from . import vram
 
 
 def load_font_manifest(path: str) -> dict:
@@ -50,6 +51,9 @@ def main(argv=None) -> int:
     ap.add_argument("--fonts", default=None, help="fonts.json manifest (default: repo fonts/)")
     ap.add_argument("--preview", default=None, help="write a PNG replay of the initial state")
     ap.add_argument("--montage", default=None, help="write a PNG sheet of every focus state")
+    ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",
+                    help="texture VRAM budget (default: 4 MiB minus a "
+                         "double-buffered framebuffer pair + Z at canvas size)")
     args = ap.parse_args(argv)
 
     with open(args.ir, encoding="utf-8") as fh:
@@ -68,6 +72,19 @@ def main(argv=None) -> int:
 
     flat = Flattener(ir, font_paths)
     flat.run()
+
+    # VRAM accounting before writing anything: an over-budget UI should
+    # die here with a breakdown, not on the console with an alloc error.
+    vlines, _vtotal, _vbudget, vok = vram.report(
+        flat.textures, flat.cluts, ir["canvas"]["w"], ir["canvas"]["h"],
+        args.vram_budget,
+    )
+    for line in vlines:
+        print(line, file=sys.stderr)
+    if not vok:
+        print("error: texture VRAM footprint exceeds budget "
+              "(see breakdown above; override with --vram-budget)", file=sys.stderr)
+        return 1
 
     initial = None
     if ir["focus"]["initial"] is not None:
