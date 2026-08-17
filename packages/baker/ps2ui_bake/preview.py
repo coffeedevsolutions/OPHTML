@@ -68,8 +68,10 @@ def _tint(img: Image.Image, rgba_gs) -> Image.Image:
     return Image.merge("RGBA", (ir_, ig, ib, ia))
 
 
-def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)) -> Image.Image:
-    """Replay to an RGBA image with the given focus-table index current."""
+def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),
+           slot_text: dict = None) -> Image.Image:
+    """Replay to an RGBA image with the given focus-table index current.
+    slot_text overrides dynamic-text slots by name (else placeholders)."""
     if focus_current is None:
         focus_current = uib.initial_focus
     canvas = Image.new("RGBA", (uib.canvas_w, uib.canvas_h), background)
@@ -122,6 +124,61 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
 
     if len(scissors) != 1:
         raise ValueError("unbalanced scissor stack in command list")
+
+    # Dynamic text slots: same pen as the C runtime — advance walk over
+    # the baked glyph table, optional ellipsis, align, focus color.
+    for slot in uib.slots:
+        text = (slot_text or {}).get(slot["name"]) or slot["placeholder"]
+        font = uib.fonts[slot["font"]]
+        if font["tex"] not in tex_cache:
+            tex_cache[font["tex"]] = _decode_texture(uib, font["tex"])
+        atlas = tex_cache[font["tex"]]
+        glyphs = font["glyphs"]
+        fallback = glyphs.get(ord("?"))
+        ell = glyphs.get(0x2026)
+
+        def advance_of(cp):
+            g = glyphs.get(cp, fallback)
+            return g["advance"] if g else 0
+
+        cps = [ord(ch) for ch in text]
+        total = sum(advance_of(cp) for cp in cps)
+        ellipsize = False
+        if total > slot["w"] and slot["ellipsis"]:
+            ellipsize = True
+            ell_w = ell["advance"] if ell else 0
+            w = 0
+            fit = []
+            for cp in cps:
+                if w + advance_of(cp) + ell_w > slot["w"]:
+                    break
+                w += advance_of(cp)
+                fit.append(cp)
+            cps = fit
+            total = w + ell_w
+
+        pen = slot["x"]
+        if slot["align"] == 1 and total < slot["w"]:
+            pen += (slot["w"] - total) // 2
+        elif slot["align"] == 2 and total < slot["w"]:
+            pen += slot["w"] - total
+
+        is_focused = slot["focus"] != FOCUS_NONE and slot["focus"] == focus_current
+        color = slot["color_focus"] if is_focused else slot["color_base"]
+
+        if ellipsize and ell:
+            cps = cps + [0x2026]
+        for cp in cps:
+            g = glyphs.get(cp, fallback)
+            if not g:
+                continue
+            if g["w"] > 0:
+                src = atlas.crop((g["u"], g["v"], g["u"] + g["w"], g["v"] + g["h"]))
+                src = _tint(src, color)
+                canvas.alpha_composite(
+                    src, (pen + g["bearing_x"], slot["text_y"] + g["bearing_y"]))
+            pen += g["advance"]
+
     return canvas
 
 

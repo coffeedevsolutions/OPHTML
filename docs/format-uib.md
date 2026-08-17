@@ -6,32 +6,38 @@ parsing, no allocation, and no packing pragmas (every u32 sits at a
 4-aligned offset).
 
 ```
-offset 0            header        48 bytes
+offset 0            header        64 bytes
 header.off_tex      tex table     n_tex   × 16 bytes
 header.off_clut     clut table    n_clut  ×  8 bytes
 header.off_cmd      command list  n_cmd   × 32 bytes
 header.off_focus    focus table   n_focus × 24 bytes
+header.off_font     font table    n_font  × 16 bytes
+header.off_slot     slot table    n_slot  × 32 bytes
 header.off_blob     blob          header.blob_len bytes
 ```
 
 All `data_off`/`name_off` fields are relative to the **blob**, so tools
 can rewrite tables without re-basing data pointers.
 
-## Header (48 bytes)
+## Header (64 bytes)
 
 | off | type | field         | notes                          |
 |-----|------|---------------|--------------------------------|
 | 0   | u32  | magic         | `0x31424955` — "UIB1"          |
-| 4   | u16  | version       | 1                              |
-| 6   | u16  | flags         | 0                              |
+| 4   | u16  | version       | 2                              |
+| 6   | u16  | feature_flags | bit 0 = dynamic text; a reader that sees a bit it does not know MUST reject the file |
 | 8   | u16  | canvas_w      | 640 for NTSC                   |
-| 10  | u16  | canvas_h      | 448 for NTSC                   |
+| 10  | u16  | canvas_h      | 448 (NTSC) / 512 (PAL)         |
 | 12  | u16  | n_tex         |                                |
 | 14  | u16  | n_clut        |                                |
 | 16  | u32  | n_cmd         |                                |
 | 20  | u16  | n_focus       |                                |
 | 22  | u16  | initial_focus | focus index, `0xFFFF` = none   |
 | 24  | u32×6| off_tex, off_clut, off_cmd, off_focus, off_blob, blob_len |
+| 48  | u32  | crc32         | IEEE CRC-32 of the whole file with this field zeroed (matches zlib) |
+| 52  | u16  | n_font        | dynamic-text font tables       |
+| 54  | u16  | n_slot        | dynamic-text slots             |
+| 56  | u32×2| off_font, off_slot |
 
 ## Texture entry (16 bytes)
 
@@ -111,6 +117,46 @@ intersection; the baker guarantees balance.
 | 20  | u16×2| w h      |                                    |
 
 The graph is solved at build time; a D-pad press is one table lookup.
+
+## Font entry (16 bytes) — dynamic text
+
+| off | type | field       | notes                                |
+|-----|------|-------------|--------------------------------------|
+| 0   | u16  | tex         | PSMT8 glyph-atlas texture index      |
+| 2   | u16  | size        | px                                   |
+| 4   | u16  | weight      | 400 / 700                            |
+| 6   | u16  | ascent      | px, from the metrics JSON            |
+| 8   | u16  | line_height | px                                   |
+| 10  | u16  | glyph_count |                                      |
+| 12  | u32  | glyphs_off  | glyph records in blob, **codepoint-sorted** for bsearch |
+
+Glyph record (20 bytes, in blob): `u32 codepoint; u16 u,v,w,h;
+i16 bearing_x, bearing_y; u16 advance; u16 pad`. `bearing_y` is
+measured from the line-box top via the metrics ascent; `advance` obeys
+the shared rounding rule, so runtime-composed text lands exactly where
+static text would have.
+
+## Slot entry (32 bytes) — dynamic text
+
+| off | type | field           | notes                              |
+|-----|------|-----------------|------------------------------------|
+| 0   | u32  | name_off        | NUL-terminated UTF-8 in blob       |
+| 4   | u32  | placeholder_off | rendered until the app sets text   |
+| 8   | i16  | x               | content-left px                    |
+| 10  | i16  | text_y          | glyph-box top px                   |
+| 12  | u16  | w               | content width px                   |
+| 14  | u16  | font            | font table index                   |
+| 16  | u8   | align           | 0 left, 1 center, 2 right          |
+| 17  | u8   | flags           | bit 0 = ellipsize overflow         |
+| 18  | u16  | capacity        | max runtime bytes                  |
+| 20  | u16  | focus           | focus index or `0xFFFF`            |
+| 22  | u8×4 | color_base      | modulate domain, like any TEXQUAD  |
+| 26  | u8×4 | color_focus     |                                    |
+| 30  | u8×2 | pad             |                                    |
+
+The runtime (`ps2ui_slot_set`) copies app strings into fixed per-slot
+buffers and composes glyph quads per frame: advance walk, optional
+ellipsis, alignment — no wrapping, no allocation.
 
 ## Versioning
 

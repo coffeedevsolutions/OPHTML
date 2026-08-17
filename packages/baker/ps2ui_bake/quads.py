@@ -21,7 +21,7 @@ both just walk the list.
 from dataclasses import dataclass, replace
 from typing import Optional
 
-from .rounding import css_alpha_to_gs, css_channel_to_gs
+from .rounding import css_alpha_to_gs, css_channel_to_gs, glyph_advance_px, round_half_up
 from . import gs
 from .atlas import AtlasBuilder
 from .ninepatch import patch_key, rasterize_patch, slice_quads
@@ -82,6 +82,8 @@ class Flattener:
         self._patches = {}      # patch_key -> (NinePatch, tex_index)
         self._images = {}       # (src, w, h) -> tex_index
         self._coverage_clut = None
+        self.fonts = []         # dynamic-text font tables (filled by run())
+        self.slots = []         # dynamic-text slots (filled by run())
         # box-id -> focus-table index, from the IR focus graph
         self.focus_index = {
             node["id"]: i for i, node in enumerate(ir["focus"]["nodes"])
@@ -277,6 +279,10 @@ class Flattener:
                 ))
             else:
                 raise ValueError(f"unknown IR command op: {op}")
+        # Slots register glyphs into the shared atlases, so they must
+        # finish before the atlas textures freeze.
+        self._collect_slots()
+        self._finish_slots()
         self._finish_atlases()
 
     def _finish_atlases(self):
@@ -287,3 +293,60 @@ class Flattener:
                 gs.PSMT8, atlas.image.width, atlas.image.height,
                 clut, gs.encode_psmt8(atlas.image.getdata()),
             )
+
+    # ------------------------------------------------------ dynamic text
+
+    def _collect_slots(self):
+        """Turn IR slots into .uib slot entries + full glyph tables.
+
+        A slot's text arrives at runtime, so its font atlas must carry
+        the whole metrics charset (not just the glyphs static text
+        happened to use) and export a searchable glyph table. Colors
+        cross into the modulate domain here, same as static text."""
+        self.fonts = []
+        self.slots = []
+        font_index = {}  # (bucket, size) -> font table index
+        for sl in self.ir.get("slots", []):
+            builder, tex_index = self._atlas_for(sl["weight"], sl["size"])
+            key = ("bold" if sl["weight"] >= 600 else "regular", sl["size"])
+            if key not in font_index:
+                # Full charset: every codepoint the metrics know.
+                for cp_str in builder.metrics["advances"]:
+                    builder.add(chr(int(cp_str)))
+                builder.add("…")  # the runtime ellipsis
+                line_h = sl.get("lineHeight") or (
+                    builder.metrics_ascent_px
+                    + glyph_advance_px(builder.metrics["descent"], sl["size"]))
+                self.fonts.append({
+                    "tex": tex_index,
+                    "size": sl["size"],
+                    "weight": sl["weight"],
+                    "ascent": builder.metrics_ascent_px,
+                    "line_height": line_h,
+                    "glyphs": [],  # filled in _finish_slots from the builder
+                    "_builder": builder,
+                })
+                font_index[key] = len(self.fonts) - 1
+            self.slots.append({
+                "name": sl["name"],
+                "placeholder": sl["placeholder"],
+                "x": sl["x"], "text_y": sl["textY"], "w": sl["w"],
+                "font": font_index[key],
+                "align": {"left": 0, "center": 1, "right": 2}.get(sl["align"], 0),
+                "ellipsis": bool(sl["ellipsis"]),
+                "capacity": min(int(sl["capacity"]), 95),
+                "focus": self.focus_index.get(sl.get("focusId"), FOCUS_NONE)
+                if sl.get("focusId") is not None else FOCUS_NONE,
+                "color_base": self._gs_modulate_color(sl["colorBase"]),
+                "color_focus": self._gs_modulate_color(sl["colorFocus"]),
+            })
+
+    def _finish_slots(self):
+        for f in self.fonts:
+            builder = f.pop("_builder")
+            f["glyphs"] = [{
+                "codepoint": g.codepoint, "u": g.u, "v": g.v,
+                "w": g.w, "h": g.h,
+                "bearing_x": g.bearing_x, "bearing_y": g.bearing_y,
+                "advance": g.advance,
+            } for g in builder.glyphs.values()]

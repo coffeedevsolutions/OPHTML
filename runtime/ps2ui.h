@@ -46,7 +46,13 @@ extern "C" {
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */
-#define PS2UI_VERSION 1
+#define PS2UI_VERSION 2
+
+/* Feature bits. Unknown bits in a file are a load error — a blob that
+ * needs a capability this runtime lacks must fail loudly, not render
+ * subtly wrong. */
+#define PS2UI_FEAT_DYNAMIC_TEXT (1u << 0)
+#define PS2UI_FEAT_KNOWN        PS2UI_FEAT_DYNAMIC_TEXT
 
 #define PS2UI_OP_QUAD          0
 #define PS2UI_OP_TEXQUAD       1
@@ -64,12 +70,15 @@ extern "C" {
 
 typedef struct ps2ui_header {
     uint32_t magic;
-    uint16_t version, flags;
+    uint16_t version, feature_flags;
     uint16_t canvas_w, canvas_h;
     uint16_t n_tex, n_clut;
     uint32_t n_cmd;
     uint16_t n_focus, initial_focus;
     uint32_t off_tex, off_clut, off_cmd, off_focus, off_blob, blob_len;
+    uint32_t crc32;              /* whole file, this field zeroed */
+    uint16_t n_font, n_slot;
+    uint32_t off_font, off_slot;
 } ps2ui_header;
 
 typedef struct ps2ui_tex_entry {
@@ -104,12 +113,51 @@ typedef struct ps2ui_focus_node {
     uint16_t w, h;
 } ps2ui_focus_node;
 
+/* ---- dynamic text (feature bit 0) ---- */
+
+typedef struct ps2ui_font_entry {
+    uint16_t tex;                /* PSMT8 atlas texture index          */
+    uint16_t size, weight;
+    uint16_t ascent;             /* px, from the metrics JSON          */
+    uint16_t line_height;
+    uint16_t glyph_count;
+    uint32_t glyphs_off;         /* ps2ui_glyph[] in blob, cp-sorted   */
+} ps2ui_font_entry;
+
+typedef struct ps2ui_glyph {
+    uint32_t codepoint;
+    uint16_t u, v, w, h;
+    int16_t  bearing_x, bearing_y; /* from pen x / line-box top        */
+    uint16_t advance;
+    uint16_t pad0;
+} ps2ui_glyph;
+
+#define PS2UI_SLOT_ALIGN_LEFT   0
+#define PS2UI_SLOT_ALIGN_CENTER 1
+#define PS2UI_SLOT_ALIGN_RIGHT  2
+#define PS2UI_SLOT_FLAG_ELLIPSIS 1
+
+typedef struct ps2ui_slot_entry {
+    uint32_t name_off, placeholder_off; /* NUL-terminated in blob      */
+    int16_t  x, text_y;          /* content-left px, glyph-box top px  */
+    uint16_t w;                  /* content width px                   */
+    uint16_t font;               /* font table index                   */
+    uint8_t  align, flags;
+    uint16_t capacity;           /* max bytes of runtime text          */
+    uint16_t focus;              /* focus index or PS2UI_NONE          */
+    uint8_t  color_base[4];      /* modulate domain, like every TEXQUAD */
+    uint8_t  color_focus[4];
+    uint8_t  pad0[2];
+} ps2ui_slot_entry;
+
 typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_dir;
 
 /* ---------------------------------- context ---------------------------- */
 
 #define PS2UI_MAX_SCISSOR_DEPTH 8
 #define PS2UI_MAX_TEXTURES      32
+#define PS2UI_MAX_SLOTS         16
+#define PS2UI_SLOT_BUFSZ        96  /* bytes incl. NUL, per slot */
 
 typedef struct ps2ui_ctx {
     const uint8_t         *data;     /* the whole .uib, caller-owned      */
@@ -121,9 +169,15 @@ typedef struct ps2ui_ctx {
     const ps2ui_focus_node*focus_nodes;
     const uint8_t         *blob;
 
+    const ps2ui_font_entry *fonts;
+    const ps2ui_slot_entry *slots;
+
     uint16_t  focus;                 /* current focus index or PS2UI_NONE */
     GSTEXTURE gs_tex[PS2UI_MAX_TEXTURES];
     int       uploaded;
+    /* Runtime slot text; empty string = render the baked placeholder.
+     * Caller-free storage keeps the no-allocation rule. */
+    char      slot_text[PS2UI_MAX_SLOTS][PS2UI_SLOT_BUFSZ];
 } ps2ui_ctx;
 
 /* Errors returned by ps2ui_load. */
@@ -133,6 +187,8 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_VERSION    -3
 #define PS2UI_ERR_BOUNDS     -4
 #define PS2UI_ERR_TOO_MANY   -5
+#define PS2UI_ERR_CRC        -6
+#define PS2UI_ERR_FEATURES   -7
 
 /* Validate a blob and point the context into it. The blob must stay
  * alive and unmoved for the context's lifetime; nothing is copied. */
@@ -158,6 +214,20 @@ const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
  * Returns 1 on success, 0 if no node has that name. Use this to
  * restore focus after a screen swap or to implement shortcuts. */
 int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
+
+/* Set a dynamic-text slot's current string (UTF-8; copied, truncated
+ * at the slot's baked capacity). NULL or "" reverts to the baked
+ * placeholder. Returns 1 on success, 0 if no slot has that name.
+ * The runtime lays the glyphs out per frame from the baked glyph
+ * table: advance walk + optional ellipsis, no wrapping, no allocation. */
+int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);
+
+/* Current string of a slot (runtime text, else placeholder), or NULL. */
+const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name);
+
+/* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed
+ * for tests. */
+uint32_t ps2ui_crc32(const void *data, size_t len);
 
 /* Activation convention: ps2ui owns *where* focus is, the app owns
  * *what happens* — on your accept button, switch on

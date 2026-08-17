@@ -112,6 +112,26 @@ colors; the whole bake can be forced with `ps2ui-bake
 
 Always balanced, always `state: "always"`. Nested pushes intersect.
 
+## Slots (dynamic text)
+
+`slots` is a top-level array beside `commands`. A slot is a single-line
+text region whose *string* arrives at runtime while everything else —
+geometry, font, colors, alignment, ellipsis policy — froze at compile
+time. Produced by the `data-slot` attribute; the placeholder text is
+laid out normally but emitted here instead of as `text` commands.
+
+```jsonc
+{
+  "name": "count", "placeholder": "6 titles",
+  "x": 520, "textY": 30, "w": 92,          // content box + glyph-box top
+  "size": 13, "weight": 400, "lineHeight": 16,
+  "align": "left", "ellipsis": true, "capacity": 15,
+  "focusId": null,
+  "colorBase": [139, 148, 167, 255],       // CSS domain, as everywhere in the IR
+  "colorFocus": [139, 148, 167, 255]
+}
+```
+
 ## Invariants a consumer may rely on
 
 1. Geometry is integral and identical across focus states (paint-only

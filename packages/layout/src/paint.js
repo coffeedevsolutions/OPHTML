@@ -87,9 +87,44 @@ function emitTextLines(cmds, box, paint, state) {
 export function buildDisplayList(root) {
   const commands = [];
   const focusables = new Map();
+  const slots = [];
 
   const visit = (box) => {
     const inScope = box.focusId !== null && box.focusStyle !== box.style;
+
+    if (box.parent?.slot && box.isText()) {
+      // Placeholder text of a data-slot: becomes a slot descriptor, not
+      // static text commands. One line, enforced here.
+      if (box.lines.length !== 1) {
+        throw new Error(
+          `layout: data-slot "${box.parent.slot.name}" placeholder wraps to `
+          + `${box.lines.length} lines — slots are single-line; add white-space: `
+          + 'nowrap or widen the box',
+        );
+      }
+      const line = box.lines[0];
+      const parent = box.parent;
+      const pb = parent.style.borderWidth;
+      const base = textPaint(box.style);
+      const foc = textPaint(box.focusStyle);
+      slots.push({
+        name: parent.slot.name,
+        placeholder: line.text,
+        x: parent.x + parent.style.padding[3] + pb,
+        textY: line.y + Math.floor(line.leading / 2),
+        w: parent.width - parent.style.padding[1] - parent.style.padding[3] - 2 * pb,
+        size: box.style.fontSize,
+        weight: base.fontWeight,
+        lineHeight: line.lineHeight,
+        align: box.style.textAlign,
+        ellipsis: box.style.textOverflow === 'ellipsis',
+        capacity: parent.slot.capacity,
+        focusId: box.focusId,
+        colorBase: base.color,
+        colorFocus: foc.color,
+      });
+      return; // no static commands for slot text
+    }
 
     if (box.isText()) {
       const base = textPaint(box.style);
@@ -151,5 +186,12 @@ export function buildDisplayList(root) {
     }
   };
   visit(root);
-  return { commands, focusables };
+  const seen = new Set();
+  for (const s of slots) {
+    if (seen.has(s.name)) {
+      throw new Error(`layout: duplicate data-slot name "${s.name}"`);
+    }
+    seen.add(s.name);
+  }
+  return { commands, focusables, slots };
 }

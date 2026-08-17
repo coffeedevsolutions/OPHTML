@@ -55,7 +55,10 @@ int main(int argc, char **argv)
     gs.Width = 640; gs.Height = 448;
 
     /* ---- struct layout matches the on-disk format ---- */
-    CHECK(sizeof(ps2ui_header) == 48, "header struct is 48 bytes");
+    CHECK(sizeof(ps2ui_header) == 64, "header struct is 64 bytes");
+    CHECK(sizeof(ps2ui_font_entry) == 16, "font entry struct is 16 bytes");
+    CHECK(sizeof(ps2ui_glyph) == 20, "glyph struct is 20 bytes");
+    CHECK(sizeof(ps2ui_slot_entry) == 32, "slot entry struct is 32 bytes");
     CHECK(sizeof(ps2ui_tex_entry) == 16, "tex entry struct is 16 bytes");
     CHECK(sizeof(ps2ui_clut_entry) == 8, "clut entry struct is 8 bytes");
     CHECK(sizeof(ps2ui_cmd) == 32, "cmd struct is 32 bytes");
@@ -82,8 +85,18 @@ int main(int argc, char **argv)
         memcpy(dup, blob, len);
         ((ps2ui_header *)dup)->version = 99;
         CHECK(ps2ui_load(&bad, dup, len) == PS2UI_ERR_VERSION, "wrong version rejected");
+        memcpy(dup, blob, len);
+        dup[len / 2] ^= 0xFF; /* one flipped bit in the body */
+        CHECK(ps2ui_load(&bad, dup, len) == PS2UI_ERR_CRC, "corrupt body fails crc");
+        memcpy(dup, blob, len);
+        ((ps2ui_header *)dup)->feature_flags |= 0x8000;
+        CHECK(ps2ui_load(&bad, dup, len) == PS2UI_ERR_FEATURES,
+              "unknown feature bits rejected");
         free(dup);
     }
+
+    /* ---- crc32 matches zlib's definition ---- */
+    CHECK(ps2ui_crc32("123456789", 9) == 0xCBF43926u, "crc32 check vector");
 
     /* ---- CSM1 permutation mirrors the baker ---- */
     CHECK(ps2ui_clut_csm1(0) == 0 && ps2ui_clut_csm1(7) == 7, "csm1 fixes 0..7");
@@ -183,6 +196,36 @@ int main(int argc, char **argv)
           && strcmp(ps2ui_focus_name(&ctx), "nav-settings") == 0,
           "left twice reaches the nav column");
     CHECK(ps2ui_move(&ctx, PS2UI_LEFT) == 0, "left off the nav column stays put");
+
+    /* ---- focus API (F10) ---- */
+    CHECK(ps2ui_focus_set(&ctx, "tile-okami") == 1
+          && strcmp(ps2ui_focus_name(&ctx), "tile-okami") == 0,
+          "focus_set jumps by name");
+    CHECK(ps2ui_focus_set(&ctx, "no-such-node") == 0, "focus_set rejects unknown names");
+
+    /* ---- dynamic text (F2): the example's "count" slot ---- */
+    CHECK((ctx.hdr->feature_flags & PS2UI_FEAT_DYNAMIC_TEXT) != 0,
+          "example blob carries the dynamic-text feature bit");
+    CHECK(ctx.hdr->n_slot == 1 && ctx.hdr->n_font >= 1, "one slot, one font table");
+    CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "6 titles") == 0,
+          "unset slot serves its placeholder");
+    {
+        int with_placeholder, with_text, with_short;
+        with_placeholder = render_and_count(&ctx, &gs);
+        CHECK(ps2ui_slot_set(&ctx, "count", "42 titles") == 1, "slot_set by name");
+        CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "42 titles") == 0,
+              "slot_get returns runtime text");
+        with_text = render_and_count(&ctx, &gs);
+        /* "42 titles" has one more inked glyph than "6 titles". */
+        CHECK(with_text == with_placeholder + 1, "runtime text changes glyph count");
+        ps2ui_slot_set(&ctx, "count", "7");
+        with_short = render_and_count(&ctx, &gs);
+        CHECK(with_short < with_placeholder, "short text draws fewer glyphs");
+        CHECK(ps2ui_slot_set(&ctx, "nope", "x") == 0, "slot_set rejects unknown names");
+        ps2ui_slot_set(&ctx, "count", NULL);
+        CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "6 titles") == 0,
+              "NULL reverts to placeholder");
+    }
 
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);

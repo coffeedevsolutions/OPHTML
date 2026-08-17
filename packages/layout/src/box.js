@@ -27,6 +27,7 @@ export class Box {
     this.parent = null;
     this.text = null;           // for text boxes
     this.image = null;          // for <img>: { src, w, h } (intrinsic px)
+    this.slot = null;           // for data-slot: { name, capacity }
     // Filled by the solver:
     this.x = 0; this.y = 0; this.width = 0; this.height = 0;
     this.lines = null;          // laid-out text lines
@@ -74,6 +75,27 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   if (style.display === 'none') return null;
 
   const box = new Box('element', el, style, focusStyle);
+  if ('data-slot' in el.attrs) {
+    // Dynamic text (backlog F2): the element's text is a build-time
+    // placeholder; the console composes the real string at runtime
+    // from a baked glyph table. Geometry, font, colors and alignment
+    // are still all compile-time.
+    const name = el.attrs['data-slot'];
+    if (!name) {
+      throw new Error(`layout: <${el.tag}> line ${el.line}: data-slot needs a name`);
+    }
+    const onlyText = el.children.length === 1 && el.children[0].type === 'text';
+    if (!onlyText) {
+      throw new Error(
+        `layout: <${el.tag}> line ${el.line}: a data-slot element must contain `
+        + 'exactly one text node (the placeholder), no child elements',
+      );
+    }
+    box.slot = {
+      name,
+      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),
+    };
+  }
   if (el.tag === 'img') {
     const src = el.attrs.src;
     if (!src) {

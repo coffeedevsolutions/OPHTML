@@ -18,6 +18,22 @@ ntsc|pal` with canvas-derived safe areas · ✅ F11 `ps2ui-dev` watch mode
 from commit `e26f606`; `hw` elf job fixed iteratively (gsKit include
 path, implicit-rule includes) — emulator job remains experimental.
 
+**Sprint 3 status (2026-08-17):** ✅ F1/hw milestone: `ci` **and** the
+`hw` ELF job green in Actions — a real PS2 ELF builds in CI under the
+ps2dev toolchain (the container's older gsKit also proved the
+`GSTEXTURE::Function` fallback real; the runtime now autodetects it).
+Play! emulator job failed at AppImage download as expected
+(`continue-on-error`); needs the real release asset URL. ✅ F14 + F2
+shipped as **.uib format v2**: 64-byte header with CRC-32 + feature
+flags (unknown bits reject loudly), font tables with codepoint-sorted
+glyph records, and dynamic-text slots — `data-slot` in HTML,
+`ps2ui_slot_set/get` in the runtime (fixed per-slot buffers, zero
+allocation, UTF-8 pen with ellipsis + alignment), previewer slot
+rendering with overrides. The example's "6 titles" is now a live slot
+and its preview is **pixel-identical** to the static bake — the pen
+provably reproduces layout's measurements. Remaining Sprint 3: F4
+multi-screen, F12 packaging.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two

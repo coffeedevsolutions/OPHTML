@@ -5,6 +5,59 @@
 
 #include <string.h>
 
+static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs);
+
+/* ---------------------------------------------------------------- crc */
+
+/* IEEE reflected CRC-32, table built on first use (static storage, no
+ * allocation). Matches Python's zlib.crc32, which writes the field. */
+static uint32_t crc_table[256];
+static int crc_table_ready = 0;
+
+static void crc_init(void)
+{
+    uint32_t n, k, c;
+    for (n = 0; n < 256; n++) {
+        c = n;
+        for (k = 0; k < 8; k++)
+            c = (c & 1u) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+        crc_table[n] = c;
+    }
+    crc_table_ready = 1;
+}
+
+/* Chaining core: crc is the internal (pre-inverted) state. */
+static uint32_t crc_update(uint32_t crc, const uint8_t *p, size_t len)
+{
+    size_t i;
+    for (i = 0; i < len; i++)
+        crc = crc_table[(crc ^ p[i]) & 0xFFu] ^ (crc >> 8);
+    return crc;
+}
+
+uint32_t ps2ui_crc32(const void *data, size_t len)
+{
+    if (!crc_table_ready)
+        crc_init();
+    return crc_update(0xFFFFFFFFu, (const uint8_t *)data, len) ^ 0xFFFFFFFFu;
+}
+
+/* CRC of the whole file with the header's crc32 field read as zero,
+ * computed in three spans so the caller's const buffer stays const. */
+static uint32_t crc_file_with_hole(const uint8_t *data, size_t len)
+{
+    static const uint8_t zeros[4] = { 0, 0, 0, 0 };
+    const size_t hole = 48; /* byte offset of ps2ui_header.crc32 */
+    uint32_t c;
+    if (!crc_table_ready)
+        crc_init();
+    c = 0xFFFFFFFFu;
+    c = crc_update(c, data, hole);
+    c = crc_update(c, zeros, 4);
+    c = crc_update(c, data + hole + 4, len - hole - 4);
+    return c ^ 0xFFFFFFFFu;
+}
+
 /* ------------------------------------------------------------- loading */
 
 static int in_blob(const ps2ui_ctx *ctx, uint32_t off, uint32_t len)
@@ -27,7 +80,9 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
         return PS2UI_ERR_MAGIC;
     if (ctx->hdr->version != PS2UI_VERSION)
         return PS2UI_ERR_VERSION;
-    if (ctx->hdr->n_tex > PS2UI_MAX_TEXTURES)
+    if (ctx->hdr->feature_flags & ~PS2UI_FEAT_KNOWN)
+        return PS2UI_ERR_FEATURES;
+    if (ctx->hdr->n_tex > PS2UI_MAX_TEXTURES || ctx->hdr->n_slot > PS2UI_MAX_SLOTS)
         return PS2UI_ERR_TOO_MANY;
 
     {
@@ -36,16 +91,24 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
         uint64_t need_clut  = (uint64_t)h->off_clut  + (uint64_t)h->n_clut  * sizeof(ps2ui_clut_entry);
         uint64_t need_cmd   = (uint64_t)h->off_cmd   + (uint64_t)h->n_cmd   * sizeof(ps2ui_cmd);
         uint64_t need_focus = (uint64_t)h->off_focus + (uint64_t)h->n_focus * sizeof(ps2ui_focus_node);
+        uint64_t need_font  = (uint64_t)h->off_font  + (uint64_t)h->n_font  * sizeof(ps2ui_font_entry);
+        uint64_t need_slot  = (uint64_t)h->off_slot  + (uint64_t)h->n_slot  * sizeof(ps2ui_slot_entry);
         uint64_t need_blob  = (uint64_t)h->off_blob  + h->blob_len;
         if (need_tex > size || need_clut > size || need_cmd > size
-            || need_focus > size || need_blob > size)
+            || need_focus > size || need_font > size || need_slot > size
+            || need_blob > size)
             return PS2UI_ERR_TRUNCATED;
     }
+
+    if (crc_file_with_hole(ctx->data, size) != ctx->hdr->crc32)
+        return PS2UI_ERR_CRC;
 
     ctx->tex         = (const ps2ui_tex_entry *)(ctx->data + ctx->hdr->off_tex);
     ctx->clut        = (const ps2ui_clut_entry *)(ctx->data + ctx->hdr->off_clut);
     ctx->cmd         = (const ps2ui_cmd *)(ctx->data + ctx->hdr->off_cmd);
     ctx->focus_nodes = (const ps2ui_focus_node *)(ctx->data + ctx->hdr->off_focus);
+    ctx->fonts       = (const ps2ui_font_entry *)(ctx->data + ctx->hdr->off_font);
+    ctx->slots       = (const ps2ui_slot_entry *)(ctx->data + ctx->hdr->off_slot);
     ctx->blob        = ctx->data + ctx->hdr->off_blob;
 
     /* Every cross-reference is checked once here so the render loop can
@@ -84,6 +147,29 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
             return PS2UI_ERR_BOUNDS;
         /* The name must terminate inside the blob. */
         if (!memchr(ctx->blob + n->name_off, 0, ctx->hdr->blob_len - n->name_off))
+            return PS2UI_ERR_BOUNDS;
+    }
+
+    for (i = 0; i < ctx->hdr->n_font; i++) {
+        const ps2ui_font_entry *f = &ctx->fonts[i];
+        if (f->tex >= ctx->hdr->n_tex)
+            return PS2UI_ERR_BOUNDS;
+        if (!in_blob(ctx, f->glyphs_off,
+                     (uint32_t)f->glyph_count * (uint32_t)sizeof(ps2ui_glyph)))
+            return PS2UI_ERR_BOUNDS;
+    }
+    for (i = 0; i < ctx->hdr->n_slot; i++) {
+        const ps2ui_slot_entry *s = &ctx->slots[i];
+        if (s->font >= ctx->hdr->n_font)
+            return PS2UI_ERR_BOUNDS;
+        if (s->focus != PS2UI_NONE && s->focus >= ctx->hdr->n_focus)
+            return PS2UI_ERR_BOUNDS;
+        if (s->name_off >= ctx->hdr->blob_len
+            || !memchr(ctx->blob + s->name_off, 0, ctx->hdr->blob_len - s->name_off))
+            return PS2UI_ERR_BOUNDS;
+        if (s->placeholder_off >= ctx->hdr->blob_len
+            || !memchr(ctx->blob + s->placeholder_off, 0,
+                       ctx->hdr->blob_len - s->placeholder_off))
             return PS2UI_ERR_BOUNDS;
     }
 
@@ -237,6 +323,195 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
     /* The baker guarantees balance; restore full-canvas scissor anyway
      * so a malformed blob cannot poison the next frame. */
     apply_scissor(gs, &stack[0]);
+
+    /* Dynamic text draws after the static list: slots sit visually on
+     * panels that the command list painted, and their glyph quads are
+     * composed here from the baked glyph tables. */
+    if (ctx->hdr->n_slot > 0)
+        render_slots(ctx, gs);
+}
+
+/* ------------------------------------------------------- dynamic text */
+
+/* Minimal UTF-8 decode: advances *s, returns the codepoint (U+FFFD on
+ * malformed input rather than desyncing the stream). */
+static uint32_t utf8_next(const char **s)
+{
+    const uint8_t *p = (const uint8_t *)*s;
+    uint32_t cp;
+    int extra, i;
+    if (p[0] < 0x80) { cp = p[0]; extra = 0; }
+    else if ((p[0] & 0xE0) == 0xC0) { cp = p[0] & 0x1Fu; extra = 1; }
+    else if ((p[0] & 0xF0) == 0xE0) { cp = p[0] & 0x0Fu; extra = 2; }
+    else if ((p[0] & 0xF8) == 0xF0) { cp = p[0] & 0x07u; extra = 3; }
+    else { (*s)++; return 0xFFFD; }
+    for (i = 1; i <= extra; i++) {
+        if ((p[i] & 0xC0) != 0x80) { (*s)++; return 0xFFFD; }
+        cp = (cp << 6) | (p[i] & 0x3Fu);
+    }
+    *s += extra + 1;
+    return cp;
+}
+
+static const ps2ui_glyph *find_glyph(const ps2ui_ctx *ctx,
+                                     const ps2ui_font_entry *font, uint32_t cp)
+{
+    /* Binary search: the baker writes glyphs codepoint-sorted. */
+    const ps2ui_glyph *g = (const ps2ui_glyph *)(ctx->blob + font->glyphs_off);
+    uint32_t lo = 0, hi = font->glyph_count;
+    while (lo < hi) {
+        uint32_t mid = lo + (hi - lo) / 2;
+        if (g[mid].codepoint < cp) lo = mid + 1;
+        else hi = mid;
+    }
+    if (lo < font->glyph_count && g[lo].codepoint == cp)
+        return &g[lo];
+    /* '?' fallback, matching the metrics' missing-glyph convention. */
+    if (cp != '?')
+        return find_glyph(ctx, font, '?');
+    return 0;
+}
+
+#define PS2UI_ELLIPSIS_CP 0x2026u
+
+/* Measure text against the slot width; returns width actually used and
+ * writes the byte length to draw (truncated before an ellipsis) into
+ * *draw_len and whether the ellipsis is needed into *ellipsize. */
+static int slot_measure(const ps2ui_ctx *ctx, const ps2ui_slot_entry *s,
+                        const ps2ui_font_entry *font, const char *text,
+                        size_t *draw_len, int *ellipsize)
+{
+    const ps2ui_glyph *ell = find_glyph(ctx, font, PS2UI_ELLIPSIS_CP);
+    int ell_w = ell ? ell->advance : 0;
+    int w = 0, fit_w = 0;
+    size_t fit_len = 0;
+    const char *p = text;
+    *ellipsize = 0;
+    while (*p) {
+        const char *at = p;
+        uint32_t cp = utf8_next(&p);
+        const ps2ui_glyph *g = find_glyph(ctx, font, cp);
+        if (!g)
+            continue;
+        if ((s->flags & PS2UI_SLOT_FLAG_ELLIPSIS)
+            && w + g->advance + ell_w <= s->w) {
+            fit_w = w + g->advance;
+            fit_len = (size_t)(p - text);
+        }
+        w += g->advance;
+        (void)at;
+    }
+    if (w <= s->w) {
+        *draw_len = strlen(text);
+        return w;
+    }
+    if (s->flags & PS2UI_SLOT_FLAG_ELLIPSIS) {
+        *ellipsize = 1;
+        *draw_len = fit_len;
+        return fit_w + ell_w;
+    }
+    *draw_len = strlen(text); /* clip: draw all, scissor handles excess */
+    return w;
+}
+
+static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)
+{
+    if (index < PS2UI_MAX_SLOTS && ctx->slot_text[index][0] != '\0')
+        return ctx->slot_text[index];
+    return (const char *)(ctx->blob + ctx->slots[index].placeholder_off);
+}
+
+static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
+{
+    uint32_t i;
+    for (i = 0; i < ctx->hdr->n_slot; i++) {
+        const ps2ui_slot_entry *s = &ctx->slots[i];
+        const ps2ui_font_entry *font = &ctx->fonts[s->font];
+        const char *text = slot_current_text(ctx, i);
+        size_t draw_len;
+        int ellipsize;
+        int width = slot_measure(ctx, s, font, text, &draw_len, &ellipsize);
+        int pen, is_focused;
+        const uint8_t *col;
+        const char *p = text;
+        const char *end = text + draw_len;
+
+        pen = s->x;
+        if (s->align == PS2UI_SLOT_ALIGN_CENTER && width < s->w)
+            pen += (s->w - width) / 2;
+        else if (s->align == PS2UI_SLOT_ALIGN_RIGHT && width < s->w)
+            pen += s->w - width;
+
+        is_focused = (s->focus != PS2UI_NONE) && (s->focus == ctx->focus);
+        col = is_focused ? s->color_focus : s->color_base;
+
+        while (p < end) {
+            uint32_t cp = utf8_next(&p);
+            const ps2ui_glyph *g = find_glyph(ctx, font, cp);
+            if (!g)
+                continue;
+            if (g->w > 0) {
+                gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
+                    (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
+                    (float)g->u, (float)g->v,
+                    (float)(pen + g->bearing_x + g->w),
+                    (float)(s->text_y + g->bearing_y + g->h),
+                    (float)(g->u + g->w), (float)(g->v + g->h),
+                    0, GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+            }
+            pen += g->advance;
+        }
+        if (ellipsize) {
+            const ps2ui_glyph *g = find_glyph(ctx, font, PS2UI_ELLIPSIS_CP);
+            if (g && g->w > 0) {
+                gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
+                    (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
+                    (float)g->u, (float)g->v,
+                    (float)(pen + g->bearing_x + g->w),
+                    (float)(s->text_y + g->bearing_y + g->h),
+                    (float)(g->u + g->w), (float)(g->v + g->h),
+                    0, GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+            }
+        }
+    }
+}
+
+static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)
+{
+    uint32_t i;
+    if (name == NULL)
+        return PS2UI_NONE;
+    for (i = 0; i < ctx->hdr->n_slot; i++) {
+        if (strcmp((const char *)(ctx->blob + ctx->slots[i].name_off), name) == 0)
+            return i;
+    }
+    return PS2UI_NONE;
+}
+
+int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)
+{
+    uint32_t i = slot_index_by_name(ctx, name);
+    size_t cap;
+    if (i == PS2UI_NONE)
+        return 0;
+    if (text == NULL) {
+        ctx->slot_text[i][0] = '\0';
+        return 1;
+    }
+    cap = ctx->slots[i].capacity;
+    if (cap >= PS2UI_SLOT_BUFSZ)
+        cap = PS2UI_SLOT_BUFSZ - 1;
+    strncpy(ctx->slot_text[i], text, cap);
+    ctx->slot_text[i][cap] = '\0';
+    return 1;
+}
+
+const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)
+{
+    uint32_t i = slot_index_by_name(ctx, name);
+    if (i == PS2UI_NONE)
+        return NULL;
+    return slot_current_text(ctx, i);
 }
 
 /* -------------------------------------------------------------- focus */

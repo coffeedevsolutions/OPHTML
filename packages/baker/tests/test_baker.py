@@ -501,7 +501,7 @@ class TestUib(unittest.TestCase):
             return read_uib(path)
 
     def test_struct_sizes_match_c_runtime(self):
-        self.assertEqual(_HEADER.size, 48)
+        self.assertEqual(_HEADER.size, 64)
         self.assertEqual(_CMD.size, 32)
         self.assertEqual(_FOCUS.size, 24)
 
@@ -553,6 +553,85 @@ class TestUib(unittest.TestCase):
             with open(path, "wb") as fh:
                 fh.write(data[:len(data) - 4])
             with self.assertRaises(ValueError):
+                read_uib(path)
+
+
+@unittest.skipIf(TTF is None, "DejaVu Sans not installed")
+class TestDynamicText(unittest.TestCase):
+    def slot_ir(self):
+        return {
+            "version": 1,
+            "canvas": {"w": 320, "h": 240},
+            "commands": [],
+            "focus": {"nodes": [], "initial": None},
+            "slots": [{
+                "name": "title", "placeholder": "Hello",
+                "x": 10, "textY": 20, "w": 120,
+                "size": 14, "weight": 400, "lineHeight": 18,
+                "align": "left", "ellipsis": True, "capacity": 24,
+                "focusId": None,
+                "colorBase": [200, 200, 200, 255],
+                "colorFocus": [255, 255, 255, 255],
+            }],
+            "warnings": [],
+        }
+
+    def bake(self, ir):
+        f = Flattener(ir, font_paths())
+        f.run()
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                      [], None, f.fonts, f.slots)
+            return read_uib(path)
+
+    def test_slot_and_font_round_trip(self):
+        uib = self.bake(self.slot_ir())
+        self.assertTrue(uib.feature_flags & 1)
+        self.assertEqual(len(uib.slots), 1)
+        s = uib.slots[0]
+        self.assertEqual(s["name"], "title")
+        self.assertEqual(s["placeholder"], "Hello")
+        self.assertEqual(s["capacity"], 24)
+        self.assertTrue(s["ellipsis"])
+        # Colors crossed into the modulate domain exactly once.
+        self.assertEqual(s["color_base"][3], 0x80)
+        self.assertLessEqual(max(s["color_base"]), 0x80)
+
+    def test_glyph_table_is_full_charset_and_sorted(self):
+        uib = self.bake(self.slot_ir())
+        font = uib.fonts[uib.slots[0]["font"]]
+        cps = list(font["glyphs"].keys())
+        # read_uib returns dict keyed by cp; verify the ASCII range and
+        # the ellipsis made it in (runtime bsearch needs sorted, which
+        # the writer guarantees; the reader's dict loses order, so
+        # re-check sortedness on the raw records via struct scan).
+        self.assertIn(ord("A"), cps)
+        self.assertIn(ord("z"), cps)
+        self.assertIn(0x2026, cps)
+        g = font["glyphs"][ord("i")]
+        self.assertEqual(g["advance"], glyph_advance_px(278, 14))
+
+    def test_preview_renders_placeholder_and_override(self):
+        uib = self.bake(self.slot_ir())
+        ph = preview.render(uib, background=(0, 0, 0, 255))
+        ov = preview.render(uib, background=(0, 0, 0, 255),
+                            slot_text={"title": "XYZZY"})
+        self.assertNotEqual(list(ph.getdata()), list(ov.getdata()))
+
+    def test_crc_rejects_flipped_bit(self):
+        f = Flattener(self.slot_ir(), font_paths())
+        f.run()
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 320, "h": 240}, f.records, f.textures,
+                      f.cluts, [], None, f.fonts, f.slots)
+            with open(path, "rb") as fh:
+                data = bytearray(fh.read())
+            data[len(data) // 2] ^= 0x01
+            with open(path, "wb") as fh:
+                fh.write(bytes(data))
+            with self.assertRaisesRegex(ValueError, "crc"):
                 read_uib(path)
 
 

@@ -95,7 +95,7 @@ def main(argv=None) -> int:
         initial = flat.focus_index.get(ir["focus"]["initial"])
     write_uib(
         args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
-        ir["focus"]["nodes"], initial,
+        ir["focus"]["nodes"], initial, flat.fonts, flat.slots,
     )
 
     n_tex_bytes = sum(len(t.data) for t in flat.textures)

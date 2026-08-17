@@ -308,6 +308,35 @@ test('image: missing src and missing files are compile errors', () => {
   );
 });
 
+test('slots: data-slot captures geometry, colors and placeholder', () => {
+  const ir = compileCss(
+    '<div class="wrap"><p class="count" data-slot="count" data-slot-capacity="15">6 titles</p></div>',
+    `.wrap { padding: 20px }
+     .count { font-size: 13px; color: #8b94a7; white-space: nowrap; text-overflow: ellipsis }`,
+  );
+  assert.equal(ir.slots.length, 1);
+  const s = ir.slots[0];
+  assert.equal(s.name, 'count');
+  assert.equal(s.placeholder, '6 titles');
+  assert.equal(s.capacity, 15);
+  assert.equal(s.size, 13);
+  assert.equal(s.ellipsis, true);
+  assert.deepEqual(s.colorBase, [0x8b, 0x94, 0xa7, 255]);
+  // No static text commands for the placeholder.
+  assert.equal(texts(ir).length, 0);
+});
+
+test('slots: multi-line placeholders and duplicate names are errors', () => {
+  assert.throws(() => compileCss(
+    '<div class="o"><div class="w"><p data-slot="t">a very long placeholder that will definitely wrap</p></div></div>',
+    '.w { width: 60px }',
+  ), /single-line/);
+  assert.throws(() => compileCss(
+    '<div><p data-slot="t">a</p><p data-slot="t">b</p></div>',
+    'div {}',
+  ), /duplicate data-slot/);
+});
+
 // ------------------------------------------------------------------ lint
 
 test('lint: overscan, font size, flicker and contrast all fire', () => {

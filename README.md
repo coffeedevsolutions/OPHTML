@@ -88,6 +88,16 @@ fits 256 colors. One deliberate CSS deviation: flex `stretch` never
 distorts an image's aspect ratio — give it an explicit size if you
 want stretching.
 
+**Dynamic text.** A real memory-card browser can't know its titles at
+build time. Mark an element `data-slot="name"` (with an optional
+`data-slot-capacity`): its text becomes a build-time placeholder, and
+the console sets the real string with
+`ps2ui_slot_set(&ui, "name", text_from_the_card)` — composed per frame
+from a baked glyph table with the same advances and baseline as static
+text (the example's preview is pixel-identical either way). Geometry,
+font, colors and ellipsis policy stay compile-time; `.uib` files carry
+a CRC-32 and feature flags so older runtimes reject newer blobs loudly.
+
 Interactivity is D-pad-shaped: mark elements `focusable` (and one
 `autofocus`); the compiler solves the spatial navigation graph at build
 time and the runtime walks it with table lookups. `--focus-wrap` adds

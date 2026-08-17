@@ -78,7 +78,7 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   const ctx = { fonts };
   layoutTree(root, canvasW, canvasH, ctx);
 
-  const { commands, focusables } = buildDisplayList(root);
+  const { commands, focusables, slots } = buildDisplayList(root);
   const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });
   for (const w of checkReachability(focus)) warnings.push(w);
 
@@ -95,6 +95,7 @@ export function compile(htmlSrc, cssSrc, options = {}) {
     },
     commands,
     focus,
+    slots,
     warnings: [...warnings, ...lints],
   };
 }
