@@ -184,8 +184,11 @@ jobs:
           '
       - name: Diff against previewer ground truth
         run: |
+          # --stats prints a colour fingerprint of both frames. An RMSE
+          # says they differ; the palette says how, which is the only
+          # way to read this failure without opening the artifact.
           python3 tools/framediff.py baked/preview.png captured.png \
-            --out framediff.png --rmse 8 --tile-rmse 32
+            --out framediff.png --rmse 8 --tile-rmse 32 --stats
       - uses: actions/upload-artifact@v7
         if: always()
         with:
