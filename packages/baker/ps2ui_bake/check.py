@@ -1,0 +1,426 @@
+"""ps2ui-check — validate a baked .uib against what the runtime assumes.
+
+    ps2ui-check ui.uib
+    PYTHONPATH=packages/baker python3 -m ps2ui_bake.check ui.uib
+
+`read_uib` already rejects a blob with bad magic, an unknown version, a
+failed CRC or unknown feature bits, so anything reaching the checks
+below is structurally a v4 file. What it does not tell you is whether
+the *contents* satisfy the invariants `ps2ui.c` relies on but cannot
+afford to verify: the runtime indexes tables directly, in a loop, with
+no allocation and no bounds reporting, so a blob that violates one of
+these does not error on console. It draws the wrong thing, or hangs on
+a focus cycle, or returns PS2UI_ERR_TOO_MANY with no indication why.
+
+This is the generalized form of `examples/channel6/check.py`, which did
+the same job for one specific blob and had the example's own focus and
+slot names baked into it. Everything here holds for any .uib, so a
+project that never touches this repository's examples still gets the
+checks (backlog F22).
+
+Two severities:
+
+* **error** — the console will misbehave. Non-zero exit.
+* **warning** — legal, but a known way to look wrong on a CRT. Exit 0
+  unless `--strict`.
+
+Output is TAP, same as the example's checker, so it reads the same in a
+build log and a CI annotation.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+
+from . import caps as caps_mod
+from . import gs, vram
+from .quads import (
+    FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
+    STATE_ALWAYS, STATE_FOCUSED, STATE_UNFOCUSED, TEX_NONE,
+)
+from .uib import read_uib
+
+ERROR = "error"
+WARNING = "warning"
+
+
+class Report:
+    """Ordered TAP results. `add` returns the verdict so callers can
+    skip dependent checks when a structural one has already failed."""
+
+    def __init__(self):
+        self.results = []  # (ok, severity, label)
+
+    def add(self, ok: bool, severity: str, label: str) -> bool:
+        self.results.append((bool(ok), severity, label))
+        return bool(ok)
+
+    def error(self, ok: bool, label: str) -> bool:
+        return self.add(ok, ERROR, label)
+
+    def warn(self, ok: bool, label: str) -> bool:
+        return self.add(ok, WARNING, label)
+
+    @property
+    def errors(self) -> int:
+        return sum(1 for ok, sev, _ in self.results if not ok and sev == ERROR)
+
+    @property
+    def warnings(self) -> int:
+        return sum(1 for ok, sev, _ in self.results if not ok and sev == WARNING)
+
+    def emit(self, out=sys.stdout) -> None:
+        for i, (ok, severity, label) in enumerate(self.results, 1):
+            if ok:
+                print(f"ok {i} - {label}", file=out)
+            elif severity == WARNING:
+                print(f"ok {i} - {label} # TODO warning", file=out)
+            else:
+                print(f"not ok {i} - {label}", file=out)
+        print(f"1..{len(self.results)}", file=out)
+
+
+def _reachable(uib, sc) -> set:
+    """Names reachable from a screen's initial focus by D-pad.
+
+    Edges that leave the screen's own range are ignored, which mirrors
+    `ps2ui_move`: it only ever lands inside the current screen.
+    """
+    lo = sc["focus_first"]
+    hi = lo + sc["focus_count"]
+    if not lo <= sc["initial"] < hi:
+        return set()
+    seen = {sc["initial"]}
+    queue = [sc["initial"]]
+    while queue:
+        node = uib.focus[queue.pop()]
+        for edge in ("up", "down", "left", "right"):
+            nxt = node[edge]
+            if nxt == FOCUS_NONE or not lo <= nxt < hi or nxt in seen:
+                continue
+            seen.add(nxt)
+            queue.append(nxt)
+    return {uib.focus[i]["name"] for i in seen}
+
+
+def check_tables(uib, rep: Report) -> None:
+    """The four static caps ps2ui_load() enforces with PS2UI_ERR_TOO_MANY.
+
+    Since B10 the baker refuses to write an over-cap blob, so for a blob
+    this toolchain produced these cannot fail. They are here because a
+    .uib is a documented format others can write, and because this reads
+    the property from the far side: the baker checks what it is about to
+    write, this checks what a loader will find.
+    """
+    c = caps_mod.parse_header()
+    for count, key, what in (
+        (len(uib.textures), "PS2UI_MAX_TEXTURES", "textures"),
+        (len(uib.slots), "PS2UI_MAX_SLOTS", "slots"),
+        (len(uib.screens), "PS2UI_MAX_SCREENS", "screens"),
+    ):
+        rep.error(count <= c[key], f"{count} {what} within {key} ({c[key]})")
+    over = [s["name"] for s in uib.slots if s["capacity"] >= c["PS2UI_SLOT_BUFSZ"]]
+    rep.error(not over,
+              f"every slot capacity below PS2UI_SLOT_BUFSZ ({c['PS2UI_SLOT_BUFSZ']})"
+              + (f"; over: {', '.join(over)}" if over else ""))
+
+
+def check_indices(uib, rep: Report) -> None:
+    """Every table index the runtime dereferences without checking."""
+    bad_tex = [i for i, r in enumerate(uib.records)
+               if r.op == OP_TEXQUAD and not 0 <= r.tex < len(uib.textures)]
+    rep.error(not bad_tex,
+              f"every TEXQUAD names a real texture"
+              + (f"; commands {bad_tex[:5]}" if bad_tex else ""))
+
+    bad_clut = [i for i, t in enumerate(uib.textures)
+                if t.clut is not None and not 0 <= t.clut < len(uib.cluts)]
+    rep.error(not bad_clut,
+              "every indexed texture names a real CLUT"
+              + (f"; textures {bad_clut[:5]}" if bad_clut else ""))
+
+    # A PSMT8 texel is a palette index, so an 8-bit texture with no CLUT
+    # would be uploaded with whatever palette was last resident.
+    no_clut = [i for i, t in enumerate(uib.textures)
+               if t.fmt == gs.PSMT8 and t.clut is None]
+    rep.error(not no_clut,
+              "every PSMT8 texture carries a CLUT"
+              + (f"; textures {no_clut[:5]}" if no_clut else ""))
+
+    bad_font = [s["name"] for s in uib.slots
+                if not 0 <= s["font"] < len(uib.fonts)]
+    rep.error(not bad_font,
+              "every slot names a real font table"
+              + (f"; slots {', '.join(bad_font[:5])}" if bad_font else ""))
+
+    bad_focus = [i for i, r in enumerate(uib.records)
+                 if r.focus != FOCUS_NONE and not 0 <= r.focus < len(uib.focus)]
+    rep.error(not bad_focus,
+              "every command's focus index is in range"
+              + (f"; commands {bad_focus[:5]}" if bad_focus else ""))
+
+    bad_state = [i for i, r in enumerate(uib.records)
+                 if r.state not in (STATE_ALWAYS, STATE_UNFOCUSED, STATE_FOCUSED)]
+    rep.error(not bad_state, "every command carries a known state")
+
+    # A state-dependent command with no focus index can never resolve.
+    orphan = [i for i, r in enumerate(uib.records)
+              if r.state != STATE_ALWAYS and r.focus == FOCUS_NONE]
+    rep.error(not orphan,
+              "every focus-dependent command names a focus node"
+              + (f"; commands {orphan[:5]}" if orphan else ""))
+
+
+def check_screens(uib, rep: Report) -> None:
+    """Screens must partition the command, focus and slot tables.
+
+    `ps2ui_screen_set` swaps ranges and replays. A gap means commands
+    that no screen ever draws; an overlap means one screen drawing
+    another's. Neither is detectable at runtime.
+    """
+    if not rep.error(len(uib.screens) >= 1, "at least one screen"):
+        return
+
+    for first, count, total, what in (
+        ("cmd_first", "cmd_count", len(uib.records), "command"),
+        ("focus_first", "focus_count", len(uib.focus), "focus"),
+        ("slot_first", "slot_count", len(uib.slots), "slot"),
+    ):
+        cursor = 0
+        ok = True
+        for sc in uib.screens:
+            if sc[first] != cursor:
+                ok = False
+                break
+            cursor += sc[count]
+        rep.error(ok and cursor == total,
+                  f"screens partition the {what} table contiguously "
+                  f"({cursor}/{total})")
+
+    names = [sc["name"] for sc in uib.screens]
+    rep.error(len(set(names)) == len(names),
+              f"screen names are unique: {names}")
+
+    for sc in uib.screens:
+        lo, hi = sc["focus_first"], sc["focus_first"] + sc["focus_count"]
+        if sc["focus_count"] == 0:
+            rep.error(sc["initial"] == FOCUS_NONE,
+                      f"{sc['name']}: no focusables, so no initial focus")
+            continue
+        rep.error(lo <= sc["initial"] < hi,
+                  f"{sc['name']}: initial focus is one of its own focusables")
+
+        # Edges that leave the screen would move focus to a node the
+        # screen never draws.
+        escaping = [
+            uib.focus[i]["name"]
+            for i in range(lo, hi)
+            for edge in ("up", "down", "left", "right")
+            if uib.focus[i][edge] != FOCUS_NONE
+            and not lo <= uib.focus[i][edge] < hi
+        ]
+        rep.error(not escaping,
+                  f"{sc['name']}: no D-pad edge leaves the screen"
+                  + (f"; from {', '.join(sorted(set(escaping))[:5])}" if escaping else ""))
+
+        names_in = {uib.focus[i]["name"] for i in range(lo, hi)}
+        stranded = names_in - _reachable(uib, sc)
+        rep.error(not stranded,
+                  f"{sc['name']}: every focusable reachable by D-pad"
+                  + (f"; stranded: {', '.join(sorted(stranded)[:5])}" if stranded else ""))
+
+    if uib.screens:
+        rep.error(uib.initial_focus == uib.screens[0]["initial"],
+                  "header initial_focus matches screen 0")
+
+
+def check_scissors(uib, rep: Report) -> None:
+    """Scissor pushes and pops must balance within every screen.
+
+    The runtime keeps a fixed stack and no error path. An unbalanced
+    push leaks the clip into whatever draws next; an extra pop
+    underflows.
+    """
+    for sc in uib.screens:
+        depth = 0
+        floor_hit = False
+        lo = sc["cmd_first"]
+        for r in uib.records[lo:lo + sc["cmd_count"]]:
+            if r.op == OP_SCISSOR_PUSH:
+                depth += 1
+            elif r.op == OP_SCISSOR_POP:
+                depth -= 1
+                if depth < 0:
+                    floor_hit = True
+                    break
+        rep.error(not floor_hit and depth == 0,
+                  f"{sc['name']}: scissor pushes and pops balance"
+                  + (" (underflow)" if floor_hit else
+                     f" ({depth} left open)" if depth else ""))
+
+
+def check_gs_domains(uib, rep: Report) -> None:
+    """The two colour-domain rules that a preview cannot show you.
+
+    Both were real defects (B1), and both look correct in the previewer
+    when the previewer normalizes the same way the baker does, which is
+    why they are asserted on the file rather than on a render.
+    """
+    bad_alpha = [i for i, r in enumerate(uib.records)
+                 if r.op in (OP_QUAD, OP_TEXQUAD) and r.rgba[3] > 0x80]
+    rep.error(not bad_alpha,
+              "every quad's alpha is in the GS 0-128 domain"
+              + (f"; commands {bad_alpha[:5]}" if bad_alpha else ""))
+
+    bad_mod = [i for i, r in enumerate(uib.records)
+               if r.op == OP_TEXQUAD and max(r.rgba[:3]) > 0x80]
+    rep.error(not bad_mod,
+              "TEXQUAD colors are in the 0x80 modulate-identity domain"
+              + (f"; commands {bad_mod[:5]}" if bad_mod else ""))
+
+    for name, colors in (("base", "color_base"), ("focus", "color_focus")):
+        bad = [s["name"] for s in uib.slots if max(s[colors][:3]) > 0x80
+               or s[colors][3] > 0x80]
+        rep.error(not bad,
+                  f"slot {name} colors are in the modulate domain"
+                  + (f"; slots {', '.join(bad[:5])}" if bad else ""))
+
+
+def check_fonts(uib, rep: Report) -> None:
+    """What the runtime's glyph bsearch assumes."""
+    for i, font in enumerate(uib.fonts):
+        rep.error(0 <= font["tex"] < len(uib.textures),
+                  f"font {i} names a real atlas texture")
+        rep.error(bool(font["glyphs"]), f"font {i} has at least one glyph")
+        # read_uib returns glyphs as a dict, so codepoint-sortedness in
+        # the file is asserted by rebuilding the order the loader needs.
+        cps = list(font["glyphs"])
+        rep.error(cps == sorted(cps),
+                  f"font {i} glyphs are codepoint-sorted for bsearch")
+
+    # A slot the app never sets still draws, so a placeholder that will
+    # not render is a blank line on console with nothing to explain it.
+    missing = []
+    for s in uib.slots:
+        if not 0 <= s["font"] < len(uib.fonts):
+            continue
+        glyphs = uib.fonts[s["font"]]["glyphs"]
+        absent = {ch for ch in s["placeholder"] if ord(ch) not in glyphs}
+        if absent:
+            missing.append(f"{s['name']} ({''.join(sorted(absent))})")
+    rep.error(not missing,
+              "every slot placeholder is fully covered by its font"
+              + (f"; {', '.join(missing[:5])}" if missing else ""))
+
+
+def _dead_commands(uib, sc) -> list:
+    """Commands whose rect cannot produce a pixel.
+
+    Replays the scissor stack the way `ps2ui_render` does, starting from
+    the canvas, so this catches both a quad pushed off the framebuffer
+    and one entirely outside the clip it is drawn under. Text is the
+    usual source: a `nowrap` run inside `overflow: hidden` bakes every
+    glyph and lets the GS clip, so the tail of a long string is quads
+    the console submits every frame and can never see.
+    """
+    clip = [(0, 0, uib.canvas_w, uib.canvas_h)]
+    dead = []
+    lo = sc["cmd_first"]
+    for i in range(lo, lo + sc["cmd_count"]):
+        r = uib.records[i]
+        if r.op == OP_SCISSOR_PUSH:
+            cx, cy, cw, ch = clip[-1]
+            x0, y0 = max(cx, r.x), max(cy, r.y)
+            x1, y1 = min(cx + cw, r.x + r.w), min(cy + ch, r.y + r.h)
+            clip.append((x0, y0, max(0, x1 - x0), max(0, y1 - y0)))
+        elif r.op == OP_SCISSOR_POP:
+            if len(clip) > 1:
+                clip.pop()
+        elif r.op in (OP_QUAD, OP_TEXQUAD):
+            cx, cy, cw, ch = clip[-1]
+            if (r.x + r.w <= cx or r.y + r.h <= cy
+                    or r.x >= cx + cw or r.y >= cy + ch):
+                dead.append(i)
+    return dead
+
+
+def check_crt(uib, rep: Report, canvas) -> None:
+    """Advisory. Legal blobs that waste the GS or look wrong on a CRT."""
+    hairlines = [i for i, r in enumerate(uib.records)
+                 if r.op == OP_QUAD and (r.w == 1 or r.h == 1)]
+    rep.warn(not hairlines,
+             f"{len(hairlines)} 1px quad(s) will shimmer on an interlaced CRT"
+             if hairlines else
+             "no 1px quads to shimmer on an interlaced CRT")
+
+    dead = [i for sc in uib.screens for i in _dead_commands(uib, sc)]
+    rep.warn(not dead,
+             f"{len(dead)} command(s) fall entirely outside their clip and are "
+             f"submitted every frame for nothing (from command {dead[0]}); "
+             f"usually the tail of a nowrap run inside overflow:hidden"
+             if dead else
+             "every command can produce a pixel")
+
+    unused = sorted(set(range(len(uib.textures))) -
+                    {r.tex for r in uib.records if r.op == OP_TEXQUAD}
+                    - {f["tex"] for f in uib.fonts})
+    rep.warn(not unused,
+             f"textures {unused[:5]} are never drawn but still cost VRAM"
+             if unused else
+             "every texture is drawn or belongs to a font")
+
+
+def check_vram(uib, rep: Report, budget=None) -> None:
+    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
+                                          uib.canvas_w, uib.canvas_h, budget)
+    rep.error(ok, f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB")
+
+
+def check_blob(uib, budget=None) -> Report:
+    """Every check, in dependency order. Returns the Report."""
+    rep = Report()
+    check_tables(uib, rep)
+    check_indices(uib, rep)
+    check_screens(uib, rep)
+    check_scissors(uib, rep)
+    check_gs_domains(uib, rep)
+    check_fonts(uib, rep)
+    check_vram(uib, rep, budget)
+    check_crt(uib, rep, (uib.canvas_w, uib.canvas_h))
+    return rep
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(
+        prog="ps2ui-check",
+        description="Validate a baked .uib against what the C runtime assumes.")
+    ap.add_argument("uib", help="path to a .uib blob")
+    ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",
+                    help="override the default texture VRAM budget")
+    ap.add_argument("--strict", action="store_true",
+                    help="treat CRT warnings as failures")
+    args = ap.parse_args(argv)
+
+    try:
+        uib = read_uib(args.uib)
+    except (OSError, ValueError) as exc:
+        print(f"ps2ui-check: {exc}", file=sys.stderr)
+        return 2
+
+    rep = check_blob(uib, args.vram_budget)
+    rep.emit()
+
+    aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"
+    print(f"# {args.uib}: {uib.canvas_w}x{uib.canvas_h} at {aspect}, "
+          f"{len(uib.screens)} screen(s), {len(uib.records)} commands, "
+          f"{len(uib.textures)} textures, {len(uib.slots)} slots")
+
+    failed = rep.errors + (rep.warnings if args.strict else 0)
+    verdict = "PASS" if failed == 0 else "FAIL"
+    print(f"{verdict}: {len(rep.results)} checks, {rep.errors} error(s), "
+          f"{rep.warnings} warning(s)")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
