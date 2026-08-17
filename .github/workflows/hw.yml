@@ -46,7 +46,7 @@ jobs:
           python3 tools/make_testcard.py examples/memcard/build/testcard.uib \
             --preview examples/memcard/build/testcard-expected.png
           python3 tools/framediff.py --self-test
-          python3 tools/play_release_url.py --self-test
+          python3 tools/play_appimage_url.py --self-test
       - name: Validate every blob against the runtime's assumptions
         run: |
           # Independent of the bakers that produced them: ps2ui-check
@@ -101,33 +101,27 @@ jobs:
           name: ps2ui-sample-elf
           path: elf
       - name: Install Play! and capture tooling
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y xvfb imagemagick libgl1 fuse
           python3 -m pip install Pillow
 
-          # Read the asset name out of the release rather than hardcoding
-          # it. The old hardcoded path 404'd, and with no --fail curl
-          # wrote the string "Not Found" to Play.AppImage, which the next
-          # step ran ("line 1: Not: command not found").
-          #
-          # The *list* endpoint, not /releases/latest: "latest" excludes
-          # prereleases, and Play! publishes rolling prerelease builds, so
-          # that endpoint 404s no matter how right the asset name is.
-          # Authenticated so the shared-runner IP does not hit the
-          # anonymous rate limit.
-          curl -sSfL \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/jpd002/Play-/releases?per_page=10" \
-            > release.json
-          url=$(python3 tools/play_release_url.py < release.json)
-          echo "Play! asset: $url"
+          # Play! is distributed from purei.org, not from GitHub releases
+          # (jpd002/Play- publishes none), so no asset name under
+          # releases/latest/download could ever have resolved. Walk the
+          # stable tree instead: newest version directory, then its
+          # 64-bit AppImage. --fail on every request, so a moved tree is
+          # one clear error rather than an HTML page saved as an
+          # executable.
+          base=https://purei.org/downloads/play/stable
+          version=$(curl -sSfL "$base/" \
+            | python3 tools/play_appimage_url.py --latest-version)
+          asset=$(curl -sSfL "$base/$version/" \
+            | python3 tools/play_appimage_url.py --appimage)
+          echo "Play! $version: $asset"
 
-          curl -sSfL -o Play.AppImage "$url"
+          curl -sSfL -o Play.AppImage "$base/$version/$asset"
           # Record what we actually ran. Backlog S4 wants this pinned to a
           # checksum; printing it is the step before that, and it makes a
           # silently-swapped asset visible in the log.
