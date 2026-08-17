@@ -137,6 +137,7 @@ Your desktop preview won't show you what a 2001 television does. The compiler wa
 | `fonts`           | metrics JSON (the layout/baker seam) and `ps2ui-fontgen`. |
 | `docs`            | [architecture](docs/architecture.md) / [IR format](docs/format-ir.md) / [.uib format](docs/format-uib.md) |
 | `examples/memcard`| the two-screen memory card browser from the screenshots. |
+| `examples/channel6`| a [game browser for a PSxMemCard GEN2 channel](examples/channel6/README.md), plus a feature probe screen for console bring-up. |
 
 The two interchange formats are fully documented, so any stage can be swapped out for another implementation.
 
