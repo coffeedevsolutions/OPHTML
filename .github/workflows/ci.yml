@@ -2,9 +2,7 @@ name: ci
 
 on:
   push:
-    # Narrowed from "**" (S1): PR branches are covered by the
-    # pull_request trigger; running both doubled every run.
-    branches: [main, "claude/**"]
+    branches: [main]
   pull_request:
 
 # The workflows only read the repo; never grant the default write token.
