@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<body>
+<div class="screen">
+  <div class="titlebar">
+    <div class="brand">
+      <h1>PSxMEMCARD</h1>
+      <p class="gen">GEN2</p>
+    </div>
+    <div class="channel-badge">
+      <p class="label">CHANNEL</p>
+      <p class="value" data-slot="channel" data-slot-capacity="3">6</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="channels">
+      <p class="caption">CHANNELS</p>
+      <div class="chip-grid">
+        <div class="chip" id="ch-1" focusable>
+          <p class="chip-id">CH 1</p>
+          <p class="chip-state" data-slot="ch1" data-slot-capacity="10">Slot A</p>
+        </div>
+        <div class="chip" id="ch-2" focusable>
+          <p class="chip-id">CH 2</p>
+          <p class="chip-state" data-slot="ch2" data-slot-capacity="10">Slot B</p>
+        </div>
+        <div class="chip" id="ch-3" focusable>
+          <p class="chip-id">CH 3</p>
+          <p class="chip-state" data-slot="ch3" data-slot-capacity="10">Saves</p>
+        </div>
+        <div class="chip" id="ch-4" focusable>
+          <p class="chip-id">CH 4</p>
+          <p class="chip-state" data-slot="ch4" data-slot-capacity="10">Empty</p>
+        </div>
+        <div class="chip" id="ch-5" focusable>
+          <p class="chip-id">CH 5</p>
+          <p class="chip-state" data-slot="ch5" data-slot-capacity="10">Empty</p>
+        </div>
+        <div class="chip current" id="ch-6" focusable autofocus>
+          <p class="chip-id">CH 6</p>
+          <p class="chip-state" data-slot="ch6" data-slot-capacity="10">Mounted</p>
+        </div>
+        <div class="chip" id="ch-7" focusable>
+          <p class="chip-id">CH 7</p>
+          <p class="chip-state" data-slot="ch7" data-slot-capacity="10">Empty</p>
+        </div>
+        <div class="chip" id="ch-8" focusable>
+          <p class="chip-id">CH 8</p>
+          <p class="chip-state" data-slot="ch8" data-slot-capacity="10">Empty</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <p class="caption">MOUNTED CARD</p>
+      <div class="card">
+        <img class="card-art" src="assets/card.png" palettize>
+        <div class="card-text">
+          <p class="card-name" data-slot="card-name" data-slot-capacity="26">Channel 6 &middot; Test Card</p>
+          <p class="card-sub" data-slot="card-sub" data-slot-capacity="30">8 MB &middot; virtual card image</p>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <p class="k">BLOCKS FREE</p>
+          <p class="v" data-slot="blocks" data-slot-capacity="18">7811 / 8135</p>
+        </div>
+        <div class="stat">
+          <p class="k">GAME ID</p>
+          <p class="v" data-slot="gameid" data-slot-capacity="18">SLPM-65535</p>
+        </div>
+        <div class="stat">
+          <p class="k">MODE</p>
+          <p class="v" data-slot="mode" data-slot-capacity="18">Manual &middot; per-channel</p>
+        </div>
+        <div class="stat">
+          <p class="k">AUTO-BOOT</p>
+          <p class="v" data-slot="autoboot" data-slot-capacity="18">Off</p>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="actions">
+        <div class="action" id="act-mount" focusable><p class="name">Mount</p></div>
+        <div class="action" id="act-rename" focusable><p class="name">Rename</p></div>
+        <div class="action" id="act-probe" focusable><p class="name">Probe</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="hints">
+      <p class="hint">&#215; Select</p>
+      <p class="hint">&#9675; Back</p>
+      <p class="hint">&#9651; Probe screen</p>
+    </div>
+    <p class="build-tag">ps2ui overlay</p>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<body>
+<div class="screen">
+  <div class="titlebar">
+    <div class="brand">
+      <h1>PROBE</h1>
+      <p class="gen">CH 6</p>
+    </div>
+    <div class="channel-badge">
+      <p class="label">BUILD</p>
+      <p class="value" data-slot="build" data-slot-capacity="12">ps2ui</p>
+    </div>
+  </div>
+
+  <div class="probe-grid">
+    <div class="cell" id="probe-alpha" focusable autofocus>
+      <p class="cell-label">ALPHA</p>
+      <div class="ladder">
+        <div class="rung rung-25"></div>
+        <div class="rung rung-50"></div>
+        <div class="rung rung-75"></div>
+        <div class="rung rung-100"></div>
+      </div>
+      <p class="note">25 / 50 / 75 / 100</p>
+      <p class="gone">display:none must never paint</p>
+    </div>
+
+    <div class="cell" id="probe-radius" focusable>
+      <p class="cell-label">RADIUS</p>
+      <div class="radii">
+        <div class="knob knob-0"></div>
+        <div class="knob knob-3"></div>
+        <div class="knob knob-8"></div>
+        <div class="knob knob-13"></div>
+      </div>
+      <p class="note">0 / 3 / 8 / 13 px</p>
+    </div>
+
+    <div class="cell" id="probe-type" focusable>
+      <p class="cell-label">TYPE</p>
+      <p class="type-14">14px regular</p>
+      <p class="type-16" data-slot="probe-text" data-slot-capacity="18">16px slot text</p>
+      <p class="type-20">20px bold</p>
+      <p class="tracked">T R A C K</p>
+    </div>
+
+    <div class="cell" id="probe-clip" focusable>
+      <p class="cell-label">CLIP</p>
+      <p class="clip-line">Ellipsis when a title runs past its box</p>
+      <div class="scissor">
+        <p class="runner">Scissor clips this line at the padding edge</p>
+      </div>
+      <p class="note">nowrap + overflow</p>
+    </div>
+
+    <div class="cell" id="probe-image" focusable>
+      <p class="cell-label">IMAGE</p>
+      <div class="img-row">
+        <div class="img-col">
+          <img class="img-sample" src="assets/card.png">
+          <p class="img-cap">RGBA32</p>
+        </div>
+        <div class="img-col">
+          <img class="img-sample" src="assets/card.png" palettize>
+          <p class="img-cap">CLUT8</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cell" id="probe-flex" focusable>
+      <p class="cell-label">FLEX</p>
+      <div class="grow-row">
+        <div class="bar bar-1"></div>
+        <div class="bar bar-2"></div>
+        <div class="bar bar-3"></div>
+      </div>
+      <div class="align-box">
+        <p class="a-left">left</p>
+        <p class="a-center">center</p>
+        <p class="a-right">right</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="hints">
+      <p class="hint">&#215; Back</p>
+      <p class="hint">&#9675; Exit</p>
+    </div>
+    <p class="build-tag">compare against probe.png</p>
+  </div>
+</div>
+</body>
+</html>

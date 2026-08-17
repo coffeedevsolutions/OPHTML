@@ -46,6 +46,11 @@ jobs:
       - name: Runtime compat build (old gsKit, no GSTEXTURE::Function)
         run: make -C runtime UIB=../examples/memcard/build/ui.uib test-compat
 
+      # The bring-up overlay: two screens, images, slots and the feature
+      # probe grid. Its own check.py asserts the blob's contract.
+      - name: Channel-6 overlay end to end
+        run: ./examples/channel6/build.sh
+
       - name: Upload previews
         uses: actions/upload-artifact@v7
         with:
@@ -54,3 +59,14 @@ jobs:
           path: |
             examples/memcard/build/preview.png
             examples/memcard/build/states.png
+
+      - name: Upload channel-6 previews
+        uses: actions/upload-artifact@v7
+        with:
+          name: channel6-previews
+          retention-days: 14
+          path: |
+            examples/channel6/build/preview.png
+            examples/channel6/build/states.png
+            examples/channel6/build/probe.png
+            examples/channel6/build/probe-states.png
