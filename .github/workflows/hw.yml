@@ -132,12 +132,22 @@ jobs:
           chmod +x Play.AppImage
           ./Play.AppImage --appimage-extract >/dev/null
           test -x squashfs-root/AppRun
+
+          # A hosted runner has no sound card, so alsa-lib fails to open
+          # the default PCM. Point the default at ALSA's built-in null
+          # sink; nothing here listens to the emulator.
+          printf 'pcm.!default { type null }\nctl.!default { type null }\n' \
+            > "$HOME/.asoundrc"
       - name: Boot ELF headless and capture a frame
         env:
           # No GPU on a hosted runner, so force the software path rather
           # than let Play! fail probing for one.
           LIBGL_ALWAYS_SOFTWARE: "1"
           GALLIUM_DRIVER: llvmpipe
+          # Whichever audio backend the AppImage was built against, send
+          # it nowhere rather than let it hunt for a device.
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
         run: |
           xvfb-run -s "-screen 0 1280x960x24" sh -c '
             ./squashfs-root/AppRun --disc "" elf/ps2ui_sample.elf >play.log 2>&1 &
@@ -147,7 +157,8 @@ jobs:
             # which then fails the diff as though the renderer were wrong.
             # Say which one it was.
             if ! kill -0 $PLAY_PID 2>/dev/null; then
-              echo "Play! exited before the capture; its output:"
+              wait $PLAY_PID
+              echo "Play! exited before the capture (status $?); its output:"
               cat play.log
               exit 1
             fi
