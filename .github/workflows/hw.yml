@@ -150,7 +150,7 @@ jobs:
           ALSOFT_DRIVERS: "null"
         run: |
           xvfb-run -s "-screen 0 1280x960x24" sh -c '
-            ./squashfs-root/AppRun --disc "" elf/ps2ui_sample.elf >play.log 2>&1 &
+            ./squashfs-root/AppRun --elf elf/ps2ui_sample.elf >play.log 2>&1 &
             PLAY_PID=$!
             sleep 25
             # A dead emulator still lets `import` capture an empty root,
