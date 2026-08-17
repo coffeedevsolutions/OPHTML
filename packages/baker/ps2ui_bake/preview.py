@@ -68,12 +68,28 @@ def _tint(img: Image.Image, rgba_gs) -> Image.Image:
     return Image.merge("RGBA", (ir_, ig, ib, ia))
 
 
+def _screen_index(uib: UibFile, screen) -> int:
+    if isinstance(screen, str):
+        for i, sc in enumerate(uib.screens):
+            if sc["name"] == screen:
+                return i
+        raise ValueError(f"no screen named {screen!r}")
+    return screen
+
+
 def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),
-           slot_text: dict = None) -> Image.Image:
-    """Replay to an RGBA image with the given focus-table index current.
-    slot_text overrides dynamic-text slots by name (else placeholders)."""
+           slot_text: dict = None, screen=0) -> Image.Image:
+    """Replay one screen (index or name; default first) to an RGBA image
+    with the given focus-table index current. slot_text overrides
+    dynamic-text slots by name (else placeholders)."""
+    si = _screen_index(uib, screen)
+    sc = uib.screens[si] if uib.screens else {
+        "cmd_first": 0, "cmd_count": len(uib.records),
+        "slot_first": 0, "slot_count": len(uib.slots),
+        "initial": uib.initial_focus,
+    }
     if focus_current is None:
-        focus_current = uib.initial_focus
+        focus_current = sc["initial"]
     canvas = Image.new("RGBA", (uib.canvas_w, uib.canvas_h), background)
     tex_cache = {}
     scissors = [(0, 0, uib.canvas_w, uib.canvas_h)]
@@ -84,7 +100,7 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
         x1, y1 = min(x + w, sx + sw), min(y + h, sy + sh)
         return (x0, y0, x1 - x0, y1 - y0) if x1 > x0 and y1 > y0 else None
 
-    for rec in uib.records:
+    for rec in uib.records[sc["cmd_first"]:sc["cmd_first"] + sc["cmd_count"]]:
         if rec.op == OP_SCISSOR_PUSH:
             c = clip_rect(rec.x, rec.y, rec.w, rec.h)
             scissors.append(c if c else (0, 0, 0, 0))
@@ -127,7 +143,7 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
 
     # Dynamic text slots: same pen as the C runtime — advance walk over
     # the baked glyph table, optional ellipsis, align, focus color.
-    for slot in uib.slots:
+    for slot in uib.slots[sc["slot_first"]:sc["slot_first"] + sc["slot_count"]]:
         text = (slot_text or {}).get(slot["name"]) or slot["placeholder"]
         font = uib.fonts[slot["font"]]
         if font["tex"] not in tex_cache:
@@ -182,10 +198,14 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
     return canvas
 
 
-def montage(uib: UibFile, columns: int = 3, gap: int = 16) -> Image.Image:
-    """One tile per focusable, that focusable current — the couch QA
-    view: every reachable focus state on one sheet."""
-    states = [n["index"] for n in uib.focus] or [FOCUS_NONE]
+def montage(uib: UibFile, columns: int = 3, gap: int = 16, screen=0) -> Image.Image:
+    """One tile per focusable of one screen, that focusable current —
+    the couch QA view: every reachable focus state on one sheet."""
+    si = _screen_index(uib, screen)
+    sc = uib.screens[si]
+    states = [n["index"] for n in
+              uib.focus[sc["focus_first"]:sc["focus_first"] + sc["focus_count"]]] \
+        or [FOCUS_NONE]
     rows = (len(states) + columns - 1) // columns
     tile_w, tile_h = uib.canvas_w, uib.canvas_h
     sheet = Image.new("RGBA", (
@@ -193,7 +213,7 @@ def montage(uib: UibFile, columns: int = 3, gap: int = 16) -> Image.Image:
         rows * tile_h + (rows + 1) * gap,
     ), (0, 0, 0, 255))
     for i, st in enumerate(states):
-        img = render(uib, focus_current=st)
+        img = render(uib, focus_current=st, screen=si)
         cx = gap + (i % columns) * (tile_w + gap)
         cy = gap + (i // columns) * (tile_h + gap)
         sheet.paste(img, (cx, cy))

@@ -31,8 +31,15 @@ glyph records, and dynamic-text slots — `data-slot` in HTML,
 allocation, UTF-8 pen with ellipsis + alignment), previewer slot
 rendering with overrides. The example's "6 titles" is now a live slot
 and its preview is **pixel-identical** to the static bake — the pen
-provably reproduces layout's measurements. Remaining Sprint 3: F4
-multi-screen, F12 packaging.
+provably reproduces layout's measurements. ✅ F4 shipped as format v3:
+a screen table partitions commands/focus/slots into named ranges with
+shared textures and fonts; `ps2ui_screen_set` switches with per-screen
+focus memory; the example is now two screens (library + saves, the
+saves rows all dynamic slots). Bonus find: an invisible U+00A0 in the
+fontgen charset had shadowed the real space — every space measured at
+'?' width on both hosts; fixed with chr(32) + regression test, metrics
+regenerated. F12 packaging prep: CHANGELOG, package metadata, version
+0.2.0.
 
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 

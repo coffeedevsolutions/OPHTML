@@ -77,6 +77,16 @@ class TestRounding(unittest.TestCase):
             adv = json.load(fh)["advances"]
         self.assertEqual(adv["105"], 278)
 
+    def test_metrics_include_the_real_space(self):
+        # Regression: an invisible U+00A0 in the fontgen charset literal
+        # once shadowed U+0020, so every space measured at '?' width on
+        # both hosts (consistently — which is why no test caught it
+        # until dynamic-text slots rendered '?' for spaces).
+        with open(METRICS, encoding="utf-8") as fh:
+            adv = json.load(fh)["advances"]
+        self.assertIn("32", adv)
+        self.assertLess(adv["32"], adv["63"])  # space is narrower than '?'
+
     def test_negative_half_up(self):
         self.assertEqual(round_half_up(-0.5), 0)
         self.assertEqual(round_half_up(-1.5), -1)
@@ -501,7 +511,7 @@ class TestUib(unittest.TestCase):
             return read_uib(path)
 
     def test_struct_sizes_match_c_runtime(self):
-        self.assertEqual(_HEADER.size, 64)
+        self.assertEqual(_HEADER.size, 72)
         self.assertEqual(_CMD.size, 32)
         self.assertEqual(_FOCUS.size, 24)
 

@@ -84,6 +84,9 @@ class Flattener:
         self._coverage_clut = None
         self.fonts = []         # dynamic-text font tables (filled by run())
         self.slots = []         # dynamic-text slots (filled by run())
+        self.screens = []       # screen ranges (filled by run()/run_screens())
+        self.focus_nodes = []   # globally-indexed focus nodes for the writer
+        self._font_index = {}   # (bucket, size) -> font table index
         # box-id -> focus-table index, from the IR focus graph
         self.focus_index = {
             node["id"]: i for i, node in enumerate(ir["focus"]["nodes"])
@@ -259,29 +262,78 @@ class Flattener:
     # ---------------------------------------------------------------- run
 
     def run(self) -> None:
-        for cmd in self.ir["commands"]:
-            op = cmd["op"]
-            if op == "rect":
-                self._flatten_rect(cmd)
-            elif op == "text":
-                self._flatten_text(cmd)
-            elif op == "image":
-                self._flatten_image(cmd)
-            elif op == "scissor_push":
-                self.records.append(DrawRecord(
-                    OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
-                    cmd["x"], cmd["y"], cmd["w"], cmd["h"], (0, 0, 0, 0),
-                ))
-            elif op == "scissor_pop":
-                self.records.append(DrawRecord(
-                    OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
-                    0, 0, 0, 0, (0, 0, 0, 0),
-                ))
-            else:
-                raise ValueError(f"unknown IR command op: {op}")
-        # Slots register glyphs into the shared atlases, so they must
+        """Single-screen compatibility wrapper."""
+        self.run_screens([("main", self.ir)])
+
+    def run_screens(self, named_irs) -> None:
+        """Flatten several IRs into one blob (backlog F4).
+
+        named_irs: [(screen_name, ir), ...]. Textures, CLUTs, patches,
+        atlases and font tables are shared/deduped across screens (one
+        Flattener = one texture space). Commands, focus nodes and slots
+        concatenate into contiguous per-screen ranges; focus indices
+        become global, with each screen's D-pad graph only linking
+        inside its own range."""
+        canvas = named_irs[0][1]["canvas"]
+        for name, ir in named_irs:
+            if ir["canvas"] != canvas:
+                raise ValueError(
+                    f"screen {name!r}: canvas {ir['canvas']} differs from "
+                    f"{canvas} — all screens share one video mode")
+
+        for name, ir in named_irs:
+            self.ir = ir
+            base = len(self.focus_nodes)
+            self.focus_index = {
+                n["id"]: base + i for i, n in enumerate(ir["focus"]["nodes"])
+            }
+            for i, n in enumerate(ir["focus"]["nodes"]):
+                def gidx(v):
+                    return self.focus_index[v] if v is not None else None
+                self.focus_nodes.append({
+                    "id": base + i, "name": n["name"], "rect": n["rect"],
+                    "up": gidx(n["up"]), "down": gidx(n["down"]),
+                    "left": gidx(n["left"]), "right": gidx(n["right"]),
+                })
+
+            cmd_first = len(self.records)
+            slot_first = len(self.slots)
+            for cmd in ir["commands"]:
+                op = cmd["op"]
+                if op == "rect":
+                    self._flatten_rect(cmd)
+                elif op == "text":
+                    self._flatten_text(cmd)
+                elif op == "image":
+                    self._flatten_image(cmd)
+                elif op == "scissor_push":
+                    self.records.append(DrawRecord(
+                        OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
+                        cmd["x"], cmd["y"], cmd["w"], cmd["h"], (0, 0, 0, 0),
+                    ))
+                elif op == "scissor_pop":
+                    self.records.append(DrawRecord(
+                        OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
+                        0, 0, 0, 0, (0, 0, 0, 0),
+                    ))
+                else:
+                    raise ValueError(f"unknown IR command op: {op}")
+            self._collect_slots()
+
+            initial = ir["focus"]["initial"]
+            self.screens.append({
+                "name": name,
+                "cmd_first": cmd_first,
+                "cmd_count": len(self.records) - cmd_first,
+                "focus_first": base,
+                "focus_count": len(self.focus_nodes) - base,
+                "slot_first": slot_first,
+                "slot_count": len(self.slots) - slot_first,
+                "initial": self.focus_index.get(initial) if initial is not None else None,
+            })
+
+        # Slots registered glyphs into the shared atlases, so they must
         # finish before the atlas textures freeze.
-        self._collect_slots()
         self._finish_slots()
         self._finish_atlases()
 
@@ -302,10 +354,11 @@ class Flattener:
         A slot's text arrives at runtime, so its font atlas must carry
         the whole metrics charset (not just the glyphs static text
         happened to use) and export a searchable glyph table. Colors
-        cross into the modulate domain here, same as static text."""
-        self.fonts = []
-        self.slots = []
-        font_index = {}  # (bucket, size) -> font table index
+        cross into the modulate domain here, same as static text.
+
+        Appends to self.slots/self.fonts — called once per screen, with
+        font tables deduped across screens via self._font_index."""
+        font_index = self._font_index
         for sl in self.ir.get("slots", []):
             builder, tex_index = self._atlas_for(sl["weight"], sl["size"])
             key = ("bold" if sl["weight"] >= 600 else "regular", sl["size"])

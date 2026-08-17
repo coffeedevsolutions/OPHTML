@@ -46,7 +46,7 @@ extern "C" {
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */
-#define PS2UI_VERSION 2
+#define PS2UI_VERSION 3
 
 /* Feature bits. Unknown bits in a file are a load error — a blob that
  * needs a capability this runtime lacks must fail loudly, not render
@@ -79,7 +79,21 @@ typedef struct ps2ui_header {
     uint32_t crc32;              /* whole file, this field zeroed */
     uint16_t n_font, n_slot;
     uint32_t off_font, off_slot;
+    uint16_t n_screen, pad0;
+    uint32_t off_screen;
 } ps2ui_header;
+
+/* A screen is a contiguous slice of the command, focus and slot
+ * tables; textures, CLUTs and fonts are shared. Focus indices are
+ * global, and a screen's D-pad graph links only within its range. */
+typedef struct ps2ui_screen_entry {
+    uint32_t name_off;           /* NUL-terminated UTF-8 in blob */
+    uint32_t cmd_first, cmd_count;
+    uint16_t focus_first, focus_count;
+    uint16_t slot_first, slot_count;
+    uint16_t initial_focus;      /* global index or PS2UI_NONE */
+    uint8_t  pad0[2];
+} ps2ui_screen_entry;
 
 typedef struct ps2ui_tex_entry {
     uint8_t  format, pad0;
@@ -158,6 +172,7 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
 #define PS2UI_MAX_TEXTURES      32
 #define PS2UI_MAX_SLOTS         16
 #define PS2UI_SLOT_BUFSZ        96  /* bytes incl. NUL, per slot */
+#define PS2UI_MAX_SCREENS       8
 
 typedef struct ps2ui_ctx {
     const uint8_t         *data;     /* the whole .uib, caller-owned      */
@@ -171,8 +186,12 @@ typedef struct ps2ui_ctx {
 
     const ps2ui_font_entry *fonts;
     const ps2ui_slot_entry *slots;
+    const ps2ui_screen_entry *screen_table;
 
+    uint16_t  screen;                /* current screen index */
     uint16_t  focus;                 /* current focus index or PS2UI_NONE */
+    /* Per-screen focus memory: switching back restores where you were. */
+    uint16_t  screen_focus[PS2UI_MAX_SCREENS];
     GSTEXTURE gs_tex[PS2UI_MAX_TEXTURES];
     int       uploaded;
     /* Runtime slot text; empty string = render the baked placeholder.
@@ -224,6 +243,14 @@ int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);
 
 /* Current string of a slot (runtime text, else placeholder), or NULL. */
 const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name);
+
+/* Switch to a named screen. Remembers the current screen's focus and
+ * restores the target's remembered focus (else its baked initial).
+ * Returns 1 on success, 0 if no screen has that name. */
+int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name);
+
+/* Name of the current screen ("library"), never NULL after load. */
+const char *ps2ui_screen_name(const ps2ui_ctx *ctx);
 
 /* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed
  * for tests. */

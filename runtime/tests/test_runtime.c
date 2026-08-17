@@ -55,7 +55,8 @@ int main(int argc, char **argv)
     gs.Width = 640; gs.Height = 448;
 
     /* ---- struct layout matches the on-disk format ---- */
-    CHECK(sizeof(ps2ui_header) == 64, "header struct is 64 bytes");
+    CHECK(sizeof(ps2ui_header) == 72, "header struct is 72 bytes");
+    CHECK(sizeof(ps2ui_screen_entry) == 24, "screen entry struct is 24 bytes");
     CHECK(sizeof(ps2ui_font_entry) == 16, "font entry struct is 16 bytes");
     CHECK(sizeof(ps2ui_glyph) == 20, "glyph struct is 20 bytes");
     CHECK(sizeof(ps2ui_slot_entry) == 32, "slot entry struct is 32 bytes");
@@ -68,7 +69,10 @@ int main(int argc, char **argv)
     CHECK(ps2ui_load(&ctx, blob, len) == PS2UI_OK, "load real blob");
     CHECK(ctx.hdr->canvas_w == 640 && ctx.hdr->canvas_h == 448, "canvas is 640x448");
     CHECK(ctx.hdr->n_cmd > 0, "blob has commands");
-    CHECK(ctx.hdr->n_focus == 9, "memcard example has 9 focusables");
+    CHECK(ctx.hdr->n_screen == 2, "memcard example has 2 screens");
+    CHECK(ctx.screen_table[0].focus_count == 9, "library screen has 9 focusables");
+    CHECK(ctx.hdr->n_focus == 16, "16 focusables across both screens");
+    CHECK(strcmp(ps2ui_screen_name(&ctx), "library") == 0, "boots into the library screen");
     CHECK(ctx.focus != PS2UI_NONE, "initial focus set");
     CHECK(strcmp(ps2ui_focus_name(&ctx), "nav-games") == 0, "autofocus lands on nav-games");
 
@@ -206,7 +210,8 @@ int main(int argc, char **argv)
     /* ---- dynamic text (F2): the example's "count" slot ---- */
     CHECK((ctx.hdr->feature_flags & PS2UI_FEAT_DYNAMIC_TEXT) != 0,
           "example blob carries the dynamic-text feature bit");
-    CHECK(ctx.hdr->n_slot == 1 && ctx.hdr->n_font >= 1, "one slot, one font table");
+    CHECK(ctx.hdr->n_slot == 6 && ctx.hdr->n_font >= 1, "six slots across screens");
+    CHECK(ctx.screen_table[0].slot_count == 1, "library screen owns one slot");
     CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "6 titles") == 0,
           "unset slot serves its placeholder");
     {
@@ -225,6 +230,33 @@ int main(int argc, char **argv)
         ps2ui_slot_set(&ctx, "count", NULL);
         CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "6 titles") == 0,
               "NULL reverts to placeholder");
+    }
+
+    /* ---- multi-screen (F4) ---- */
+    {
+        int lib_prims, saves_prims;
+        ps2ui_focus_set(&ctx, "nav-games");
+        lib_prims = render_and_count(&ctx, &gs);
+        CHECK(ps2ui_screen_set(&ctx, "saves") == 1, "screen_set switches by name");
+        CHECK(strcmp(ps2ui_screen_name(&ctx), "saves") == 0, "current screen renamed");
+        CHECK(strcmp(ps2ui_focus_name(&ctx), "nav-saves") == 0,
+              "saves screen starts at its autofocus");
+        saves_prims = render_and_count(&ctx, &gs);
+        CHECK(saves_prims > 0 && saves_prims != lib_prims,
+              "screens render different command ranges");
+        /* Focus memory: wander on saves, leave, come back. */
+        CHECK(ps2ui_focus_set(&ctx, "save-ffx") == 1, "focus a save row");
+        CHECK(ps2ui_screen_set(&ctx, "library") == 1, "back to library");
+        CHECK(strcmp(ps2ui_focus_name(&ctx), "nav-games") == 0,
+              "library remembered its focus");
+        CHECK(ps2ui_screen_set(&ctx, "saves") == 1
+              && strcmp(ps2ui_focus_name(&ctx), "save-ffx") == 0,
+              "saves remembered its focus");
+        CHECK(ps2ui_screen_set(&ctx, "settings") == 0, "unknown screen rejected");
+        /* Slots are per-screen: the saves counter exists here. */
+        CHECK(ps2ui_slot_set(&ctx, "save-count", "12 saves") == 1,
+              "saves screen slot settable");
+        ps2ui_screen_set(&ctx, "library");
     }
 
     printf("1..%d\n", checks);

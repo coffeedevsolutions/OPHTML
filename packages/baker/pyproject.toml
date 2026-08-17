@@ -4,12 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ps2ui-bake"
-version = "0.1.0"
+version = "0.2.0"
 description = "Bakes the ps2ui intermediate representation into .uib blobs for the PlayStation 2 runtime"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = ["Pillow>=9"]
+
+[project.urls]
+Repository = "https://github.com/coffeedevsolutions/OPHTML"
 
 [project.scripts]
 ps2ui-bake = "ps2ui_bake.cli:main"

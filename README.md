@@ -98,6 +98,14 @@ text (the example's preview is pixel-identical either way). Geometry,
 font, colors and ellipsis policy stay compile-time; `.uib` files carry
 a CRC-32 and feature flags so older runtimes reject newer blobs loudly.
 
+**Multiple screens.** Pass several IR files to one bake
+(`ps2ui-bake library.json saves.json -o ui.uib`) and each becomes a
+named screen in the same blob — textures, atlases and font tables
+shared, commands and focus graphs partitioned. At runtime,
+`ps2ui_screen_set(&ui, "saves")` switches instantly and each screen
+remembers where its focus was. The example ships two screens
+([saves screen](examples/memcard/screenshots/saves.png)).
+
 Interactivity is D-pad-shaped: mark elements `focusable` (and one
 `autofocus`); the compiler solves the spatial navigation graph at build
 time and the runtime walks it with table lookups. `--focus-wrap` adds

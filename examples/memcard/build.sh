@@ -10,9 +10,14 @@ mkdir -p "$out"
 
 node "$repo/packages/layout/bin/ps2ui-layout.js" \
     "$here/ui/library.html" "$here/ui/library.css" \
-    -o "$out/ui.json"
+    -o "$out/library.json"
 
-PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake "$out/ui.json" \
+node "$repo/packages/layout/bin/ps2ui-layout.js" \
+    "$here/ui/saves.html" "$here/ui/library.css" \
+    -o "$out/saves.json"
+
+PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
+    "$out/library.json" "$out/saves.json" \
     -o "$out/ui.uib" \
     --preview "$out/preview.png" \
     --montage "$out/states.png"

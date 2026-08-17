@@ -1,16 +1,22 @@
-""".uib writer and reader (format version 2).
+""".uib writer and reader (format version 3).
 
 Little-endian throughout (the EE is little-endian; so is every host we
 care about). Full layout in docs/format-uib.md; summary:
 
-    header      64 bytes, magic "UIB1", crc32, feature flags
-    tex table   n_tex   x 16 bytes
-    clut table  n_clut  x  8 bytes
-    cmd list    n_cmd   x 32 bytes
-    focus table n_focus x 24 bytes
-    font table  n_font  x 16 bytes   (dynamic text, feature bit 0)
-    slot table  n_slot  x 32 bytes   (dynamic text, feature bit 0)
-    blob        textures, CLUTs, glyph tables, names (NUL-terminated)
+    header       72 bytes, magic "UIB1", crc32, feature flags
+    tex table    n_tex    x 16 bytes
+    clut table   n_clut   x  8 bytes
+    cmd list     n_cmd    x 32 bytes
+    focus table  n_focus  x 24 bytes
+    font table   n_font   x 16 bytes   (dynamic text, feature bit 0)
+    slot table   n_slot   x 32 bytes   (dynamic text, feature bit 0)
+    screen table n_screen x 24 bytes   (always >= 1)
+    blob         textures, CLUTs, glyph tables, names (NUL-terminated)
+
+Screens partition the command, focus and slot tables into contiguous
+ranges; textures, CLUTs and fonts are shared across all screens. Focus
+indices are global (each screen's D-pad graph only links within its own
+range), so switching screens is: remember focus, swap ranges, restore.
 
 Data offsets are relative to the blob, so tooling can rewrite tables
 without re-basing pointers. CLUTs are stored linearly; the CSM1
@@ -31,12 +37,12 @@ from .quads import (
 )
 
 MAGIC = 0x31424955  # "UIB1"
-VERSION = 2
+VERSION = 3
 
 FEAT_DYNAMIC_TEXT = 1 << 0
 FEAT_KNOWN = FEAT_DYNAMIC_TEXT
 
-_HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHII")  # 64 bytes
+_HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHI")  # 72 bytes
 _TEX = struct.Struct("<BBHHHII")               # 16 bytes
 _CLUT = struct.Struct("<HHI")                  # 8 bytes
 _CMD = struct.Struct("<BBHhhHHBBBBHHHHH6x")    # 32 bytes
@@ -45,10 +51,12 @@ _CMD = struct.Struct("<BBHhhHHBBBBHHHHH6x")    # 32 bytes
 _FOCUS = struct.Struct("<HHHHHHIhhHH")         # 24 bytes
 _FONT = struct.Struct("<HHHHHHI")              # 16 bytes
 _SLOT = struct.Struct("<IIhhHHBBHHBBBBBBBB2x") # 32 bytes
+_SCREEN = struct.Struct("<IIIHHHHH2x")        # 24 bytes
 _CRC_OFFSET = 48
 _GLYF = struct.Struct("<IHHHHhhH2x")           # 20 bytes, in blob
 
-assert _HEADER.size == 64 and _TEX.size == 16 and _CLUT.size == 8
+assert _HEADER.size == 72 and _TEX.size == 16 and _CLUT.size == 8
+assert _SCREEN.size == 24
 assert _CMD.size == 32 and _FOCUS.size == 24
 assert _FONT.size == 16 and _SLOT.size == 32 and _GLYF.size == 20
 
@@ -59,9 +67,13 @@ def _align16(buf: bytearray):
 
 
 def write_uib(path, canvas, records, textures, cluts, focus_nodes,
-              initial_focus, fonts=(), slots=()):
+              initial_focus, fonts=(), slots=(), screens=None):
     """focus_nodes: IR focus graph nodes (document order == table order).
     initial_focus: focus-table index or None.
+    screens: [{name, cmd_first, cmd_count, focus_first, focus_count,
+               slot_first, slot_count, initial (global focus index or
+               None)}] — omitted means one screen named "main" covering
+               everything.
     fonts: [{tex, size, weight, ascent, line_height, glyphs: [Glyph-like
              dicts with codepoint/u/v/w/h/bearing_x/bearing_y/advance]}]
     slots: [{name, placeholder, x, text_y, w, font, align, ellipsis,
@@ -126,6 +138,26 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         ))
     _align16(blob)
 
+    if screens is None:
+        screens = [{
+            "name": "main",
+            "cmd_first": 0, "cmd_count": len(records),
+            "focus_first": 0, "focus_count": len(focus_entries),
+            "slot_first": 0, "slot_count": len(slot_entries),
+            "initial": initial_focus,
+        }]
+    screen_entries = []
+    for sc in screens:
+        name_off = len(blob)
+        blob += sc["name"].encode("utf-8") + b"\0"
+        screen_entries.append((
+            name_off, sc["cmd_first"], sc["cmd_count"],
+            sc["focus_first"], sc["focus_count"],
+            sc["slot_first"], sc["slot_count"],
+            sc["initial"] if sc["initial"] is not None else FOCUS_NONE,
+        ))
+    _align16(blob)
+
     feature_flags = FEAT_DYNAMIC_TEXT if (font_entries or slot_entries) else 0
 
     off = _HEADER.size
@@ -141,6 +173,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     off += _FONT.size * len(font_entries)
     off_slot = off
     off += _SLOT.size * len(slot_entries)
+    off_screen = off
+    off += _SCREEN.size * len(screen_entries)
     off_blob = off
 
     out = bytearray()
@@ -154,6 +188,7 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         off_tex, off_clut, off_cmd, off_focus, off_blob, len(blob),
         0,  # crc32, patched below
         len(font_entries), len(slot_entries), off_font, off_slot,
+        len(screen_entries), 0, off_screen,
     )
     for e in tex_entries:
         out += _TEX.pack(*e)
@@ -171,6 +206,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         out += _FONT.pack(*e)
     for e in slot_entries:
         out += _SLOT.pack(*e)
+    for e in screen_entries:
+        out += _SCREEN.pack(*e)
     out += blob
 
     # CRC over the whole file with the crc field zeroed.
@@ -192,6 +229,7 @@ class UibFile:
     focus: list = field(default_factory=list)   # dicts with index links + name
     fonts: list = field(default_factory=list)   # dicts incl. glyphs by codepoint
     slots: list = field(default_factory=list)
+    screens: list = field(default_factory=list)
 
 
 def read_uib(path) -> UibFile:
@@ -201,7 +239,7 @@ def read_uib(path) -> UibFile:
         raise ValueError(f"{path}: truncated header")
     (magic, version, feature_flags, cw, ch, n_tex, n_clut, n_cmd, n_focus,
      initial, off_tex, off_clut, off_cmd, off_focus, off_blob, blob_len,
-     crc, n_font, n_slot, off_font, off_slot,
+     crc, n_font, n_slot, off_font, off_slot, n_screen, _pad, off_screen,
      ) = _HEADER.unpack_from(data, 0)
     if magic != MAGIC:
         raise ValueError(f"{path}: not a .uib (magic {magic:#x})")
@@ -268,5 +306,16 @@ def read_uib(path) -> UibFile:
             "align": align, "ellipsis": bool(flags & 1),
             "capacity": capacity, "focus": focus,
             "color_base": (br, bg_, bb, ba), "color_focus": (fr, fg, fb, fa),
+        })
+    for i in range(n_screen):
+        (name_off, cmd_first, cmd_count, focus_first, focus_count,
+         slot_first, slot_count, initial_f,
+         ) = _SCREEN.unpack_from(data, off_screen + i * _SCREEN.size)
+        out.screens.append({
+            "name": cstr(name_off),
+            "cmd_first": cmd_first, "cmd_count": cmd_count,
+            "focus_first": focus_first, "focus_count": focus_count,
+            "slot_first": slot_first, "slot_count": slot_count,
+            "initial": initial_f,
         })
     return out

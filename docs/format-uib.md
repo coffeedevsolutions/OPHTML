@@ -6,25 +6,26 @@ parsing, no allocation, and no packing pragmas (every u32 sits at a
 4-aligned offset).
 
 ```
-offset 0            header        64 bytes
+offset 0            header        72 bytes
 header.off_tex      tex table     n_tex   × 16 bytes
 header.off_clut     clut table    n_clut  ×  8 bytes
 header.off_cmd      command list  n_cmd   × 32 bytes
 header.off_focus    focus table   n_focus × 24 bytes
 header.off_font     font table    n_font  × 16 bytes
 header.off_slot     slot table    n_slot  × 32 bytes
+header.off_screen   screen table  n_screen × 24 bytes (always ≥ 1)
 header.off_blob     blob          header.blob_len bytes
 ```
 
 All `data_off`/`name_off` fields are relative to the **blob**, so tools
 can rewrite tables without re-basing data pointers.
 
-## Header (64 bytes)
+## Header (72 bytes)
 
 | off | type | field         | notes                          |
 |-----|------|---------------|--------------------------------|
 | 0   | u32  | magic         | `0x31424955` — "UIB1"          |
-| 4   | u16  | version       | 2                              |
+| 4   | u16  | version       | 3                              |
 | 6   | u16  | feature_flags | bit 0 = dynamic text; a reader that sees a bit it does not know MUST reject the file |
 | 8   | u16  | canvas_w      | 640 for NTSC                   |
 | 10  | u16  | canvas_h      | 448 (NTSC) / 512 (PAL)         |
@@ -38,6 +39,9 @@ can rewrite tables without re-basing data pointers.
 | 52  | u16  | n_font        | dynamic-text font tables       |
 | 54  | u16  | n_slot        | dynamic-text slots             |
 | 56  | u32×2| off_font, off_slot |
+| 64  | u16  | n_screen      | ≥ 1 — every file has a screen table |
+| 66  | u16  | pad           |                                |
+| 68  | u32  | off_screen    |                                |
 
 ## Texture entry (16 bytes)
 
@@ -157,6 +161,27 @@ static text would have.
 The runtime (`ps2ui_slot_set`) copies app strings into fixed per-slot
 buffers and composes glyph quads per frame: advance walk, optional
 ellipsis, alignment — no wrapping, no allocation.
+
+## Screen entry (24 bytes)
+
+| off | type | field         | notes                                |
+|-----|------|---------------|--------------------------------------|
+| 0   | u32  | name_off      | NUL-terminated UTF-8 in blob         |
+| 4   | u32  | cmd_first     | index into the command list          |
+| 8   | u32  | cmd_count     |                                      |
+| 12  | u16  | focus_first   | index into the focus table           |
+| 14  | u16  | focus_count   |                                      |
+| 16  | u16  | slot_first    | index into the slot table            |
+| 18  | u16  | slot_count    |                                      |
+| 20  | u16  | initial_focus | global focus index or `0xFFFF`       |
+| 22  | u8×2 | pad           |                                      |
+
+Screens partition commands, focus nodes and slots into contiguous
+ranges; textures, CLUTs and font tables are shared across screens.
+Focus indices are global and each screen's D-pad graph links only
+within its own range, so `ps2ui_screen_set` is: remember the current
+focus, switch ranges, restore the target's remembered focus (or its
+baked initial). The header's `initial_focus` duplicates screen 0's.
 
 ## Versioning
 

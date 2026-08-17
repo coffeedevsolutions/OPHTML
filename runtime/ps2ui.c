@@ -82,7 +82,8 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
         return PS2UI_ERR_VERSION;
     if (ctx->hdr->feature_flags & ~PS2UI_FEAT_KNOWN)
         return PS2UI_ERR_FEATURES;
-    if (ctx->hdr->n_tex > PS2UI_MAX_TEXTURES || ctx->hdr->n_slot > PS2UI_MAX_SLOTS)
+    if (ctx->hdr->n_tex > PS2UI_MAX_TEXTURES || ctx->hdr->n_slot > PS2UI_MAX_SLOTS
+        || ctx->hdr->n_screen > PS2UI_MAX_SCREENS || ctx->hdr->n_screen == 0)
         return PS2UI_ERR_TOO_MANY;
 
     {
@@ -93,10 +94,11 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
         uint64_t need_focus = (uint64_t)h->off_focus + (uint64_t)h->n_focus * sizeof(ps2ui_focus_node);
         uint64_t need_font  = (uint64_t)h->off_font  + (uint64_t)h->n_font  * sizeof(ps2ui_font_entry);
         uint64_t need_slot  = (uint64_t)h->off_slot  + (uint64_t)h->n_slot  * sizeof(ps2ui_slot_entry);
+        uint64_t need_scr   = (uint64_t)h->off_screen + (uint64_t)h->n_screen * sizeof(ps2ui_screen_entry);
         uint64_t need_blob  = (uint64_t)h->off_blob  + h->blob_len;
         if (need_tex > size || need_clut > size || need_cmd > size
             || need_focus > size || need_font > size || need_slot > size
-            || need_blob > size)
+            || need_scr > size || need_blob > size)
             return PS2UI_ERR_TRUNCATED;
     }
 
@@ -109,6 +111,7 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
     ctx->focus_nodes = (const ps2ui_focus_node *)(ctx->data + ctx->hdr->off_focus);
     ctx->fonts       = (const ps2ui_font_entry *)(ctx->data + ctx->hdr->off_font);
     ctx->slots       = (const ps2ui_slot_entry *)(ctx->data + ctx->hdr->off_slot);
+    ctx->screen_table = (const ps2ui_screen_entry *)(ctx->data + ctx->hdr->off_screen);
     ctx->blob        = ctx->data + ctx->hdr->off_blob;
 
     /* Every cross-reference is checked once here so the render loop can
@@ -173,7 +176,24 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
             return PS2UI_ERR_BOUNDS;
     }
 
-    ctx->focus = ctx->hdr->initial_focus;
+    for (i = 0; i < ctx->hdr->n_screen; i++) {
+        const ps2ui_screen_entry *sc = &ctx->screen_table[i];
+        if ((uint64_t)sc->cmd_first + sc->cmd_count > ctx->hdr->n_cmd
+            || (uint32_t)sc->focus_first + sc->focus_count > ctx->hdr->n_focus
+            || (uint32_t)sc->slot_first + sc->slot_count > ctx->hdr->n_slot)
+            return PS2UI_ERR_BOUNDS;
+        if (sc->initial_focus != PS2UI_NONE
+            && sc->initial_focus >= ctx->hdr->n_focus)
+            return PS2UI_ERR_BOUNDS;
+        if (sc->name_off >= ctx->hdr->blob_len
+            || !memchr(ctx->blob + sc->name_off, 0,
+                       ctx->hdr->blob_len - sc->name_off))
+            return PS2UI_ERR_BOUNDS;
+        ctx->screen_focus[i] = sc->initial_focus;
+    }
+
+    ctx->screen = 0;
+    ctx->focus = ctx->screen_table[0].initial_focus;
     if (ctx->focus != PS2UI_NONE && ctx->focus >= ctx->hdr->n_focus)
         return PS2UI_ERR_BOUNDS;
     return PS2UI_OK;
@@ -281,7 +301,10 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
     stack[0].y1 = ctx->hdr->canvas_h;
     apply_scissor(gs, &stack[0]);
 
-    for (i = 0; i < ctx->hdr->n_cmd; i++) {
+    {
+        const ps2ui_screen_entry *sc = &ctx->screen_table[ctx->screen];
+        uint32_t first = sc->cmd_first, endi = sc->cmd_first + sc->cmd_count;
+        for (i = first; i < endi; i++) {
         const ps2ui_cmd *c = &ctx->cmd[i];
 
         if (c->op == PS2UI_OP_SCISSOR_PUSH) {
@@ -318,6 +341,7 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
                 (float)(c->x + c->w), (float)(c->y + c->h),
                 (float)c->u1, (float)c->v1,
                 0, GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
+        }
         }
     }
     /* The baker guarantees balance; restore full-canvas scissor anyway
@@ -423,8 +447,9 @@ static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)
 
 static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
 {
+    const ps2ui_screen_entry *scr = &ctx->screen_table[ctx->screen];
     uint32_t i;
-    for (i = 0; i < ctx->hdr->n_slot; i++) {
+    for (i = scr->slot_first; i < (uint32_t)scr->slot_first + scr->slot_count; i++) {
         const ps2ui_slot_entry *s = &ctx->slots[i];
         const ps2ui_font_entry *font = &ctx->fonts[s->font];
         const char *text = slot_current_text(ctx, i);
@@ -512,6 +537,32 @@ const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)
     if (i == PS2UI_NONE)
         return NULL;
     return slot_current_text(ctx, i);
+}
+
+/* ------------------------------------------------------------- screens */
+
+int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name)
+{
+    uint32_t i;
+    if (name == NULL)
+        return 0;
+    for (i = 0; i < ctx->hdr->n_screen; i++) {
+        const char *n = (const char *)(ctx->blob + ctx->screen_table[i].name_off);
+        if (strcmp(n, name) == 0) {
+            if (i != ctx->screen) {
+                ctx->screen_focus[ctx->screen] = ctx->focus;
+                ctx->screen = (uint16_t)i;
+                ctx->focus = ctx->screen_focus[i];
+            }
+            return 1;
+        }
+    }
+    return 0;
+}
+
+const char *ps2ui_screen_name(const ps2ui_ctx *ctx)
+{
+    return (const char *)(ctx->blob + ctx->screen_table[ctx->screen].name_off);
 }
 
 /* -------------------------------------------------------------- focus */

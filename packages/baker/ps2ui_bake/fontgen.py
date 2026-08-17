@@ -15,8 +15,11 @@ import sys
 from PIL import ImageFont
 
 # Latin-1 printable + the punctuation the example UI actually uses.
+# chr(32) explicitly: an invisible U+00A0 once impersonated the space
+# in this literal and every space advance fell back to '?' width. A
+# codepoint number cannot be corrupted by an editor.
 DEFAULT_CHARSET = (
-    string.printable.strip()
+    chr(32) + string.printable.strip()
     + " ·–—‘’“”…×△○"
 )
 
