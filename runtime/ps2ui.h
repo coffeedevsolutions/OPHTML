@@ -22,15 +22,25 @@
 extern "C" {
 #endif
 
-#ifndef PS2UI_GSKIT_HAS_FUNCTION
-#define PS2UI_GSKIT_HAS_FUNCTION 1
-#endif
-
 #ifdef PS2UI_HOST_TEST
 #include "gskit_stub.h"
 #else
 #include <gsKit.h>
 #include <gsToolkit.h>
+#endif
+
+/* GSTEXTURE::Function (per-texture TFX) arrived in gsKit together with
+ * the GS_TFX_* macros, so their presence is the detection signal: on an
+ * older gsKit this autoselects the fallback, which renders text and
+ * nine-patches untinted (DECAL) instead of failing the build. Define
+ * PS2UI_GSKIT_HAS_FUNCTION yourself to override the detection either
+ * way. First thing to eyeball on hardware — docs/bringup.md step 4. */
+#ifndef PS2UI_GSKIT_HAS_FUNCTION
+#ifdef GS_TFX_MODULATE
+#define PS2UI_GSKIT_HAS_FUNCTION 1
+#else
+#define PS2UI_GSKIT_HAS_FUNCTION 0
+#endif
 #endif
 
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */

@@ -64,9 +64,10 @@ call and compare.
 **Expect:** metadata text in muted gray-blue, titles in near-white —
 matching the previewer.
 **If wrong (all text pure white):** your gsKit predates
-`GSTEXTURE::Function`; the runtime compiled with
-`PS2UI_GSKIT_HAS_FUNCTION=0` renders DECAL (untinted). Upgrade gsKit or
-accept white text.
+`GSTEXTURE::Function`; ps2ui.h autodetects this (via the `GS_TFX_*`
+macros) and falls back to DECAL (untinted). The ps2dev container's
+bundled gsKit is one of these — CI's ELF renders white text by design.
+Upgrade gsKit for tinting, or accept white text.
 **If text draws as solid rectangles:** modulate is on but the atlas
 CLUT alpha ramp is wrong — recheck step 3.
 
