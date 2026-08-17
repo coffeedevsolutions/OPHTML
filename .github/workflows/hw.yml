@@ -149,8 +149,16 @@ jobs:
           SDL_AUDIODRIVER: dummy
           ALSOFT_DRIVERS: "null"
         run: |
-          xvfb-run -s "-screen 0 1280x960x24" sh -c '
-            ./squashfs-root/AppRun --elf elf/ps2ui_sample.elf >play.log 2>&1 &
+          # The X screen is the canvas size on purpose. `import -window
+          # root` grabs the whole root window, so at 1280x960 the capture
+          # was Play!'s title bar, menu bar and desktop background, which
+          # framediff then squashed into 640x448 and compared against a
+          # pure framebuffer render. Matching the screen to the canvas and
+          # running fullscreen makes the root window the frame itself, at
+          # 1:1, with no chrome and no resampling.
+          xvfb-run -s "-screen 0 640x448x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf elf/ps2ui_sample.elf \
+              >play.log 2>&1 &
             PLAY_PID=$!
             sleep 25
             # A dead emulator still lets `import` capture an empty root,
@@ -163,6 +171,7 @@ jobs:
               exit 1
             fi
             import -window root captured.png
+            identify captured.png
             kill $PLAY_PID 2>/dev/null || true
             # TERM is a request. Give it a moment, then insist, so a
             # wedged emulator cannot hold the step open.
