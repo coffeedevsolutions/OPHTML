@@ -11,6 +11,11 @@ EE_LIBS = -lgskit -ldmakit
 # gsKit installs under $PS2DEV/gsKit in the ps2dev toolchain image,
 # not inside $PS2SDK/ports.
 EE_CFLAGS += -std=c99 -Wall -Werror -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ports/include
+# `make STATIC=1` holds the baked initial focus instead of cycling, so a
+# timed screenshot always catches the same frame the previewer renders.
+ifdef STATIC
+EE_CFLAGS += -DPS2UI_SAMPLE_STATIC
+endif
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib

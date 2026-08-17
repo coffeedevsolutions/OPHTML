@@ -14,7 +14,12 @@ Reference material, in the order you will reach for it:
   Build it with `./examples/channel6/build.sh`; the per-screen previews
   land in `examples/channel6/build/`.
 - `runtime/sample/` — the standalone ELF, which embeds whatever blob you
-  point `UIB=` at.
+  point `UIB=` at. By default it walks the focus states on a timer,
+  which is what you want when you are the one watching. Build it with
+  `make -C runtime/sample STATIC=1` to hold the baked initial focus
+  instead: a timed capture then always lands on the frame `--preview`
+  rendered, which is the only way an automated diff means anything. CI
+  uses `STATIC=1` for exactly that reason.
 - `tools/make_testcard.py` — the texel-alignment card, a narrower
   instrument for step 6 alone.
 - The previewer PNGs are ground truth throughout. They replay the same
