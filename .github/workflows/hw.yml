@@ -46,7 +46,7 @@ jobs:
           python3 tools/make_testcard.py examples/memcard/build/testcard.uib \
             --preview examples/memcard/build/testcard-expected.png
           python3 tools/framediff.py --self-test
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: baked
           retention-days: 14
@@ -70,7 +70,7 @@ jobs:
         run: |
           apk add --no-cache make
           make -C runtime/sample
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
           retention-days: 14
@@ -112,7 +112,7 @@ jobs:
         run: |
           python3 tools/framediff.py baked/preview.png captured.png \
             --out framediff.png --rmse 8 --tile-rmse 32
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: emulator-frames
