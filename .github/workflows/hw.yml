@@ -46,6 +46,7 @@ jobs:
           python3 tools/make_testcard.py examples/memcard/build/testcard.uib \
             --preview examples/memcard/build/testcard-expected.png
           python3 tools/framediff.py --self-test
+          python3 tools/play_release_url.py --self-test
       - uses: actions/upload-artifact@v7
         with:
           name: baked
@@ -91,20 +92,51 @@ jobs:
           name: ps2ui-sample-elf
           path: elf
       - name: Install Play! and capture tooling
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y xvfb imagemagick libgl1 fuse
           python3 -m pip install Pillow
-          curl -L -o Play.AppImage \
-            https://github.com/jpd002/Play-/releases/latest/download/Play_x86_64.AppImage
+
+          # Read the asset name out of the release rather than hardcoding
+          # it. The old hardcoded path 404'd, and with no --fail curl
+          # wrote the string "Not Found" to Play.AppImage, which the next
+          # step ran ("line 1: Not: command not found"). Authenticated so
+          # the shared-runner IP does not hit the anonymous rate limit.
+          curl -sSfL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/jpd002/Play-/releases/latest \
+            > release.json
+          url=$(python3 tools/play_release_url.py < release.json)
+          echo "Play! asset: $url"
+
+          curl -sSfL -o Play.AppImage "$url"
+          # Record what we actually ran. Backlog S4 wants this pinned to a
+          # checksum; printing it is the step before that, and it makes a
+          # silently-swapped asset visible in the log.
+          sha256sum Play.AppImage
+          file Play.AppImage
+
           chmod +x Play.AppImage
           ./Play.AppImage --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun
       - name: Boot ELF headless and capture a frame
         run: |
           xvfb-run -s "-screen 0 1280x960x24" sh -c '
-            ./squashfs-root/AppRun --disc "" elf/ps2ui_sample.elf &
+            ./squashfs-root/AppRun --disc "" elf/ps2ui_sample.elf >play.log 2>&1 &
             PLAY_PID=$!
             sleep 25
+            # A dead emulator still lets `import` capture an empty root,
+            # which then fails the diff as though the renderer were wrong.
+            # Say which one it was.
+            if ! kill -0 $PLAY_PID 2>/dev/null; then
+              echo "Play! exited before the capture; its output:"
+              cat play.log
+              exit 1
+            fi
             import -window root captured.png
             kill $PLAY_PID || true
           '
