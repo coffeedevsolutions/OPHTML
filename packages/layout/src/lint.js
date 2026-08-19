@@ -70,6 +70,27 @@ function over(top, bottom) {
 }
 
 /** Paint `chain` (bottom-first RGBA fills) over `backdrop` RGB. */
+/**
+ * Can this rect and this text ever be on screen in the same frame?
+ *
+ * `:focus` is a paint-only delta: one command list carries both states
+ * and the runtime draws whichever matches. So a node's focused
+ * background and its unfocused text never coexist — compositing one
+ * under the other invents a frame the console cannot produce. That is
+ * how a chip whose focus fill is bright blue reported 1.11:1 against
+ * its own unfocused grey text, a background that is only ever painted
+ * when the text is white.
+ *
+ * Rects that belong to no focus node, or paint in every state, are
+ * always present and always composited.
+ */
+function coexists(rect, cmd) {
+  if (rect.state === 'always' || cmd.state === 'always') return true;
+  if (rect.focusId == null || cmd.focusId == null) return true;
+  if (rect.focusId !== cmd.focusId) return true;
+  return rect.state === cmd.state;
+}
+
 function compositeChain(chain, backdrop) {
   let out = backdrop;
   for (const fill of chain) out = over(fill, out);
@@ -198,6 +219,7 @@ export function lintDocument(commands, focusGraph, options = {}) {
     // read a translucent scrim as though it were opaque.
     const chain = [];
     for (const r of bgStack) {
+      if (!coexists(r, cmd)) continue;
       if (cmd.x >= r.x && cmd.y >= r.y && cmd.x <= r.x + r.w && cmd.y <= r.y + r.h) {
         chain.push(r.fill);
       }
