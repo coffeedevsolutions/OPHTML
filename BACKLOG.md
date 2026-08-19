@@ -123,6 +123,26 @@ A list is a view over rows that are already baked, so this costs a UI
 that never uses one exactly nothing, and no `.uib` version moved.
 Suites: 61 layout, 93 runtime.
 
+**Sprint 9 status (2026-08-17):** ✅ **F24** the baker drops draw
+records that cannot produce a pixel. A `nowrap` run inside
+`overflow: hidden` bakes every glyph and lets the GS clip, so the tail
+of a long string was quads the console submitted every frame and could
+never see — twenty of them in the channel-6 probe, which is where
+ps2ui-check found them on its first run.
+
+A per-screen post-pass replays the scissor stack the way `ps2ui_render`
+does and drops QUAD/TEXQUAD records outside the current clip, keeping
+every scissor record because balance is a contract and an empty clip
+still has to be popped. The safety argument is that removing a command
+that could never draw cannot change the image, and that is asserted
+rather than argued: all three example previews are byte-identical
+across the change, and a unit test renders a blob with and without a
+dead record and compares pixels. channel-6 went 851 → 831 commands and
+`ps2ui-check` now reports zero warnings on every example.
+
+The loop closed nicely: the validator found it, the baker fixed it, and
+the validator confirms it.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two

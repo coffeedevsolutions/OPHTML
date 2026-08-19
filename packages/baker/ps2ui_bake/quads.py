@@ -85,6 +85,7 @@ class Flattener:
         self.fonts = []         # dynamic-text font tables (filled by run())
         self.slots = []         # dynamic-text slots (filled by run())
         self.screens = []       # screen ranges (filled by run()/run_screens())
+        self.dropped = 0        # draw records trimmed as unable to draw (F24)
         self.focus_nodes = []   # globally-indexed focus nodes for the writer
         self._font_index = {}   # (bucket, size) -> font table index
         # box-id -> focus-table index, from the IR focus graph
@@ -265,6 +266,50 @@ class Flattener:
         """Single-screen compatibility wrapper."""
         self.run_screens([("main", self.ir)])
 
+    def _trim_dead_geometry(self, first, canvas):
+        """Drop draw records that cannot produce a pixel (backlog F24).
+
+        A `nowrap` run inside `overflow: hidden` bakes every glyph and
+        lets the GS clip, so the tail of a long string is quads the
+        console submits every frame and can never see. ps2ui-check found
+        twenty of them in the channel-6 probe on its first run.
+
+        Replays the scissor stack exactly as ps2ui_render does, starting
+        from the canvas, and keeps every scissor record — balance is a
+        contract the runtime relies on, and a push whose rect is empty
+        still has to be popped. Only QUAD and TEXQUAD go.
+
+        Removing a record that could never draw cannot change the image,
+        which is the property that makes this safe: the example previews
+        are byte-identical across this change.
+        """
+        clip = [(0, 0, canvas["w"], canvas["h"])]
+        kept = []
+        dropped = 0
+        for rec in self.records[first:]:
+            if rec.op == OP_SCISSOR_PUSH:
+                cx, cy, cw, ch = clip[-1]
+                x0, y0 = max(cx, rec.x), max(cy, rec.y)
+                x1 = min(cx + cw, rec.x + rec.w)
+                y1 = min(cy + ch, rec.y + rec.h)
+                clip.append((x0, y0, max(0, x1 - x0), max(0, y1 - y0)))
+                kept.append(rec)
+                continue
+            if rec.op == OP_SCISSOR_POP:
+                if len(clip) > 1:
+                    clip.pop()
+                kept.append(rec)
+                continue
+            cx, cy, cw, ch = clip[-1]
+            if (rec.w <= 0 or rec.h <= 0
+                    or rec.x + rec.w <= cx or rec.y + rec.h <= cy
+                    or rec.x >= cx + cw or rec.y >= cy + ch):
+                dropped += 1
+                continue
+            kept.append(rec)
+        self.records[first:] = kept
+        return dropped
+
     def run_screens(self, named_irs) -> None:
         """Flatten several IRs into one blob (backlog F4).
 
@@ -318,6 +363,7 @@ class Flattener:
                     ))
                 else:
                     raise ValueError(f"unknown IR command op: {op}")
+            self.dropped += self._trim_dead_geometry(cmd_first, canvas)
             self._collect_slots()
 
             initial = ir["focus"]["initial"]

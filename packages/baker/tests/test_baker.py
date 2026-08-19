@@ -992,3 +992,105 @@ class TestCheck(unittest.TestCase):
             self.assertEqual(rep.errors, 0, f"{rel}: {self.failures(rep)}")
         if seen == 0:
             self.skipTest("no example blobs built")
+
+
+class TestDeadGeometryTrim(unittest.TestCase):
+    """F24: draw records that cannot produce a pixel are dropped.
+
+    The safety argument is the whole feature: removing a command that
+    could never draw cannot change the image. These assert both halves —
+    that it goes, and that nothing else moves.
+    """
+
+    def flatten(self, commands, canvas=None):
+        ir = tiny_ir(commands)
+        if canvas:
+            ir["canvas"].update(canvas)
+        f = Flattener(ir, font_paths())
+        f.run()
+        return f
+
+    def rect(self, x, y, w, h, fill=(0x20, 0x30, 0x40, 255)):
+        return {"op": "rect", "x": x, "y": y, "w": w, "h": h, "fill": list(fill),
+                "radius": 0, "borderWidth": 0, "borderColor": None,
+                "state": "always", "focusId": None}
+
+    def test_quad_outside_its_scissor_is_dropped(self):
+        f = self.flatten([
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 50, "h": 50},
+            self.rect(10, 10, 20, 20),    # inside
+            self.rect(200, 10, 20, 20),   # past the clip's right edge
+            {"op": "scissor_pop"},
+        ])
+        quads = [r for r in f.records if r.op == OP_QUAD]
+        self.assertEqual(len(quads), 1)
+        self.assertEqual(f.dropped, 1)
+
+    def test_quad_outside_the_canvas_is_dropped_without_any_scissor(self):
+        f = self.flatten([self.rect(10, 10, 20, 20), self.rect(700, 10, 20, 20)])
+        self.assertEqual(len([r for r in f.records if r.op == OP_QUAD]), 1)
+        self.assertEqual(f.dropped, 1)
+
+    def test_scissor_records_are_never_dropped(self):
+        # Balance is a contract the runtime relies on: an empty clip
+        # still has to be popped.
+        f = self.flatten([
+            {"op": "scissor_push", "x": 900, "y": 900, "w": 10, "h": 10},
+            self.rect(10, 10, 20, 20),
+            {"op": "scissor_pop"},
+        ])
+        ops = [r.op for r in f.records]
+        self.assertEqual(ops.count(OP_SCISSOR_PUSH), 1)
+        self.assertEqual(ops.count(OP_SCISSOR_POP), 1)
+        self.assertEqual(f.dropped, 1)
+
+    def test_a_partially_visible_quad_survives(self):
+        # Clipping is the GS's job; only the wholly invisible go.
+        f = self.flatten([
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 50, "h": 50},
+            self.rect(40, 40, 40, 40),
+            {"op": "scissor_pop"},
+        ])
+        self.assertEqual(f.dropped, 0)
+        self.assertEqual(len([r for r in f.records if r.op == OP_QUAD]), 1)
+
+    def test_nested_scissors_intersect(self):
+        # Inner clip is the intersection, so a quad inside the outer but
+        # outside the inner still cannot draw.
+        f = self.flatten([
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 200, "h": 200},
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 50, "h": 50},
+            self.rect(100, 10, 20, 20),
+            {"op": "scissor_pop"},
+            {"op": "scissor_pop"},
+        ])
+        self.assertEqual(f.dropped, 1)
+
+    def test_trimming_cannot_change_the_rendered_image(self):
+        # The property that makes this safe, asserted against the
+        # previewer rather than argued.
+        cmds = [
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 60, "h": 60},
+            self.rect(5, 5, 20, 20, (0xC0, 0x20, 0x20, 255)),
+            self.rect(300, 5, 20, 20, (0x20, 0xC0, 0x20, 255)),  # dead
+            {"op": "scissor_pop"},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            f = self.flatten(cmds)
+            self.assertEqual(f.dropped, 1)
+            trimmed = os.path.join(td, "trimmed.uib")
+            write_uib(trimmed, {"w": 320, "h": 240}, f.records,
+                      f.textures, f.cluts, [], None)
+            after = preview.render(read_uib(trimmed), background=(0, 0, 0, 255))
+
+            # Same blob with the dead record put back by hand.
+            f2 = self.flatten(cmds)
+            f2.records.insert(2, DrawRecord(
+                OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 300, 5, 20, 20,
+                (0x20, 0xC0, 0x20, 0x80)))
+            untrimmed = os.path.join(td, "untrimmed.uib")
+            write_uib(untrimmed, {"w": 320, "h": 240}, f2.records,
+                      f2.textures, f2.cluts, [], None)
+            before = preview.render(read_uib(untrimmed), background=(0, 0, 0, 255))
+
+        self.assertEqual(list(before.getdata()), list(after.getdata()))
