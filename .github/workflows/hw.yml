@@ -84,15 +84,21 @@ jobs:
           # focus would be compared against whichever state happened to
           # be up, which is not a test.
           make -C runtime/sample STATIC=1
-          mv runtime/sample/ps2ui_sample.elf runtime/sample/ui.elf
-          # The bring-up step 2 instrument: four solid-fill cases, no
-          # .uib involved. Built here because it needs the same
-          # toolchain, and it is the frame to read when the UI capture
-          # comes back missing its backgrounds.
-          make -C runtime/sample clean
-          make -C runtime/sample PROBE=1
-          mv runtime/sample/ps2ui_sample.elf runtime/sample/probe.elf
-          mv runtime/sample/ui.elf runtime/sample/ps2ui_sample.elf
+          # The bring-up step 2 instrument. EE_BIN names the output
+          # directly rather than building and renaming around `clean`:
+          # `clean` currently spares the renamed file, but only by
+          # accident, and adding *.elf to it later would silently drop
+          # the UI ELF from the artifact.
+          # objclean, not clean: `clean` removes $(EE_BIN), which
+          # defaults to the UI ELF, so cleaning here silently threw the
+          # first build away and the emulator job booted nothing.
+          make -C runtime/sample objclean
+          make -C runtime/sample PROBE=1 EE_BIN=probe.elf
+          # Both must survive; the artifact is useless with either one
+          # missing, and a missing ELF shows up downstream as a boot
+          # failure rather than as a build error.
+          test -f runtime/sample/ps2ui_sample.elf
+          test -f runtime/sample/probe.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -228,8 +234,10 @@ jobs:
             kill -9 $P 2>/dev/null || true
           ' || true
           if [ -f probe.png ]; then
-            python3 tools/framediff.py probe.png probe.png --stats \
-              --rmse 1e9 --tile-rmse 1e9 || true
+            # One fingerprint, no verdict. Self-comparing printed
+            # "-> OK" under a step asking whether anything drew, which
+            # reads as a pass whatever the frame contains.
+            python3 tools/framediff.py probe.png --stats-only || true
           fi
       - name: Diff against previewer ground truth
         run: |

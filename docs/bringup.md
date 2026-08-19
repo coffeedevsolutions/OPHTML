@@ -62,60 +62,85 @@ Nothing ps2ui-specific is involved yet.
 
 ## 2. Solid quads and the alpha blend unit
 
-**Do:** `make -C runtime/sample PROBE=1` and run it. No `.uib` is
-involved, so nothing in this repository's compiler or baker can be at
-fault: it draws four solid-fill cases straight through gsKit.
+**Do:** `make -C runtime/sample PROBE=1` and run it. It draws solid
+fills straight through gsKit and never calls `ps2ui_render`, so nothing
+this repository's compiler or baker produced is on the path. (A `.uib`
+is still *linked* into the ELF, so a baked blob has to exist for the
+build to succeed. Nothing draws it.)
 
 | what | how | expected |
 |------|-----|----------|
-| ground `#0a0e1a` | `gsKit_clear`, blending **off** | whole frame |
+| ground `#1a0e0a` | `gsKit_clear`, blending **off** | whole frame |
 | red `#ff0000` | sprite, blending **off** | top left, full strength |
 | magenta ladder | five sprites, blending **on**, alpha `0x20` `0x40` `0x60` `0x7f` `0x80` | bottom row |
 
+Those are three different things, not two. `gsKit_clear` builds a
+PACKED A+D list; `gsKit_prim_sprite` emits a sprite GIF tag with
+SPRITE_REGS. So the probe separates **packet encoding**, then blending
+on or off, then the alpha value. An emulator implementing one encoding
+and not the other looks exactly like "untextured is broken".
+
 Every rung of the ladder is the same colour and differs only in alpha,
 so a missing rung cannot be blamed on the colour register. Over the
-`#0a0e1a` ground, `(Cs - Cd) * As >> 7 + Cd` predicts each one exactly:
+`#1a0e0a` ground, `(Cs - Cd) * As >> 7 + Cd` predicts each one exactly:
 
 | alpha | composites to |
 |-------|---------------|
-| `0x20` | `#470a53` |
-| `0x40` | `#84078c` |
-| `0x60` | `#c103c5` |
+| `0x20` | `#530a47` |
+| `0x40` | `#8c0784` |
+| `0x60` | `#c503c1` |
 | `0x7f` | `#fd00fd` |
 | `0x80` | `#ff00ff` |
 
-**Expect:** the clear, the red control, and all five rungs.
+**Expect:** the clear, the red control, and all five rungs. The ground
+colour is the memcard canvas with its channels reversed, so a probe
+fingerprint can never be mistaken for a UI capture in the same log.
 
-**If wrong**, what is missing names the fault:
+**If wrong**, what is missing narrows the fault:
 
-- **Nothing but black** → solid sprites are not reaching the GS at all.
-  The clear is plain gsKit, so suspect video mode init or your gsKit
-  build before anything in ps2ui.
+- **Nothing but black, or one uniform colour** → ambiguous, and the
+  probe cannot settle it. It draws only untextured primitives, which is
+  the class under suspicion, so it has no positive control: a blank
+  frame equally means the ELF never reached a draw call, or the
+  emulator window never got a frame. Read its log first. `framediff
+  --stats-only` flags this case rather than letting it read as a
+  verdict.
 - **Clear and red only, no ladder** → the blend unit is dropping every
   blended primitive.
-- **The ladder stops short of `0x80`** → the interesting one, and what
-  Play! 0.72 does. `0x80` is the value the `.uib` calls opaque, so if it
-  is the only rung missing then every opaque quad in every blob will be
-  invisible while text, whose alpha comes from the atlas, still draws.
-  That is a host defect, not a file one: do **not** "fix" it by scaling
-  alpha down to `0x7f`. The file domain is correct (see
-  `docs/format-uib.md`), and a real GS treats `0x80` as 1.0.
-- **Rungs present but the wrong colours** → compare against the table
-  above. Values above the prediction mean alpha is being ignored;
-  values below mean it is applied twice.
+- **The ladder stops short** → `0x80` is the value a `.uib` calls
+  opaque, so if the top rungs are missing, every opaque quad in every
+  blob is invisible while text, whose alpha comes from the atlas, still
+  draws. Do **not** "fix" that by scaling alpha down: the file domain is
+  correct (see `docs/format-uib.md`) and a real GS treats `0x80` as 1.0.
+- **Rungs present but the wrong colours** → compare against the table.
+  Values above the prediction mean alpha is being ignored; below, that
+  it is applied twice.
 - **All rungs the same colour** → the colour register is not being
-  reloaded between primitives, which is a gsKit queue problem rather
-  than a blend one.
+  reloaded between primitives, a gsKit queue problem rather than a blend
+  one.
 - **Wrong colours entirely** → RGBAQ packing order; verify
   `GS_SETREG_RGBAQ(r, g, b, a, q)` against your gsKit.
 
-CI runs this every time and prints the palette of what it captured, so
-the `hw` workflow log answers this step without a console. The colours
-appear in neither example on purpose: whatever shows up in the
-fingerprint came from the probe.
+### What CI can and cannot tell you here
 
-Once the probe is clean, the UI capture's own backgrounds (`#0a0e1a`
-canvas, `#12182a` panels) should be its two most common colours.
+CI runs this probe under Play! on llvmpipe and prints the palette, so
+the `hw` log gives you an early hint without a console. Treat it as a
+hint. Play!'s GS is materially less accurate than PCSX2's, and
+untextured primitives and GIF packing are exactly where it diverges, so
+a failure there is at least as likely to be an emulator gap as a ps2ui
+bug. **This step is not answered until a console or PCSX2 in software
+mode has run it.** As of this writing Play! 0.72 renders the clear, the
+red control and the `0x20`/`0x40`/`0x60` rungs, and does not render the
+top of the ladder; whether real hardware agrees is unknown.
+
+Two notes for when you are looking at an actual CRT. The red control
+starts at y=40 and the ladder ends at y=408, both outside the ~10%
+title-safe box this project's own linter enforces, so a television may
+clip those edges: judge presence, not framing. And saturated `#ff0000`
+and `#ff00ff` are precisely what the composite-bleed lint warns about,
+so a palette fingerprint of a composite capture will smear across
+dozens of neighbouring colours. The fingerprint method is for digital
+captures; on composite, use your eyes.
 
 ## 3. CLUT upload and the CSM1 swizzle
 
