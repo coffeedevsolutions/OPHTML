@@ -179,6 +179,16 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
 #define PS2UI_MAX_SLOTS         16
 #define PS2UI_SLOT_BUFSZ        96  /* bytes incl. NUL, per slot */
 #define PS2UI_MAX_SCREENS       8
+/* Longest row focus name a list can build: prefix + index + NUL. Only
+ * a stack buffer in ps2ui_list_move, not a table bound, so it costs
+ * nothing to a UI that never uses a list. */
+#define PS2UI_LIST_NAME_MAX     64
+/* Focus nodes whose visibility can be toggled at runtime (backlog F21),
+ * one bit each. Not a load-time cap: a blob with more focusables loads
+ * and renders fine, it just cannot hide the ones past this index, and
+ * ps2ui_visible_set says so by returning 0. Sized to match the
+ * data-repeat ceiling, since a long list is what needs this. */
+#define PS2UI_MAX_HIDEABLE      256
 
 typedef struct ps2ui_ctx {
     const uint8_t         *data;     /* the whole .uib, caller-owned      */
@@ -205,6 +215,10 @@ typedef struct ps2ui_ctx {
      * nothing). Caller-free storage keeps the no-allocation rule. */
     char      slot_text[PS2UI_MAX_SLOTS][PS2UI_SLOT_BUFSZ];
     uint8_t   slot_is_set[PS2UI_MAX_SLOTS];
+    /* Runtime visibility, one bit per focus node, 0 = shown. Zeroed by
+     * ps2ui_load, so a blob that never calls the API behaves exactly as
+     * before and pays 32 bytes of context. */
+    uint32_t  hidden[(PS2UI_MAX_HIDEABLE + 31) / 32];
 } ps2ui_ctx;
 
 /* Errors returned by ps2ui_load. */
@@ -238,8 +252,11 @@ int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
 const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
 
 /* Set focus by node name (the id/name attribute from the HTML).
- * Returns 1 on success, 0 if no node has that name. Use this to
- * restore focus after a screen swap or to implement shortcuts. */
+ * Returns 1 on success, 0 if the *current screen* has no node with that
+ * name. Scoped to the screen deliberately: names are only unique within
+ * one, and data-repeat makes two screens each using row-{i} a natural
+ * thing to write rather than an accident. Use this to restore focus
+ * after a screen swap or to implement shortcuts. */
 int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
 
 /* Set a dynamic-text slot's current string (UTF-8; copied, truncated
@@ -266,6 +283,106 @@ const char *ps2ui_screen_name(const ps2ui_ctx *ctx);
  * wider than tall. Useful for asserting your video setup matches the
  * blob; ps2ui itself draws in framebuffer pixels regardless. */
 uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);
+
+/* -------------------------------------------------------- visibility */
+
+/* Hide or show a focusable subtree at runtime (backlog F21).
+ *
+ * `display: none` is compile-time: it deletes the box before layout, so
+ * the geometry closes up around it. This is the other thing, and the
+ * only one a fixed command list can offer — the row keeps its space and
+ * stops being painted. Nothing reflows, because nothing can.
+ *
+ * The unit is a focus node, because that is the only grouping the
+ * command list already carries. In practice that is the same unit you
+ * want: a list row, a button, a panel the app can turn off. Text inside
+ * the subtree goes with it, slots included.
+ *
+ * A hidden node is also skipped by ps2ui_move, so the D-pad cannot land
+ * on something invisible. That is the half an app reimplementing this
+ * with blank strings does not get.
+ *
+ * Scoped to the current screen, like ps2ui_focus_set: hiding "row-2"
+ * must not blank another screen's identically-named row.
+ *
+ * Returns 1 on success, 0 if the current screen has no node with that
+ * name or its index is past PS2UI_MAX_HIDEABLE. Note the index is
+ * global, so with several screens the later ones eat into the same
+ * ceiling. */
+int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible);
+
+/* 1 if shown (the default), 0 if hidden or unknown. */
+int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
+
+/* Show every node again. Cheap enough to call on a screen change. */
+void ps2ui_visible_reset(ps2ui_ctx *ctx);
+
+/* ------------------------------------------------------- list window */
+
+/* Scrolling over more items than the blob has rows (backlog F6).
+ *
+ * A `data-repeat` template bakes a fixed number of rows. A launcher has
+ * a variable number of things to show. This is the arithmetic between
+ * the two, and it lives here because every app gets the same edge cases
+ * wrong: a selection that walks off the end, a count smaller than the
+ * rows, an empty list, and keeping the selection on screen while the
+ * window moves under it.
+ *
+ * ps2ui owns the indices and where focus sits. The app owns the data:
+ * after any move, fill row r from item (top + r) with ps2ui_slot_set,
+ * and blank the rows past the end.
+ *
+ * No blob support is involved. A list is a view over rows that are
+ * already baked, so this needs no format version and costs nothing to
+ * a UI that does not use it. */
+typedef struct {
+    const char *prefix; /* focus-name prefix; row r is "<prefix>r" */
+    uint16_t rows;      /* baked rows, from the data-repeat count */
+    uint16_t count;     /* items the app has */
+    uint16_t top;       /* item index shown in row 0 */
+    uint16_t sel;       /* selected item index */
+} ps2ui_list;
+
+/* Bind a list to `rows` baked rows whose focus names are prefix+index
+ * ("row-" gives row-0, row-1, ...). Starts empty; call
+ * ps2ui_list_set_count next. */
+void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);
+
+/* Tell the list how many items exist. Clamps the selection and the
+ * window into range, so shrinking a list under a selection sitting past
+ * the new end lands somewhere valid rather than off the end — and moves
+ * focus with it. Takes ctx for that reason: an index that moved without
+ * the highlight following is how the accept button ends up firing on a
+ * row the user cannot see selected. Pass NULL to move indices only. */
+void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);
+
+/* Move the selection by `delta` items (-1 up, +1 down, +/-rows for a
+ * page). Clamps at both ends — a list does not wrap, because walking
+ * off the end of a hundred saves and arriving at the top is disorienting
+ * in a way a six-tile grid never is. Scrolls the window to keep the
+ * selection visible, moves focus to the row the selection now occupies,
+ * and returns 1 if anything changed. */
+int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);
+
+/* Select an absolute item index, scrolling to it. Returns 1 if
+ * anything changed. Out-of-range indices clamp. */
+int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item);
+
+/* The item index displayed in row `row`, or -1 when that row is past
+ * the end of the data and should be blanked. This is the loop the app
+ * runs after every move to refill the slots. */
+int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row);
+
+/* Which baked row the selection currently occupies (0..rows-1), or -1
+ * for an empty list. */
+int ps2ui_list_selected_row(const ps2ui_list *list);
+
+/* Hide the rows past the end of the data and show the rest.
+ * Blanking a row's text leaves its panel and border drawn, which reads
+ * as an empty row rather than as no row; this is what makes a short list
+ * look short. Call it after set_count and after any move. Needs the row
+ * focus names to match the list's prefix. */
+void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list);
 
 /* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed
  * for tests. */

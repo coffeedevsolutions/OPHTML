@@ -92,6 +92,77 @@ The runtime composes glyph quads each frame from a baked glyph table, using the 
 
 `.uib` files carry a CRC-32 and feature flags, so an older runtime rejects a newer blob with a clear error instead of misrendering it.
 
+## Lists
+
+A launcher's row count is a property of its data, not of its markup.
+`data-repeat` stamps out N copies of a shape at compile time; `{i}` is
+the 0-based index and `{n}` the 1-based one, substituted in any
+attribute and in text:
+
+```html
+<div class="row" data-repeat="8" id="row-{i}" focusable>
+  <p class="title" data-slot="title-{i}" data-slot-capacity="32">Slot {n}</p>
+</div>
+```
+
+- Expansion runs before styles are computed, so a repeated row is
+  indistinguishable downstream from one you typed out. The compiled
+  command list is identical either way, which a test asserts.
+- Nothing is renamed behind your back. Forget `{i}` on a `data-slot`
+  and you get the existing duplicate-name error, which names the slot.
+- Counts are 1..256 and must be literal. There is no data at build time.
+
+The rows are fixed; the *window over your data* is a runtime concern:
+
+```c
+ps2ui_list list;
+ps2ui_list_init(&list, "row-", 8);          /* 8 baked rows named row-0.. */
+ps2ui_list_set_count(&ui, &list, n_games);  /* however many you found     */
+
+/* on D-pad */
+if (ps2ui_list_move(&ui, &list, down ? 1 : -1)) refill(&list);
+
+/* refill: row r shows item_at(r), or blanks when past the end */
+for (uint16_t r = 0; r < list.rows; r++) {
+    int item = ps2ui_list_item_at(&list, r);
+    ps2ui_slot_set(&ui, slot_name(r), item < 0 ? "" : titles[item]);
+}
+```
+
+ps2ui owns the indices and where focus sits; you own the data. The
+window slides by the minimum needed to keep the selection visible,
+clamps at both ends rather than wrapping, and survives the list
+shrinking under a selection that was past the new end. Those are the
+cases worth not reimplementing.
+
+No format change is involved: a list is a view over rows that are
+already baked, so a UI that never uses one pays nothing.
+
+## Hiding things at runtime
+
+`display: none` is compile-time: it deletes the box before layout, so
+the geometry closes up around it. `ps2ui_visible_set` is the other
+thing, and the only one a fixed command list can offer — the subtree
+keeps its space and stops being painted:
+
+```c
+ps2ui_visible_set(&ui, "row-7", 0);   /* stop drawing it   */
+ps2ui_visible_set(&ui, "row-7", 1);   /* draw it again     */
+ps2ui_visible_reset(&ui);             /* show everything   */
+```
+
+- The unit is a focusable subtree, because that is the grouping the
+  command list already carries. Text inside it goes too, slots included.
+- A hidden node is skipped by `ps2ui_move`, so the D-pad cannot land on
+  something invisible. That is the half you do not get from blanking a
+  slot's text.
+- `ps2ui_focus_set` still reaches a hidden node, because naming one
+  explicitly is a deliberate act.
+
+Lists use it: `ps2ui_list_apply_visibility` hides the rows past the end
+of your data, which is what makes a short list look short instead of
+showing empty panels.
+
 ## Multiple screens
 
 Pass several IR files to one bake:
@@ -112,7 +183,7 @@ The example ships two screens ([saves screen](examples/memcard/screenshots/saves
 - Mark elements `focusable`, one per screen `autofocus`
 - The compiler solves the spatial navigation graph at build time; the runtime walks it with table lookups
 - `--focus-wrap` adds wrap-around edges (right off a row's end lands on its start)
-- `ps2ui_focus_set(ctx, "name")` moves focus programmatically
+- `ps2ui_focus_set(ctx, "name")` moves focus programmatically, scoped to the current screen (names are only unique within one)
 
 ## Widescreen and video modes
 
@@ -227,11 +298,11 @@ Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 - [ ] First run on real hardware / PCSX2 ([docs/bringup.md](docs/bringup.md) is the procedure)
 - [ ] Working emulator screenshot job in CI
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
-- [ ] List templating and scrolling for data taller than the screen
 - [ ] Kerning
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)
 - [ ] npm / PyPI releases
+- [x] List templating (`data-repeat`), list windowing, runtime visibility
 - [x] Widescreen and per-mode pixel aspect (`.uib` v4)
 - [x] Dynamic text slots, multi-screen blobs, images with palettization (0.2.0)
 

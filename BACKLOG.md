@@ -135,6 +135,77 @@ GS behaves the same way is the open question. Not worth more rounds
 against the wrong oracle — PCSX2 in software mode or the console
 decides it.
 
+**Sprint 8 status (2026-08-17):** ✅ **F6** lists, both halves, and
+neither needed a format change.
+
+*Templating.* `data-repeat="N"` on an element stamps N copies before
+styles are computed, with `{i}` (0-based) and `{n}` (1-based)
+substituted in any attribute and in text. Because expansion happens on
+the element tree, a repeated row is indistinguishable downstream from
+one typed out, and a test asserts the two compile to identical command
+lists. Nothing is renamed implicitly: forgetting `{i}` on a `data-slot`
+lands on the existing duplicate-name error, which names the slot, and
+copies with no index at all are a warning. Nested repeats are refused
+rather than guessed at, since only one index is in scope. Counts are
+literal and bounded 1..256, because every copy costs commands and a
+focusable one costs a focus node.
+
+*Windowing.* `ps2ui_list` is the arithmetic between a fixed number of
+baked rows and a variable number of items: minimum-distance scrolling
+so the screen does not jump when the user asked one row to move,
+clamping at both ends rather than wrapping, `item_at()` returning -1 for
+rows past the end so they get blanked instead of showing last frame's
+text, and a count that can shrink under a selection sitting past the new
+end. Those are the cases an app reimplementing this gets wrong, which is
+the whole argument for it living in the runtime. ps2ui owns the indices
+and the focus; the app owns the data.
+
+A list is a view over rows that are already baked, so this costs a UI
+that never uses one exactly nothing, and no `.uib` version moved.
+Suites: 61 layout, 93 runtime.
+
+**Sprint 9 status (2026-08-17):** ✅ **F24** the baker drops draw
+records that cannot produce a pixel. A `nowrap` run inside
+`overflow: hidden` bakes every glyph and lets the GS clip, so the tail
+of a long string was quads the console submitted every frame and could
+never see — twenty of them in the channel-6 probe, which is where
+ps2ui-check found them on its first run.
+
+A per-screen post-pass replays the scissor stack the way `ps2ui_render`
+does and drops QUAD/TEXQUAD records outside the current clip, keeping
+every scissor record because balance is a contract and an empty clip
+still has to be popped. The safety argument is that removing a command
+that could never draw cannot change the image, and that is asserted
+rather than argued: all three example previews are byte-identical
+across the change, and a unit test renders a blob with and without a
+dead record and compares pixels. channel-6 went 851 → 831 commands and
+`ps2ui-check` now reports zero warnings on every example.
+
+The loop closed nicely: the validator found it, the baker fixed it, and
+the validator confirms it.
+
+**Sprint 10 status (2026-08-17):** ✅ **F21** runtime visibility, which
+closes a gap F6 opened. Blanking a row past the end of the data leaves
+its panel and border drawn, so a short list still looked full of empty
+rows.
+
+`ps2ui_visible_set(ctx, name, 0)` stops painting a focusable subtree.
+The unit is a focus node because that is the only grouping the command
+list already carries, and in practice it is the unit you want. Two
+details make it more than a paint flag: `ps2ui_move` walks *past* hidden
+nodes rather than landing on something invisible, which is the half an
+app cannot get by blanking slot text; and `ps2ui_focus_set` still
+reaches one, because naming a node explicitly is deliberate.
+
+State is a 256-bit mask in the context, zeroed at load, so a UI that
+never calls the API behaves identically and pays 32 bytes. It is not a
+load-time cap: a blob with more focusables loads and renders fine, it
+just cannot hide the ones past the ceiling, and the setter returns 0
+rather than pretending. No format change.
+
+`ps2ui_list_apply_visibility` wires the two features together. 106
+runtime checks, was 93.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two
