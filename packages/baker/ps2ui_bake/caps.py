@@ -20,6 +20,11 @@ FALLBACK = {
     "PS2UI_MAX_SLOTS": 16,
     "PS2UI_MAX_SCREENS": 8,
     "PS2UI_SLOT_BUFSZ": 96,
+    # Not a table size like the others: it bounds how deep `overflow:
+    # hidden` may nest before ps2ui_render runs out of scissor stack.
+    # The regex already matched it; without the key here, caps.update
+    # silently dropped it and nothing checked the depth at all.
+    "PS2UI_MAX_SCISSOR_DEPTH": 8,
 }
 
 _DEFINE = re.compile(r"^#define\s+(PS2UI_MAX_\w+|PS2UI_SLOT_BUFSZ)\s+(\d+)", re.M)
@@ -44,11 +49,45 @@ def parse_header(path: str = None) -> dict:
     return caps
 
 
-def check(textures, cluts, slots, screens, caps: dict = None):
+def max_scissor_depth(records) -> int:
+    """Deepest SCISSOR_PUSH nesting in a command list.
+
+    The runtime keeps a fixed stack and cannot report an overflow. It
+    fails soft — the too-deep subtree draws under the enclosing clip —
+    but "your dialog is not clipped" is a poor thing to discover on a
+    television, so the bake refuses it instead.
+    """
+    from .quads import OP_SCISSOR_POP, OP_SCISSOR_PUSH
+    depth = peak = 0
+    for rec in records:
+        if rec.op == OP_SCISSOR_PUSH:
+            depth += 1
+            peak = max(peak, depth)
+        elif rec.op == OP_SCISSOR_POP and depth > 0:
+            depth -= 1
+    return peak
+
+
+def check(textures, cluts, slots, screens, caps: dict = None, records=None):
     """Returns (errors, caps). Each error names the cap, the value, and
     the header constant to raise if the limit is the wrong one."""
     caps = caps or parse_header()
     errors = []
+
+    if records is not None:
+        # >= because the runtime's guard is `depth + 1 >= MAX`, so the
+        # last usable slot is MAX - 1.
+        peak = max_scissor_depth(records)
+        limit = caps["PS2UI_MAX_SCISSOR_DEPTH"]
+        if peak >= limit:
+            errors.append(
+                f"scissor nesting: {peak} levels reaches "
+                f"PS2UI_MAX_SCISSOR_DEPTH = {limit}. ps2ui_render has a "
+                f"fixed stack and cannot report an overflow, so the "
+                f"deepest subtree would draw under its parent's clip "
+                f"instead of its own. Flatten the nesting or raise "
+                f"PS2UI_MAX_SCISSOR_DEPTH in runtime/ps2ui.h."
+            )
 
     def over(what, count, key):
         if count > caps[key]:

@@ -242,18 +242,24 @@ def check_scissors(uib, rep: Report) -> None:
     push leaks the clip into whatever draws next; an extra pop
     underflows.
     """
+    limit = caps_mod.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"]
     for sc in uib.screens:
         depth = 0
+        peak = 0
         floor_hit = False
         lo = sc["cmd_first"]
         for r in uib.records[lo:lo + sc["cmd_count"]]:
             if r.op == OP_SCISSOR_PUSH:
                 depth += 1
+                peak = max(peak, depth)
             elif r.op == OP_SCISSOR_POP:
                 depth -= 1
                 if depth < 0:
                     floor_hit = True
                     break
+        rep.error(peak < limit,
+                  f"{sc['name']}: scissor nesting {peak} within "
+                  f"PS2UI_MAX_SCISSOR_DEPTH ({limit})")
         rep.error(not floor_hit and depth == 0,
                   f"{sc['name']}: scissor pushes and pops balance"
                   + (" (underflow)" if floor_hit else

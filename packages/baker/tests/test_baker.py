@@ -1142,3 +1142,55 @@ class TestDeadGeometryTrim(unittest.TestCase):
         from ps2ui_bake import clip as clip_mod
         from ps2ui_bake import check as check_mod
         self.assertIs(check_mod.clip_mod, clip_mod)
+
+
+class TestScissorDepth(unittest.TestCase):
+    """PS2UI_MAX_SCISSOR_DEPTH, which nothing used to check.
+
+    caps.py's regex always matched the constant, but FALLBACK did not
+    list the key, so caps.update dropped it and no stage knew the limit
+    existed. The runtime meanwhile refused pushes past its fixed stack
+    while still popping them, which left the stack a level shallow and
+    every later clip in the frame wrong.
+    """
+
+    def records(self, depth):
+        from ps2ui_bake.quads import DrawRecord, OP_SCISSOR_PUSH, OP_SCISSOR_POP
+        recs = []
+        for _ in range(depth):
+            recs.append(DrawRecord(OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
+                                   0, 0, 100, 100, (0, 0, 0, 0)))
+        for _ in range(depth):
+            recs.append(DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
+                                   0, 0, 0, 0, (0, 0, 0, 0)))
+        return recs
+
+    def test_the_constant_is_actually_parsed(self):
+        from ps2ui_bake import caps
+        self.assertIn("PS2UI_MAX_SCISSOR_DEPTH", caps.parse_header())
+        self.assertEqual(caps.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"],
+                         caps.FALLBACK["PS2UI_MAX_SCISSOR_DEPTH"])
+
+    def test_peak_depth_is_measured_not_guessed(self):
+        from ps2ui_bake import caps
+        self.assertEqual(caps.max_scissor_depth(self.records(3)), 3)
+        # Sibling clips nest to 1, not 2: the pop returns to the parent.
+        self.assertEqual(
+            caps.max_scissor_depth(self.records(1) + self.records(1)), 1)
+
+    def test_a_blob_at_the_limit_is_refused_by_the_bake(self):
+        from ps2ui_bake import caps
+        limit = caps.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"]
+        errors, _ = caps.check([], [], [], [{"name": "s"}],
+                               records=self.records(limit))
+        self.assertTrue(any("scissor nesting" in e for e in errors))
+        self.assertTrue(any("PS2UI_MAX_SCISSOR_DEPTH" in e for e in errors))
+
+    def test_one_level_below_the_limit_passes(self):
+        # The runtime's guard is `depth + 1 >= MAX`, so MAX - 1 is the
+        # last usable level and must not be refused.
+        from ps2ui_bake import caps
+        limit = caps.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"]
+        errors, _ = caps.check([], [], [], [{"name": "s"}],
+                               records=self.records(limit - 1))
+        self.assertEqual([e for e in errors if "scissor" in e], [])

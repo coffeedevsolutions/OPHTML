@@ -99,7 +99,8 @@ def main(argv=None) -> int:
     # nowhere, and every host stage downstream would happily accept it
     # (backlog B10).
     cap_errors, caps = caps_mod.check(
-        flat.textures, flat.cluts, flat.slots, flat.screens)
+        flat.textures, flat.cluts, flat.slots, flat.screens,
+        records=flat.records)
     print(caps_mod.summary(flat.textures, flat.cluts, flat.slots,
                            flat.screens, caps), file=sys.stderr)
     if flat.dropped:

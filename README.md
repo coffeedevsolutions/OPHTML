@@ -231,6 +231,8 @@ Your desktop preview won't show you what a 2001 television does. The compiler wa
 - Low-contrast text
 - Focusables unreachable by D-pad
 
+The baker refuses a build outright when it would exceed what the runtime can load: any of the four static table caps, the texture VRAM budget, or `overflow: hidden` nested deeper than the scissor stack. Each error names the constant in `runtime/ps2ui.h` to raise if the limit is the wrong one.
+
 ## Repository layout
 
 | path | what |
