@@ -279,7 +279,15 @@ The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit
 
 ## Status
 
-The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain. Nothing has run on real hardware yet. For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF for it, and `tools/make_testcard.py` builds a texel-alignment card.
+The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain, boots it in the Play! emulator and fingerprints the frame. That emulator job is non-gating (`continue-on-error`) until its first green run.
+
+Still not hardware-verified, but no longer entirely unverified. Measured by the palette fingerprint `framediff.py --stats` prints for the captured frame and the previewer's, under Play! 0.72 (`Play!-8de4a71f-x86_64.AppImage`) on llvmpipe, [run 32065976980](https://github.com/coffeedevsolutions/OPHTML/actions/runs/32065976980):
+
+- **Textured rendering is correct.** The six most common colours in the captured frame are, apart from the background, all stylesheet text colours matched to within one unit — `#8b94a7` → `#8c94a8`, `#f2f5fa` → `#f2f6fa`, `#e8ecf4` and `#ffffff` exact. That exercises the glyph atlas, the CLUT upload, the CSM1 bit-3/bit-4 swizzle, `GSTEXTURE::Function` modulate and the 0x80-identity colour domain, and the `+1`s are the quantisation `Cv = Ct·Cf >> 7` produces. Bring-up steps 3, 4 and 5.
+- **The blend equation is right.** The step-2 probe's alpha ladder composites to `#8c0784` at `0x40` and `#c503c1` at `0x60`, which is `(Cs - Cd) * As >> 7 + Cd` exactly.
+- **Solid fills at alpha `0x7f` and `0x80` do not appear** — and specifically, they rasterise wearing the *previous* primitive's colour rather than being discarded. `0x80` is the value every opaque quad in a `.uib` carries, which is why the UI frame came back 92.8% black with its text intact. That is bring-up step 2, and it is why the emulator diff is still red. Whether a real GS agrees is the open question: Play! is HLE, and untextured primitives and GIF packing are where it diverges most.
+
+For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF, `make -C runtime/sample PROBE=1` builds the step 2 instrument, and `tools/make_testcard.py` builds a texel-alignment card.
 
 See [docs/architecture.md](docs/architecture.md) for the decision log.
 
