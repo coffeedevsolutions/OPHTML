@@ -535,8 +535,10 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
          * in the command loop does not reach them. Without this, hiding
          * a row removes its panel and leaves its glyphs floating over
          * the background — worse than not hiding it at all. */
-        if (node_hidden(ctx, s->focus))
+        if (node_hidden(ctx, s->focus)) {
+            ctx->stats.slots_hidden++;
             continue;
+        }
         font = &ctx->fonts[s->font];
         text = slot_current_text(ctx, i);
         size_t draw_len;

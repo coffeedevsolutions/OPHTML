@@ -30,16 +30,34 @@ extern unsigned int size_ui_uib;
  *
  * The line is machine-fixed and grep-friendly:
  *
- *   ps2ui-telemetry frame=300 fps=60 miss=0 ee_us(min/avg/max)=412/430/501
- *       prims=375 hidden=0 slotg=42 sciov=0
+ *   ps2ui-telemetry frame=300 fps=60.0 miss=0 ee_us(min/avg/max)=412/430/501
+ *       prims=375 hidden=0 slotg=42 slothid=0 sciov=0
+ *
+ * fps is measured from elapsed wall-clock cycles, not derived from the
+ * miss count: a UI running steadily at half rate overruns a field on
+ * every frame, so `60 - missed` would report 0 fps for a program
+ * rendering perfectly well at 30. They are independent signals and the
+ * interval is a real second either way.
  *
  * ee_us is ps2ui_render alone (composition cost, not GPU), measured
- * with the EE's COP0 cycle counter at 294.912 MHz. miss counts frames
- * where the whole loop overran one 60 Hz field — the number that must
- * stay zero. sciov nonzero means a blob deeper than the scissor stack
- * reached the console, which the baker is supposed to make impossible.
+ * with the EE's COP0 cycle counter. miss counts frames where the whole
+ * loop overran one 60 Hz field.
+ *
+ * The ps2ui counters are aggregated across the interval, not sampled
+ * from its last frame. sciov especially: a nonzero value means a blob
+ * deeper than PS2UI_MAX_SCISSOR_DEPTH reached the console, and B16's
+ * lesson was that this condition is silent and remote from its cause —
+ * sampling it at a 1-in-60 duty cycle would keep it silent 98% of the
+ * time. prims/slotg report the interval's peak, which is the number
+ * that matters for budgeting.
  */
 #ifdef PS2UI_SAMPLE_TELEMETRY
+/* COP0 Count on the R5900 ticks once per CPU cycle at 294.912 MHz.
+ * TODO(bench): confirm on hardware. Several MIPS implementations tick
+ * Count at half the core clock, and if the R5900 is one of them every
+ * ee_us here is 2x off. The bench session settles it: render a known
+ * fixed workload and compare ee_us against a stopwatch over 600
+ * frames. Until then treat ee_us as relative, not absolute. */
 #define EE_HZ 294912000u
 static inline u32 cop0_count(void)
 {
@@ -182,6 +200,9 @@ int main(void)
 #ifdef PS2UI_SAMPLE_TELEMETRY
     u32 t_min = 0xFFFFFFFFu, t_max = 0, t_sum = 0;
     u32 sec_frames = 0, missed = 0, t_frame_prev = cop0_count();
+    u32 elapsed = 0;
+    /* Interval aggregates, not a last-frame sample. */
+    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0;
 #endif
 
     while (1) {
@@ -205,23 +226,39 @@ int main(void)
         {
             /* Wall time of the whole loop, vsync included: more than
              * one field's worth of cycles means the flip missed. */
-            u32 now = cop0_count();
-            if (now - t_frame_prev > EE_HZ / 60u + EE_HZ / 600u)
+            u32 now = cop0_count(), loop = now - t_frame_prev;
+            if (loop > EE_HZ / 60u + EE_HZ / 600u)
                 missed++;
+            elapsed += loop;
             t_frame_prev = now;
             sec_frames++;
-            if (sec_frames == 60) {
-                printf("ps2ui-telemetry frame=%u fps=%u miss=%u "
+
+            /* Peaks for the budgeting numbers, a sum for the alarm:
+             * one overflowed frame in the interval must be visible. */
+            if (ui.stats.prims > a_prims) a_prims = ui.stats.prims;
+            if (ui.stats.skipped_hidden > a_hidden) a_hidden = ui.stats.skipped_hidden;
+            if (ui.stats.slot_glyphs > a_slotg) a_slotg = ui.stats.slot_glyphs;
+            if (ui.stats.slots_hidden > a_slothid) a_slothid = ui.stats.slots_hidden;
+            a_sciov += ui.stats.scissor_overflow;
+
+            /* Report on elapsed time, so the line is a real second at
+             * any frame rate rather than 60 frames however long those
+             * took. */
+            if (elapsed >= EE_HZ) {
+                u32 fps10 = (u32)(((u64)sec_frames * 10u * EE_HZ + elapsed / 2u)
+                                  / elapsed);
+                printf("ps2ui-telemetry frame=%u fps=%u.%u miss=%u "
                        "ee_us(min/avg/max)=%u/%u/%u "
-                       "prims=%u hidden=%u slotg=%u sciov=%u\n",
-                       frame, 60u - missed, missed,
+                       "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u\n",
+                       frame, fps10 / 10u, fps10 % 10u, missed,
                        t_min / (EE_HZ / 1000000u),
-                       (t_sum / 60u) / (EE_HZ / 1000000u),
+                       (t_sum / sec_frames) / (EE_HZ / 1000000u),
                        t_max / (EE_HZ / 1000000u),
-                       ui.stats.prims, ui.stats.skipped_hidden,
-                       ui.stats.slot_glyphs, ui.stats.scissor_overflow);
+                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov);
                 t_min = 0xFFFFFFFFu; t_max = 0; t_sum = 0;
-                sec_frames = 0; missed = 0;
+                sec_frames = 0; missed = 0; elapsed = 0;
+                a_prims = 0; a_hidden = 0; a_slotg = 0;
+                a_slothid = 0; a_sciov = 0;
             }
         }
 #endif

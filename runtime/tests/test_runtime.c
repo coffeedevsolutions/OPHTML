@@ -576,9 +576,14 @@ int main(int argc, char **argv)
               "a baked blob never overflows the scissor stack");
         CHECK(ctx.stats.skipped_hidden == 0,
               "nothing hidden, nothing skipped");
-        for (k = 0; k < ctx.stats.slot_glyphs; k++) shown_slots++;
-        CHECK(ctx.stats.slot_glyphs > 0 && shown_slots > 0,
-              "the slot pen reports its glyph quads");
+        /* Count textured prims in the stub independently. Slot glyphs
+         * are a subset of them, so this bounds the counter against a
+         * tally the runtime did not produce. */
+        for (k = 0; k < (uint32_t)g_stub.n_prims; k++)
+            if (g_stub.prims[k].textured) shown_slots++;
+        CHECK(ctx.stats.slot_glyphs > 0
+              && (int)ctx.stats.slot_glyphs <= shown_slots,
+              "slot glyphs are a subset of the stub's textured prims");
 
         /* Hiding moves records from prims to skipped_hidden, exactly. */
         ps2ui_visible_set(&ctx, "tile-ico", 0);
@@ -674,6 +679,36 @@ int main(int argc, char **argv)
               "shrinking a list never leaves focus on a hidden row");
         CHECK(strcmp(ps2ui_focus_name(&lc), "row-1") == 0,
               "and focus follows the clamped selection");
+
+        /* Telemetry reconciles exactly on a list-shaped UI, which the
+         * memcard blob cannot test: its tiles carry no slots, so
+         * hiding one suppresses command records and nothing else. Here
+         * a hidden row takes its slot's glyphs with it, and those are
+         * counted in slots_hidden rather than vanishing from the
+         * arithmetic. */
+        {
+            uint32_t p0, g0, p1, g1, sh1, hid1;
+            ps2ui_visible_reset(&lc);
+            ps2ui_list_set_count(&lc, &list, 4);
+            ps2ui_list_apply_visibility(&lc, &list);
+            render_and_count(&lc, &gs);
+            p0 = lc.stats.prims; g0 = lc.stats.slot_glyphs;
+            CHECK(g0 > 0 && lc.stats.slots_hidden == 0,
+                  "all rows visible: slot glyphs drawn, none suppressed");
+
+            ps2ui_visible_set(&lc, "row-1", 0);
+            render_and_count(&lc, &gs);
+            p1 = lc.stats.prims; g1 = lc.stats.slot_glyphs;
+            sh1 = lc.stats.slots_hidden; hid1 = lc.stats.skipped_hidden;
+            CHECK(sh1 == 1, "hiding a row suppresses exactly its one slot");
+            CHECK(g1 < g0, "and its glyphs stop being composed");
+            /* Every primitive the frame lost is either a skipped
+             * command record or a suppressed slot's glyphs. Exact, not
+             * >=: this fixture can violate it, which is the point. */
+            CHECK(p0 - p1 == hid1 + (g0 - g1),
+                  "prims lost = records skipped + slot glyphs suppressed");
+            ps2ui_visible_reset(&lc);
+        }
 
         free(lblob);
     }

@@ -250,13 +250,13 @@ The baker refuses a build outright when it would exceed what the runtime can loa
 
 ## Render telemetry
 
-`ps2ui_render` fills `ctx.stats` every frame: primitives submitted, records skipped by visibility, slot glyphs composed, scissor overflows. Counters only — the runtime does no timing and no I/O; where a log goes is the app's decision, the same split as slot data. The sample has a build that reads them:
+`ps2ui_render` fills `ctx.stats` every frame: primitives submitted, command records and slots skipped by visibility, slot glyphs composed, scissor overflows. Counters only — the runtime does no timing and no I/O; where a log goes is the app's decision, the same split as slot data. The sample has a build that reads them:
 
 ```sh
 make -C runtime/sample TELEMETRY=1 EE_BIN=telemetry.elf
 ```
 
-It prints one line per second on stdout — frame time for `ps2ui_render` in EE microseconds (min/avg/max), missed vsyncs, and the frame's counters. `printf` from the EE reaches PCSX2's console log and ps2link with no IRX modules, so it works on the very first boot; USB and UDP sinks can come later without touching the runtime.
+It prints one line per elapsed second on stdout — measured frame rate, missed vsyncs, frame time for `ps2ui_render` in EE microseconds (min/avg/max), and the interval's counters (peaks for the budgeting numbers, a sum for scissor overflows so one bad frame in sixty is still visible). `printf` from the EE reaches PCSX2's console log and ps2link with no IRX modules, so it works on the very first boot; USB and UDP sinks can come later without touching the runtime.
 
 ## Repository layout
 

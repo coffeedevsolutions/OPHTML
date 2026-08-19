@@ -209,12 +209,17 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
  * timing (the EE cycle counter is the app's to read, and host tests
  * have no EE) and no I/O (where a log goes — UDP, USB, screen, PCSX2's
  * console capture — is the app's decision, same split as slot data).
- * The costs are a handful of increments per frame. */
+ * The cost is one increment per command record walked plus one per
+ * primitive drawn -- proportional to the frame, not to the API. */
 typedef struct ps2ui_stats {
     uint32_t cmds;             /* command records walked                */
     uint32_t prims;            /* primitives actually submitted to gsKit */
-    uint32_t skipped_hidden;   /* records skipped by runtime visibility */
+    uint32_t skipped_hidden;   /* command records skipped by runtime
+                                * visibility -- records only; a hidden
+                                * row's suppressed slot shows up in
+                                * slots_hidden, not here               */
     uint32_t slot_glyphs;      /* glyph quads composed by the slot pen  */
+    uint32_t slots_hidden;     /* slots suppressed by runtime visibility */
     uint32_t scissor_overflow; /* SCISSOR_PUSHes refused for want of
                                 * stack; nonzero means a blob deeper
                                 * than PS2UI_MAX_SCISSOR_DEPTH slipped
