@@ -1060,6 +1060,17 @@ class TestSlotSpacing(unittest.TestCase):
         u = self.bake(-1)
         self.assertEqual(u.slots[0]["letter_spacing"], -1)
 
+    def test_out_of_range_spacing_is_refused_by_name(self):
+        # The i16 boundary used to surface as a bare struct.error deep
+        # in the packer; it must be an error naming the slot instead.
+        ir = TestDynamicText().slot_ir()
+        ir["slots"][0]["letterSpacing"] = 40000
+        f = Flattener(ir, font_paths())
+        with self.assertRaisesRegex(ValueError, r'slot "title".*i16'):
+            f.run()
+        ir["slots"][0]["letterSpacing"] = 32767  # the fence itself fits
+        Flattener(ir, font_paths()).run()
+
 
 class TestDisplayAspect(unittest.TestCase):
     """Widescreen: the framebuffer is not what the panel shows."""
