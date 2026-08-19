@@ -40,8 +40,16 @@ ps2ui.o: ps2ui.c
 ui_uib.c: $(UIB)
 	$(PS2SDK)/bin/bin2c $(UIB) ui_uib.c ui_uib
 
-clean:
-	rm -f $(EE_BIN) $(EE_OBJS) ui_uib.c ps2ui.c ps2ui.h
+clean: objclean
+	rm -f $(EE_BIN)
+
+# Build products without the linked ELF, so two configurations can be
+# built from one checkout without either deleting the other's output.
+# `clean` cannot do this job: it removes $(EE_BIN), which defaults to
+# the UI ELF, so cleaning between a STATIC build and a PROBE build
+# silently threw away the first one.
+objclean:
+	rm -f $(EE_OBJS) ui_uib.c ps2ui.c ps2ui.h
 
 include $(PS2SDK)/samples/Makefile.pref
 include $(PS2SDK)/samples/Makefile.eeglobal
