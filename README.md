@@ -116,8 +116,8 @@ The rows are fixed; the *window over your data* is a runtime concern:
 
 ```c
 ps2ui_list list;
-ps2ui_list_init(&list, "row-", 8);     /* 8 baked rows named row-0.. */
-ps2ui_list_set_count(&list, n_games);  /* however many you found     */
+ps2ui_list_init(&list, "row-", 8);          /* 8 baked rows named row-0.. */
+ps2ui_list_set_count(&ui, &list, n_games);  /* however many you found     */
 
 /* on D-pad */
 if (ps2ui_list_move(&ui, &list, down ? 1 : -1)) refill(&list);
@@ -183,7 +183,7 @@ The example ships two screens ([saves screen](examples/memcard/screenshots/saves
 - Mark elements `focusable`, one per screen `autofocus`
 - The compiler solves the spatial navigation graph at build time; the runtime walks it with table lookups
 - `--focus-wrap` adds wrap-around edges (right off a row's end lands on its start)
-- `ps2ui_focus_set(ctx, "name")` moves focus programmatically
+- `ps2ui_focus_set(ctx, "name")` moves focus programmatically, scoped to the current screen (names are only unique within one)
 
 ## Widescreen and video modes
 

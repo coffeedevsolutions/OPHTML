@@ -252,8 +252,11 @@ int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
 const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
 
 /* Set focus by node name (the id/name attribute from the HTML).
- * Returns 1 on success, 0 if no node has that name. Use this to
- * restore focus after a screen swap or to implement shortcuts. */
+ * Returns 1 on success, 0 if the *current screen* has no node with that
+ * name. Scoped to the screen deliberately: names are only unique within
+ * one, and data-repeat makes two screens each using row-{i} a natural
+ * thing to write rather than an accident. Use this to restore focus
+ * after a screen swap or to implement shortcuts. */
 int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
 
 /* Set a dynamic-text slot's current string (UTF-8; copied, truncated
@@ -299,8 +302,13 @@ uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);
  * on something invisible. That is the half an app reimplementing this
  * with blank strings does not get.
  *
- * Returns 1 on success, 0 if no focus node has that name or its index is
- * past PS2UI_MAX_HIDEABLE. */
+ * Scoped to the current screen, like ps2ui_focus_set: hiding "row-2"
+ * must not blank another screen's identically-named row.
+ *
+ * Returns 1 on success, 0 if the current screen has no node with that
+ * name or its index is past PS2UI_MAX_HIDEABLE. Note the index is
+ * global, so with several screens the later ones eat into the same
+ * ceiling. */
 int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible);
 
 /* 1 if shown (the default), 0 if hidden or unknown. */
@@ -342,8 +350,11 @@ void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);
 
 /* Tell the list how many items exist. Clamps the selection and the
  * window into range, so shrinking a list under a selection sitting past
- * the new end lands somewhere valid rather than off the end. */
-void ps2ui_list_set_count(ps2ui_list *list, uint16_t count);
+ * the new end lands somewhere valid rather than off the end — and moves
+ * focus with it. Takes ctx for that reason: an index that moved without
+ * the highlight following is how the accept button ends up firing on a
+ * row the user cannot see selected. Pass NULL to move indices only. */
+void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);
 
 /* Move the selection by `delta` items (-1 up, +1 down, +/-rows for a
  * page). Clamps at both ends — a list does not wrap, because walking

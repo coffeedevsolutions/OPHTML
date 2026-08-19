@@ -1094,3 +1094,51 @@ class TestDeadGeometryTrim(unittest.TestCase):
             before = preview.render(read_uib(untrimmed), background=(0, 0, 0, 255))
 
         self.assertEqual(list(before.getdata()), list(after.getdata()))
+
+    def test_a_texquad_glyph_tail_is_trimmed(self):
+        # The case the whole pass exists for: nowrap text inside
+        # overflow:hidden bakes every glyph and lets the GS clip.
+        # Every other test here uses solid rects.
+        ir = tiny_ir([
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 40, "h": 30},
+            {"op": "text", "x": 4, "y": 4, "text": "wide enough to overflow",
+             "size": 16, "weight": 400, "color": [255, 255, 255, 255],
+             "state": "always", "focusId": None},
+            {"op": "scissor_pop"},
+        ])
+        f = Flattener(ir, font_paths())
+        f.run()
+        self.assertGreater(f.dropped, 0, "glyphs past the clip should go")
+        self.assertTrue(all(r.op != OP_TEXQUAD or r.x < 40 for r in f.records))
+
+    def test_an_empty_clip_drops_everything_under_it(self):
+        # Nested scissors that do not overlap: the intersection is zero
+        # wide, and a quad straddling its left edge passes all four edge
+        # tests. Only an area check catches it.
+        f = self.flatten([
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 100, "h": 100},
+            {"op": "scissor_push", "x": 100, "y": 0, "w": 50, "h": 100},
+            self.rect(90, 10, 20, 20),
+            {"op": "scissor_pop"},
+            {"op": "scissor_pop"},
+        ])
+        self.assertEqual(f.dropped, 1)
+
+    def test_screen_ranges_survive_trimming(self):
+        # cmd_count is computed after the trim, so a dropped record must
+        # not shift a later screen's range.
+        a = tiny_ir([self.rect(10, 10, 20, 20), self.rect(900, 10, 20, 20)])
+        b = tiny_ir([self.rect(30, 30, 20, 20)])
+        f = Flattener(a, font_paths())
+        f.run_screens([("one", a), ("two", b)])
+        one, two = f.screens
+        self.assertEqual(one["cmd_first"], 0)
+        self.assertEqual(two["cmd_first"], one["cmd_first"] + one["cmd_count"])
+        self.assertEqual(two["cmd_first"] + two["cmd_count"], len(f.records))
+        self.assertEqual(f.dropped, 1)
+
+    def test_the_validator_and_the_baker_share_one_clip_model(self):
+        # They used to carry two copies that already differed by a term.
+        from ps2ui_bake import clip as clip_mod
+        from ps2ui_bake import check as check_mod
+        self.assertIs(check_mod.clip_mod, clip_mod)

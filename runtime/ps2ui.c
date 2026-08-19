@@ -6,6 +6,7 @@
 #include <string.h>
 
 static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs);
+static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name);
 
 /* ---------------------------------------------------------------- crc */
 
@@ -466,8 +467,16 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
     uint32_t i;
     for (i = scr->slot_first; i < (uint32_t)scr->slot_first + scr->slot_count; i++) {
         const ps2ui_slot_entry *s = &ctx->slots[i];
-        const ps2ui_font_entry *font = &ctx->fonts[s->font];
-        const char *text = slot_current_text(ctx, i);
+        const ps2ui_font_entry *font;
+        const char *text;
+        /* Slots live outside the command list, so the visibility check
+         * in the command loop does not reach them. Without this, hiding
+         * a row removes its panel and leaves its glyphs floating over
+         * the background — worse than not hiding it at all. */
+        if (node_hidden(ctx, s->focus))
+            continue;
+        font = &ctx->fonts[s->font];
+        text = slot_current_text(ctx, i);
         size_t draw_len;
         int ellipsize;
         int width = slot_measure(ctx, s, font, text, &draw_len, &ellipsize);
@@ -667,12 +676,25 @@ int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)
 
 /* ---------------------------------------------------------- visibility */
 
+/* Scoped to the current screen's focus range, not the whole blob.
+ * Names are only unique per screen — the memcard example has nav-games
+ * on both — and data-repeat makes two screens each using row-{i} the
+ * natural thing to write rather than an accident. A blob-global scan
+ * finds the first match anywhere, so hiding "row-2" from screen two
+ * would silently blank screen one's and report success.
+ *
+ * Linear: focus_count is a screenful of widgets, not a database, and
+ * this runs on a button press, not per frame. */
 static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)
 {
-    uint32_t i;
-    if (name == NULL)
+    const ps2ui_screen_entry *scr;
+    uint32_t i, lo, hi;
+    if (name == NULL || ctx->screen >= ctx->hdr->n_screen)
         return PS2UI_NONE;
-    for (i = 0; i < ctx->hdr->n_focus; i++) {
+    scr = &ctx->screen_table[ctx->screen];
+    lo = scr->focus_first;
+    hi = lo + scr->focus_count;
+    for (i = lo; i < hi && i < ctx->hdr->n_focus; i++) {
         const char *n = (const char *)(ctx->blob + ctx->focus_nodes[i].name_off);
         if (strcmp(n, name) == 0)
             return (uint16_t)i;
@@ -721,19 +743,11 @@ const char *ps2ui_focus_name(const ps2ui_ctx *ctx)
 
 int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)
 {
-    uint32_t i;
-    if (name == NULL)
+    uint16_t idx = focus_index_by_name(ctx, name);
+    if (idx == PS2UI_NONE)
         return 0;
-    /* Linear scan: n_focus is a screenful of widgets, not a database,
-     * and focus_set runs on a button press, not per frame. */
-    for (i = 0; i < ctx->hdr->n_focus; i++) {
-        const char *n = (const char *)(ctx->blob + ctx->focus_nodes[i].name_off);
-        if (strcmp(n, name) == 0) {
-            ctx->focus = (uint16_t)i;
-            return 1;
-        }
-    }
-    return 0;
+    ctx->focus = idx;
+    return 1;
 }
 
 /* --------------------------------------------------------- list window */
@@ -765,7 +779,7 @@ static void list_scroll_into_view(ps2ui_list *list)
     if (list->rows == 0 || list->count == 0) { list->top = 0; return; }
     if (list->sel < list->top)
         list->top = list->sel;
-    else if (list->sel >= (uint16_t)(list->top + list->rows))
+    else if ((uint32_t)list->sel >= (uint32_t)list->top + list->rows)
         list->top = (uint16_t)(list->sel - list->rows + 1);
 
     /* Never leave blank rows above real items when the tail is in view. */
@@ -777,6 +791,8 @@ static void list_scroll_into_view(ps2ui_list *list)
     }
 }
 
+static int list_sync_focus(ps2ui_ctx *ctx, const ps2ui_list *list);
+
 void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows)
 {
     if (!list) return;
@@ -787,13 +803,14 @@ void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows)
     list->sel = 0;
 }
 
-void ps2ui_list_set_count(ps2ui_list *list, uint16_t count)
+void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count)
 {
     if (!list) return;
     list->count = count;
     if (count == 0) { list->sel = 0; list->top = 0; return; }
     if (list->sel >= count) list->sel = (uint16_t)(count - 1);
     list_scroll_into_view(list);
+    list_sync_focus(ctx, list);
 }
 
 int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)
@@ -807,8 +824,13 @@ int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)
 
 int ps2ui_list_selected_row(const ps2ui_list *list)
 {
-    if (!list || list->count == 0) return -1;
-    return (int)(list->sel - list->top);
+    int row;
+    if (!list || list->count == 0 || list->rows == 0) return -1;
+    row = (int)list->sel - (int)list->top;
+    /* Agree with item_at rather than reporting a row that cannot
+     * exist: with rows == 0 this used to return sel while item_at(0)
+     * correctly returned -1. */
+    return (row >= 0 && row < (int)list->rows) ? row : -1;
 }
 
 /* Focus follows the selection. Failing to find the row's node is not

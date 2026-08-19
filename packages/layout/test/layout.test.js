@@ -534,6 +534,21 @@ test('repeat: nested repeats are refused rather than guessed at', () => {
   );
 });
 
+test('repeat: an index on a descendant attribute counts as an index', () => {
+  // The shape the README recommends: {i} on a nested data-slot, nothing
+  // on the row itself. This warned before the serialiser walked
+  // descendant attributes, which is a warning crying wolf on the
+  // documented pattern.
+  const ir = compileCss(
+    '<div class="s"><div class="row" data-repeat="3">'
+    + '<p class="t" data-slot="title-{i}" data-slot-capacity="8">x</p></div></div>',
+    '.s { background: #0a0e1a } .row { background: #12182a; padding: 4px }'
+    + ' .t { font-size: 16px; color: #dbe2ee }',
+  );
+  assert.deepEqual(ir.slots.map((x) => x.name), ['title-0', 'title-1', 'title-2']);
+  assert.equal(ir.warnings.filter((w) => /no \{i\} or \{n\}/.test(w)).length, 0);
+});
+
 test('repeat: copies with no index are a warning, and duplicate slots an error', () => {
   // Indistinguishable copies are legal but almost never intended.
   const ir = compileCss(

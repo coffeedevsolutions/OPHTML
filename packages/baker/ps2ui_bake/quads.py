@@ -274,41 +274,26 @@ class Flattener:
         console submits every frame and can never see. ps2ui-check found
         twenty of them in the channel-6 probe on its first run.
 
-        Replays the scissor stack exactly as ps2ui_render does, starting
-        from the canvas, and keeps every scissor record — balance is a
-        contract the runtime relies on, and a push whose rect is empty
-        still has to be popped. Only QUAD and TEXQUAD go.
-
-        Removing a record that could never draw cannot change the image,
-        which is the property that makes this safe: the example previews
-        are byte-identical across this change.
+        The scissor model lives in clip.py, shared with ps2ui-check so
+        the two cannot drift; see that module for why sharing it is the
+        right call here. Removing a record that could never draw cannot
+        change the image, which is the property that makes this safe:
+        the example previews are byte-identical across this change.
         """
-        clip = [(0, 0, canvas["w"], canvas["h"])]
-        kept = []
-        dropped = 0
-        for rec in self.records[first:]:
-            if rec.op == OP_SCISSOR_PUSH:
-                cx, cy, cw, ch = clip[-1]
-                x0, y0 = max(cx, rec.x), max(cy, rec.y)
-                x1 = min(cx + cw, rec.x + rec.w)
-                y1 = min(cy + ch, rec.y + rec.h)
-                clip.append((x0, y0, max(0, x1 - x0), max(0, y1 - y0)))
-                kept.append(rec)
-                continue
-            if rec.op == OP_SCISSOR_POP:
-                if len(clip) > 1:
-                    clip.pop()
-                kept.append(rec)
-                continue
-            cx, cy, cw, ch = clip[-1]
-            if (rec.w <= 0 or rec.h <= 0
-                    or rec.x + rec.w <= cx or rec.y + rec.h <= cy
-                    or rec.x >= cx + cw or rec.y >= cy + ch):
-                dropped += 1
-                continue
-            kept.append(rec)
-        self.records[first:] = kept
-        return dropped
+        # Imported here, not at module scope: clip.py takes the op
+        # codes from this module, and a top-level import either way
+        # closes the cycle.
+        from . import clip as clip_mod
+        dead = set(clip_mod.dead_indices(
+            self.records, first, len(self.records) - first,
+            canvas["w"], canvas["h"]))
+        if not dead:
+            return 0
+        self.records[first:] = [
+            r for i, r in enumerate(self.records[first:], start=first)
+            if i not in dead
+        ]
+        return len(dead)
 
     def run_screens(self, named_irs) -> None:
         """Flatten several IRs into one blob (backlog F4).

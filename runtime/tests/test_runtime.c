@@ -49,7 +49,10 @@ int main(int argc, char **argv)
     GSGLOBAL gs;
     int i;
 
-    if (argc != 2) { fprintf(stderr, "usage: %s <ui.uib>\n", argv[0]); return 2; }
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "usage: %s <ui.uib> [list.uib]\n", argv[0]);
+        return 2;
+    }
     blob = slurp(argv[1], &len);
     memset(&gs, 0, sizeof gs);
     gs.Width = 640; gs.Height = 448;
@@ -320,13 +323,13 @@ int main(int argc, char **argv)
 
         /* Fewer items than rows: the tail rows must report -1 so the app
          * blanks them instead of leaving last frame's text. */
-        ps2ui_list_set_count(&list, 2);
+        ps2ui_list_set_count(NULL, &list, 2);
         CHECK(ps2ui_list_item_at(&list, 1) == 1
               && ps2ui_list_item_at(&list, 2) == -1,
               "rows past the end of a short list report -1");
 
         /* More items than rows: the window slides by the minimum needed. */
-        ps2ui_list_set_count(&list, 10);
+        ps2ui_list_set_count(NULL, &list, 10);
         CHECK(list.top == 0 && list.sel == 0, "long list starts at the top");
         for (i = 0; i < 3; i++) ps2ui_list_move(NULL, &list, 1);
         CHECK(list.sel == 3 && list.top == 0,
@@ -357,10 +360,10 @@ int main(int argc, char **argv)
         /* Shrinking the data under a selection that was past the new end
          * must land somewhere valid rather than off it. */
         ps2ui_list_select(NULL, &list, 9);
-        ps2ui_list_set_count(&list, 3);
+        ps2ui_list_set_count(NULL, &list, 3);
         CHECK(list.sel == 2 && list.top == 0,
               "shrinking the list pulls the selection and window back in");
-        ps2ui_list_set_count(&list, 0);
+        ps2ui_list_set_count(NULL, &list, 0);
         CHECK(list.sel == 0 && list.top == 0 && ps2ui_list_selected_row(&list) == -1,
               "emptying the list resets it");
 
@@ -368,7 +371,7 @@ int main(int argc, char **argv)
         {
             ps2ui_list rows;
             ps2ui_list_init(&rows, "save-", 4);
-            ps2ui_list_set_count(&rows, 4);
+            ps2ui_list_set_count(NULL, &rows, 4);
             /* The memcard example's saves screen has no "save-N" nodes,
              * so this proves the failure path: indices still move, the
              * focus call reports that the prefix does not match. */
@@ -420,24 +423,97 @@ int main(int argc, char **argv)
         CHECK(ps2ui_visible_set(&ctx, "no-such-node", 0) == 0,
               "an unknown name is rejected rather than silently ignored");
 
+        /* Name lookups are scoped to the current screen. The example has
+         * nav-games on both screens, and data-repeat makes two screens
+         * each using row-{i} the natural thing to write. A blob-global
+         * scan would hide the other screen's node and report success. */
+        {
+            int lib_before, lib_after, saves_before;
+            lib_before = render_and_count(&ctx, &gs);
+            ps2ui_screen_set(&ctx, "saves");
+            saves_before = render_and_count(&ctx, &gs);
+            CHECK(ps2ui_visible_set(&ctx, "nav-games", 0) == 1,
+                  "the saves screen has its own nav-games");
+            CHECK(render_and_count(&ctx, &gs) < saves_before,
+                  "and hiding it changes the screen you are looking at");
+            ps2ui_screen_set(&ctx, "library");
+            lib_after = render_and_count(&ctx, &gs);
+            CHECK(lib_after == lib_before,
+                  "the other screen's identically-named node is untouched");
+            ps2ui_visible_reset(&ctx);
+        }
+
         ps2ui_visible_set(&ctx, "tile-ico", 0);
         ps2ui_visible_reset(&ctx);
         CHECK(ps2ui_visible_get(&ctx, "tile-ico") == 1, "reset shows everything");
         CHECK(render_and_count(&ctx, &gs) == base_prims, "and restores the frame");
     }
 
-    /* A short list should look short: rows past the end are hidden, not
-     * merely blanked, or their panels still read as empty rows. */
-    {
+    /* ---- lists and visibility against a real data-repeat blob ----
+     * The memcard example cannot test this: its tiles are named after
+     * games, so a list prefix matches nothing and every assertion below
+     * would pass vacuously. This fixture bakes row-0..row-3 with one
+     * slot each. */
+    if (argc == 3) {
+        size_t llen;
+        void *lblob = slurp(argv[2], &llen);
+        ps2ui_ctx lc;
         ps2ui_list list;
-        ps2ui_list_init(&list, "tile-", 4);
-        ps2ui_list_set_count(&list, 4);
-        ps2ui_list_apply_visibility(&ctx, &list);
-        CHECK(ps2ui_list_item_at(&list, 3) == 3, "full list fills every row");
-        ps2ui_list_set_count(&list, 2);
-        CHECK(ps2ui_list_item_at(&list, 2) == -1,
-              "a short list reports its empty rows");
-        ps2ui_visible_reset(&ctx);
+        int full, one_hidden, row_cost;
+
+        CHECK(ps2ui_load(&lc, lblob, llen) == PS2UI_OK, "list fixture loads");
+        ps2ui_upload(&lc, &gs);
+
+        /* Focus really does follow the selection, by baked row name.
+         * #14 only ever exercised the failure path. */
+        ps2ui_list_init(&list, "row-", 4);
+        ps2ui_list_set_count(&lc, &list, 4);
+        CHECK(ps2ui_list_move(&lc, &list, 1) == 1
+              && strcmp(ps2ui_focus_name(&lc), "row-1") == 0,
+              "list_move focuses the row the selection lands on");
+        CHECK(ps2ui_list_select(&lc, &list, 3) == 1
+              && strcmp(ps2ui_focus_name(&lc), "row-3") == 0,
+              "list_select focuses by absolute index");
+
+        /* Hiding a row must take its slot text with it. The header and
+         * the README both promise "slots included"; before this was
+         * fixed the panel went and the glyphs kept drawing. */
+        ps2ui_list_select(&lc, &list, 0);
+        full = render_and_count(&lc, &gs);
+        ps2ui_visible_set(&lc, "row-1", 0);
+        one_hidden = render_and_count(&lc, &gs);
+        row_cost = full - one_hidden;
+        CHECK(row_cost > 1,
+              "hiding a row drops its panel *and* its slot glyphs, not just the panel");
+        ps2ui_slot_set(&lc, "row-1-text", "");
+        CHECK(render_and_count(&lc, &gs) == one_hidden,
+              "blanking an already-hidden row's slot changes nothing further");
+        ps2ui_slot_set(&lc, "row-1-text", NULL);
+        ps2ui_visible_reset(&lc);
+        CHECK(render_and_count(&lc, &gs) == full, "showing restores the frame");
+
+        /* apply_visibility hides exactly the rows past the end. */
+        ps2ui_list_set_count(&lc, &list, 2);
+        ps2ui_list_apply_visibility(&lc, &list);
+        CHECK(ps2ui_visible_get(&lc, "row-1") == 1
+              && ps2ui_visible_get(&lc, "row-2") == 0
+              && ps2ui_visible_get(&lc, "row-3") == 0,
+              "apply_visibility hides only the rows past the end");
+        CHECK(render_and_count(&lc, &gs) < full,
+              "a short list draws less than a full one");
+
+        /* Focus must not be left on a row that was just hidden. */
+        ps2ui_list_init(&list, "row-", 4);
+        ps2ui_list_set_count(&lc, &list, 4);
+        ps2ui_list_select(&lc, &list, 3);
+        ps2ui_list_set_count(&lc, &list, 2);
+        ps2ui_list_apply_visibility(&lc, &list);
+        CHECK(ps2ui_visible_get(&lc, ps2ui_focus_name(&lc)) == 1,
+              "shrinking a list never leaves focus on a hidden row");
+        CHECK(strcmp(ps2ui_focus_name(&lc), "row-1") == 0,
+              "and focus follows the clamped selection");
+
+        free(lblob);
     }
 
     printf("1..%d\n", checks);

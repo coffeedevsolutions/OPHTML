@@ -33,6 +33,7 @@ import argparse
 import sys
 
 from . import caps as caps_mod
+from . import clip as clip_mod
 from . import gs, vram
 from .quads import (
     FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
@@ -316,33 +317,17 @@ def check_fonts(uib, rep: Report) -> None:
 def _dead_commands(uib, sc) -> list:
     """Commands whose rect cannot produce a pixel.
 
-    Replays the scissor stack the way `ps2ui_render` does, starting from
-    the canvas, so this catches both a quad pushed off the framebuffer
-    and one entirely outside the clip it is drawn under. Text is the
-    usual source: a `nowrap` run inside `overflow: hidden` bakes every
-    glyph and lets the GS clip, so the tail of a long string is quads
-    the console submits every frame and can never see.
+    Uses the same scissor model as the baker (clip.py) so the two cannot
+    disagree about what "dead" means. Text is the usual source: a
+    `nowrap` run inside `overflow: hidden` used to bake every glyph and
+    let the GS clip, so the tail of a long string was quads the console
+    submitted every frame and could never see. Since F24 the baker
+    trims those, so anything reported here is either a blob from an
+    older baker or a case the trim missed.
     """
-    clip = [(0, 0, uib.canvas_w, uib.canvas_h)]
-    dead = []
-    lo = sc["cmd_first"]
-    for i in range(lo, lo + sc["cmd_count"]):
-        r = uib.records[i]
-        if r.op == OP_SCISSOR_PUSH:
-            cx, cy, cw, ch = clip[-1]
-            x0, y0 = max(cx, r.x), max(cy, r.y)
-            x1, y1 = min(cx + cw, r.x + r.w), min(cy + ch, r.y + r.h)
-            clip.append((x0, y0, max(0, x1 - x0), max(0, y1 - y0)))
-        elif r.op == OP_SCISSOR_POP:
-            if len(clip) > 1:
-                clip.pop()
-        elif r.op in (OP_QUAD, OP_TEXQUAD):
-            cx, cy, cw, ch = clip[-1]
-            if (r.x + r.w <= cx or r.y + r.h <= cy
-                    or r.x >= cx + cw or r.y >= cy + ch):
-                dead.append(i)
-    return dead
-
+    return clip_mod.dead_indices(
+        uib.records, sc["cmd_first"], sc["cmd_count"],
+        uib.canvas_w, uib.canvas_h)
 
 def check_crt(uib, rep: Report, canvas) -> None:
     """Advisory. Legal blobs that waste the GS or look wrong on a CRT."""

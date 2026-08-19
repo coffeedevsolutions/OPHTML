@@ -96,8 +96,11 @@ export function expandRepeats(root, { Element, TextNode }, warnings = []) {
           + 'Only one index is in scope, so the inner {i} would be ambiguous.',
         );
       }
-      const template = JSON.stringify(child.attrs) + JSON.stringify(child.children.length);
-      if (count > 1 && !/\{[in]\}/.test(template + serialiseText(child))) {
+      // Scan descendant *attributes* too, not just the repeated
+      // element's own. The common shape puts {i} on a nested
+      // data-slot and nothing on the row itself, which this warning
+      // used to flag — on the pattern the README recommends.
+      if (count > 1 && !/\{[in]\}/.test(serialise(child))) {
         warnings.push(
           `layout: <${child.tag}> line ${child.line}: data-repeat="${count}" but no `
           + '{i} or {n} anywhere inside, so every copy is identical. Add {i} to the '
@@ -119,7 +122,10 @@ export function expandRepeats(root, { Element, TextNode }, warnings = []) {
   return expanded;
 }
 
-function serialiseText(el) {
+/** Everything an index could have been written into: this element's
+ *  attributes and text, and every descendant's. */
+function serialise(el) {
   if (el.type === 'text') return el.text;
-  return el.children.map(serialiseText).join('');
+  return Object.values(el.attrs).join('\u0000')
+    + el.children.map(serialise).join('');
 }
