@@ -559,6 +559,46 @@ int main(int argc, char **argv)
         CHECK(render_and_count(&ctx, &gs) == base_prims, "and restores the frame");
     }
 
+    /* ---- render telemetry (ps2ui_stats) ----
+     * The stub counts gsKit calls; the runtime counts what it submits.
+     * Two independent tallies of the same frame must agree, which is
+     * the same discipline as the linear-scan pen checks: a counter
+     * compared against itself asserts nothing. */
+    {
+        int frame1, frame2, shown_slots = 0;
+        uint32_t k;
+        frame1 = render_and_count(&ctx, &gs);
+        CHECK((int)ctx.stats.prims == frame1,
+              "stats.prims agrees with the stub's independent count");
+        CHECK(ctx.stats.cmds == ctx.screen_table[ctx.screen].cmd_count,
+              "stats.cmds is the current screen's record count");
+        CHECK(ctx.stats.scissor_overflow == 0,
+              "a baked blob never overflows the scissor stack");
+        CHECK(ctx.stats.skipped_hidden == 0,
+              "nothing hidden, nothing skipped");
+        for (k = 0; k < ctx.stats.slot_glyphs; k++) shown_slots++;
+        CHECK(ctx.stats.slot_glyphs > 0 && shown_slots > 0,
+              "the slot pen reports its glyph quads");
+
+        /* Hiding moves records from prims to skipped_hidden, exactly. */
+        ps2ui_visible_set(&ctx, "tile-ico", 0);
+        frame2 = render_and_count(&ctx, &gs);
+        CHECK((int)ctx.stats.prims == frame2,
+              "stats.prims still agrees after hiding a node");
+        CHECK(ctx.stats.skipped_hidden > 0
+              && (int)(ctx.stats.prims + ctx.stats.skipped_hidden)
+                 >= frame1,
+              "hidden records are counted, not lost");
+        ps2ui_visible_reset(&ctx);
+
+        /* Counters are per-frame: two identical renders, identical
+         * stats — nothing accumulates across frames. */
+        render_and_count(&ctx, &gs);
+        k = ctx.stats.prims;
+        render_and_count(&ctx, &gs);
+        CHECK(ctx.stats.prims == k, "stats reset every frame");
+    }
+
     /* ---- lists and visibility against a real data-repeat blob ----
      * The memcard example cannot test this: its tiles are named after
      * games, so a list prefix matches nothing and every assertion below

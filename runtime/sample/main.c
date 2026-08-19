@@ -9,6 +9,7 @@
  */
 
 #include <kernel.h>
+#include <stdio.h>
 #include <gsKit.h>
 #include <dmaKit.h>
 
@@ -20,6 +21,33 @@ extern unsigned int size_ui_uib;
 
 /* Frames to hold each focus state — long enough for a screenshot. */
 #define FRAMES_PER_STATE 150
+
+/* Build with -DPS2UI_SAMPLE_TELEMETRY for a once-a-second log line on
+ * stdout. printf from the EE reaches PCSX2's console log, ps2link, and
+ * any TTY hook — no IRX modules, no storage, nothing to mount, which
+ * is why this is the first sink rather than USB or UDP: it works on
+ * the very first boot, before anything else is proven.
+ *
+ * The line is machine-fixed and grep-friendly:
+ *
+ *   ps2ui-telemetry frame=300 fps=60 miss=0 ee_us(min/avg/max)=412/430/501
+ *       prims=375 hidden=0 slotg=42 sciov=0
+ *
+ * ee_us is ps2ui_render alone (composition cost, not GPU), measured
+ * with the EE's COP0 cycle counter at 294.912 MHz. miss counts frames
+ * where the whole loop overran one 60 Hz field — the number that must
+ * stay zero. sciov nonzero means a blob deeper than the scissor stack
+ * reached the console, which the baker is supposed to make impossible.
+ */
+#ifdef PS2UI_SAMPLE_TELEMETRY
+#define EE_HZ 294912000u
+static inline u32 cop0_count(void)
+{
+    u32 v;
+    asm volatile("mfc0 %0, $9" : "=r"(v));
+    return v;
+}
+#endif
 
 /* Build with -DPS2UI_SAMPLE_STATIC to hold the baked initial focus
  * forever instead of walking the graph.
@@ -151,12 +179,52 @@ int main(void)
         }
     }
 
+#ifdef PS2UI_SAMPLE_TELEMETRY
+    u32 t_min = 0xFFFFFFFFu, t_max = 0, t_sum = 0;
+    u32 sec_frames = 0, missed = 0, t_frame_prev = cop0_count();
+#endif
+
     while (1) {
         /* Canvas background: #0a0e1a in flat-shaded full-range RGB. */
         gsKit_clear(gs, GS_SETREG_RGBAQ(0x0a, 0x0e, 0x1a, 0x80, 0x00));
+#ifdef PS2UI_SAMPLE_TELEMETRY
+        {
+            u32 t0 = cop0_count(), dt;
+            ps2ui_render(&ui, gs);
+            dt = cop0_count() - t0;
+            if (dt < t_min) t_min = dt;
+            if (dt > t_max) t_max = dt;
+            t_sum += dt;
+        }
+#else
         ps2ui_render(&ui, gs);
+#endif
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
+#ifdef PS2UI_SAMPLE_TELEMETRY
+        {
+            /* Wall time of the whole loop, vsync included: more than
+             * one field's worth of cycles means the flip missed. */
+            u32 now = cop0_count();
+            if (now - t_frame_prev > EE_HZ / 60u + EE_HZ / 600u)
+                missed++;
+            t_frame_prev = now;
+            sec_frames++;
+            if (sec_frames == 60) {
+                printf("ps2ui-telemetry frame=%u fps=%u miss=%u "
+                       "ee_us(min/avg/max)=%u/%u/%u "
+                       "prims=%u hidden=%u slotg=%u sciov=%u\n",
+                       frame, 60u - missed, missed,
+                       t_min / (EE_HZ / 1000000u),
+                       (t_sum / 60u) / (EE_HZ / 1000000u),
+                       t_max / (EE_HZ / 1000000u),
+                       ui.stats.prims, ui.stats.skipped_hidden,
+                       ui.stats.slot_glyphs, ui.stats.scissor_overflow);
+                t_min = 0xFFFFFFFFu; t_max = 0; t_sum = 0;
+                sec_frames = 0; missed = 0;
+            }
+        }
+#endif
 
         /* Walk every focus state so a timed screenshot sweep sees each
          * one: hold, then move right (wrapping via down) through the

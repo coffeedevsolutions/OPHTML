@@ -19,6 +19,12 @@ endif
 # `make PROBE=1` builds the bring-up step 2 instrument instead of the UI:
 # four solid-fill cases in colours no example uses, so a capture names
 # which primitive paths draw. No .uib is involved.
+# `make TELEMETRY=1` adds the once-a-second stats line on stdout; see
+# main.c. Combines with the cycling default (a static build has nothing
+# interesting to time).
+ifdef TELEMETRY
+EE_CFLAGS += -DPS2UI_SAMPLE_TELEMETRY
+endif
 ifdef PROBE
 EE_CFLAGS += -DPS2UI_SAMPLE_PROBE
 endif
