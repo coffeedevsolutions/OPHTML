@@ -103,6 +103,18 @@ the capture was of the whole desktop rather than the frame. ✅ **S4** is
 now genuinely partial rather than nominal: the asset is discovered, not
 guessed, and every step fails loudly.
 
+**Provenance for everything below**, since the point of writing it down
+is that CI logs expire: Play! **0.72**, asset
+`Play!-8de4a71f-x86_64.AppImage` (the suffix is Play!'s own build
+commit), fetched from purei.org's stable tree, running on llvmpipe
+under xvfb in [run
+32065976980](https://github.com/coffeedevsolutions/OPHTML/actions/runs/32065976980).
+The job resolves the newest stable version at run time and prints the
+downloaded file's sha256, so a later run may report a different oracle
+for the same finding — S4 wants that pinned. Every claim here is read
+off the palette fingerprint `framediff.py --stats` prints for both
+frames.
+
 **First results from something that is not our own previewer.** The
 captured frame's palette matches the stylesheet's text colours to
 within one unit (`#8b94a7` → `#8c94a8`, `#e8ecf4` exact), so the glyph
@@ -115,7 +127,9 @@ probe (`make PROBE=1`, no `.uib` involved) shows the clear and an
 unblended sprite drawing, blended sprites at alpha 0x20/0x40/0x60
 drawing with composites matching `(Cs - Cd) * As >> 7 + Cd` exactly,
 and blended sprites at 0x7f/0x80 rasterising with the *previous*
-primitive's colour. 0x80 is what every opaque quad in a `.uib` carries.
+primitive's colour — a colour latch, not a discarded primitive, which
+on a black clear looks the same and is not the same thing to debug.
+0x80 is what every opaque quad in a `.uib` carries.
 This is characterised, not diagnosed: Play! is HLE, and whether a real
 GS behaves the same way is the open question. Not worth more rounds
 against the wrong oracle — PCSX2 in software mode or the console
