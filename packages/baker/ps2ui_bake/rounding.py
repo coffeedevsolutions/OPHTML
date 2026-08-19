@@ -17,7 +17,8 @@ def round_half_up(x: float) -> int:
 
 def glyph_advance_px(units: int, size: int) -> int:
     """The rounding rule from docs/architecture.md. Layout's text.js
-    implements the identical expression; test_metrics_agree proves it."""
+    implements the identical expression; TestCrossLanguagePen runs both
+    pens over a corpus and compares every glyph position."""
     return round_half_up(units * size / 1000)
 
 

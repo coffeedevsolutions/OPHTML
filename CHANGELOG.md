@@ -1,5 +1,57 @@
 # Changelog
 
+## Unreleased
+
+`.uib` format **version 5**. v3 and v4 files are rejected; re-bake.
+Two format moves have landed since 0.2.0, so a blob baked against that
+release will not load.
+
+### Added
+- **Kerning** — `ps2ui-fontgen` measures pairs out of the face (with
+  ligature substitution disabled, so a ligature's width is never
+  mistaken for a kern) and every pen applies them: layout's
+  `Font.layout`, the baker's `_flatten_text`, and the runtime's
+  `render_slots`. Pairs reach the console pre-resolved to pixels at
+  each font's size, in a per-font table sorted for binary search, so a
+  frame costs one lookup per glyph and no arithmetic. Feature bit 1;
+  the font entry grew 16 → 24 bytes, which is what forces v5.
+- **Widescreen** — anamorphic 16:9 authoring, `--mode ntsc16x9`, the
+  display aspect recorded in the header, and `ps2ui_pixel_aspect_x1000`
+  so a mismatch is detectable rather than merely ugly (`.uib` v4).
+- **Lists** — `data-repeat` template expansion at build time plus a
+  runtime window over more items than fit: `ps2ui_list_init`,
+  `_move`, `_select`, `_set_count`, `_item_at`, `_selected_row`,
+  `_apply_visibility`.
+- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,
+  so an app can hide a row it has no data for instead of blanking
+  every slot in it and leaving the panel drawn.
+- **`ps2ui-check`** — a standalone `.uib` validator (TAP output) that
+  reads a blob the way the loader does and reports what would go
+  wrong on console: table caps, VRAM budget, scissor balance and
+  nesting depth, glyph and kern table sortedness, feature bits that
+  do not match the tables they describe.
+- `fonts/regen.sh` regenerates the committed metrics in one command.
+
+### Changed
+- The baker drops draw records that cannot produce a pixel (geometry
+  fully outside its clip), shrinking the command list on exactly the
+  data-heavy screens where it matters.
+- The contrast lint composites the full containing chain including
+  alpha; a translucent scrim no longer lints as an opaque fill.
+- Example builds refresh the committed screenshots, so a preview
+  cannot drift from the renderer that produced it.
+
+### Fixed
+- The scissor stack could desynchronise: a `SCISSOR_PUSH` refused for
+  want of stack was still being popped, leaving every *later* clip in
+  the frame wrong rather than only the too-deep subtree. The bake now
+  refuses a blob that deep as well.
+- `render_slots` ignored the visibility bit, so hiding a row removed
+  its panel and left its glyphs floating.
+- Focus and slot name lookups were blob-global, so hiding a row on one
+  screen could blank an identically-named row on another.
+- `ps2ui_list_set_count` did not move focus with a shrinking list.
+
 ## 0.2.0 — 2026-08-17
 
 The "real apps" release: the toolchain now covers what an actual

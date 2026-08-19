@@ -8,7 +8,9 @@ Run:  cd packages/baker && python3 -m unittest discover -s tests -v
 import io
 import json
 import os
+import shutil
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -894,6 +896,97 @@ class TestKernTable(unittest.TestCase):
         # and the dynamic-text bit is untouched by it
         self.assertEqual(bare.feature_flags & FEAT_DYNAMIC_TEXT,
                          FEAT_DYNAMIC_TEXT)
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class TestCrossLanguagePen(unittest.TestCase):
+    """Node and Python must place every glyph on the same pixel.
+
+    This is the seam the whole design rests on: layout measures the box
+    in Node, the baker draws into it in Python, and nothing downstream
+    can notice if they disagree — the text simply sits a few pixels off
+    or runs past its box, on a television, months later.
+
+    Together with the other two links the chain is closed: this test
+    covers Node <-> Python, TestKernTable covers Python -> blob, and
+    the runtime suite's linear-scan check covers blob <-> C.
+    """
+
+    CORPUS = [
+        "To the Victor",
+        "AV Ta Yo LT P. W. r. AW VA",
+        "Shadow of the Colossus",
+        "Library",
+        "PS2",
+        "iiiii",                    # nothing kerns
+        "AVAVAVAVAVAVAVAVAVAVAVAV",  # every pair kerns
+        "T",                        # one glyph, no pair at all
+        "",                         # and none
+    ]
+    SIZES = [11, 13, 14, 16, 20, 32, 48]
+    SPACINGS = [0, 1, 3]
+
+    def js_pen(self):
+        """{"size|spacing|text": [pen x per glyph]} from layout's pen."""
+        src = os.path.join(REPO, "packages", "layout", "src", "text.js")
+        script = (
+            "import { loadFont } from %s;\n"
+            "const f = loadFont(%s);\n"
+            "const out = {};\n"
+            "for (const size of %s)\n"
+            "  for (const ls of %s)\n"
+            "    for (const s of %s)\n"
+            "      out[`${size}|${ls}|${s}`] ="
+            " f.layout(s, size, ls).glyphs.map(g => g.x);\n"
+            "console.log(JSON.stringify(out));\n"
+        ) % (json.dumps(src), json.dumps(METRICS), json.dumps(self.SIZES),
+             json.dumps(self.SPACINGS), json.dumps(self.CORPUS))
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "pen.mjs")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(script)
+            out = subprocess.run([shutil.which("node"), path],
+                                 capture_output=True, text=True, check=True)
+        return json.loads(out.stdout)
+
+    def py_pen(self, text, size, spacing):
+        """The baker's pen, read back off the flattened records.
+
+        Reconstructed rather than read from the DrawRecords directly:
+        records carry x + bearing_x and exist only for inked glyphs, so
+        a space would vanish from the comparison and every position
+        would carry a bearing the other side does not add.
+        """
+        builder = AtlasBuilder(TTF, METRICS, 400, size)
+        xs = []
+        pen = 0
+        prev = None
+        for ch in text:
+            cp = ord(ch)
+            if prev is not None:
+                pen += spacing + builder.kern(prev, cp)
+            xs.append(pen)
+            pen += builder.add(ch).advance
+            prev = cp
+        return xs
+
+    def test_the_two_pens_place_every_glyph_on_the_same_pixel(self):
+        js = self.js_pen()
+        self.assertEqual(
+            len(js), len(self.SIZES) * len(self.SPACINGS) * len(self.CORPUS))
+        for key, expect in js.items():
+            size, spacing, text = key.split("|", 2)
+            got = self.py_pen(text, int(size), int(spacing))
+            self.assertEqual(got, expect, f"{text!r} at {size}px ls={spacing}")
+
+    def test_the_comparison_would_notice_a_disagreement(self):
+        # A test that compares two implementations is only worth
+        # anything if it fails when they differ. Shift one side by the
+        # kern it is supposed to apply and confirm the mismatch.
+        self.assertNotEqual(self.py_pen("To", 32, 0),
+                            [0, self.py_pen("To", 32, 0)[1] + 5])
+        self.assertEqual(self.py_pen("To", 32, 0)[1],
+                         AtlasBuilder(TTF, METRICS, 400, 32).add("T").advance - 5)
 
 
 class TestDisplayAspect(unittest.TestCase):
