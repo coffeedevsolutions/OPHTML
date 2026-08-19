@@ -92,6 +92,53 @@ class TestRounding(unittest.TestCase):
         self.assertEqual(round_half_up(-1.5), -1)
 
 
+class TestKerningExtraction(unittest.TestCase):
+    """fontgen measures pairs rather than reading a kern table, so the
+    things that can go wrong are shaper behaviours, not parse errors."""
+
+    def setUp(self):
+        with open(METRICS, encoding="utf-8") as fh:
+            self.metrics = json.load(fh)
+        self.kern = self.metrics.get("kerning", {})
+
+    def test_the_classic_pairs_are_present_and_negative(self):
+        # If these are missing the shaper applied no GPOS at all, which
+        # is the failure mode an empty table cannot be told apart from.
+        for pair, label in (("84,111", "To"), ("65,86", "AV"),
+                            ("76,84", "LT"), ("80,46", "P.")):
+            self.assertIn(pair, self.kern, label)
+            self.assertLess(self.kern[pair], 0, label)
+
+    def test_ligatures_are_not_mistaken_for_kerns(self):
+        # DejaVu shapes "ff" as one glyph 15 units narrower than f + f.
+        # The pen draws two glyphs, so adopting that as a kern would
+        # make every measured width 15 units short of what is drawn.
+        self.assertNotIn("102,102", self.kern)   # ff
+        self.assertNotIn("102,105", self.kern)   # fi
+        self.assertNotIn("102,108", self.kern)   # fl
+
+    def test_only_nonzero_pairs_are_stored(self):
+        # ~13k pairs measured, a few hundred kept: the table is a
+        # sparse map, and a stored zero would just cost bytes.
+        self.assertTrue(all(v != 0 for v in self.kern.values()))
+        self.assertLess(len(self.kern), 2000)
+
+    def test_keys_name_codepoints_in_order(self):
+        for key in self.kern:
+            prev, cur = key.split(",")
+            self.assertTrue(prev.isdigit() and cur.isdigit(), key)
+        # Kerning is directional: "AV" and "VA" are separate entries,
+        # and a font may adjust one without the other.
+        self.assertIn("84,111", self.kern)       # To
+        self.assertNotIn("111,84", self.kern)    # oT is not kerned
+
+    def test_every_kerned_codepoint_has_an_advance(self):
+        adv = self.metrics["advances"]
+        for key in self.kern:
+            for cp in key.split(","):
+                self.assertIn(cp, adv, key)
+
+
 class TestAlphaDomain(unittest.TestCase):
     def test_opaque_css_is_gs_0x80(self):
         self.assertEqual(css_alpha_to_gs(255), 0x80)
