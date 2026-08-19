@@ -428,6 +428,33 @@ static const ps2ui_glyph *find_glyph(const ps2ui_ctx *ctx,
     return 0;
 }
 
+/* Pixel kern for an ordered pair, or 0 when the pair is not adjusted.
+ *
+ * The baker resolved every pair to pixels at this font's size and
+ * sorted the table by (prev, cur), so this is the same binary search
+ * find_glyph does — no division, no metrics, no per-frame arithmetic
+ * beyond a lookup. With the feature bit clear the table is empty by
+ * construction and the whole thing costs one branch. */
+static int find_kern(const ps2ui_ctx *ctx, const ps2ui_font_entry *font,
+                     uint32_t prev, uint32_t cp)
+{
+    const ps2ui_kern *k;
+    uint32_t lo = 0, hi = font->kern_count;
+    if (hi == 0)
+        return 0;
+    k = (const ps2ui_kern *)(ctx->blob + font->kerns_off);
+    while (lo < hi) {
+        uint32_t mid = lo + (hi - lo) / 2;
+        if (k[mid].prev < prev || (k[mid].prev == prev && k[mid].cur < cp))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    if (lo < font->kern_count && k[lo].prev == prev && k[lo].cur == cp)
+        return k[lo].amount;
+    return 0;
+}
+
 #define PS2UI_ELLIPSIS_CP 0x2026u
 
 /* Measure text against the slot width; returns width actually used and
@@ -440,22 +467,32 @@ static int slot_measure(const ps2ui_ctx *ctx, const ps2ui_slot_entry *s,
     const ps2ui_glyph *ell = find_glyph(ctx, font, PS2UI_ELLIPSIS_CP);
     int ell_w = ell ? ell->advance : 0;
     int w = 0, fit_w = 0;
+    uint32_t prev = 0;
+    int have_prev = 0;
     size_t fit_len = 0;
     const char *p = text;
     *ellipsize = 0;
     while (*p) {
-        const char *at = p;
         uint32_t cp = utf8_next(&p);
         const ps2ui_glyph *g = find_glyph(ctx, font, cp);
+        int ell_kern;
         if (!g)
             continue;
+        if (have_prev)
+            w += find_kern(ctx, font, prev, cp);
+        /* The ellipsis kerns against whatever glyph the cut leaves
+         * last, so its cost depends on where the cut falls and cannot
+         * be subtracted from the budget once up front. */
+        ell_kern = (s->flags & PS2UI_SLOT_FLAG_ELLIPSIS)
+            ? find_kern(ctx, font, cp, PS2UI_ELLIPSIS_CP) : 0;
         if ((s->flags & PS2UI_SLOT_FLAG_ELLIPSIS)
-            && w + g->advance + ell_w <= s->w) {
-            fit_w = w + g->advance;
+            && w + g->advance + ell_kern + ell_w <= s->w) {
+            fit_w = w + g->advance + ell_kern;
             fit_len = (size_t)(p - text);
         }
         w += g->advance;
-        (void)at;
+        prev = cp;
+        have_prev = 1;
     }
     if (w <= s->w) {
         *draw_len = strlen(text);
@@ -512,11 +549,19 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
         is_focused = (s->focus != PS2UI_NONE) && (s->focus == ctx->focus);
         col = is_focused ? s->color_focus : s->color_base;
 
+        uint32_t prev = 0;
+        int have_prev = 0;
         while (p < end) {
             uint32_t cp = utf8_next(&p);
             const ps2ui_glyph *g = find_glyph(ctx, font, cp);
             if (!g)
                 continue;
+            /* Same pen as the baker's: kern, place, advance. Runtime
+             * text sits next to baked text on the same screen, so a
+             * runtime pen that skipped this would look like a
+             * different font. */
+            if (have_prev)
+                pen += find_kern(ctx, font, prev, cp);
             if (g->w > 0) {
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
@@ -527,9 +572,13 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
                     0, GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
             }
             pen += g->advance;
+            prev = cp;
+            have_prev = 1;
         }
         if (ellipsize) {
             const ps2ui_glyph *g = find_glyph(ctx, font, PS2UI_ELLIPSIS_CP);
+            if (have_prev)
+                pen += find_kern(ctx, font, prev, PS2UI_ELLIPSIS_CP);
             if (g && g->w > 0) {
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),

@@ -163,8 +163,13 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
     if len(scissors) != 1:
         raise ValueError("unbalanced scissor stack in command list")
 
-    # Dynamic text slots: same pen as the C runtime — advance walk over
-    # the baked glyph table, optional ellipsis, align, focus color.
+    # Dynamic text slots: same pen as the C runtime — kern, place,
+    # advance over the baked glyph table, optional ellipsis, align,
+    # focus color. This mirror is the only place the runtime's slot
+    # rendering can be seen without a console, so it has to track
+    # render_slots line for line, including the greedy ellipsis fit
+    # (the runtime cannot afford layout's shrink-from-the-back search
+    # once per frame).
     for slot in uib.slots[sc["slot_first"]:sc["slot_first"] + sc["slot_count"]]:
         text = (slot_text or {}).get(slot["name"]) or slot["placeholder"]
         font = uib.fonts[slot["font"]]
@@ -175,25 +180,55 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
         fallback = glyphs.get(ord("?"))
         ell = glyphs.get(0x2026)
 
+        kerns = font["kerns"]
+
         def advance_of(cp):
             g = glyphs.get(cp, fallback)
             return g["advance"] if g else 0
 
+        def has(cp):
+            return cp in glyphs or fallback is not None
+
+        def kern_of(prev, cp):
+            return 0 if prev is None else kerns.get((prev, cp), 0)
+
+        def width_of(seq):
+            # A codepoint with no glyph and no fallback is skipped
+            # whole, and does not become the `prev` of the next kern —
+            # exactly as the runtime's slot_measure does, because a
+            # glyph that is not drawn cannot be kerned against.
+            w = 0
+            prev = None
+            for cp in seq:
+                if not has(cp):
+                    continue
+                w += kern_of(prev, cp) + advance_of(cp)
+                prev = cp
+            return w
+
         cps = [ord(ch) for ch in text]
-        total = sum(advance_of(cp) for cp in cps)
+        total = width_of(cps)
         ellipsize = False
         if total > slot["w"] and slot["ellipsis"]:
             ellipsize = True
             ell_w = ell["advance"] if ell else 0
             w = 0
             fit = []
+            prev = None
             for cp in cps:
-                if w + advance_of(cp) + ell_w > slot["w"]:
+                if not has(cp):
+                    continue
+                w += kern_of(prev, cp)
+                # The ellipsis kerns against whatever glyph the cut
+                # leaves last, so its cost depends on where the cut is.
+                ell_kern = kern_of(cp, 0x2026)
+                if w + advance_of(cp) + ell_kern + ell_w > slot["w"]:
                     break
                 w += advance_of(cp)
                 fit.append(cp)
+                prev = cp
             cps = fit
-            total = w + ell_w
+            total = w + kern_of(prev, 0x2026) + ell_w
 
         pen = slot["x"]
         if slot["align"] == 1 and total < slot["w"]:
@@ -206,16 +241,19 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
 
         if ellipsize and ell:
             cps = cps + [0x2026]
+        prev = None
         for cp in cps:
             g = glyphs.get(cp, fallback)
             if not g:
                 continue
+            pen += kern_of(prev, cp)
             if g["w"] > 0:
                 src = atlas.crop((g["u"], g["v"], g["u"] + g["w"], g["v"] + g["h"]))
                 src = _tint(src, color)
                 canvas.alpha_composite(
                     src, (pen + g["bearing_x"], slot["text_y"] + g["bearing_y"]))
             pen += g["advance"]
+            prev = cp
 
     return canvas
 
