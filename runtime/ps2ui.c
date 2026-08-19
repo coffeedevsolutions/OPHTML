@@ -305,6 +305,12 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
 {
     scissor_rect stack[PS2UI_MAX_SCISSOR_DEPTH];
     int depth = 0;
+    /* Pushes refused for want of stack. Their pops must be refused too:
+     * popping a push that never happened leaves the stack one level
+     * shallow, and every clip for the rest of the frame is then wrong,
+     * not just the ones inside the too-deep subtree. The baker refuses
+     * to write a blob this deep, so this is the belt to those braces. */
+    int overflow = 0;
     uint32_t i;
 
     stack[0].x0 = 0;
@@ -321,8 +327,13 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
 
         if (c->op == PS2UI_OP_SCISSOR_PUSH) {
             scissor_rect r, *top = &stack[depth];
-            if (depth + 1 >= PS2UI_MAX_SCISSOR_DEPTH)
-                continue; /* baker never emits this deep; fail soft */
+            if (depth + 1 >= PS2UI_MAX_SCISSOR_DEPTH) {
+                /* Fail soft: the subtree draws under the enclosing clip,
+                 * which is larger, so it draws too much rather than
+                 * corrupting the frame. */
+                overflow++;
+                continue;
+            }
             r.x0 = c->x > top->x0 ? c->x : top->x0;
             r.y0 = c->y > top->y0 ? c->y : top->y0;
             r.x1 = c->x + c->w < top->x1 ? c->x + c->w : top->x1;
@@ -334,6 +345,10 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
             continue;
         }
         if (c->op == PS2UI_OP_SCISSOR_POP) {
+            if (overflow > 0) {
+                overflow--;   /* matches a push that was refused */
+                continue;
+            }
             if (depth > 0)
                 depth--;
             apply_scissor(gs, &stack[depth]);

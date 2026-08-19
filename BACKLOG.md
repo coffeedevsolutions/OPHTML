@@ -162,7 +162,6 @@ and the focus; the app owns the data.
 
 A list is a view over rows that are already baked, so this costs a UI
 that never uses one exactly nothing, and no `.uib` version moved.
-Suites: 61 layout, 93 runtime.
 
 **Sprint 9 status (2026-08-17):** ✅ **F24** the baker drops draw
 records that cannot produce a pixel. A `nowrap` run inside
@@ -203,8 +202,38 @@ load-time cap: a blob with more focusables loads and renders fine, it
 just cannot hide the ones past the ceiling, and the setter returns 0
 rather than pretending. No format change.
 
-`ps2ui_list_apply_visibility` wires the two features together. 106
-runtime checks, was 93.
+`ps2ui_list_apply_visibility` wires the two features together.
+
+**Sprint 11 status (2026-08-19):** review follow-up. Four reviews on
+the F6/F24/F21 stack found two defects that made shipped documentation
+false — `render_slots` never saw the visibility check, so hiding a row
+took its panel and left its glyphs; and the `data-repeat` no-index
+warning fired on the exact pattern the README recommends, because the
+serialiser skipped descendant attributes. Both fixed, along with
+`ps2ui_list_set_count` gaining a `ctx` so focus follows a shrinking
+list, name lookups scoped to the current screen (they were blob-global,
+so hiding a row could blank another screen's), and one shared scissor
+model in `clip.py` instead of two copies that already differed.
+
+The defect behind the first one is worth naming: the test that should
+have caught it drove a list prefix against a blob whose rows had other
+names, so every call returned 0 and the assertions passed vacuously.
+There is now a real `data-repeat` fixture built by the runtime
+Makefile.
+
+✅ **B16** the scissor stack could desynchronise. `ps2ui_render` refuses
+a SCISSOR_PUSH past `PS2UI_MAX_SCISSOR_DEPTH` but was still popping it,
+leaving the stack a level shallow and every *subsequent* clip in the
+frame wrong, not just the ones inside the too-deep subtree. Refused
+pushes now refuse their pops too, so the failure is confined to drawing
+under a larger clip. And it is caught earlier: `caps.py` never actually
+parsed `PS2UI_MAX_SCISSOR_DEPTH` — the regex matched but `FALLBACK` had
+no key, so `caps.update` dropped it and no stage knew the limit existed
+— so the bake now refuses a blob that deep and `ps2ui-check` reports
+per-screen nesting.
+
+Counts move often enough that quoting them per sprint just makes the
+file wrong; `README.md` carries the commands that print them.
 
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
@@ -240,6 +269,7 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | B12 | ✅ **A slot could not be blanked.** `""` reverted to the baked placeholder because the check was `slot_text[i][0] != '\0'`, so an app with no data for a row could not empty it. `NULL` already meant revert, so `""` now means blank. | 4 | 1 | 1.0 | 0.25 | **16** |
 | B14 | ✅ **Contrast lint discarded background alpha.** It read the nearest containing rect's raw RGB, so a 60%-opaque scrim scored the same as an opaque fill. A `.uib` is replayed over whatever the host app drew, so this is exactly backwards: the translucent case is the one where contrast is at risk and the one the rule could not see. Now composites the full containing chain in paint order and, when the chain still transmits, evaluates against black and white backdrops and reports the worse. | 6 | 2 | 1.0 | 0.25 | **48** |
 | B15 | ✅ **Probe screen overflowed the canvas.** A seventh 178px cell in a wrapping grid sized for six pushed a third row past y=448, putting the FLEX cell and the whole footer off-screen. The linter emitted four overscan warnings that went unread; the example is meant to be warning-free so that a warning means something. Cells are 135px, wrapping 4 + 3. | 3 | 1 | 1.0 | 0.1 | **30** |
+| B16 | ✅ **Scissor stack could desynchronise, corrupting the rest of the frame.** `ps2ui_render` refuses a SCISSOR_PUSH past `PS2UI_MAX_SCISSOR_DEPTH` but still popped it, so after one too-deep subtree the stack sat a level shallow and every later clip was wrong — text bleeding out of panels it never belonged to, far from the markup that caused it. Compounding it, `caps.py` never parsed the constant (the regex matched, but `FALLBACK` had no key so `caps.update` dropped it), so no stage knew the limit existed. Refused pushes now refuse their pops, the bake rejects a blob that deep naming the constant to raise, and `ps2ui-check` reports per-screen nesting. | 4 | 2 | 1.0 | 0.25 | **32** |
 
 \* numbered to match the working notes; ordering below is by score.
 
