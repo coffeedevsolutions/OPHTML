@@ -467,3 +467,98 @@ function readFixture(rel) {
 function fixtureDir() {
   return join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 }
+
+// ---------------------------------------------------------------- repeat
+
+test('repeat: data-repeat stamps N copies with {i} and {n} substituted', () => {
+  const ir = compileCss(
+    `<div class="s">
+       <div class="row" data-repeat="3" id="row-{i}" focusable>
+         <p class="t" data-slot="title-{i}" data-slot-capacity="8">Item {n}</p>
+       </div>
+     </div>`,
+    '.s { background: #0a0e1a; gap: 4px } .row { background: #12182a; padding: 4px }'
+    + ' .t { font-size: 16px; color: #dbe2ee }',
+  );
+  assert.deepEqual(ir.focus.nodes.map((n) => n.name), ['row-0', 'row-1', 'row-2']);
+  assert.deepEqual(ir.slots.map((s) => s.name), ['title-0', 'title-1', 'title-2']);
+  // {n} is 1-based, for the copy a human reads.
+  assert.deepEqual(ir.slots.map((s) => s.placeholder), ['Item 1', 'Item 2', 'Item 3']);
+});
+
+test('repeat: copies lay out as if they had been typed out', () => {
+  const css = '.s { background: #0a0e1a; gap: 4px }'
+    + ' .row { background: #12182a; padding: 4px } .t { font-size: 16px; color: #dbe2ee }';
+  const templated = compileCss(
+    `<div class="s"><div class="row" data-repeat="3" id="r-{i}"><p class="t">Row {n}</p></div></div>`,
+    css,
+  );
+  const written = compileCss(
+    `<div class="s">
+       <div class="row" id="r-0"><p class="t">Row 1</p></div>
+       <div class="row" id="r-1"><p class="t">Row 2</p></div>
+       <div class="row" id="r-2"><p class="t">Row 3</p></div>
+     </div>`,
+    css,
+  );
+  // The whole point: expansion happens before styles are computed, so
+  // there is no such thing as a "repeated" box downstream.
+  assert.deepEqual(templated.commands, written.commands);
+});
+
+test('repeat: a count that is not a whole number is a compile error', () => {
+  assert.throws(
+    () => compileCss('<div class="s"><p data-repeat="{count}">x</p></div>', '.s {}'),
+    /data-repeat="\{count\}" is not a whole number/,
+  );
+});
+
+test('repeat: an out-of-range count names the budget', () => {
+  assert.throws(
+    () => compileCss('<div class="s"><p data-repeat="0">x</p></div>', '.s {}'),
+    /out of range 1\.\.256/,
+  );
+  assert.throws(
+    () => compileCss('<div class="s"><p data-repeat="999">x</p></div>', '.s {}'),
+    /out of range 1\.\.256/,
+  );
+});
+
+test('repeat: nested repeats are refused rather than guessed at', () => {
+  assert.throws(
+    () => compileCss(
+      '<div class="s"><div data-repeat="2"><p data-repeat="2">x</p></div></div>',
+      '.s {}',
+    ),
+    /data-repeat inside data-repeat/,
+  );
+});
+
+test('repeat: copies with no index are a warning, and duplicate slots an error', () => {
+  // Indistinguishable copies are legal but almost never intended.
+  const ir = compileCss(
+    '<div class="s"><p class="t" data-repeat="3">same</p></div>',
+    '.s { background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
+  );
+  assert.ok(ir.warnings.some((w) => /no \{i\} or \{n\} anywhere inside/.test(w)));
+
+  // Forgetting {i} on a data-slot is caught by the existing duplicate
+  // check, which names the slot — a better error than any rename magic.
+  assert.throws(
+    () => compileCss(
+      '<div class="s"><p class="t" data-repeat="2" data-slot="title">x</p></div>',
+      '.s { background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
+    ),
+    /duplicate data-slot name "title"/,
+  );
+});
+
+test('repeat: data-repeat never reaches the cascade as an attribute', () => {
+  // It is consumed by the expansion pass. If it leaked through, an
+  // attribute selector or the unknown-property path could see it.
+  const ir = compileCss(
+    '<div class="s"><p class="t" data-repeat="2" id="p-{i}">x</p></div>',
+    '.s { background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
+  );
+  assert.equal(ir.warnings.filter((w) => /data-repeat/.test(w) && !/no \{i\}/.test(w)).length, 0);
+});

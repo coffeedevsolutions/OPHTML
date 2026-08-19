@@ -179,6 +179,10 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
 #define PS2UI_MAX_SLOTS         16
 #define PS2UI_SLOT_BUFSZ        96  /* bytes incl. NUL, per slot */
 #define PS2UI_MAX_SCREENS       8
+/* Longest row focus name a list can build: prefix + index + NUL. Only
+ * a stack buffer in ps2ui_list_move, not a table bound, so it costs
+ * nothing to a UI that never uses a list. */
+#define PS2UI_LIST_NAME_MAX     64
 
 typedef struct ps2ui_ctx {
     const uint8_t         *data;     /* the whole .uib, caller-owned      */
@@ -266,6 +270,63 @@ const char *ps2ui_screen_name(const ps2ui_ctx *ctx);
  * wider than tall. Useful for asserting your video setup matches the
  * blob; ps2ui itself draws in framebuffer pixels regardless. */
 uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);
+
+/* ------------------------------------------------------- list window */
+
+/* Scrolling over more items than the blob has rows (backlog F6).
+ *
+ * A `data-repeat` template bakes a fixed number of rows. A launcher has
+ * a variable number of things to show. This is the arithmetic between
+ * the two, and it lives here because every app gets the same edge cases
+ * wrong: a selection that walks off the end, a count smaller than the
+ * rows, an empty list, and keeping the selection on screen while the
+ * window moves under it.
+ *
+ * ps2ui owns the indices and where focus sits. The app owns the data:
+ * after any move, fill row r from item (top + r) with ps2ui_slot_set,
+ * and blank the rows past the end.
+ *
+ * No blob support is involved. A list is a view over rows that are
+ * already baked, so this needs no format version and costs nothing to
+ * a UI that does not use it. */
+typedef struct {
+    const char *prefix; /* focus-name prefix; row r is "<prefix>r" */
+    uint16_t rows;      /* baked rows, from the data-repeat count */
+    uint16_t count;     /* items the app has */
+    uint16_t top;       /* item index shown in row 0 */
+    uint16_t sel;       /* selected item index */
+} ps2ui_list;
+
+/* Bind a list to `rows` baked rows whose focus names are prefix+index
+ * ("row-" gives row-0, row-1, ...). Starts empty; call
+ * ps2ui_list_set_count next. */
+void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);
+
+/* Tell the list how many items exist. Clamps the selection and the
+ * window into range, so shrinking a list under a selection sitting past
+ * the new end lands somewhere valid rather than off the end. */
+void ps2ui_list_set_count(ps2ui_list *list, uint16_t count);
+
+/* Move the selection by `delta` items (-1 up, +1 down, +/-rows for a
+ * page). Clamps at both ends — a list does not wrap, because walking
+ * off the end of a hundred saves and arriving at the top is disorienting
+ * in a way a six-tile grid never is. Scrolls the window to keep the
+ * selection visible, moves focus to the row the selection now occupies,
+ * and returns 1 if anything changed. */
+int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);
+
+/* Select an absolute item index, scrolling to it. Returns 1 if
+ * anything changed. Out-of-range indices clamp. */
+int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item);
+
+/* The item index displayed in row `row`, or -1 when that row is past
+ * the end of the data and should be blanked. This is the loop the app
+ * runs after every move to refill the slots. */
+int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row);
+
+/* Which baked row the selection currently occupies (0..rows-1), or -1
+ * for an empty list. */
+int ps2ui_list_selected_row(const ps2ui_list *list);
 
 /* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed
  * for tests. */

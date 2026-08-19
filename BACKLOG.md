@@ -94,6 +94,35 @@ geometry on its first run, now filed as F24. ✅ **S4-partial** the Play!
 download no longer hardcodes an asset name that 404s, and no longer
 saves and executes the error page when it does.
 
+**Sprint 8 status (2026-08-17):** ✅ **F6** lists, both halves, and
+neither needed a format change.
+
+*Templating.* `data-repeat="N"` on an element stamps N copies before
+styles are computed, with `{i}` (0-based) and `{n}` (1-based)
+substituted in any attribute and in text. Because expansion happens on
+the element tree, a repeated row is indistinguishable downstream from
+one typed out, and a test asserts the two compile to identical command
+lists. Nothing is renamed implicitly: forgetting `{i}` on a `data-slot`
+lands on the existing duplicate-name error, which names the slot, and
+copies with no index at all are a warning. Nested repeats are refused
+rather than guessed at, since only one index is in scope. Counts are
+literal and bounded 1..256, because every copy costs commands and a
+focusable one costs a focus node.
+
+*Windowing.* `ps2ui_list` is the arithmetic between a fixed number of
+baked rows and a variable number of items: minimum-distance scrolling
+so the screen does not jump when the user asked one row to move,
+clamping at both ends rather than wrapping, `item_at()` returning -1 for
+rows past the end so they get blanked instead of showing last frame's
+text, and a count that can shrink under a selection sitting past the new
+end. Those are the cases an app reimplementing this gets wrong, which is
+the whole argument for it living in the runtime. ps2ui owns the indices
+and the focus; the app owns the data.
+
+A list is a view over rows that are already baked, so this costs a UI
+that never uses one exactly nothing, and no `.uib` version moved.
+Suites: 61 layout, 93 runtime.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two

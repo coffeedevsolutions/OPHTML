@@ -300,6 +300,83 @@ int main(int argc, char **argv)
         ps2ui_screen_set(&ctx, "library");
     }
 
+    /* ---- list window (F6) ----
+     * Pure index arithmetic, so it needs no blob support and is tested
+     * without one. These are the cases an app reimplementing this by
+     * hand gets wrong; that is the reason the helper exists. */
+    {
+        ps2ui_list list;
+        int r;
+
+        ps2ui_list_init(&list, "row-", 4);
+        CHECK(list.rows == 4 && list.count == 0 && list.top == 0,
+              "list starts empty");
+        CHECK(ps2ui_list_item_at(&list, 0) == -1,
+              "empty list has no item in row 0");
+        CHECK(ps2ui_list_selected_row(&list) == -1,
+              "empty list has no selected row");
+        CHECK(ps2ui_list_move(NULL, &list, 1) == 0,
+              "moving in an empty list does nothing");
+
+        /* Fewer items than rows: the tail rows must report -1 so the app
+         * blanks them instead of leaving last frame's text. */
+        ps2ui_list_set_count(&list, 2);
+        CHECK(ps2ui_list_item_at(&list, 1) == 1
+              && ps2ui_list_item_at(&list, 2) == -1,
+              "rows past the end of a short list report -1");
+
+        /* More items than rows: the window slides by the minimum needed. */
+        ps2ui_list_set_count(&list, 10);
+        CHECK(list.top == 0 && list.sel == 0, "long list starts at the top");
+        for (i = 0; i < 3; i++) ps2ui_list_move(NULL, &list, 1);
+        CHECK(list.sel == 3 && list.top == 0,
+              "selection reaches the last visible row without scrolling");
+        ps2ui_list_move(NULL, &list, 1);
+        CHECK(list.sel == 4 && list.top == 1,
+              "the fifth step scrolls by exactly one row");
+        CHECK(ps2ui_list_selected_row(&list) == 3,
+              "the selection stays on the bottom row while scrolling");
+        CHECK(ps2ui_list_item_at(&list, 0) == 1,
+              "row 0 now shows item 1");
+
+        /* Both ends clamp; a list does not wrap. */
+        ps2ui_list_move(NULL, &list, 99);
+        CHECK(list.sel == 9 && list.top == 6, "moving past the end clamps");
+        CHECK(ps2ui_list_item_at(&list, 3) == 9, "the last item is on the last row");
+        r = ps2ui_list_move(NULL, &list, 1);
+        CHECK(r == 0 && list.sel == 9, "moving down at the end is a no-op");
+        ps2ui_list_move(NULL, &list, -99);
+        CHECK(list.sel == 0 && list.top == 0, "moving past the start clamps");
+        CHECK(ps2ui_list_move(NULL, &list, -1) == 0,
+              "moving up at the start is a no-op");
+
+        /* Paging is the same call with a bigger delta. */
+        ps2ui_list_move(NULL, &list, (int)list.rows);
+        CHECK(list.sel == 4 && list.top == 1, "a page down moves one screenful");
+
+        /* Shrinking the data under a selection that was past the new end
+         * must land somewhere valid rather than off it. */
+        ps2ui_list_select(NULL, &list, 9);
+        ps2ui_list_set_count(&list, 3);
+        CHECK(list.sel == 2 && list.top == 0,
+              "shrinking the list pulls the selection and window back in");
+        ps2ui_list_set_count(&list, 0);
+        CHECK(list.sel == 0 && list.top == 0 && ps2ui_list_selected_row(&list) == -1,
+              "emptying the list resets it");
+
+        /* Focus follows the selection, by the baked row names. */
+        {
+            ps2ui_list rows;
+            ps2ui_list_init(&rows, "save-", 4);
+            ps2ui_list_set_count(&rows, 4);
+            /* The memcard example's saves screen has no "save-N" nodes,
+             * so this proves the failure path: indices still move, the
+             * focus call reports that the prefix does not match. */
+            CHECK(ps2ui_list_move(&ctx, &rows, 1) == 1 && rows.sel == 1,
+                  "a prefix that matches no node still tracks indices");
+        }
+    }
+
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
     free(blob);

@@ -8,8 +8,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseHTML } from './html.js';
+import { parseHTML, Element, TextNode } from './html.js';
 import { parseStylesheet } from './css.js';
+import { expandRepeats } from './repeat.js';
 import { buildBoxTree, resetBoxIds } from './box.js';
 import { layoutTree } from './flex.js';
 import { buildDisplayList } from './paint.js';
@@ -19,6 +20,7 @@ import { loadFont } from './text.js';
 import { pixelAspect, displaySize } from './aspect.js';
 
 export { parseHTML } from './html.js';
+export { expandRepeats, substituteIndex } from './repeat.js';
 export { parseStylesheet, computeStyle, INITIAL_STYLE } from './css.js';
 export { wrapText, ellipsize, loadFont, Font, clearFontCache } from './text.js';
 export { measureNode, computeFlexLines, placeNode } from './flex.js';
@@ -70,6 +72,9 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   const warnings = [];
 
   const dom = parseHTML(htmlSrc);
+  // Stamp out data-repeat templates before anything computes styles, so
+  // a repeated row is indistinguishable from one that was typed out.
+  expandRepeats(dom, { Element, TextNode }, warnings);
   const sheet = parseStylesheet(cssSrc);
   warnings.push(...sheet.warnings);
 

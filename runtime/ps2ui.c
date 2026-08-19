@@ -655,3 +655,113 @@ int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)
     }
     return 0;
 }
+
+/* --------------------------------------------------------- list window */
+
+/* Row focus names are built here rather than by the app, so the naming
+ * convention lives in exactly one place. No snprintf: the runtime is
+ * string.h only, and the index is bounded by PS2UI_MAX_LIST_ROWS. */
+static void list_row_name(const ps2ui_list *list, uint16_t row,
+                          char *out, size_t cap)
+{
+    size_t n = 0;
+    char digits[6];
+    int d = 0;
+    unsigned v = row;
+
+    if (list->prefix) {
+        while (list->prefix[n] && n + 1 < cap) { out[n] = list->prefix[n]; n++; }
+    }
+    do { digits[d++] = (char)('0' + (v % 10u)); v /= 10u; } while (v && d < 6);
+    while (d > 0 && n + 1 < cap) out[n++] = digits[--d];
+    out[n] = '\0';
+}
+
+/* Slide the window the minimum distance that puts sel back on screen.
+ * Minimum, not centred: a list that recentres on every step makes the
+ * whole screen move when the user asked one row to. */
+static void list_scroll_into_view(ps2ui_list *list)
+{
+    if (list->rows == 0 || list->count == 0) { list->top = 0; return; }
+    if (list->sel < list->top)
+        list->top = list->sel;
+    else if (list->sel >= (uint16_t)(list->top + list->rows))
+        list->top = (uint16_t)(list->sel - list->rows + 1);
+
+    /* Never leave blank rows above real items when the tail is in view. */
+    if (list->count > list->rows) {
+        uint16_t max_top = (uint16_t)(list->count - list->rows);
+        if (list->top > max_top) list->top = max_top;
+    } else {
+        list->top = 0;
+    }
+}
+
+void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows)
+{
+    if (!list) return;
+    list->prefix = prefix;
+    list->rows = rows;
+    list->count = 0;
+    list->top = 0;
+    list->sel = 0;
+}
+
+void ps2ui_list_set_count(ps2ui_list *list, uint16_t count)
+{
+    if (!list) return;
+    list->count = count;
+    if (count == 0) { list->sel = 0; list->top = 0; return; }
+    if (list->sel >= count) list->sel = (uint16_t)(count - 1);
+    list_scroll_into_view(list);
+}
+
+int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)
+{
+    uint32_t item;
+    if (!list || row >= list->rows) return -1;
+    item = (uint32_t)list->top + row;
+    if (item >= list->count) return -1;
+    return (int)item;
+}
+
+int ps2ui_list_selected_row(const ps2ui_list *list)
+{
+    if (!list || list->count == 0) return -1;
+    return (int)(list->sel - list->top);
+}
+
+/* Focus follows the selection. Failing to find the row's node is not
+ * fatal — the indices are still correct and the app can still fill the
+ * slots — but it means the prefix does not match the baked names, which
+ * is worth surfacing as a 0 return rather than silently doing nothing. */
+static int list_sync_focus(ps2ui_ctx *ctx, const ps2ui_list *list)
+{
+    char name[PS2UI_LIST_NAME_MAX];
+    int row = ps2ui_list_selected_row(list);
+    if (!ctx || row < 0) return 0;
+    list_row_name(list, (uint16_t)row, name, sizeof name);
+    return ps2ui_focus_set(ctx, name);
+}
+
+int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item)
+{
+    uint16_t old_sel, old_top;
+    if (!list || list->count == 0) return 0;
+    old_sel = list->sel;
+    old_top = list->top;
+    list->sel = item >= list->count ? (uint16_t)(list->count - 1) : item;
+    list_scroll_into_view(list);
+    list_sync_focus(ctx, list);
+    return (list->sel != old_sel || list->top != old_top) ? 1 : 0;
+}
+
+int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)
+{
+    long target;
+    if (!list || list->count == 0) return 0;
+    target = (long)list->sel + delta;
+    if (target < 0) target = 0;
+    if (target > (long)list->count - 1) target = (long)list->count - 1;
+    return ps2ui_list_select(ctx, list, (uint16_t)target);
+}
