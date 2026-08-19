@@ -67,12 +67,9 @@ tables → v3 multi-screen + images (0.2.0) → v4 display aspect (76-byte
 header) → v5 kerning (font entry 16→24 bytes, feature bit 1). Struct-size
 changes always bump the version; unknown feature bits reject loudly.
 
-**Open PRs:** [#17](https://github.com/coffeedevsolutions/OPHTML/pull/17)
-(scissor desync B16 + backlog numbers) and
-[#18](https://github.com/coffeedevsolutions/OPHTML/pull/18) (kerning F9,
-`.uib` v5, stacked on #17). CI: toolchain / bake / **elf (ps2dev console
-compile)** green on both; the emulator failure is the known Play!
-characterisation (§3), not a regression.
+Work in flight is not listed here. A sequencing document that names
+open pull requests is stale the moment it merges, and `git log` is
+already the authority for what is pending.
 
 ## §3 What is not proven
 
@@ -100,7 +97,10 @@ together and less like a cohesive product."* Confirmed. Not bugs — the
 shape of a system grown feature-by-feature without a resource model.
 
 **4.1 Fixed maxima instead of a working set.** The context is 3,240 bytes
-and almost none of it derives from the blob it loaded:
+under the host test stub — and larger on the console, since the stub's
+`GSTEXTURE` is a deliberately minimal subset of gsKit's. The exact
+number is not the point; where it comes from is. Almost none of it
+derives from the blob it loaded:
 `gs_tex[32]` 1,536 B, `slot_text[16][96]` 1,536 B, hidden bitmap 32 B,
 screen focus memory — five independent ceilings
 (`MAX_TEXTURES` 32, `MAX_SLOTS` 16 × `SLOT_BUFSZ` 96, `MAX_HIDEABLE` 256,
@@ -292,10 +292,15 @@ replaces RICE.
   capabilities take a feature bit, readers reject what they don't know.
 - **I4** Previewer parity: no runtime rendering behaviour without its
   previewer mirror.
-- **I5** `ps2ui-check` learns every invariant the loader enforces, the same
-  release.
+- **I5** `ps2ui-check` learns every invariant the loader enforces, the
+  same release. Scoped to load-time invariants — what a blob owes the
+  runtime. Runtime-only surfaces (telemetry counters, focus state) are
+  outside it and are covered by the runtime suite instead.
 - **I6** Examples are the contract: warning-free builds, self-refreshing
-  screenshots, every feature exercised by one.
+  screenshots, every feature exercised by one. No carve-out for
+  features whose only example cost is a screenshot diff — that cost is
+  the point, since a feature no example renders is a feature no
+  previewer regression can catch.
 - **I7** Tests are sabotage-verified: a test earns trust by failing against
   a deliberately broken implementation.
 - **I8** Caps and constants are parsed from `ps2ui.h`, never duplicated.
@@ -315,6 +320,7 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 | Phase 1 is a breaking rework | accepted | that is why it happens before packaging creates external consumers; one v6 move |
 | Node + Python dual runtime friction | standing | packaging wraps it, doesn't remove it; accepted cost of replaceable stages |
 | Single-track development | standing | §8 discipline makes correctness reviewable after the fact; stacked small PRs; no self-merging |
+| I2's three-pen agreement is a convention, not a structure — a hurried contributor can add a pen or edit one and skip the agreement tests | standing | the tests fail loudly when run; the exposure is someone not running them. Only real fix is CI coverage of every pen, which exists today for all three |
 | 4 MB VRAM vs art-heavy themes | physics | PSMT8 everywhere, streamed slots, page-exact budgets visible at build time |
 
 ## §10 Decision log
@@ -329,7 +335,6 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 | No self-merging of PRs | process error made once (PR #11), fixed forward | — |
 | RICE retired as sequencing mechanism | §4.6 | — |
 
-**Immediate actions:** merge #17 then #18 (console compile green on both;
-emulator failure is the known characterisation), then Phase 0 — the bench
-session — before any further feature work. This document is amended by PR
-like everything else.
+**Immediate action:** Phase 0, the bench session, before further
+feature work. Everything downstream of its exit gate is provisional
+until it passes. This document is amended by PR like everything else.
