@@ -97,6 +97,18 @@ def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAUL
 
 def main(argv=None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
+    # Hard requirement, checked before anything is written. Without Raqm
+    # the advances come out identical and the kerning table comes out
+    # empty -- a diff that deletes every pair while every test still
+    # passes, because all three pens agree perfectly on zero kerning.
+    # A metrics file that silently un-kerns the project is worse than
+    # no metrics file.
+    if not features.check("raqm"):
+        print("ps2ui-fontgen: this Pillow has no Raqm layout engine, so "
+              "kerning cannot be extracted; refusing to write a metrics "
+              "file without it. Install a Pillow wheel built with Raqm "
+              "(pip's manylinux wheels are).", file=sys.stderr)
+        return 2
     if len(argv) < 4:
         print(
             "usage: python -m ps2ui_bake.fontgen <font.ttf> <family> <weight> <out.metrics.json> [charset-file]",

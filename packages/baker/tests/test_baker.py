@@ -143,6 +143,33 @@ class TestKerningExtraction(unittest.TestCase):
                 self.assertIn(cp, adv, key)
 
 
+class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
+    """Without Raqm the advances come out identical and the kern table
+    comes out empty, so regenerating would produce a diff that deletes
+    every pair while every test still passes -- all three pens agree
+    perfectly on zero kerning. fontgen must refuse, before writing."""
+
+    def test_main_exits_nonzero_and_writes_nothing(self):
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "m.json")
+            with mock.patch.object(fontgen.features, "check",
+                                   return_value=False):
+                rc = fontgen.main([TTF, "DejaVu Sans", "400", out])
+            self.assertEqual(rc, 2)
+            self.assertFalse(os.path.exists(out))
+
+    def test_and_succeeds_with_raqm_present(self):
+        from ps2ui_bake import fontgen
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "m.json")
+            rc = fontgen.main([TTF, "DejaVu Sans", "400", out])
+            self.assertEqual(rc, 0)
+            with open(out, encoding="utf-8") as fh:
+                self.assertTrue(json.load(fh)["kerning"])
+
+
 class TestAlphaDomain(unittest.TestCase):
     def test_opaque_css_is_gs_0x80(self):
         self.assertEqual(css_alpha_to_gs(255), 0x80)
@@ -898,6 +925,9 @@ class TestKernTable(unittest.TestCase):
                          FEAT_DYNAMIC_TEXT)
 
 
+# Skipped without node -- silently, so a green local run on a
+# Python-only machine does not cover this. CI's toolchain job installs
+# node, so the check always runs there.
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class TestCrossLanguagePen(unittest.TestCase):
     """Node and Python must place every glyph on the same pixel.

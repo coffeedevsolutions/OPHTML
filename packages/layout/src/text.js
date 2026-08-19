@@ -151,6 +151,11 @@ export function wrapText(str, font, size, maxWidth, letterSpacing = 0) {
 /**
  * Truncate a single line to maxWidth, appending an ellipsis.
  * Used for white-space: nowrap; text-overflow: ellipsis.
+ *
+ * O(n^2): it re-measures a shrinking candidate string whole, because
+ * the ellipsis kerns against whatever glyph the cut leaves last. Fine
+ * at build time on UI strings; do not reach for it on a paragraph.
+ * The runtime pen deliberately uses a one-pass greedy fit instead.
  */
 export function ellipsize(str, font, size, maxWidth, letterSpacing = 0) {
   const full = font.measure(str, size, letterSpacing);

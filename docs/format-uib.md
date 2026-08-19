@@ -178,6 +178,14 @@ for `(previous, current)`, place the glyph, then add its advance. The
 three implementations are `Font.layout` (layout), `_flatten_text`
 (baker) and `render_slots` (runtime).
 
+One known divergence, deliberate: when a string overflows a slot, the
+build-time `ellipsize` strips trailing spaces before attaching `…` and
+searches from the back, while the runtime (and the previewer, which
+mirrors the runtime) uses a one-pass greedy fit that keeps them. The
+same string can therefore cut one glyph differently between a baked
+placeholder and the same text set at runtime. Both results fit the box;
+the runtime's version is the one a player sees.
+
 ## Slot entry (32 bytes) — dynamic text
 
 | off | type | field           | notes                              |
