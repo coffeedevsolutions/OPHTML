@@ -11,7 +11,7 @@ header.off_tex      tex table     n_tex   × 16 bytes
 header.off_clut     clut table    n_clut  ×  8 bytes
 header.off_cmd      command list  n_cmd   × 32 bytes
 header.off_focus    focus table   n_focus × 24 bytes
-header.off_font     font table    n_font  × 16 bytes
+header.off_font     font table    n_font  × 24 bytes
 header.off_slot     slot table    n_slot  × 32 bytes
 header.off_screen   screen table  n_screen × 24 bytes (always ≥ 1)
 header.off_blob     blob          header.blob_len bytes
@@ -25,8 +25,8 @@ can rewrite tables without re-basing data pointers.
 | off | type | field         | notes                          |
 |-----|------|---------------|--------------------------------|
 | 0   | u32  | magic         | `0x31424955` — "UIB1"          |
-| 4   | u16  | version       | 4                              |
-| 6   | u16  | feature_flags | bit 0 = dynamic text; a reader that sees a bit it does not know MUST reject the file |
+| 4   | u16  | version       | 5                              |
+| 6   | u16  | feature_flags | bit 0 = dynamic text, bit 1 = kerning; a reader that sees a bit it does not know MUST reject the file |
 | 8   | u16  | canvas_w      | 640 for NTSC                   |
 | 10  | u16  | canvas_h      | 448 (NTSC) / 512 (PAL)         |
 | 12  | u16  | n_tex         |                                |
@@ -135,7 +135,7 @@ intersection; the baker guarantees balance.
 
 The graph is solved at build time; a D-pad press is one table lookup.
 
-## Font entry (16 bytes) — dynamic text
+## Font entry (24 bytes) — dynamic text
 
 | off | type | field       | notes                                |
 |-----|------|-------------|--------------------------------------|
@@ -146,12 +146,37 @@ The graph is solved at build time; a D-pad press is one table lookup.
 | 8   | u16  | line_height | px                                   |
 | 10  | u16  | glyph_count |                                      |
 | 12  | u32  | glyphs_off  | glyph records in blob, **codepoint-sorted** for bsearch |
+| 16  | u16  | kern_count  | 0 unless feature bit 1               |
+| 18  | u16  | pad         |                                      |
+| 20  | u32  | kerns_off   | kern records in blob, **pair-sorted** for bsearch |
 
 Glyph record (20 bytes, in blob): `u32 codepoint; u16 u,v,w,h;
 i16 bearing_x, bearing_y; u16 advance; u16 pad`. `bearing_y` is
 measured from the line-box top via the metrics ascent; `advance` obeys
 the shared rounding rule, so runtime-composed text lands exactly where
 static text would have.
+
+Kern record (12 bytes, in blob): `u32 prev, cur; i16 amount; u16 pad`.
+`amount` is **already in pixels at this font's size** — the EE is not
+going to divide by 1000 per glyph pair — and is negative in almost
+every case. Sorted by `(prev, cur)`, so a reader binary-searches the
+pair exactly as it does a codepoint.
+
+The pair is ordered: `To` and `oT` are different entries and a font may
+adjust one and not the other. Pairs whose adjustment rounds to zero at
+this size are not stored, which is most of them at UI sizes — kerning
+is a sub-em correction and only survives rounding once the text is
+large. Feature bit 1 is set only when some font ends up with pairs, so
+a reader can skip the lookup wholesale rather than infer it from a zero
+count. In the two shipped examples the tables are 2.0% and 2.8% of the
+file.
+
+**The pen.** Every stage walks a string the same way, and they must
+agree to the pixel or text drifts out of the box that was measured for
+it: for each glyph after the first, add the letter-spacing and the kern
+for `(previous, current)`, place the glyph, then add its advance. The
+three implementations are `Font.layout` (layout), `_flatten_text`
+(baker) and `render_slots` (runtime).
 
 ## Slot entry (32 bytes) — dynamic text
 
@@ -200,3 +225,8 @@ baked initial). The header's `initial_focus` duplicates screen 0's.
 
 `version` bumps on any incompatible change. Readers must reject unknown
 versions (the runtime and the Python reader both do).
+
+- **v5** — kerning. The font entry grew from 16 to 24 bytes for
+  `kern_count`/`kerns_off`, and feature bit 1 was assigned. The struct
+  changed size, so this is a version bump rather than a bit alone: a v4
+  reader would have walked the font table at the wrong stride.

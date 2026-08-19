@@ -14,7 +14,17 @@ LIST_UIB = build/list.uib
 test: build/test_runtime $(LIST_UIB)
 	./build/test_runtime $(UIB) $(LIST_UIB)
 
-$(LIST_UIB): tests/fixture/list.html tests/fixture/list.css
+# The fixture exists so the runtime tests track the compiler that
+# produced their blob, which only holds if a compiler change rebuilds
+# it. Without these prerequisites a format change leaves a stale blob
+# that the loader then rejects -- and the tests crash on it rather than
+# say so.
+LAYOUT_SRC = $(wildcard ../packages/layout/src/*.js)
+BAKER_SRC  = $(wildcard ../packages/baker/ps2ui_bake/*.py)
+METRICS    = $(wildcard ../fonts/*.metrics.json)
+
+$(LIST_UIB): tests/fixture/list.html tests/fixture/list.css \
+             $(LAYOUT_SRC) $(BAKER_SRC) $(METRICS)
 	@mkdir -p build
 	node ../packages/layout/bin/ps2ui-layout.js \
 		tests/fixture/list.html tests/fixture/list.css -o build/list.json

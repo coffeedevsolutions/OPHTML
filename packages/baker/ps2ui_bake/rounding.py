@@ -21,6 +21,20 @@ def glyph_advance_px(units: int, size: int) -> int:
     return round_half_up(units * size / 1000)
 
 
+def kern_px(units: int, size: int) -> int:
+    """Pixel kern between an ordered glyph pair.
+
+    Deliberately the same rounding as an advance (layout's Font.kernPx
+    is the identical expression): a pen built from integral advances
+    and integral kerns can never land on a half pixel, which the GS
+    could not draw anyway. Kerns are almost all negative, and
+    floor(x + 0.5) sends a tie toward zero, so a tie under-applies the
+    kern -- text comes out a pixel wider than ideal, never narrower,
+    so the measured box is never smaller than what is drawn in it.
+    """
+    return round_half_up(units * size / 1000)
+
+
 def css_channel_to_gs(v255: int) -> int:
     """CSS channel (0..255) -> GS 0x80-identity domain (0..128).
 

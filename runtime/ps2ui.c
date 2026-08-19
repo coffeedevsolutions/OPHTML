@@ -161,6 +161,9 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
         if (!in_blob(ctx, f->glyphs_off,
                      (uint32_t)f->glyph_count * (uint32_t)sizeof(ps2ui_glyph)))
             return PS2UI_ERR_BOUNDS;
+        if (!in_blob(ctx, f->kerns_off,
+                     (uint32_t)f->kern_count * (uint32_t)sizeof(ps2ui_kern)))
+            return PS2UI_ERR_BOUNDS;
     }
     for (i = 0; i < ctx->hdr->n_slot; i++) {
         const ps2ui_slot_entry *s = &ctx->slots[i];

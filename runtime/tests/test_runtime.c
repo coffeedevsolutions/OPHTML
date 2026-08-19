@@ -60,8 +60,9 @@ int main(int argc, char **argv)
     /* ---- struct layout matches the on-disk format ---- */
     CHECK(sizeof(ps2ui_header) == 76, "header struct is 76 bytes");
     CHECK(sizeof(ps2ui_screen_entry) == 24, "screen entry struct is 24 bytes");
-    CHECK(sizeof(ps2ui_font_entry) == 16, "font entry struct is 16 bytes");
+    CHECK(sizeof(ps2ui_font_entry) == 24, "font entry struct is 24 bytes");
     CHECK(sizeof(ps2ui_glyph) == 20, "glyph struct is 20 bytes");
+    CHECK(sizeof(ps2ui_kern) == 12, "kern struct is 12 bytes");
     CHECK(sizeof(ps2ui_slot_entry) == 32, "slot entry struct is 32 bytes");
     CHECK(sizeof(ps2ui_tex_entry) == 16, "tex entry struct is 16 bytes");
     CHECK(sizeof(ps2ui_clut_entry) == 8, "clut entry struct is 8 bytes");
@@ -461,7 +462,19 @@ int main(int argc, char **argv)
         ps2ui_list list;
         int full, one_hidden, row_cost;
 
-        CHECK(ps2ui_load(&lc, lblob, llen) == PS2UI_OK, "list fixture loads");
+        /* Bail rather than fall through: everything below dereferences
+         * the loaded context, so a rejected blob segfaults instead of
+         * reporting, and a crash names none of the checks that ran. A
+         * fixture left stale by a format change is exactly how that
+         * happens -- it happened while adding kerning. */
+        int loaded = ps2ui_load(&lc, lblob, llen);
+        CHECK(loaded == PS2UI_OK, "list fixture loads");
+        if (loaded != PS2UI_OK) {
+            printf("# ps2ui_load returned %d; skipping the list checks\n",
+                   loaded);
+            free(lblob);
+            goto report;
+        }
         ps2ui_upload(&lc, &gs);
 
         /* Focus really does follow the selection, by baked row name.
@@ -516,6 +529,7 @@ int main(int argc, char **argv)
         free(lblob);
     }
 
+report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
     free(blob);

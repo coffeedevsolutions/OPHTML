@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .rounding import glyph_advance_px
+from .rounding import glyph_advance_px, kern_px
 
 ATLAS_WIDTH = 256  # GS-friendly; height grows in shelf packing
 
@@ -73,6 +73,16 @@ class AtlasBuilder:
         # go through the metrics value or text drifts off its measured
         # box (backlog B2).
         self.metrics_ascent_px = glyph_advance_px(self.metrics["ascent"], size)
+        self.kerning = self.metrics.get("kerning", {})
+
+    def kern(self, prev_cp, cp: int) -> int:
+        """Pixel kern applied before `cp` because `prev_cp` precedes it.
+
+        Mirrors layout's Font.kernPx, including that the first glyph of
+        a run is never kerned."""
+        if prev_cp is None:
+            return 0
+        return kern_px(self.kerning.get(f"{prev_cp},{cp}", 0), self.size)
 
     def _grow(self, needed_h: int):
         if needed_h <= self.image.height:

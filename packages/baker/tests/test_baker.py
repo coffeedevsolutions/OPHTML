@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from PIL import Image
 
 from ps2ui_bake.rounding import (
-    round_half_up, glyph_advance_px, css_alpha_to_gs, css_channel_to_gs,
-    gs_alpha_to_css,
+    round_half_up, glyph_advance_px, kern_px, css_alpha_to_gs,
+    css_channel_to_gs, gs_alpha_to_css,
 )
 from ps2ui_bake import gs
 from ps2ui_bake.atlas import AtlasBuilder
@@ -28,7 +28,9 @@ from ps2ui_bake.quads import (
     Flattener, DrawRecord, OP_QUAD, OP_TEXQUAD, OP_SCISSOR_PUSH, OP_SCISSOR_POP,
     STATE_ALWAYS, STATE_UNFOCUSED, STATE_FOCUSED, FOCUS_NONE, TEX_NONE,
 )
-from ps2ui_bake.uib import write_uib, read_uib, MAGIC, _CMD, _HEADER, _FOCUS
+from ps2ui_bake.uib import (write_uib, read_uib, MAGIC, VERSION,
+                            FEAT_DYNAMIC_TEXT, FEAT_KERNING,
+                            _CMD, _HEADER, _FOCUS, _FONT, _KERN)
 from ps2ui_bake import preview
 
 REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
@@ -735,6 +737,163 @@ class TestDynamicText(unittest.TestCase):
                 fh.write(bytes(data))
             with self.assertRaisesRegex(ValueError, "crc"):
                 read_uib(path)
+
+
+class TestKerningPen(unittest.TestCase):
+    """The baker's pen must place glyph n at the same integer x as
+    layout's Font.layout(), because layout sized the box this draws in."""
+
+    def text_ir(self, text, size=32, weight=400, spacing=0):
+        cmd = {"op": "text", "text": text, "x": 0, "y": 0,
+               "size": size, "weight": weight, "state": "always",
+               "color": [255, 255, 255, 255], "focusId": None}
+        if spacing:
+            cmd["letterSpacing"] = spacing
+        return tiny_ir([cmd])
+
+    def pen_xs(self, text, **kw):
+        f = Flattener(self.text_ir(text, **kw), font_paths())
+        f.run()
+        return [r for r in f.records if r.op == OP_TEXQUAD]
+
+    def test_a_kerned_pair_pulls_the_second_glyph_left(self):
+        # "To" is -170 units; at 32px that is -5px, and the 'o' must sit
+        # 5px left of where an unkerned pen would put it.
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        self.assertEqual(builder.kern(ord("T"), ord("o")), -5)
+        kerned = self.pen_xs("To", size=32)
+        unkerned_o = builder.add("T").advance + builder.add("o").bearing_x
+        self.assertEqual(kerned[1].x, unkerned_o - 5)
+
+    def test_the_first_glyph_is_never_kerned(self):
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        self.assertEqual(builder.kern(None, ord("o")), 0)
+        self.assertEqual(self.pen_xs("To", size=32)[0].x,
+                         builder.add("T").bearing_x)
+
+    def test_kerning_is_directional(self):
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        self.assertLess(builder.kern(ord("T"), ord("o")), 0)
+        self.assertEqual(builder.kern(ord("o"), ord("T")), 0)
+
+    def test_letter_spacing_and_kerning_both_apply(self):
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        plain = self.pen_xs("To", size=32)
+        spaced = self.pen_xs("To", size=32, spacing=3)
+        self.assertEqual(spaced[1].x - plain[1].x, 3)
+        # And spacing does not apply before the first glyph.
+        self.assertEqual(spaced[0].x, plain[0].x)
+
+    def test_an_unkerned_string_is_unchanged(self):
+        # The regression guard for every UI that has no kerned pairs:
+        # its geometry must be byte-identical to before kerning existed.
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        recs = self.pen_xs("iiiii", size=32)
+        x = 0
+        for r in recs:
+            self.assertEqual(r.x, x + builder.add("i").bearing_x)
+            x += builder.add("i").advance
+
+
+class TestKernTable(unittest.TestCase):
+    """The per-font table the runtime reads, and the format that carries
+    it."""
+
+    def bake(self, ir=None):
+        """Flatten and round-trip through a real .uib file."""
+        ir = ir or TestDynamicText().slot_ir()
+        f = Flattener(ir, font_paths())
+        f.run()
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                      f.focus_nodes, None, fonts=f.fonts, slots=f.slots,
+                      screens=f.screens)
+            return f, read_uib(path)
+
+    def test_pairs_are_pixels_at_this_font_size_not_units(self):
+        f, _ = self.bake()
+        font = f.fonts[0]
+        size = font["size"]
+        by_pair = {(k["prev"], k["cur"]): k["amount"] for k in font["kerns"]}
+        with open(METRICS, encoding="utf-8") as fh:
+            units = json.load(fh)["kerning"]
+        for (prev, cur), amount in by_pair.items():
+            self.assertEqual(amount, kern_px(units[f"{prev},{cur}"], size))
+
+    def test_pairs_that_round_to_zero_are_dropped(self):
+        f, _ = self.bake()
+        font = f.fonts[0]
+        self.assertTrue(all(k["amount"] != 0 for k in font["kerns"]))
+        # A 14px UI keeps far fewer pairs than the metrics carry: a
+        # sub-em adjustment only survives rounding once text is large.
+        with open(METRICS, encoding="utf-8") as fh:
+            self.assertLess(len(font["kerns"]),
+                            len(json.load(fh)["kerning"]))
+
+    def test_pairs_are_sorted_for_the_runtime_bsearch(self):
+        f, _ = self.bake()
+        for font in f.fonts:
+            keys = [(k["prev"], k["cur"]) for k in font["kerns"]]
+            self.assertEqual(keys, sorted(keys))
+
+    def test_a_bigger_font_keeps_more_pairs(self):
+        # The direct consequence of pre-rounding to pixels, and the
+        # reason the table is per-size rather than per-face.
+        kept = {}
+        for size in (10, 14, 24, 40):
+            b = AtlasBuilder(TTF, METRICS, 400, size)
+            for cp_str in b.metrics["advances"]:
+                b.add(chr(int(cp_str)))
+            kept[size] = len(Flattener._kern_table(b))
+        self.assertLess(kept[10], kept[24])
+        self.assertLess(kept[24], kept[40])
+
+    def test_orphan_pairs_are_not_stored(self):
+        # A pair naming a glyph the atlas never baked can never be
+        # looked up; storing it would only cost blob.
+        b = AtlasBuilder(TTF, METRICS, 400, 32)
+        b.add("T")   # deliberately no 'o'
+        pairs = Flattener._kern_table(b)
+        self.assertFalse([k for k in pairs if k["cur"] == ord("o")])
+
+    def test_the_format_carries_the_table_and_declares_it(self):
+        f, u = self.bake()
+        self.assertEqual(u.feature_flags & FEAT_DYNAMIC_TEXT, FEAT_DYNAMIC_TEXT)
+        self.assertEqual(u.feature_flags & FEAT_KERNING, FEAT_KERNING)
+        written = {(k["prev"], k["cur"]): k["amount"] for k in f.fonts[0]["kerns"]}
+        self.assertEqual(u.fonts[0]["kerns"], written)
+
+    def test_the_font_entry_grew_and_the_version_moved_with_it(self):
+        # A v4 reader would have walked the font table at a 16-byte
+        # stride and misparsed every entry, so the struct growing is
+        # what forces the version bump rather than a feature bit alone.
+        self.assertEqual(_FONT.size, 24)
+        self.assertEqual(_KERN.size, 12)
+        self.assertEqual(VERSION, 5)
+
+    def test_the_feature_bit_states_what_the_tables_hold(self):
+        # Stated, not inferred: with the bit clear the runtime may skip
+        # the lookup wholesale, so a blob that carried pairs without
+        # declaring them would kern in the previewer and not on console.
+        _, kerned = self.bake()
+        self.assertTrue(kerned.feature_flags & FEAT_KERNING)
+
+        ir = TestDynamicText().slot_ir()
+        f = Flattener(ir, font_paths())
+        f.run()
+        for font in f.fonts:
+            font["kerns"] = []
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                      f.focus_nodes, None, fonts=f.fonts, slots=f.slots,
+                      screens=f.screens)
+            bare = read_uib(path)
+        self.assertEqual(bare.feature_flags & FEAT_KERNING, 0)
+        # and the dynamic-text bit is untouched by it
+        self.assertEqual(bare.feature_flags & FEAT_DYNAMIC_TEXT,
+                         FEAT_DYNAMIC_TEXT)
 
 
 class TestDisplayAspect(unittest.TestCase):
