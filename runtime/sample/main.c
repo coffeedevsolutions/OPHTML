@@ -62,7 +62,11 @@ extern unsigned int size_ui_uib;
 static inline u32 cop0_count(void)
 {
     u32 v;
-    asm volatile("mfc0 %0, $9" : "=r"(v));
+    /* __asm__ __volatile__, not `asm volatile`: the sample builds
+     * -std=c99, which is strict ISO C where `asm` is not a keyword —
+     * GCC only spells it that way in the gnu* dialects. The
+     * underscored form is available in every mode. */
+    __asm__ __volatile__("mfc0 %0, $9" : "=r"(v));
     return v;
 }
 #endif
