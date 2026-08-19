@@ -56,6 +56,116 @@ test('text: ellipsize truncates to fit and appends …', () => {
   assert.ok(out.text.length < full.length);
 });
 
+// --------------------------------------------------------------- kerning
+
+test('kerning: pairs from the metrics shift the pen, directionally', () => {
+  // 'To' is the textbook pair. The metrics carry -170 units for it and
+  // nothing for 'oT', because kerning is a property of the ordered pair.
+  assert.equal(font.kernPx(0x54, 0x6f, 32), roundHalfUp(-170 * 32 / 1000));
+  assert.equal(font.kernPx(0x54, 0x6f, 32), -5);
+  assert.equal(font.kernPx(0x6f, 0x54, 32), 0);
+  // An unkerned pair costs nothing, and neither does the first glyph.
+  assert.equal(font.kernPx(0x69, 0x69, 32), 0);
+  assert.equal(font.kernPx(null, 0x6f, 32), 0);
+});
+
+test('kerning: every kern is integral, and half-pixels round toward zero', () => {
+  // Each kern is rounded on its own, by the same rule as an advance,
+  // so a string of them can never leave the pen on a half pixel — the
+  // GS cannot draw one, and both hosts must land on the same integer.
+  for (const size of [8, 11, 13, 16, 24, 32, 48]) {
+    for (const [a, b] of [[0x54, 0x6f], [0x41, 0x56], [0x50, 0x2e]]) {
+      assert.ok(Number.isInteger(font.kernPx(a, b, size)));
+    }
+  }
+  // floor(x + 0.5) is asymmetric about zero: +0.5 rounds away from it,
+  // -0.5 rounds toward it. Kerns are almost all negative, so the tie
+  // case under-applies the kern — text comes out a pixel wider than
+  // ideal rather than a pixel narrower. That is the safe direction:
+  // the measured box is never smaller than what gets drawn in it.
+  const tie = new (Object.getPrototypeOf(font).constructor)({
+    family: 'tie', unitsPerEm: 1000, ascent: 800, descent: 200,
+    advances: { 65: 500, 66: 500 },
+    kerning: { '65,66': -100, '66,65': 100 },
+  });
+  assert.equal(tie.kernPx(0x41, 0x42, 5), 0);   // -0.5 -> 0, not -1
+  assert.equal(tie.kernPx(0x42, 0x41, 5), 1);   // +0.5 -> 1
+  // Real pairs at the smallest size the CRT linter tolerates.
+  assert.equal(font.kernPx(0x54, 0x6f, 8), -1); // -170 units -> -1.36px
+  assert.equal(font.kernPx(0x41, 0x56, 8), -1); // -64 units -> -0.51px
+});
+
+test('kerning: measure is the pen walk, not the sum of advances', () => {
+  const unkerned = font.glyphAdvance(0x54, 32) + font.glyphAdvance(0x6f, 32);
+  assert.equal(font.measure('To', 32), unkerned + font.kernPx(0x54, 0x6f, 32));
+  assert.ok(font.measure('To', 32) < unkerned);
+});
+
+test('kerning: every glyph lands on the width the previous ones sum to', () => {
+  // The invariant the baker's pen and the runtime's pen both mirror:
+  // glyph n sits at exactly measure(prefix of n glyphs) plus its kern.
+  const { glyphs, width } = font.layout('Library of Colossus', 24);
+  for (let i = 1; i < glyphs.length; i++) {
+    assert.ok(glyphs[i].x > glyphs[i - 1].x, `glyph ${i} did not advance`);
+  }
+  assert.equal(width, glyphs[glyphs.length - 1].x
+    + font.glyphAdvance(glyphs[glyphs.length - 1].cp, 24));
+});
+
+test('kerning: wrapping agrees with measure on every line it produces', () => {
+  // wrapText accumulates a width incrementally; the caller sizes the
+  // box from that and the baker places glyphs from measure(). If the
+  // two ever disagree the text silently escapes its box, so this is
+  // the load-bearing test for the whole pen.
+  const corpus = [
+    'To the Victor AWAY Ta Yo LT P. r. W. AV VA',
+    'Shadow of the Colossus Traveller Wanderer',
+    'A V T o P . W A T V A T o T',
+  ];
+  for (const text of corpus) {
+    for (const size of [11, 16, 24, 32]) {
+      for (const maxWidth of [40, 80, 160, 320]) {
+        for (const ls of [0, 1, 2]) {
+          for (const line of wrapText(text, font, size, maxWidth, ls)) {
+            assert.equal(line.width, font.measure(line.text, size, ls),
+              `${JSON.stringify(line.text)} at ${size}px ls=${ls}`);
+          }
+        }
+      }
+    }
+  }
+});
+
+test('kerning: ellipsize measures the ellipsis where it actually lands', () => {
+  // '…' kerns against whatever glyph the cut leaves last, so its cost
+  // is not a constant that can be subtracted from the budget up front.
+  for (const size of [13, 20, 32]) {
+    for (const maxWidth of [30, 60, 100, 180]) {
+      const out = ellipsize('Shadow of the Colossus TV', font, size, maxWidth);
+      assert.equal(out.width, font.measure(out.text, size),
+        `${JSON.stringify(out.text)} at ${size}px`);
+      if (out.text !== '…') assert.ok(out.width <= maxWidth);
+    }
+  }
+});
+
+test('kerning: a font with no pairs behaves exactly as before', () => {
+  // The escape hatch and the fail-safe: fontgen emits an empty table
+  // when the shaper cannot do GPOS, and that must degrade to the plain
+  // advance sum rather than to something subtly different.
+  const bare = new (Object.getPrototypeOf(font).constructor)({
+    family: font.family, weight: font.weight, unitsPerEm: 1000,
+    ascent: font.ascent, descent: font.descent,
+    advances: font.advances, missing: font.missing,
+  });
+  assert.deepEqual(bare.kerning, {});
+  const s = 'To the Victor AWAY';
+  let sum = 0;
+  for (const ch of s) sum += bare.glyphAdvance(ch.codePointAt(0), 32);
+  assert.equal(bare.measure(s, 32), sum);
+  assert.ok(font.measure(s, 32) < sum);
+});
+
 // ------------------------------------------------------------------ flex
 
 test('flex: row places children left to right with gap', () => {
