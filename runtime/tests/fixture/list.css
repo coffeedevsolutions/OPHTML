@@ -8,5 +8,8 @@
 .screen { flex-direction: column; background: #0a0e1a; padding: 20px; gap: 8px; }
 .row { background: #12182a; border: 2px solid #1c2336; padding: 8px; }
 .row:focus { background: #16233c; border-color: #e8b64c; }
-.label { font-size: 16px; color: #dbe2ee; }
+/* Non-zero letter-spacing on the slot text: the fixture must exercise
+ * the spacing path or the runtime's spaced-pen check is vacuous — a
+ * blob whose every slot has spacing 0 passes it whatever the pen does. */
+.label { font-size: 16px; letter-spacing: 2px; color: #dbe2ee; }
 .row:focus .label { color: #ffffff; }

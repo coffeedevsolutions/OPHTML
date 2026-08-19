@@ -427,6 +427,7 @@ class Flattener:
                 "x": sl["x"], "text_y": sl["textY"], "w": sl["w"],
                 "font": font_index[key],
                 "align": {"left": 0, "center": 1, "right": 2}.get(sl["align"], 0),
+                "letter_spacing": int(sl.get("letterSpacing", 0)),
                 "ellipsis": bool(sl["ellipsis"]),
                 "capacity": min(int(sl["capacity"]), 95),
                 "focus": self.focus_index.get(sl.get("focusId"), FOCUS_NONE)

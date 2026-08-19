@@ -32,7 +32,9 @@ from ps2ui_bake.quads import (
 )
 from ps2ui_bake.uib import (write_uib, read_uib, MAGIC, VERSION,
                             FEAT_DYNAMIC_TEXT, FEAT_KERNING,
-                            _CMD, _HEADER, _FOCUS, _FONT, _KERN)
+                            FEAT_SLOT_SPACING,
+                            _CMD, _HEADER, _FOCUS, _FONT, _KERN,
+                            _SLOT)
 from ps2ui_bake import preview
 
 REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
@@ -1017,6 +1019,46 @@ class TestCrossLanguagePen(unittest.TestCase):
                             [0, self.py_pen("To", 32, 0)[1] + 5])
         self.assertEqual(self.py_pen("To", 32, 0)[1],
                          AtlasBuilder(TTF, METRICS, 400, 32).add("T").advance - 5)
+
+
+class TestSlotSpacing(unittest.TestCase):
+    """Letter-spacing travels with the slot (feature bit 2). The two
+    former pad bytes carry it, so the stride is unchanged and the bit is
+    what makes the field loud rather than a version bump."""
+
+    def bake(self, spacing):
+        ir = TestDynamicText().slot_ir()
+        if spacing:
+            ir["slots"][0]["letterSpacing"] = spacing
+        f = Flattener(ir, font_paths())
+        f.run()
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                      f.focus_nodes, None, fonts=f.fonts, slots=f.slots,
+                      screens=f.screens)
+            return read_uib(path)
+
+    def test_the_stride_did_not_move(self):
+        self.assertEqual(_SLOT.size, 32)
+
+    def test_spacing_round_trips_and_declares_itself(self):
+        u = self.bake(3)
+        self.assertEqual(u.slots[0]["letter_spacing"], 3)
+        self.assertEqual(u.feature_flags & FEAT_SLOT_SPACING,
+                         FEAT_SLOT_SPACING)
+
+    def test_zero_spacing_means_what_the_pad_always_meant(self):
+        # Every writer before the field wrote zeros there, so a blob
+        # with no spacing anywhere must not claim the feature.
+        u = self.bake(0)
+        self.assertEqual(u.slots[0]["letter_spacing"], 0)
+        self.assertEqual(u.feature_flags & FEAT_SLOT_SPACING, 0)
+
+    def test_negative_spacing_survives(self):
+        # CSS letter-spacing may be negative; the field is signed.
+        u = self.bake(-1)
+        self.assertEqual(u.slots[0]["letter_spacing"], -1)
 
 
 class TestDisplayAspect(unittest.TestCase):
