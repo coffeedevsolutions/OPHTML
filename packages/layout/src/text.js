@@ -34,19 +34,58 @@ export class Font {
     return roundHalfUp(this.advanceUnits(cp) * size / 1000);
   }
 
-  /** Pixel width of a string: sum of integral glyph advances + spacing. */
-  measure(str, size, letterSpacing = 0) {
-    let w = 0;
+  /**
+   * Pixel kern applied *before* `cp` because `prevCp` precedes it.
+   *
+   * Rounded on its own, by the same rule as an advance, so every pen
+   * position stays integral — the GS has no subpixel glyph placement,
+   * and a fractional pen would have to be rounded somewhere anyway.
+   * A consequence worth knowing: kerning is a sub-em adjustment, so it
+   * rounds to zero at small sizes and only appears once the text is
+   * large. "To" is -170 units, which is -5px at 32px and 0px at 11px.
+   * That is the correct outcome, not a bug to compensate for.
+   */
+  kernPx(prevCp, cp, size) {
+    if (prevCp === null || prevCp === undefined) return 0;
+    const units = this.kerning[`${prevCp},${cp}`];
+    return units === undefined ? 0 : roundHalfUp(units * size / 1000);
+  }
+
+  /**
+   * Lay a string out: the integral pen x of every glyph, and the width.
+   *
+   * The single pen walk. measure(), wrapText() and ellipsize() all go
+   * through it, because three separate accumulations of "advance, then
+   * spacing, then kern" is exactly how they drift apart — and a drift
+   * of one pixel per glyph is text escaping the box that was measured
+   * for it. The baker's pen and the runtime's pen mirror this loop.
+   */
+  layout(str, size, letterSpacing = 0) {
+    const glyphs = [];
+    let x = 0;
+    let prev = null;
     for (const ch of str) {
-      w += this.glyphAdvance(ch.codePointAt(0), size) + letterSpacing;
+      const cp = ch.codePointAt(0);
+      if (prev !== null) x += letterSpacing + this.kernPx(prev, cp, size);
+      glyphs.push({ cp, x });
+      x += this.glyphAdvance(cp, size);
+      prev = cp;
     }
-    if (str.length > 0) w -= letterSpacing; // spacing is between glyphs
-    return Math.max(w, 0);
+    return { glyphs, width: Math.max(x, 0) };
+  }
+
+  /** Pixel width of a string. */
+  measure(str, size, letterSpacing = 0) {
+    return this.layout(str, size, letterSpacing).width;
   }
 
   ascentPx(size) { return roundHalfUp(this.ascent * size / 1000); }
   descentPx(size) { return roundHalfUp(this.descent * size / 1000); }
 }
+
+/** First / last codepoint of a non-empty string, surrogate-aware. */
+function firstCp(s) { return s.codePointAt(0); }
+function lastCp(s) { const a = [...s]; return a[a.length - 1].codePointAt(0); }
 
 const fontCache = new Map();
 
@@ -74,19 +113,31 @@ export function clearFontCache() {
  */
 export function wrapText(str, font, size, maxWidth, letterSpacing = 0) {
   const words = str.split(' ').filter((w) => w !== '');
-  const spaceW = font.glyphAdvance(32, size) + letterSpacing;
   const lines = [];
   let cur = '';
   let curW = 0;
+  // What joining `cur` and `word` with a space costs: the space's own
+  // advance, spacing on both sides of it, and the two kerns the space
+  // makes with its neighbours. Written out rather than approximated as
+  // a constant space width, because that constant is what would make
+  // an accumulated line width disagree with measure() of the same
+  // text — and the caller uses one to size the box and the other to
+  // place the glyphs. `wrapping agrees with measure` proves it.
+  const joinCost = (left, right) =>
+    font.kernPx(lastCp(left), 32, size)
+    + font.glyphAdvance(32, size)
+    + font.kernPx(32, firstCp(right), size)
+    + 2 * letterSpacing;
   for (const word of words) {
     const wordW = font.measure(word, size, letterSpacing);
     if (cur === '') {
       cur = word; curW = wordW;
       continue;
     }
-    if (curW + spaceW + wordW <= maxWidth) {
+    const join = joinCost(cur, word);
+    if (curW + join + wordW <= maxWidth) {
       cur += ' ' + word;
-      curW += spaceW + wordW;
+      curW += join + wordW;
     } else {
       lines.push({ text: cur, width: curW });
       cur = word; curW = wordW;
@@ -100,26 +151,32 @@ export function wrapText(str, font, size, maxWidth, letterSpacing = 0) {
 /**
  * Truncate a single line to maxWidth, appending an ellipsis.
  * Used for white-space: nowrap; text-overflow: ellipsis.
+ *
+ * O(n^2): it re-measures a shrinking candidate string whole, because
+ * the ellipsis kerns against whatever glyph the cut leaves last. Fine
+ * at build time on UI strings; do not reach for it on a paragraph.
+ * The runtime pen deliberately uses a one-pass greedy fit instead.
  */
 export function ellipsize(str, font, size, maxWidth, letterSpacing = 0) {
-  if (font.measure(str, size, letterSpacing) <= maxWidth) {
-    return { text: str, width: font.measure(str, size, letterSpacing) };
-  }
+  const full = font.measure(str, size, letterSpacing);
+  if (full <= maxWidth) return { text: str, width: full };
   const ell = '…';
-  const ellW = font.glyphAdvance(0x2026, size);
-  let w = 0;
-  let out = '';
-  for (const ch of str) {
-    const a = font.glyphAdvance(ch.codePointAt(0), size) + letterSpacing;
-    if (w + a + ellW > maxWidth) break;
-    out += ch;
-    w += a;
+  const chars = [...str];
+  // Longest prefix whose *rendered* width with the ellipsis attached
+  // fits. The ellipsis has to be measured attached rather than added
+  // as a constant: it kerns against whatever glyph the truncation
+  // leaves last, so its cost depends on where the cut falls.
+  for (let n = chars.length - 1; n >= 0; n--) {
+    // Don't end on a space before the ellipsis; "Shadow …" reads
+    // better than "Shadow  …" and saves a glyph.
+    const out = chars.slice(0, n).join('').replace(/ +$/, '');
+    const w = font.measure(out + ell, size, letterSpacing);
+    if (w <= maxWidth) return { text: out + ell, width: w };
   }
-  // Don't end on a space before the ellipsis; "Shadow …" reads better
-  // than "Shadow  …" and saves a glyph.
-  out = out.replace(/ +$/, '');
-  w = font.measure(out, size, letterSpacing);
-  return { text: out + ell, width: w + (out ? letterSpacing : 0) + ellW };
+  // Even the bare ellipsis overflows; the caller's box is too small
+  // and the linter has already said so. Return it anyway rather than
+  // an empty string, so the text reads as truncated rather than absent.
+  return { text: ell, width: font.measure(ell, size, letterSpacing) };
 }
 
 /** Resolve line-height (px or unitless multiplier) to integral px. */

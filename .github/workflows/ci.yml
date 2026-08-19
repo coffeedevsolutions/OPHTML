@@ -53,6 +53,12 @@ jobs:
       - name: Channel-6 browser end to end
         run: ./examples/channel6/build.sh
 
+      # The example builds refresh the committed screenshots, so if a
+      # renderer change lands without rebuilding the examples, the drift
+      # shows up here rather than living in the README forever.
+      - name: Committed screenshots match the renderer
+        run: git diff --exit-code examples/memcard/screenshots examples/channel6/screenshots
+
       # check.py asserts what these particular blobs promise (their focus
       # names, slot capacities, screen order). ps2ui-check asserts what
       # *any* blob owes the runtime, so it covers the 16:9 bake and the

@@ -18,6 +18,39 @@ static int checks = 0, failures = 0;
     else { failures++; printf("not ok %d - %s\n", checks, name); } \
 } while (0)
 
+/* Linear-scan lookups used to check the runtime's binary searches.
+ * Deliberately a different algorithm over the same bytes: two
+ * implementations that agree is evidence, one implementation compared
+ * against itself is not. */
+static const ps2ui_glyph *scan_glyph(const ps2ui_ctx *c,
+                                     const ps2ui_font_entry *f, uint32_t cp)
+{
+    const ps2ui_glyph *g = (const ps2ui_glyph *)(c->blob + f->glyphs_off);
+    uint32_t i;
+    for (i = 0; i < f->glyph_count; i++)
+        if (g[i].codepoint == cp) return &g[i];
+    return cp == '?' ? 0 : scan_glyph(c, f, '?');
+}
+
+static uint32_t find_slot(const ps2ui_ctx *c, const char *name)
+{
+    uint32_t i;
+    for (i = 0; i < c->hdr->n_slot; i++)
+        if (strcmp((const char *)(c->blob + c->slots[i].name_off), name) == 0)
+            return i;
+    return PS2UI_NONE;
+}
+
+static int scan_kern(const ps2ui_ctx *c, const ps2ui_font_entry *f,
+                     uint32_t prev, uint32_t cp)
+{
+    const ps2ui_kern *k = (const ps2ui_kern *)(c->blob + f->kerns_off);
+    uint32_t i;
+    for (i = 0; i < f->kern_count; i++)
+        if (k[i].prev == prev && k[i].cur == cp) return k[i].amount;
+    return 0;
+}
+
 static void *slurp(const char *path, size_t *out_len)
 {
     FILE *fh = fopen(path, "rb");
@@ -60,8 +93,9 @@ int main(int argc, char **argv)
     /* ---- struct layout matches the on-disk format ---- */
     CHECK(sizeof(ps2ui_header) == 76, "header struct is 76 bytes");
     CHECK(sizeof(ps2ui_screen_entry) == 24, "screen entry struct is 24 bytes");
-    CHECK(sizeof(ps2ui_font_entry) == 16, "font entry struct is 16 bytes");
+    CHECK(sizeof(ps2ui_font_entry) == 24, "font entry struct is 24 bytes");
     CHECK(sizeof(ps2ui_glyph) == 20, "glyph struct is 20 bytes");
+    CHECK(sizeof(ps2ui_kern) == 12, "kern struct is 12 bytes");
     CHECK(sizeof(ps2ui_slot_entry) == 32, "slot entry struct is 32 bytes");
     CHECK(sizeof(ps2ui_tex_entry) == 16, "tex entry struct is 16 bytes");
     CHECK(sizeof(ps2ui_clut_entry) == 8, "clut entry struct is 8 bytes");
@@ -243,6 +277,82 @@ int main(int argc, char **argv)
             ps2ui_slot_set(&ctx, "count", NULL);
             CHECK(blank_prims < render_and_count(&ctx, &gs),
                   "a blanked slot draws no glyphs");
+        }
+
+        /* F9: the pen kerns, and it kerns by the table in the blob.
+         *
+         * Expected positions are computed here by a LINEAR scan of the
+         * same tables the runtime binary-searches. Two independent
+         * lookups over one table is the point: a bsearch that returns
+         * the wrong record, or a pen that forgets to add what it
+         * found, disagrees with the scan. Recomputing with the
+         * runtime's own helper would assert nothing. */
+        {
+            uint32_t si = find_slot(&ctx, "count");
+            const ps2ui_slot_entry *sl = &ctx.slots[si];
+            const ps2ui_font_entry *fe = &ctx.fonts[sl->font];
+            const char *probe = "AV Ta To Wa";
+            int base_prims, expect_x[32], n_expect = 0, i, ok = 1, kerned = 0;
+            int pen = 0;
+            uint32_t prev = 0;
+            int have_prev = 0;
+            const char *p2 = probe;
+
+            CHECK((ctx.hdr->feature_flags & PS2UI_FEAT_KERNING) != 0,
+                  "example blob declares the kerning feature bit");
+            CHECK(fe->kern_count > 0, "and its font carries kern pairs");
+
+            while (*p2) {
+                uint32_t cp = (uint32_t)(unsigned char)*p2++;
+                const ps2ui_glyph *g = scan_glyph(&ctx, fe, cp);
+                if (!g)
+                    continue;
+                if (have_prev) {
+                    int k = scan_kern(&ctx, fe, prev, cp);
+                    if (k) kerned++;
+                    pen += k;
+                }
+                if (g->w > 0)
+                    expect_x[n_expect++] = sl->x + pen + g->bearing_x;
+                pen += g->advance;
+                prev = cp;
+                have_prev = 1;
+            }
+            CHECK(kerned >= 3, "the probe string exercises several pairs");
+
+            /* The prim comparison below reads the slot's glyphs as the
+             * tail of the frame, which holds because render_slots runs
+             * after the command list and this screen owns exactly one
+             * slot. Stated rather than assumed. */
+            CHECK(ctx.screen_table[ctx.screen].slot_count == 1
+                  && ctx.screen_table[ctx.screen].slot_first == si,
+                  "the probed slot is the only one on this screen");
+
+            ps2ui_slot_set(&ctx, "count", "");
+            base_prims = render_and_count(&ctx, &gs);
+            ps2ui_slot_set(&ctx, "count", probe);
+            CHECK(render_and_count(&ctx, &gs) == base_prims + n_expect,
+                  "the slot draws one prim per inked glyph");
+            for (i = 0; i < n_expect; i++) {
+                if ((int)g_stub.prims[base_prims + i].x1 != expect_x[i])
+                    ok = 0;
+            }
+            CHECK(ok, "and lands every glyph on the kerned pen position");
+
+            /* And the kerning is doing something: the same glyphs with
+             * the pairs ignored would sit further right. */
+            {
+                int unkerned = 0;
+                const char *p3 = probe;
+                while (*p3) {
+                    const ps2ui_glyph *g =
+                        scan_glyph(&ctx, fe, (uint32_t)(unsigned char)*p3++);
+                    if (g) unkerned += g->advance;
+                }
+                CHECK(pen < unkerned,
+                      "a kerned run is narrower than the sum of its advances");
+            }
+            ps2ui_slot_set(&ctx, "count", NULL);
         }
 
         /* B11: byte-wise truncation must not split a UTF-8 sequence.
@@ -461,7 +571,19 @@ int main(int argc, char **argv)
         ps2ui_list list;
         int full, one_hidden, row_cost;
 
-        CHECK(ps2ui_load(&lc, lblob, llen) == PS2UI_OK, "list fixture loads");
+        /* Bail rather than fall through: everything below dereferences
+         * the loaded context, so a rejected blob segfaults instead of
+         * reporting, and a crash names none of the checks that ran. A
+         * fixture left stale by a format change is exactly how that
+         * happens -- it happened while adding kerning. */
+        int loaded = ps2ui_load(&lc, lblob, llen);
+        CHECK(loaded == PS2UI_OK, "list fixture loads");
+        if (loaded != PS2UI_OK) {
+            printf("# ps2ui_load returned %d; skipping the list checks\n",
+                   loaded);
+            free(lblob);
+            goto report;
+        }
         ps2ui_upload(&lc, &gs);
 
         /* Focus really does follow the selection, by baked row name.
@@ -516,6 +638,7 @@ int main(int argc, char **argv)
         free(lblob);
     }
 
+report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
     free(blob);

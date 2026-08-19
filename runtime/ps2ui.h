@@ -46,13 +46,14 @@ extern "C" {
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */
-#define PS2UI_VERSION 4
+#define PS2UI_VERSION 5
 
 /* Feature bits. Unknown bits in a file are a load error — a blob that
  * needs a capability this runtime lacks must fail loudly, not render
  * subtly wrong. */
 #define PS2UI_FEAT_DYNAMIC_TEXT (1u << 0)
-#define PS2UI_FEAT_KNOWN        PS2UI_FEAT_DYNAMIC_TEXT
+#define PS2UI_FEAT_KERNING      (1u << 1)
+#define PS2UI_FEAT_KNOWN        (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING)
 
 #define PS2UI_OP_QUAD          0
 #define PS2UI_OP_TEXQUAD       1
@@ -142,7 +143,20 @@ typedef struct ps2ui_font_entry {
     uint16_t line_height;
     uint16_t glyph_count;
     uint32_t glyphs_off;         /* ps2ui_glyph[] in blob, cp-sorted   */
+    uint16_t kern_count;         /* 0 unless PS2UI_FEAT_KERNING        */
+    uint16_t pad0;
+    uint32_t kerns_off;          /* ps2ui_kern[] in blob, pair-sorted  */
 } ps2ui_font_entry;
+
+/* One ordered pair's adjustment, already resolved to pixels at this
+ * font's size: the EE is not going to divide by 1000 per glyph pair.
+ * Pairs that round to zero are not stored, so a UI whose text is too
+ * small to kern carries no table at all. */
+typedef struct ps2ui_kern {
+    uint32_t prev, cur;          /* the ordered codepoint pair         */
+    int16_t  amount;             /* px, negative in almost every case  */
+    uint16_t pad0;
+} ps2ui_kern;
 
 typedef struct ps2ui_glyph {
     uint32_t codepoint;

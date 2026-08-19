@@ -235,6 +235,54 @@ per-screen nesting.
 Counts move often enough that quoting them per sprint just makes the
 file wrong; `README.md` carries the commands that print them.
 
+**Sprint 12 status (2026-08-19):** ✅ **F9** kerning, applied by all
+three pens. The backlog claimed `fontgen` "already reserves a kerning
+field"; it did not — only layout's `text.js` ever read
+`metrics.kerning`, and nothing had written it. So the work started one
+step earlier than the row assumed.
+
+Pairs are measured rather than parsed: Pillow exposes no kern/GPOS
+reader, and asking the shaper that will rasterize the glyphs what
+`getlength("AV")` is against `"A"` + `"V"` records whatever it actually
+does. That only holds with substitutions off — DejaVu shapes `ff` as a
+ligature 15 units narrower than f + f, and the pen draws two glyphs, so
+the ligature's width would have become a kern that does not exist.
+
+The interesting constraint is that three pens must agree to the pixel,
+and the third one runs on the console. Kerns therefore reach the blob
+pre-resolved to pixels at each font's size — the EE is not going to
+divide by 1000 per glyph pair — which makes the table per-size and
+drops most pairs at UI sizes. That is the correct outcome rather than
+a limitation: kerning is a sub-em correction and is invisible in 13px
+text either way. Two consequences fell out of writing it down: the
+ellipsis kerns against whatever glyph the cut leaves last, so its cost
+cannot be subtracted from the budget up front, and a space kerns
+against its neighbours, so a wrapped line's accumulated width has to
+account for both boundary kerns or it disagrees with `measure()` of the
+same text.
+
+`.uib` v5: the font entry grew 16 → 24 bytes, so a v4 reader would have
+walked the table at the wrong stride rather than ignoring something it
+did not understand. Feature bit 1 is the first use of the machinery
+F14 built, and `ps2ui-check` errors when the bit and the tables
+disagree.
+
+The agreement is now tested rather than asserted. `rounding.py` had
+claimed "test_metrics_agree proves it" about a test that did not
+exist; `TestCrossLanguagePen` runs both pens over a corpus at seven
+sizes and three letter-spacings and compares every glyph position, and
+the runtime suite checks the C pen against a linear scan of the same
+tables it binary-searches. Both were verified by sabotage.
+
+Two adjacent gaps closed on the way. The runtime's list fixture is
+built by the Makefile so that it tracks the compiler it tests, but the
+rule depended only on its HTML and CSS, so the format change left a
+stale blob — and the test binary answered that by segfaulting, because
+`CHECK` records a failure and keeps going straight into `ps2ui_upload`
+on a zeroed context. And the committed example screenshots were copied
+by hand, so a preview could drift from the renderer that produced it;
+both example builds now refresh them.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two

@@ -68,6 +68,14 @@ PY
 PYTHONPATH="$repo/packages/baker" python3 "$here/preview_in_game.py" \
     "$out/ui.uib" "$out/in-game.png"
 
+# Refresh the committed screenshots the README embeds. Same reason as
+# the memcard example: a hand-copied preview drifts from its renderer.
+cp "$out/preview.png"  "$here/screenshots/games.png"
+cp "$out/probe.png"    "$here/screenshots/probe.png"
+cp "$out/states.png"   "$here/screenshots/states.png"
+cp "$out/in-game.png"  "$here/screenshots/in-game.png"
+echo "ps2ui-bake: screenshots -> $here/screenshots/" >&2
+
 PYTHONPATH="$repo/packages/baker" python3 "$here/check.py" "$out/ui.uib"
 
 echo "channel6 browser: $out/ui.uib"

@@ -1,4 +1,4 @@
-""".uib writer and reader (format version 4).
+""".uib writer and reader (format version 5).
 
 Little-endian throughout (the EE is little-endian; so is every host we
 care about). Full layout in docs/format-uib.md; summary:
@@ -8,10 +8,10 @@ care about). Full layout in docs/format-uib.md; summary:
     clut table   n_clut   x  8 bytes
     cmd list     n_cmd    x 32 bytes
     focus table  n_focus  x 24 bytes
-    font table   n_font   x 16 bytes   (dynamic text, feature bit 0)
+    font table   n_font   x 24 bytes   (dynamic text, feature bit 0)
     slot table   n_slot   x 32 bytes   (dynamic text, feature bit 0)
     screen table n_screen x 24 bytes   (always >= 1)
-    blob         textures, CLUTs, glyph tables, names (NUL-terminated)
+    blob         textures, CLUTs, glyph and kern tables, names (NUL-term.)
 
 Screens partition the command, focus and slot tables into contiguous
 ranges; textures, CLUTs and fonts are shared across all screens. Focus
@@ -37,10 +37,11 @@ from .quads import (
 )
 
 MAGIC = 0x31424955  # "UIB1"
-VERSION = 4
+VERSION = 5
 
 FEAT_DYNAMIC_TEXT = 1 << 0
-FEAT_KNOWN = FEAT_DYNAMIC_TEXT
+FEAT_KERNING = 1 << 1
+FEAT_KNOWN = FEAT_DYNAMIC_TEXT | FEAT_KERNING
 
 _HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHIHH")  # 76 bytes
 _TEX = struct.Struct("<BBHHHII")               # 16 bytes
@@ -49,16 +50,18 @@ _CMD = struct.Struct("<BBHhhHHBBBBHHHHH6x")    # 32 bytes
 # Field order keeps every u32 4-aligned so the C runtime can overlay
 # plain structs on the file with no packing pragmas.
 _FOCUS = struct.Struct("<HHHHHHIhhHH")         # 24 bytes
-_FONT = struct.Struct("<HHHHHHI")              # 16 bytes
+_FONT = struct.Struct("<HHHHHHIH2xI")          # 24 bytes
 _SLOT = struct.Struct("<IIhhHHBBHHBBBBBBBB2x") # 32 bytes
 _SCREEN = struct.Struct("<IIIHHHHH2x")        # 24 bytes
 _CRC_OFFSET = 48
 _GLYF = struct.Struct("<IHHHHhhH2x")           # 20 bytes, in blob
+_KERN = struct.Struct("<IIh2x")                # 12 bytes, in blob
 
 assert _HEADER.size == 76 and _TEX.size == 16 and _CLUT.size == 8
 assert _SCREEN.size == 24
 assert _CMD.size == 32 and _FOCUS.size == 24
-assert _FONT.size == 16 and _SLOT.size == 32 and _GLYF.size == 20
+assert _FONT.size == 24 and _SLOT.size == 32 and _GLYF.size == 20
+assert _KERN.size == 12
 
 
 def _align16(buf: bytearray):
@@ -124,8 +127,14 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
             blob += _GLYF.pack(g["codepoint"], g["u"], g["v"], g["w"], g["h"],
                                g["bearing_x"], g["bearing_y"], g["advance"])
         _align16(blob)
+        kerns = sorted(f.get("kerns", ()), key=lambda k: (k["prev"], k["cur"]))
+        kerns_off = len(blob)
+        for k in kerns:
+            blob += _KERN.pack(k["prev"], k["cur"], k["amount"])
+        _align16(blob)
         font_entries.append((f["tex"], f["size"], f["weight"], f["ascent"],
-                             f["line_height"], len(glyphs), glyphs_off))
+                             f["line_height"], len(glyphs), glyphs_off,
+                             len(kerns), kerns_off))
 
     slot_entries = []
     for sl in slots:
@@ -163,6 +172,12 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     _align16(blob)
 
     feature_flags = FEAT_DYNAMIC_TEXT if (font_entries or slot_entries) else 0
+    # Set only when a font actually carries pairs, so the runtime can
+    # skip the lookup wholesale for a UI whose text is too small to
+    # kern, and so "no kerning" is stated rather than inferred from a
+    # zero count.
+    if any(e[7] for e in font_entries):
+        feature_flags |= FEAT_KERNING
 
     off = _HEADER.size
     off_tex = off
@@ -294,16 +309,22 @@ def read_uib(path) -> UibFile:
         })
     for i in range(n_font):
         (tex, size, weight, ascent, line_height, glyph_count, glyphs_off,
-         ) = _FONT.unpack_from(data, off_font + i * _FONT.size)
+         kern_count, kerns_off) = _FONT.unpack_from(
+            data, off_font + i * _FONT.size)
         glyphs = {}
         for j in range(glyph_count):
             (cp, u, v, w, h, bx, by, adv) = _GLYF.unpack_from(
                 blob, glyphs_off + j * _GLYF.size)
             glyphs[cp] = {"u": u, "v": v, "w": w, "h": h,
                           "bearing_x": bx, "bearing_y": by, "advance": adv}
+        kerns = {}
+        for j in range(kern_count):
+            (prev, cur, amount) = _KERN.unpack_from(
+                blob, kerns_off + j * _KERN.size)
+            kerns[(prev, cur)] = amount
         out.fonts.append({"tex": tex, "size": size, "weight": weight,
                           "ascent": ascent, "line_height": line_height,
-                          "glyphs": glyphs})
+                          "glyphs": glyphs, "kerns": kerns})
     for i in range(n_slot):
         (name_off, ph_off, x, text_y, w, font, align, flags, capacity,
          focus, br, bg_, bb, ba, fr, fg, fb, fa,

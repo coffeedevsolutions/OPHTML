@@ -39,7 +39,7 @@ from .quads import (
     FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
     STATE_ALWAYS, STATE_FOCUSED, STATE_UNFOCUSED, TEX_NONE,
 )
-from .uib import read_uib
+from .uib import FEAT_KERNING, read_uib
 
 ERROR = "error"
 WARNING = "warning"
@@ -304,6 +304,30 @@ def check_fonts(uib, rep: Report) -> None:
         cps = list(font["glyphs"])
         rep.error(cps == sorted(cps),
                   f"font {i} glyphs are codepoint-sorted for bsearch")
+
+        # Same contract for the kern table, plus: a pair naming a glyph
+        # the atlas does not carry can never be looked up, and a stored
+        # zero is a lookup that returns what a miss would have.
+        pairs = list(font["kerns"])
+        rep.error(pairs == sorted(pairs),
+                  f"font {i} kern pairs are sorted for bsearch")
+        rep.error(all(v != 0 for v in font["kerns"].values()),
+                  f"font {i} stores no zero kerns")
+        orphan = [p for p in pairs
+                  if p[0] not in font["glyphs"] or p[1] not in font["glyphs"]]
+        rep.error(not orphan,
+                  f"font {i} kerns only pairs it has glyphs for"
+                  + (f"; {len(orphan)} orphaned" if orphan else ""))
+
+    # Feature bits are a promise about the tables, and a promise the
+    # runtime acts on: with the bit clear it may skip the kern lookup
+    # entirely, so a blob carrying pairs it did not declare would kern
+    # in the previewer and not on console.
+    has_kerns = any(f["kerns"] for f in uib.fonts)
+    rep.error(bool(uib.feature_flags & FEAT_KERNING) == has_kerns,
+              "the kerning feature bit matches the kern tables"
+              + ("" if not has_kerns else
+                 f" ({sum(len(f['kerns']) for f in uib.fonts)} pairs)"))
 
     # A slot the app never sets still draws, so a placeholder that will
     # not render is a blank line on console with nothing to explain it.
