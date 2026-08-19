@@ -280,6 +280,17 @@ static void apply_scissor(GSGLOBAL *gs, const scissor_rect *r)
     gsKit_set_scissor(gs, GS_SETREG_SCISSOR(r->x0, r->x1 - 1, r->y0, r->y1 - 1));
 }
 
+/* Runtime visibility (F21), one bit per focus node. Separate from the
+ * baked state machine below: `hidden` answers "should this subtree be
+ * painted at all", cmd_visible answers "is this the focused or the
+ * unfocused variant". */
+static int node_hidden(const ps2ui_ctx *ctx, uint16_t idx)
+{
+    if (idx == PS2UI_NONE || idx >= PS2UI_MAX_HIDEABLE)
+        return 0;
+    return (ctx->hidden[idx >> 5] >> (idx & 31u)) & 1u;
+}
+
 static int cmd_visible(const ps2ui_cmd *c, uint16_t focus)
 {
     int is_focused;
@@ -328,6 +339,8 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
             continue;
         }
         if (!cmd_visible(c, ctx->focus))
+            continue;
+        if (node_hidden(ctx, c->focus))
             continue;
 
         if (c->op == PS2UI_OP_QUAD) {
@@ -626,10 +639,77 @@ int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)
     case PS2UI_LEFT:  next = n->left;  break;
     case PS2UI_RIGHT: next = n->right; break;
     }
+    /* Walk past hidden nodes in the same direction rather than landing
+     * on something invisible. Bounded by the node count: a graph with a
+     * cycle of hidden nodes must terminate, not spin. */
+    {
+        uint32_t guard = ctx->hdr->n_focus + 1;
+        while (next != PS2UI_NONE && node_hidden(ctx, next) && guard--) {
+            const ps2ui_focus_node *h = &ctx->focus_nodes[next];
+            uint16_t step = PS2UI_NONE;
+            switch (dir) {
+            case PS2UI_UP:    step = h->up;    break;
+            case PS2UI_DOWN:  step = h->down;  break;
+            case PS2UI_LEFT:  step = h->left;  break;
+            case PS2UI_RIGHT: step = h->right; break;
+            }
+            if (step == next) break;
+            next = step;
+        }
+        if (next != PS2UI_NONE && node_hidden(ctx, next))
+            return 0;   /* every candidate in this direction is hidden */
+    }
     if (next == PS2UI_NONE || next == ctx->focus)
         return 0;
     ctx->focus = next;
     return 1;
+}
+
+/* ---------------------------------------------------------- visibility */
+
+static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)
+{
+    uint32_t i;
+    if (name == NULL)
+        return PS2UI_NONE;
+    for (i = 0; i < ctx->hdr->n_focus; i++) {
+        const char *n = (const char *)(ctx->blob + ctx->focus_nodes[i].name_off);
+        if (strcmp(n, name) == 0)
+            return (uint16_t)i;
+    }
+    return PS2UI_NONE;
+}
+
+int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)
+{
+    uint16_t idx;
+    if (!ctx)
+        return 0;
+    idx = focus_index_by_name(ctx, name);
+    if (idx == PS2UI_NONE || idx >= PS2UI_MAX_HIDEABLE)
+        return 0;
+    if (visible)
+        ctx->hidden[idx >> 5] &= ~(1u << (idx & 31u));
+    else
+        ctx->hidden[idx >> 5] |= 1u << (idx & 31u);
+    return 1;
+}
+
+int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)
+{
+    uint16_t idx;
+    if (!ctx)
+        return 0;
+    idx = focus_index_by_name(ctx, name);
+    if (idx == PS2UI_NONE)
+        return 0;
+    return node_hidden(ctx, idx) ? 0 : 1;
+}
+
+void ps2ui_visible_reset(ps2ui_ctx *ctx)
+{
+    if (ctx)
+        memset(ctx->hidden, 0, sizeof ctx->hidden);
 }
 
 const char *ps2ui_focus_name(const ps2ui_ctx *ctx)
@@ -764,4 +844,16 @@ int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)
     if (target < 0) target = 0;
     if (target > (long)list->count - 1) target = (long)list->count - 1;
     return ps2ui_list_select(ctx, list, (uint16_t)target);
+}
+
+void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)
+{
+    char name[PS2UI_LIST_NAME_MAX];
+    uint16_t r;
+    if (!ctx || !list)
+        return;
+    for (r = 0; r < list->rows; r++) {
+        list_row_name(list, r, name, sizeof name);
+        ps2ui_visible_set(ctx, name, ps2ui_list_item_at(list, r) >= 0);
+    }
 }

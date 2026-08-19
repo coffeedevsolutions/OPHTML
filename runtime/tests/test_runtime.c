@@ -377,6 +377,69 @@ int main(int argc, char **argv)
         }
     }
 
+    /* ---- runtime visibility (F21) ----
+     * Driven against the real memcard blob, because the point is that
+     * hiding removes a subtree's commands from the frame and keeps the
+     * D-pad off it. */
+    {
+        int base_prims, hidden_prims;
+
+        ps2ui_screen_set(&ctx, "library");
+        ps2ui_focus_set(&ctx, "nav-games");
+        base_prims = render_and_count(&ctx, &gs);
+
+        CHECK(ps2ui_visible_get(&ctx, "tile-okami") == 1,
+              "everything starts visible");
+        CHECK(ps2ui_visible_set(&ctx, "tile-okami", 0) == 1,
+              "hiding a known node succeeds");
+        CHECK(ps2ui_visible_get(&ctx, "tile-okami") == 0, "and it reads back hidden");
+        hidden_prims = render_and_count(&ctx, &gs);
+        CHECK(hidden_prims < base_prims,
+              "a hidden subtree stops being drawn");
+
+        /* The half that blanking a slot cannot do: keep focus off it. */
+        CHECK(ps2ui_focus_set(&ctx, "tile-okami") == 1,
+              "focus_set is deliberate and still reaches a hidden node");
+        ps2ui_focus_set(&ctx, "nav-games");
+        {
+            /* Walk right across the tile row; the hidden tile must never
+             * be where we land. */
+            int landed_on_hidden = 0, steps = 0;
+            ps2ui_focus_set(&ctx, "tile-ico");
+            while (ps2ui_move(&ctx, PS2UI_RIGHT) && steps++ < 20) {
+                const char *nm = ps2ui_focus_name(&ctx);
+                if (nm && strcmp(nm, "tile-okami") == 0) landed_on_hidden = 1;
+            }
+            CHECK(!landed_on_hidden, "the D-pad walks past a hidden node");
+        }
+
+        CHECK(ps2ui_visible_set(&ctx, "tile-okami", 1) == 1, "showing it again");
+        CHECK(render_and_count(&ctx, &gs) == base_prims,
+              "showing restores exactly the original frame");
+
+        CHECK(ps2ui_visible_set(&ctx, "no-such-node", 0) == 0,
+              "an unknown name is rejected rather than silently ignored");
+
+        ps2ui_visible_set(&ctx, "tile-ico", 0);
+        ps2ui_visible_reset(&ctx);
+        CHECK(ps2ui_visible_get(&ctx, "tile-ico") == 1, "reset shows everything");
+        CHECK(render_and_count(&ctx, &gs) == base_prims, "and restores the frame");
+    }
+
+    /* A short list should look short: rows past the end are hidden, not
+     * merely blanked, or their panels still read as empty rows. */
+    {
+        ps2ui_list list;
+        ps2ui_list_init(&list, "tile-", 4);
+        ps2ui_list_set_count(&list, 4);
+        ps2ui_list_apply_visibility(&ctx, &list);
+        CHECK(ps2ui_list_item_at(&list, 3) == 3, "full list fills every row");
+        ps2ui_list_set_count(&list, 2);
+        CHECK(ps2ui_list_item_at(&list, 2) == -1,
+              "a short list reports its empty rows");
+        ps2ui_visible_reset(&ctx);
+    }
+
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
     free(blob);

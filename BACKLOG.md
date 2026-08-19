@@ -143,6 +143,28 @@ dead record and compares pixels. channel-6 went 851 → 831 commands and
 The loop closed nicely: the validator found it, the baker fixed it, and
 the validator confirms it.
 
+**Sprint 10 status (2026-08-17):** ✅ **F21** runtime visibility, which
+closes a gap F6 opened. Blanking a row past the end of the data leaves
+its panel and border drawn, so a short list still looked full of empty
+rows.
+
+`ps2ui_visible_set(ctx, name, 0)` stops painting a focusable subtree.
+The unit is a focus node because that is the only grouping the command
+list already carries, and in practice it is the unit you want. Two
+details make it more than a paint flag: `ps2ui_move` walks *past* hidden
+nodes rather than landing on something invisible, which is the half an
+app cannot get by blanking slot text; and `ps2ui_focus_set` still
+reaches one, because naming a node explicitly is deliberate.
+
+State is a 256-bit mask in the context, zeroed at load, so a UI that
+never calls the API behaves identically and pays 32 bytes. It is not a
+load-time cap: a blob with more focusables loads and renders fine, it
+just cannot hide the ones past the ceiling, and the setter returns 0
+rather than pretending. No format change.
+
+`ps2ui_list_apply_visibility` wires the two features together. 106
+runtime checks, was 93.
+
 **Scales.** `Score = (Reach × Impact × Confidence) / Effort`
 
 * **Reach** — 0–10: share of ps2ui adopters who hit this within two

@@ -183,6 +183,12 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
  * a stack buffer in ps2ui_list_move, not a table bound, so it costs
  * nothing to a UI that never uses a list. */
 #define PS2UI_LIST_NAME_MAX     64
+/* Focus nodes whose visibility can be toggled at runtime (backlog F21),
+ * one bit each. Not a load-time cap: a blob with more focusables loads
+ * and renders fine, it just cannot hide the ones past this index, and
+ * ps2ui_visible_set says so by returning 0. Sized to match the
+ * data-repeat ceiling, since a long list is what needs this. */
+#define PS2UI_MAX_HIDEABLE      256
 
 typedef struct ps2ui_ctx {
     const uint8_t         *data;     /* the whole .uib, caller-owned      */
@@ -209,6 +215,10 @@ typedef struct ps2ui_ctx {
      * nothing). Caller-free storage keeps the no-allocation rule. */
     char      slot_text[PS2UI_MAX_SLOTS][PS2UI_SLOT_BUFSZ];
     uint8_t   slot_is_set[PS2UI_MAX_SLOTS];
+    /* Runtime visibility, one bit per focus node, 0 = shown. Zeroed by
+     * ps2ui_load, so a blob that never calls the API behaves exactly as
+     * before and pays 32 bytes of context. */
+    uint32_t  hidden[(PS2UI_MAX_HIDEABLE + 31) / 32];
 } ps2ui_ctx;
 
 /* Errors returned by ps2ui_load. */
@@ -271,6 +281,34 @@ const char *ps2ui_screen_name(const ps2ui_ctx *ctx);
  * blob; ps2ui itself draws in framebuffer pixels regardless. */
 uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);
 
+/* -------------------------------------------------------- visibility */
+
+/* Hide or show a focusable subtree at runtime (backlog F21).
+ *
+ * `display: none` is compile-time: it deletes the box before layout, so
+ * the geometry closes up around it. This is the other thing, and the
+ * only one a fixed command list can offer — the row keeps its space and
+ * stops being painted. Nothing reflows, because nothing can.
+ *
+ * The unit is a focus node, because that is the only grouping the
+ * command list already carries. In practice that is the same unit you
+ * want: a list row, a button, a panel the app can turn off. Text inside
+ * the subtree goes with it, slots included.
+ *
+ * A hidden node is also skipped by ps2ui_move, so the D-pad cannot land
+ * on something invisible. That is the half an app reimplementing this
+ * with blank strings does not get.
+ *
+ * Returns 1 on success, 0 if no focus node has that name or its index is
+ * past PS2UI_MAX_HIDEABLE. */
+int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible);
+
+/* 1 if shown (the default), 0 if hidden or unknown. */
+int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
+
+/* Show every node again. Cheap enough to call on a screen change. */
+void ps2ui_visible_reset(ps2ui_ctx *ctx);
+
 /* ------------------------------------------------------- list window */
 
 /* Scrolling over more items than the blob has rows (backlog F6).
@@ -327,6 +365,13 @@ int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row);
 /* Which baked row the selection currently occupies (0..rows-1), or -1
  * for an empty list. */
 int ps2ui_list_selected_row(const ps2ui_list *list);
+
+/* Hide the rows past the end of the data and show the rest.
+ * Blanking a row's text leaves its panel and border drawn, which reads
+ * as an empty row rather than as no row; this is what makes a short list
+ * look short. Call it after set_count and after any move. Needs the row
+ * focus names to match the list's prefix. */
+void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list);
 
 /* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed
  * for tests. */

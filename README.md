@@ -138,6 +138,31 @@ cases worth not reimplementing.
 No format change is involved: a list is a view over rows that are
 already baked, so a UI that never uses one pays nothing.
 
+## Hiding things at runtime
+
+`display: none` is compile-time: it deletes the box before layout, so
+the geometry closes up around it. `ps2ui_visible_set` is the other
+thing, and the only one a fixed command list can offer — the subtree
+keeps its space and stops being painted:
+
+```c
+ps2ui_visible_set(&ui, "row-7", 0);   /* stop drawing it   */
+ps2ui_visible_set(&ui, "row-7", 1);   /* draw it again     */
+ps2ui_visible_reset(&ui);             /* show everything   */
+```
+
+- The unit is a focusable subtree, because that is the grouping the
+  command list already carries. Text inside it goes too, slots included.
+- A hidden node is skipped by `ps2ui_move`, so the D-pad cannot land on
+  something invisible. That is the half you do not get from blanking a
+  slot's text.
+- `ps2ui_focus_set` still reaches a hidden node, because naming one
+  explicitly is a deliberate act.
+
+Lists use it: `ps2ui_list_apply_visibility` hides the rows past the end
+of your data, which is what makes a short list look short instead of
+showing empty panels.
+
 ## Multiple screens
 
 Pass several IR files to one bake:
@@ -269,7 +294,7 @@ Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)
 - [ ] npm / PyPI releases
-- [x] List templating (`data-repeat`) and runtime list windowing
+- [x] List templating (`data-repeat`), list windowing, runtime visibility
 - [x] Widescreen and per-mode pixel aspect (`.uib` v4)
 - [x] Dynamic text slots, multi-screen blobs, images with palettization (0.2.0)
 
