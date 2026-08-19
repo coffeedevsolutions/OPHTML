@@ -6,6 +6,7 @@
 #include <string.h>
 
 static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs);
+static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name);
 
 /* ---------------------------------------------------------------- crc */
 
@@ -280,6 +281,17 @@ static void apply_scissor(GSGLOBAL *gs, const scissor_rect *r)
     gsKit_set_scissor(gs, GS_SETREG_SCISSOR(r->x0, r->x1 - 1, r->y0, r->y1 - 1));
 }
 
+/* Runtime visibility (F21), one bit per focus node. Separate from the
+ * baked state machine below: `hidden` answers "should this subtree be
+ * painted at all", cmd_visible answers "is this the focused or the
+ * unfocused variant". */
+static int node_hidden(const ps2ui_ctx *ctx, uint16_t idx)
+{
+    if (idx == PS2UI_NONE || idx >= PS2UI_MAX_HIDEABLE)
+        return 0;
+    return (ctx->hidden[idx >> 5] >> (idx & 31u)) & 1u;
+}
+
 static int cmd_visible(const ps2ui_cmd *c, uint16_t focus)
 {
     int is_focused;
@@ -328,6 +340,8 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
             continue;
         }
         if (!cmd_visible(c, ctx->focus))
+            continue;
+        if (node_hidden(ctx, c->focus))
             continue;
 
         if (c->op == PS2UI_OP_QUAD) {
@@ -453,8 +467,16 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
     uint32_t i;
     for (i = scr->slot_first; i < (uint32_t)scr->slot_first + scr->slot_count; i++) {
         const ps2ui_slot_entry *s = &ctx->slots[i];
-        const ps2ui_font_entry *font = &ctx->fonts[s->font];
-        const char *text = slot_current_text(ctx, i);
+        const ps2ui_font_entry *font;
+        const char *text;
+        /* Slots live outside the command list, so the visibility check
+         * in the command loop does not reach them. Without this, hiding
+         * a row removes its panel and leaves its glyphs floating over
+         * the background — worse than not hiding it at all. */
+        if (node_hidden(ctx, s->focus))
+            continue;
+        font = &ctx->fonts[s->font];
+        text = slot_current_text(ctx, i);
         size_t draw_len;
         int ellipsize;
         int width = slot_measure(ctx, s, font, text, &draw_len, &ellipsize);
@@ -626,10 +648,90 @@ int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)
     case PS2UI_LEFT:  next = n->left;  break;
     case PS2UI_RIGHT: next = n->right; break;
     }
+    /* Walk past hidden nodes in the same direction rather than landing
+     * on something invisible. Bounded by the node count: a graph with a
+     * cycle of hidden nodes must terminate, not spin. */
+    {
+        uint32_t guard = ctx->hdr->n_focus + 1;
+        while (next != PS2UI_NONE && node_hidden(ctx, next) && guard--) {
+            const ps2ui_focus_node *h = &ctx->focus_nodes[next];
+            uint16_t step = PS2UI_NONE;
+            switch (dir) {
+            case PS2UI_UP:    step = h->up;    break;
+            case PS2UI_DOWN:  step = h->down;  break;
+            case PS2UI_LEFT:  step = h->left;  break;
+            case PS2UI_RIGHT: step = h->right; break;
+            }
+            if (step == next) break;
+            next = step;
+        }
+        if (next != PS2UI_NONE && node_hidden(ctx, next))
+            return 0;   /* every candidate in this direction is hidden */
+    }
     if (next == PS2UI_NONE || next == ctx->focus)
         return 0;
     ctx->focus = next;
     return 1;
+}
+
+/* ---------------------------------------------------------- visibility */
+
+/* Scoped to the current screen's focus range, not the whole blob.
+ * Names are only unique per screen — the memcard example has nav-games
+ * on both — and data-repeat makes two screens each using row-{i} the
+ * natural thing to write rather than an accident. A blob-global scan
+ * finds the first match anywhere, so hiding "row-2" from screen two
+ * would silently blank screen one's and report success.
+ *
+ * Linear: focus_count is a screenful of widgets, not a database, and
+ * this runs on a button press, not per frame. */
+static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)
+{
+    const ps2ui_screen_entry *scr;
+    uint32_t i, lo, hi;
+    if (name == NULL || ctx->screen >= ctx->hdr->n_screen)
+        return PS2UI_NONE;
+    scr = &ctx->screen_table[ctx->screen];
+    lo = scr->focus_first;
+    hi = lo + scr->focus_count;
+    for (i = lo; i < hi && i < ctx->hdr->n_focus; i++) {
+        const char *n = (const char *)(ctx->blob + ctx->focus_nodes[i].name_off);
+        if (strcmp(n, name) == 0)
+            return (uint16_t)i;
+    }
+    return PS2UI_NONE;
+}
+
+int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)
+{
+    uint16_t idx;
+    if (!ctx)
+        return 0;
+    idx = focus_index_by_name(ctx, name);
+    if (idx == PS2UI_NONE || idx >= PS2UI_MAX_HIDEABLE)
+        return 0;
+    if (visible)
+        ctx->hidden[idx >> 5] &= ~(1u << (idx & 31u));
+    else
+        ctx->hidden[idx >> 5] |= 1u << (idx & 31u);
+    return 1;
+}
+
+int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)
+{
+    uint16_t idx;
+    if (!ctx)
+        return 0;
+    idx = focus_index_by_name(ctx, name);
+    if (idx == PS2UI_NONE)
+        return 0;
+    return node_hidden(ctx, idx) ? 0 : 1;
+}
+
+void ps2ui_visible_reset(ps2ui_ctx *ctx)
+{
+    if (ctx)
+        memset(ctx->hidden, 0, sizeof ctx->hidden);
 }
 
 const char *ps2ui_focus_name(const ps2ui_ctx *ctx)
@@ -641,17 +743,139 @@ const char *ps2ui_focus_name(const ps2ui_ctx *ctx)
 
 int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)
 {
-    uint32_t i;
-    if (name == NULL)
+    uint16_t idx = focus_index_by_name(ctx, name);
+    if (idx == PS2UI_NONE)
         return 0;
-    /* Linear scan: n_focus is a screenful of widgets, not a database,
-     * and focus_set runs on a button press, not per frame. */
-    for (i = 0; i < ctx->hdr->n_focus; i++) {
-        const char *n = (const char *)(ctx->blob + ctx->focus_nodes[i].name_off);
-        if (strcmp(n, name) == 0) {
-            ctx->focus = (uint16_t)i;
-            return 1;
-        }
+    ctx->focus = idx;
+    return 1;
+}
+
+/* --------------------------------------------------------- list window */
+
+/* Row focus names are built here rather than by the app, so the naming
+ * convention lives in exactly one place. No snprintf: the runtime is
+ * string.h only, and the index is bounded by PS2UI_MAX_LIST_ROWS. */
+static void list_row_name(const ps2ui_list *list, uint16_t row,
+                          char *out, size_t cap)
+{
+    size_t n = 0;
+    char digits[6];
+    int d = 0;
+    unsigned v = row;
+
+    if (list->prefix) {
+        while (list->prefix[n] && n + 1 < cap) { out[n] = list->prefix[n]; n++; }
     }
-    return 0;
+    do { digits[d++] = (char)('0' + (v % 10u)); v /= 10u; } while (v && d < 6);
+    while (d > 0 && n + 1 < cap) out[n++] = digits[--d];
+    out[n] = '\0';
+}
+
+/* Slide the window the minimum distance that puts sel back on screen.
+ * Minimum, not centred: a list that recentres on every step makes the
+ * whole screen move when the user asked one row to. */
+static void list_scroll_into_view(ps2ui_list *list)
+{
+    if (list->rows == 0 || list->count == 0) { list->top = 0; return; }
+    if (list->sel < list->top)
+        list->top = list->sel;
+    else if ((uint32_t)list->sel >= (uint32_t)list->top + list->rows)
+        list->top = (uint16_t)(list->sel - list->rows + 1);
+
+    /* Never leave blank rows above real items when the tail is in view. */
+    if (list->count > list->rows) {
+        uint16_t max_top = (uint16_t)(list->count - list->rows);
+        if (list->top > max_top) list->top = max_top;
+    } else {
+        list->top = 0;
+    }
+}
+
+static int list_sync_focus(ps2ui_ctx *ctx, const ps2ui_list *list);
+
+void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows)
+{
+    if (!list) return;
+    list->prefix = prefix;
+    list->rows = rows;
+    list->count = 0;
+    list->top = 0;
+    list->sel = 0;
+}
+
+void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count)
+{
+    if (!list) return;
+    list->count = count;
+    if (count == 0) { list->sel = 0; list->top = 0; return; }
+    if (list->sel >= count) list->sel = (uint16_t)(count - 1);
+    list_scroll_into_view(list);
+    list_sync_focus(ctx, list);
+}
+
+int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)
+{
+    uint32_t item;
+    if (!list || row >= list->rows) return -1;
+    item = (uint32_t)list->top + row;
+    if (item >= list->count) return -1;
+    return (int)item;
+}
+
+int ps2ui_list_selected_row(const ps2ui_list *list)
+{
+    int row;
+    if (!list || list->count == 0 || list->rows == 0) return -1;
+    row = (int)list->sel - (int)list->top;
+    /* Agree with item_at rather than reporting a row that cannot
+     * exist: with rows == 0 this used to return sel while item_at(0)
+     * correctly returned -1. */
+    return (row >= 0 && row < (int)list->rows) ? row : -1;
+}
+
+/* Focus follows the selection. Failing to find the row's node is not
+ * fatal — the indices are still correct and the app can still fill the
+ * slots — but it means the prefix does not match the baked names, which
+ * is worth surfacing as a 0 return rather than silently doing nothing. */
+static int list_sync_focus(ps2ui_ctx *ctx, const ps2ui_list *list)
+{
+    char name[PS2UI_LIST_NAME_MAX];
+    int row = ps2ui_list_selected_row(list);
+    if (!ctx || row < 0) return 0;
+    list_row_name(list, (uint16_t)row, name, sizeof name);
+    return ps2ui_focus_set(ctx, name);
+}
+
+int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item)
+{
+    uint16_t old_sel, old_top;
+    if (!list || list->count == 0) return 0;
+    old_sel = list->sel;
+    old_top = list->top;
+    list->sel = item >= list->count ? (uint16_t)(list->count - 1) : item;
+    list_scroll_into_view(list);
+    list_sync_focus(ctx, list);
+    return (list->sel != old_sel || list->top != old_top) ? 1 : 0;
+}
+
+int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)
+{
+    long target;
+    if (!list || list->count == 0) return 0;
+    target = (long)list->sel + delta;
+    if (target < 0) target = 0;
+    if (target > (long)list->count - 1) target = (long)list->count - 1;
+    return ps2ui_list_select(ctx, list, (uint16_t)target);
+}
+
+void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)
+{
+    char name[PS2UI_LIST_NAME_MAX];
+    uint16_t r;
+    if (!ctx || !list)
+        return;
+    for (r = 0; r < list->rows; r++) {
+        list_row_name(list, r, name, sizeof name);
+        ps2ui_visible_set(ctx, name, ps2ui_list_item_at(list, r) >= 0);
+    }
 }

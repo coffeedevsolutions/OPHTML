@@ -108,19 +108,18 @@ Both blobs exist so you can run the two-way panel test in
 [docs/bringup.md](../../docs/bringup.md) step 10 — same television,
 same UI, one blob correct in each TV mode.
 
-`ps2ui-check` on either blob reports one warning, and it is the CLIP
-cell working as designed:
+`ps2ui-check` on either blob is clean. It used to report one warning —
+twenty commands in the CLIP cell falling outside their scissor, the
+tail glyphs of a `nowrap` run that the GS discarded every frame. Since
+F24 the baker drops those at bake time and says so:
 
 ```
-20 command(s) fall entirely outside their clip and are submitted every
-frame for nothing (from command 628)
+trimmed 20 draw command(s) that fall outside their clip and could never draw
 ```
 
-Those are the tail glyphs of `Scissor clips this line at the padding
-edge`, a `nowrap` run inside `overflow: hidden`. The baker emits the
-whole string and lets the GS clip it, which is the behaviour the cell
-exists to demonstrate. Any *other* ps2ui-check output from this example
-is news.
+The cell still demonstrates clipping; the difference is that the
+console no longer submits geometry it cannot see. Any ps2ui-check
+output from this example is now news.
 
 ### The runtime's table caps
 

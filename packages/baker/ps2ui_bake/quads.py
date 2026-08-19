@@ -85,6 +85,7 @@ class Flattener:
         self.fonts = []         # dynamic-text font tables (filled by run())
         self.slots = []         # dynamic-text slots (filled by run())
         self.screens = []       # screen ranges (filled by run()/run_screens())
+        self.dropped = 0        # draw records trimmed as unable to draw (F24)
         self.focus_nodes = []   # globally-indexed focus nodes for the writer
         self._font_index = {}   # (bucket, size) -> font table index
         # box-id -> focus-table index, from the IR focus graph
@@ -265,6 +266,35 @@ class Flattener:
         """Single-screen compatibility wrapper."""
         self.run_screens([("main", self.ir)])
 
+    def _trim_dead_geometry(self, first, canvas):
+        """Drop draw records that cannot produce a pixel (backlog F24).
+
+        A `nowrap` run inside `overflow: hidden` bakes every glyph and
+        lets the GS clip, so the tail of a long string is quads the
+        console submits every frame and can never see. ps2ui-check found
+        twenty of them in the channel-6 probe on its first run.
+
+        The scissor model lives in clip.py, shared with ps2ui-check so
+        the two cannot drift; see that module for why sharing it is the
+        right call here. Removing a record that could never draw cannot
+        change the image, which is the property that makes this safe:
+        the example previews are byte-identical across this change.
+        """
+        # Imported here, not at module scope: clip.py takes the op
+        # codes from this module, and a top-level import either way
+        # closes the cycle.
+        from . import clip as clip_mod
+        dead = set(clip_mod.dead_indices(
+            self.records, first, len(self.records) - first,
+            canvas["w"], canvas["h"]))
+        if not dead:
+            return 0
+        self.records[first:] = [
+            r for i, r in enumerate(self.records[first:], start=first)
+            if i not in dead
+        ]
+        return len(dead)
+
     def run_screens(self, named_irs) -> None:
         """Flatten several IRs into one blob (backlog F4).
 
@@ -318,6 +348,7 @@ class Flattener:
                     ))
                 else:
                     raise ValueError(f"unknown IR command op: {op}")
+            self.dropped += self._trim_dead_geometry(cmd_first, canvas)
             self._collect_slots()
 
             initial = ir["focus"]["initial"]

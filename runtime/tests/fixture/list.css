@@ -1,0 +1,12 @@
+/* Fixture for the runtime's list and visibility checks.
+ *
+ * Four data-repeat rows named row-0..row-3, one slot each, so the tests
+ * can assert what the memcard example cannot: that a list's prefix
+ * actually matches baked focus names, and that hiding a row takes its
+ * slot text with it. Deliberately plain — every quad here is one row's
+ * share, so a primitive count is easy to reason about. */
+.screen { flex-direction: column; background: #0a0e1a; padding: 20px; gap: 8px; }
+.row { background: #12182a; border: 2px solid #1c2336; padding: 8px; }
+.row:focus { background: #16233c; border-color: #e8b64c; }
+.label { font-size: 16px; color: #dbe2ee; }
+.row:focus .label { color: #ffffff; }

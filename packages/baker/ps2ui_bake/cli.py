@@ -102,6 +102,10 @@ def main(argv=None) -> int:
         flat.textures, flat.cluts, flat.slots, flat.screens)
     print(caps_mod.summary(flat.textures, flat.cluts, flat.slots,
                            flat.screens, caps), file=sys.stderr)
+    if flat.dropped:
+        # Silent truncation reads as "covered everything"; say what went.
+        print(f"  trimmed {flat.dropped} draw command(s) that fall outside "
+              f"their clip and could never draw", file=sys.stderr)
     if cap_errors:
         for e in cap_errors:
             print(f"error: {e}", file=sys.stderr)
