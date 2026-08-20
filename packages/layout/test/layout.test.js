@@ -232,6 +232,59 @@ test('flex: direction is only demanded where it could change anything', () => {
   assert.equal(texts(hidden).length, 1);
 });
 
+test('lint: contrast never composites mutually exclusive focus states', () => {
+  // `:focus` is a paint-only delta -- one command list carries both
+  // states and the runtime draws whichever matches. A node's focused
+  // background and its unfocused text therefore never share a frame,
+  // and compositing one under the other invents a frame the console
+  // cannot produce. A chip with a bright focus fill used to report
+  // 1.11:1 against its own unfocused grey text, measured against a
+  // background only ever painted when that text is white.
+  const ir = compileCss(
+    '<div class="s"><p class="chip" id="c" focusable autofocus>NET</p></div>',
+    '.s { background: #0b0f16; padding: 20px; }'
+    + '.chip { font-size: 16px; color: #8b94a7; background: #141a26;'
+    + ' padding: 4px 10px; }'
+    + '.chip:focus { background: #7c9be0; color: #0b0f16; }',
+  );
+  // warnings are formatted strings, not objects -- filtering them by a
+  // `.rule` property silently matches nothing and passes whatever the
+  // linter did.
+  assert.equal(ir.warnings.filter((w) => w.startsWith('contrast:')).length, 0);
+
+  // And the rule still fires when a state really is low contrast:
+  // grey text on the same grey panel, in the state that draws it.
+  const bad = compileCss(
+    '<div class="s"><p class="chip" id="c" focusable autofocus>NET</p></div>',
+    '.s { background: #0b0f16; padding: 20px; }'
+    + '.chip { font-size: 16px; color: #202839; background: #141a26;'
+    + ' padding: 4px 10px; }'
+    + '.chip:focus { background: #141a26; color: #202839; }',
+  );
+  assert.ok(bad.warnings.some((w) => w.startsWith('contrast:')));
+});
+
+test('lint: the cross-node focused case is unreachable, and why', () => {
+  // `coexists` also refuses to composite two *different* nodes' focused
+  // states, since the runtime's `c->focus == ctx->focus` gives exactly
+  // one focused node per frame. Reaching that in the chain needs one
+  // focusable's rect to contain another's text — and today the only
+  // way to overlap two focusables is to nest them, which the compiler
+  // refuses outright. So the clause is forward cover for `position:
+  // absolute` (F8), not a live path. Pinned here so that if this error
+  // ever relaxes, someone is pointed at the lint clause that starts
+  // mattering.
+  assert.throws(
+    () => compileCss(
+      '<div class="row" id="r" focusable autofocus>'
+      + '<p class="btn" id="b" focusable>GO</p></div>',
+      '.row { background: #101623; padding: 6px; }'
+      + '.btn { font-size: 16px; color: #dbe2ee; }',
+    ),
+    /nested focusable/,
+  );
+});
+
 // ------------------------------------------------------------------ flex
 
 test('flex: row places children left to right with gap', () => {
