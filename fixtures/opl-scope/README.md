@@ -1,16 +1,25 @@
-# opl-scope — a measurement, not an example
+# opl-scope — a measurement fixture
 
 A realistic OPL-class library screen, authored to answer one question
 for the Phase 1 resource model (`docs/PLAN.md` §6): **what does a real
 environment actually demand of the runtime's static tables?**
 
-It is deliberately not a shipped example. It exists to be measured, and
-it exceeds the current caps on purpose.
+It lives in `fixtures/`, not `examples/`, because it is the opposite of
+an example: it exceeds the current caps on purpose, and a blob cannot
+be baked from it without raising one. `examples/` means the shipped
+contract — warning-free, screenshots refreshed (invariant I6).
+
+Re-measure, and check the numbers below are still true:
 
 ```sh
-node packages/layout/bin/ps2ui-layout.js \
-    examples/opl-scope/ui/library.html examples/opl-scope/ui/opl.css \
-    -o build/opl.json
+./fixtures/opl-scope/measure.sh
+```
+
+That runs the layout stage only, so it needs no raised cap, and CI runs
+it on every push. The full bake, for the VRAM and blob figures, needs
+`PS2UI_MAX_SLOTS` raised past 43 first:
+
+```sh
 PYTHONPATH=packages/baker python3 -m ps2ui_bake build/opl.json \
     -o build/opl.uib --preview build/opl.png
 ```
@@ -74,6 +83,14 @@ Textures and VRAM are comfortable — 20% of budget with cover art at
 16×16. That changes the moment art is shown at a readable size, which
 is what makes streamed texture slots (Phase 1) the other blocker
 rather than a nicety.
+
+## Kept honest
+
+`measure.sh` asserts the slot and focusable counts above, and CI runs
+it on every push. A fixture whose only job is to be re-measured at the
+Phase 1 gate is worthless if it has quietly stopped compiling, or if
+the demand moved and nobody noticed. Verified by sabotage: dropping a
+row reports `not ok - opl-scope slots: 39, README says 43` and exits 1.
 
 ## Two defects this fixture found
 
