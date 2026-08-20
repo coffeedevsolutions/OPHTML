@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Breaking — authoring
+
+- **`flex-direction` is now required on any container laying out two or
+  more children.** Omitting it is a compile error listing every
+  offending container with its line. Containers with one child or none
+  are unaffected.
+
+  **Migrating:** compile once and add `flex-direction: row` or
+  `column` to each container the error names. If your document was
+  written against a ps2ui release, it relied on the old implicit
+  `column`, so `column` restores exactly what you had — adding it to
+  both shipped examples left their previews *and* their `.uib` files
+  byte-identical.
+
+  Why: the implicit default was `column`, undocumented, where CSS's
+  initial value is `row`. Switching to `row` would have silently
+  relaid out every existing document; keeping `column` would teach a
+  permanent exception to CSS. Requiring the answer is the only version
+  with no silent victims.
+
+  No format change. Existing `.uib` blobs are unaffected; only source
+  documents need edits.
+
 `.uib` format **version 5**. v3 and v4 files are rejected; re-bake.
 Two format moves have landed since 0.2.0, so a blob baked against that
 release will not load.

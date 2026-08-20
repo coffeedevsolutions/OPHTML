@@ -176,7 +176,24 @@ test('flex: a container with two or more children must state its direction', () 
       '<div class="s"><p class="t">a</p><p class="t">b</p></div>',
       '.s { gap: 4px } .t { font-size: 16px; color: #ffffff }',
     ),
-    /add flex-direction \(row or/,
+    /without stating flex-direction/,
+  );
+  // Every offender at once, in document order: migrating a file
+  // written against the old implicit default has one of these per
+  // container, and reporting only the first makes that a queue of
+  // single-line edit-compile cycles.
+  assert.throws(
+    () => compileCss(
+      '<div class="a"><div class="b"><p class="t">x</p><p class="t">y</p></div>'
+      + '<p class="t">z</p></div>',
+      '.t { font-size: 16px; color: #ffffff }',
+    ),
+    (e) => {
+      const lines = e.message.split('\n').filter((l) => l.startsWith('  <'));
+      assert.equal(lines.length, 2);          // .a and .b, both offending
+      assert.match(e.message, /^layout: 2 container\(s\)/);
+      return true;
+    },
   );
   // Either answer satisfies it, and they differ — which is the whole
   // point of asking.

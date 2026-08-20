@@ -171,13 +171,14 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   // identically either way, so a leaf, a text box, or a single-child
   // wrapper is never asked.
   if (box.children.length >= 2 && !style.flexDirectionDeclared) {
-    throw new Error(
-      `layout: <${el.tag}> line ${el.line}: add flex-direction (row or `
-      + `column) — this container lays out ${box.children.length} children `
-      + "and there is no default. CSS's initial value is row, ps2ui once "
-      + 'used column, so either silent answer is wrong for half of all '
-      + 'authors.',
-    );
+    // Collected, not thrown. Migrating a document written against the
+    // old implicit default trips this once per container, and throwing
+    // on the first turns that into one edit-compile cycle each. The
+    // caller reports them together.
+    (env.undirected ??= []).push({
+      line: el.line,
+      text: `  <${el.tag}> line ${el.line} (${box.children.length} children)`,
+    });
   }
   return box;
 }
