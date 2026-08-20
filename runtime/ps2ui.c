@@ -486,12 +486,14 @@ static int slot_measure(const ps2ui_ctx *ctx, const ps2ui_slot_entry *s,
         if (!g)
             continue;
         if (have_prev)
-            w += find_kern(ctx, font, prev, cp);
-        /* The ellipsis kerns against whatever glyph the cut leaves
-         * last, so its cost depends on where the cut falls and cannot
-         * be subtracted from the budget once up front. */
+            w += s->letter_spacing + find_kern(ctx, font, prev, cp);
+        /* The ellipsis joins like any other glyph: spacing plus the
+         * kern against whatever the cut leaves last, so its cost
+         * depends on where the cut falls and cannot be subtracted from
+         * the budget once up front. */
         ell_kern = (s->flags & PS2UI_SLOT_FLAG_ELLIPSIS)
-            ? find_kern(ctx, font, cp, PS2UI_ELLIPSIS_CP) : 0;
+            ? s->letter_spacing + find_kern(ctx, font, cp, PS2UI_ELLIPSIS_CP)
+            : 0;
         if ((s->flags & PS2UI_SLOT_FLAG_ELLIPSIS)
             && w + g->advance + ell_kern + ell_w <= s->w) {
             fit_w = w + g->advance + ell_kern;
@@ -565,12 +567,12 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
             const ps2ui_glyph *g = find_glyph(ctx, font, cp);
             if (!g)
                 continue;
-            /* Same pen as the baker's: kern, place, advance. Runtime
-             * text sits next to baked text on the same screen, so a
-             * runtime pen that skipped this would look like a
+            /* Same pen as the baker's: spacing + kern, place, advance.
+             * Runtime text sits next to baked text on the same screen,
+             * so a runtime pen that skipped either would look like a
              * different font. */
             if (have_prev)
-                pen += find_kern(ctx, font, prev, cp);
+                pen += s->letter_spacing + find_kern(ctx, font, prev, cp);
             if (g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
@@ -589,7 +591,8 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
         if (ellipsize) {
             const ps2ui_glyph *g = find_glyph(ctx, font, PS2UI_ELLIPSIS_CP);
             if (have_prev)
-                pen += find_kern(ctx, font, prev, PS2UI_ELLIPSIS_CP);
+                pen += s->letter_spacing
+                     + find_kern(ctx, font, prev, PS2UI_ELLIPSIS_CP);
             if (g && g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;

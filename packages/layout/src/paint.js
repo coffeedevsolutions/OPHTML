@@ -117,6 +117,12 @@ export function buildDisplayList(root) {
         weight: base.fontWeight,
         lineHeight: line.lineHeight,
         align: box.style.textAlign,
+        // The pen that draws this text runs on the console, so every
+        // input to the pen must travel with the slot. Leaving spacing
+        // behind meant layout measured the box with it while the
+        // runtime drew without it: 44px of divergence over 12 glyphs
+        // at letter-spacing: 4px, and centering misplaced by half.
+        letterSpacing: box.style.letterSpacing,
         ellipsis: box.style.textOverflow === 'ellipsis',
         capacity: parent.slot.capacity,
         focusId: box.focusId,

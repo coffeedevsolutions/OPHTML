@@ -39,7 +39,7 @@ from .quads import (
     FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
     STATE_ALWAYS, STATE_FOCUSED, STATE_UNFOCUSED, TEX_NONE,
 )
-from .uib import FEAT_KERNING, read_uib
+from .uib import FEAT_KERNING, FEAT_SLOT_SPACING, read_uib
 
 ERROR = "error"
 WARNING = "warning"
@@ -328,6 +328,12 @@ def check_fonts(uib, rep: Report) -> None:
               "the kerning feature bit matches the kern tables"
               + ("" if not has_kerns else
                  f" ({sum(len(f['kerns']) for f in uib.fonts)} pairs)"))
+
+    # Same promise for slot spacing: bit 2 says some slot carries a
+    # non-zero letter-spacing.
+    has_spacing = any(s_["letter_spacing"] for s_ in uib.slots)
+    rep.error(bool(uib.feature_flags & FEAT_SLOT_SPACING) == has_spacing,
+              "the slot-spacing feature bit matches the slot table")
 
     # A slot the app never sets still draws, so a placeholder that will
     # not render is a blank line on console with nothing to explain it.
