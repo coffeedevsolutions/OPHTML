@@ -59,6 +59,13 @@ jobs:
       - name: Channel-6 browser end to end
         run: ./examples/channel6/build.sh
 
+      # The scoping fixture is Phase 1 input and its only value is
+      # being comparable later, so the number it reports is a
+      # tripwire: if an OPL-class screen starts demanding a different
+      # slot count, CI says so rather than the README quietly aging.
+      - name: UC-3 scoping fixture still demands what the README says
+        run: ./fixtures/opl-scope/measure.sh
+
       # The example builds refresh the committed screenshots, so if a
       # renderer change lands without rebuilding the examples, the drift
       # shows up here rather than living in the README forever.
