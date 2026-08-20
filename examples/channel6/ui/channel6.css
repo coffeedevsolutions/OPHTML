@@ -111,6 +111,7 @@ h1 {
 /* The one panel style: tiles, the detail column and the action buttons
  * all share it, so they share a single nine-patch texture. */
 .tile {
+  flex-direction: column;
   width: 112px;
   background: #12182a;
   border: 2px solid #1c2336;
@@ -182,7 +183,8 @@ h1 {
   overflow: hidden;
 }
 
-.stats { gap: 6px; }
+.stats {
+  flex-direction: column; gap: 6px; }
 
 .stat {
   flex-direction: row;
@@ -282,6 +284,7 @@ h1 {
  * (4*135 + 3*10 gap = 570), which is what keeps the third row from
  * pushing the footer off a 448-line frame. */
 .cell {
+  flex-direction: column;
   width: 135px;
   background: #12182a;
   border: 2px solid #1c2336;
@@ -328,7 +331,8 @@ h1 {
 .tracked { font-size: 16px; color: #dbe2ee; letter-spacing: 4px; }
 
 /* Alignment: three lines in one fixed-width box. */
-.align-box { background: #0b1120; border-radius: 4px; padding: 4px 6px; gap: 2px; }
+.align-box {
+  flex-direction: column; background: #0b1120; border-radius: 4px; padding: 4px 6px; gap: 2px; }
 .a-left { font-size: 14px; color: #dbe2ee; text-align: left; }
 .a-center { font-size: 14px; color: #dbe2ee; text-align: center; }
 .a-right { font-size: 14px; color: #dbe2ee; text-align: right; }
@@ -354,7 +358,8 @@ h1 {
 
 /* Images: identical source, PSMCT32 on the left, PSMT8+CLUT right. */
 .img-row { flex-direction: row; align-items: center; gap: 8px; }
-.img-col { align-items: center; gap: 3px; }
+.img-col {
+  flex-direction: column; align-items: center; gap: 3px; }
 .img-sample { width: 64px; height: 48px; }
 .img-cap { font-size: 14px; color: #8b94a7; }
 

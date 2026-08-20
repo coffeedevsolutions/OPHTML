@@ -79,10 +79,25 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   warnings.push(...sheet.warnings);
 
   resetBoxIds();
-  const root = buildBoxTree(dom, sheet, null, null, warnings, null, {
-    assetDir: options.assetDir ?? null,
-  });
+  const boxEnv = { assetDir: options.assetDir ?? null };
+  const root = buildBoxTree(dom, sheet, null, null, warnings, null, boxEnv);
   if (!root) throw new Error('layout: root element is display: none');
+  if (boxEnv.undirected) {
+    // All of them at once: a document written against the old implicit
+    // default has one of these per container, and reporting the first
+    // would make migration a queue of single-line fixes.
+    throw new Error(
+      `layout: ${boxEnv.undirected.length} container(s) lay out two or more `
+      + 'children without stating flex-direction:\n'
+      // Sorted: the tree is walked children-first, so unsorted this
+      // reads bottom-up and an author fixes their file backwards.
+      + boxEnv.undirected.sort((a, b) => a.line - b.line)
+          .map((u) => u.text).join('\n')
+      + "\nThere is no default. CSS's initial value is row, ps2ui once used "
+      + 'column, so either silent answer is wrong for half of all authors — '
+      + 'add flex-direction: row or column to each.',
+    );
+  }
 
   const ctx = { fonts };
   layoutTree(root, canvasW, canvasH, ctx);
