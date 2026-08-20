@@ -87,8 +87,17 @@ function over(top, bottom) {
 function coexists(rect, cmd) {
   if (rect.state === 'always' || cmd.state === 'always') return true;
   if (rect.focusId == null || cmd.focusId == null) return true;
-  if (rect.focusId !== cmd.focusId) return true;
-  return rect.state === cmd.state;
+  // Same node: its two states are alternatives, never a stack.
+  if (rect.focusId === cmd.focusId) return rect.state === cmd.state;
+  // Different nodes, both painting their focused state. The runtime's
+  // test is `c->focus == ctx->focus`, so exactly one node holds focus
+  // per frame. Not reachable today: putting one focusable's rect under
+  // another's text means nesting them, and box.js refuses that
+  // outright ("the D-pad model has one focus ring"). This is forward
+  // cover for `position: absolute`, which is the first thing that lets
+  // two focusables overlap without nesting.
+  if (rect.state === 'focused' && cmd.state === 'focused') return false;
+  return true;
 }
 
 function compositeChain(chain, backdrop) {
