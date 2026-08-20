@@ -427,6 +427,7 @@ class Flattener:
                 "x": sl["x"], "text_y": sl["textY"], "w": sl["w"],
                 "font": font_index[key],
                 "align": {"left": 0, "center": 1, "right": 2}.get(sl["align"], 0),
+                "letter_spacing": self._slot_spacing(sl),
                 "ellipsis": bool(sl["ellipsis"]),
                 "capacity": min(int(sl["capacity"]), 95),
                 "focus": self.focus_index.get(sl.get("focusId"), FOCUS_NONE)
@@ -445,6 +446,19 @@ class Flattener:
                 "bearing_x": g.bearing_x, "bearing_y": g.bearing_y,
                 "advance": g.advance,
             } for g in builder.glyphs.values()]
+
+    @staticmethod
+    def _slot_spacing(sl):
+        """The slot entry stores letter-spacing as an i16. Out of range
+        would die in struct.pack with a message naming nothing; refuse
+        here naming the slot, like every other does-not-fit error."""
+        v = int(sl.get("letterSpacing", 0))
+        if not -32768 <= v <= 32767:
+            raise ValueError(
+                f"slot \"{sl['name']}\": letter-spacing {v}px does not fit "
+                f"the format's i16 field (-32768..32767px). If this is not "
+                f"a typo, the .uib slot entry is the thing to change.")
+        return v
 
     @staticmethod
     def _kern_table(builder):

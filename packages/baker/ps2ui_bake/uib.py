@@ -41,7 +41,8 @@ VERSION = 5
 
 FEAT_DYNAMIC_TEXT = 1 << 0
 FEAT_KERNING = 1 << 1
-FEAT_KNOWN = FEAT_DYNAMIC_TEXT | FEAT_KERNING
+FEAT_SLOT_SPACING = 1 << 2
+FEAT_KNOWN = FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING
 
 _HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHIHH")  # 76 bytes
 _TEX = struct.Struct("<BBHHHII")               # 16 bytes
@@ -51,7 +52,11 @@ _CMD = struct.Struct("<BBHhhHHBBBBHHHHH6x")    # 32 bytes
 # plain structs on the file with no packing pragmas.
 _FOCUS = struct.Struct("<HHHHHHIhhHH")         # 24 bytes
 _FONT = struct.Struct("<HHHHHHIH2xI")          # 24 bytes
-_SLOT = struct.Struct("<IIhhHHBBHHBBBBBBBB2x") # 32 bytes
+# The trailing i16 was pad until slot letter-spacing needed to travel:
+# every writer before it wrote zeros there, and zero spacing is the
+# meaning zeros already had, so the stride is unchanged and feature
+# bit 2 is what makes the new field loud rather than a version bump.
+_SLOT = struct.Struct("<IIhhHHBBHHBBBBBBBBh") # 32 bytes
 _SCREEN = struct.Struct("<IIIHHHHH2x")        # 24 bytes
 _CRC_OFFSET = 48
 _GLYF = struct.Struct("<IHHHHhhH2x")           # 20 bytes, in blob
@@ -148,6 +153,7 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
             sl["align"], 1 if sl["ellipsis"] else 0, sl["capacity"],
             sl["focus"],
             cb[0], cb[1], cb[2], cb[3], cf[0], cf[1], cf[2], cf[3],
+            sl.get("letter_spacing", 0),
         ))
     _align16(blob)
 
@@ -178,6 +184,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     # zero count.
     if any(e[7] for e in font_entries):
         feature_flags |= FEAT_KERNING
+    if any(e[18] for e in slot_entries):
+        feature_flags |= FEAT_SLOT_SPACING
 
     off = _HEADER.size
     off_tex = off
@@ -327,13 +335,14 @@ def read_uib(path) -> UibFile:
                           "glyphs": glyphs, "kerns": kerns})
     for i in range(n_slot):
         (name_off, ph_off, x, text_y, w, font, align, flags, capacity,
-         focus, br, bg_, bb, ba, fr, fg, fb, fa,
+         focus, br, bg_, bb, ba, fr, fg, fb, fa, letter_spacing,
          ) = _SLOT.unpack_from(data, off_slot + i * _SLOT.size)
         out.slots.append({
             "name": cstr(name_off), "placeholder": cstr(ph_off),
             "x": x, "text_y": text_y, "w": w, "font": font,
             "align": align, "ellipsis": bool(flags & 1),
             "capacity": capacity, "focus": focus,
+            "letter_spacing": letter_spacing,
             "color_base": (br, bg_, bb, ba), "color_focus": (fr, fg, fb, fa),
         })
     for i in range(n_screen):

@@ -635,6 +635,66 @@ int main(int argc, char **argv)
         CHECK(strcmp(ps2ui_focus_name(&lc), "row-1") == 0,
               "and focus follows the clamped selection");
 
+        /* Feature bit 2: slot letter-spacing travels with the slot and
+         * the pen applies it at every junction, alongside the kern.
+         * The fixture's .label carries letter-spacing: 2px so this is
+         * exercised for real — with every slot at zero the check below
+         * would pass whatever the pen did. Expected positions come from
+         * a linear scan, same discipline as the kerning check. */
+        {
+            const ps2ui_slot_entry *sl = &lc.slots[0];
+            const ps2ui_font_entry *fe = &lc.fonts[sl->font];
+            const char *probe = "To AV list";
+            int expect_x[32], n_expect = 0, base_prims, i, ok = 1;
+            int pen = 0;
+            uint32_t prev = 0;
+            int have_prev = 0;
+            const char *p2 = probe;
+
+            CHECK((lc.hdr->feature_flags & PS2UI_FEAT_SLOT_SPACING) != 0,
+                  "fixture declares the slot-spacing feature bit");
+            CHECK(sl->letter_spacing == 2,
+                  "and the slot carries the stylesheet's 2px");
+
+            while (*p2) {
+                uint32_t cp = (uint32_t)(unsigned char)*p2++;
+                const ps2ui_glyph *g = scan_glyph(&lc, fe, cp);
+                if (!g)
+                    continue;
+                if (have_prev)
+                    pen += sl->letter_spacing + scan_kern(&lc, fe, prev, cp);
+                if (g->w > 0)
+                    expect_x[n_expect++] = sl->x + pen + g->bearing_x;
+                pen += g->advance;
+                prev = cp;
+                have_prev = 1;
+            }
+
+            ps2ui_visible_reset(&lc);
+            ps2ui_list_set_count(&lc, &list, 4);
+            ps2ui_list_apply_visibility(&lc, &list);
+            /* Blank every row, then set only row 0, so its glyphs are
+             * the frame's tail and the prim indices are predictable. */
+            ps2ui_slot_set(&lc, "row-0-text", "");
+            ps2ui_slot_set(&lc, "row-1-text", "");
+            ps2ui_slot_set(&lc, "row-2-text", "");
+            ps2ui_slot_set(&lc, "row-3-text", "");
+            base_prims = render_and_count(&lc, &gs);
+            ps2ui_slot_set(&lc, "row-3-text", probe);
+            CHECK(render_and_count(&lc, &gs) == base_prims + n_expect,
+                  "the spaced slot draws one prim per inked glyph");
+            /* row-3 is the last slot on the screen, so its glyphs are
+             * the frame's tail — but its x differs from slot 0's only
+             * by the shared left edge, which is identical per row. */
+            for (i = 0; i < n_expect; i++) {
+                int got = (int)g_stub.prims[base_prims + i].x1;
+                int want = expect_x[i] - sl->x + lc.slots[3].x;
+                if (got != want)
+                    ok = 0;
+            }
+            CHECK(ok, "and lands every glyph on the spaced, kerned pen");
+        }
+
         free(lblob);
     }
 

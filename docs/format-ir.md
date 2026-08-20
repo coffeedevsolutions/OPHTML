@@ -119,13 +119,16 @@ text region whose *string* arrives at runtime while everything else —
 geometry, font, colors, alignment, ellipsis policy — froze at compile
 time. Produced by the `data-slot` attribute; the placeholder text is
 laid out normally but emitted here instead of as `text` commands.
+`letterSpacing` travels with the slot because the pen that draws the
+string runs on the console: every input to the pen must reach it, or
+the box is measured with a value the glyphs are never drawn with.
 
 ```jsonc
 {
   "name": "count", "placeholder": "6 titles",
   "x": 520, "textY": 30, "w": 92,          // content box + glyph-box top
   "size": 13, "weight": 400, "lineHeight": 16,
-  "align": "left", "ellipsis": true, "capacity": 15,
+  "align": "left", "letterSpacing": 0, "ellipsis": true, "capacity": 15,
   "focusId": null,
   "colorBase": [139, 148, 167, 255],       // CSS domain, as everywhere in the IR
   "colorFocus": [139, 148, 167, 255]
