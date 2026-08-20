@@ -156,6 +156,29 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
       }
     }
   }
+
+  // A container laying out two or more children must say which way.
+  //
+  // There is no good default here. CSS's initial value is `row`; this
+  // compiler shipped `column`, undocumented, so every author who knew
+  // CSS got the opposite of what they wrote — and the two shipped
+  // examples had already worked around it, stating `row` twenty times
+  // against `column` four. Picking either default silently teaches
+  // one group of authors the wrong model. So neither: state it, and
+  // the question cannot come back.
+  //
+  // Only when the choice is observable. One child, or none, lays out
+  // identically either way, so a leaf, a text box, or a single-child
+  // wrapper is never asked.
+  if (box.children.length >= 2 && !style.flexDirectionDeclared) {
+    throw new Error(
+      `layout: <${el.tag}> line ${el.line}: add flex-direction (row or `
+      + `column) — this container lays out ${box.children.length} children `
+      + "and there is no default. CSS's initial value is row, ps2ui once "
+      + 'used column, so either silent answer is wrong for half of all '
+      + 'authors.',
+    );
+  }
   return box;
 }
 

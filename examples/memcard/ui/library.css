@@ -17,7 +17,8 @@
   gap: 18px;
 }
 
-.brand { gap: 2px; }
+.brand {
+  flex-direction: column; gap: 2px; }
 
 h1 {
   font-size: 26px;
@@ -32,7 +33,8 @@ h1 {
   letter-spacing: 1px;
 }
 
-.nav { gap: 10px; }
+.nav {
+  flex-direction: column; gap: 10px; }
 
 .nav-btn {
   background: #141a2b;
@@ -52,6 +54,7 @@ h1 {
 .spacer { flex-grow: 1; }
 
 .card-info {
+  flex-direction: column;
   background: #11162400;
   border: 2px solid #1d2438;
   border-radius: 6px;
@@ -94,6 +97,7 @@ h2 {
 }
 
 .tile {
+  flex-direction: column;
   width: 128px;
   background: #12182a;
   border: 2px solid #1c2336;
@@ -158,7 +162,8 @@ h2 {
 /* ------------------------------------------------- saves screen */
 /* (shared stylesheet: both screens compile against this file) */
 
-.savelist { gap: 10px; flex-grow: 1; }
+.savelist {
+  flex-direction: column; gap: 10px; flex-grow: 1; }
 
 .save-row {
   flex-direction: row;

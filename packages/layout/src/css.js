@@ -37,7 +37,12 @@ const INHERITED_PROPS = new Set([
 // bug throw in strict mode instead of corrupting the build.
 export const INITIAL_STYLE = Object.freeze({
   display: 'flex',
+  // No meaningful initial value: a container whose direction is
+  // observable must state it (box.js enforces). This is what the
+  // solver falls back to for the cases where direction cannot change
+  // the result — a single child, or none.
   flexDirection: 'column',
+  flexDirectionDeclared: false,
   flexWrap: 'nowrap',
   justifyContent: 'flex-start',
   alignItems: 'stretch',
@@ -274,7 +279,13 @@ export function applyDeclaration(style, prop, value, line, warnings) {
       }
       style.display = value; return true;
     case 'flex-direction':
-      style.flexDirection = value; return true;
+      style.flexDirection = value;
+      // Recorded, not inferred from the value: a container that says
+      // `column` and one that merely defaults to it produce identical
+      // styles, and only one of them is something the author decided.
+      // box.js refuses the second when the choice is observable.
+      style.flexDirectionDeclared = true;
+      return true;
     case 'flex-wrap':
       style.flexWrap = value; return true;
     case 'justify-content':

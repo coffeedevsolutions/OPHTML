@@ -57,7 +57,7 @@ if (pad_pressed & PAD_CROSS) launch(ps2ui_focus_name(&ui));
 
 ## Supported CSS
 
-- Flexbox: direction, wrap, grow/shrink/basis, gap, justify/align
+- Flexbox: direction, wrap, grow/shrink/basis, gap, justify/align. **`flex-direction` has no default** — see below
 - Box model (border-box): padding, margin, borders, border-radius (baked as nine-patch textures)
 - Flat colors with real translucency
 - `font-size`, `font-weight`, `line-height`, `letter-spacing`, `text-align`
@@ -68,6 +68,19 @@ if (pad_pressed & PAD_CROSS) launch(ps2ui_focus_name(&ui));
 - `:focus` as a paint-only state. A `:focus` rule that changes geometry is a compile error.
 
 Unknown properties warn. Unsupported values error with line numbers.
+
+### `flex-direction` is required, not defaulted
+
+Any container laying out two or more children must say which way they go:
+
+```css
+.row  { flex-direction: row; }
+.list { flex-direction: column; }
+```
+
+Omitting it is a compile error naming the element and line. Containers with one child or none are never asked, because the answer cannot change what is drawn.
+
+This deviates from CSS, which defaults to `row`, and it is deliberate. ps2ui previously defaulted to `column` and documented it nowhere, so authors who knew CSS got the opposite of what they wrote — and the shipped examples had already worked around it, stating `row` twenty times against `column` four. Switching the default would have silently relaid out every existing document; keeping it taught a permanent exception to CSS. Requiring the answer is the only version that cannot surprise anyone, and migrating both examples left their previews byte-identical — the evidence that nothing was relying on a guess.
 
 ## Kerning
 

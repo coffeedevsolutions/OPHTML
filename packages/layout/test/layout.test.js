@@ -166,6 +166,55 @@ test('kerning: a font with no pairs behaves exactly as before', () => {
   assert.ok(font.measure(s, 32) < sum);
 });
 
+test('flex: a container with two or more children must state its direction', () => {
+  // There is no good default. CSS's initial value is `row`; this
+  // compiler shipped `column`, undocumented, so anyone who knew CSS
+  // got the opposite of what they wrote. Neither answer is right for
+  // everyone, so the compiler declines to guess.
+  assert.throws(
+    () => compileCss(
+      '<div class="s"><p class="t">a</p><p class="t">b</p></div>',
+      '.s { gap: 4px } .t { font-size: 16px; color: #ffffff }',
+    ),
+    /add flex-direction \(row or/,
+  );
+  // Either answer satisfies it, and they differ — which is the whole
+  // point of asking.
+  const asRow = compileCss(
+    '<div class="s"><p class="t">a</p><p class="t">b</p></div>',
+    '.s { flex-direction: row; gap: 4px } .t { font-size: 16px; color: #ffffff }',
+  );
+  const asCol = compileCss(
+    '<div class="s"><p class="t">a</p><p class="t">b</p></div>',
+    '.s { flex-direction: column; gap: 4px } .t { font-size: 16px; color: #ffffff }',
+  );
+  const ys = (ir) => texts(ir).map((c) => c.y);
+  const xs = (ir) => texts(ir).map((c) => c.x);
+  assert.equal(ys(asRow)[0], ys(asRow)[1]);      // side by side
+  assert.notEqual(xs(asRow)[0], xs(asRow)[1]);
+  assert.notEqual(ys(asCol)[0], ys(asCol)[1]);   // stacked
+  assert.equal(xs(asCol)[0], xs(asCol)[1]);
+});
+
+test('flex: direction is only demanded where it could change anything', () => {
+  // One child lays out identically either way, so a leaf, a text box
+  // or a single-child wrapper is never asked. Requiring it there would
+  // be noise on nearly every element in a document.
+  const ir = compileCss(
+    '<div class="s"><div class="w"><p class="t">only</p></div></div>',
+    '.s { padding: 4px } .w { padding: 2px } .t { font-size: 16px; color: #ffffff }',
+  );
+  assert.equal(texts(ir).length, 1);
+  // And a `display: none` child does not count toward the two, because
+  // it never becomes a box at all.
+  const hidden = compileCss(
+    '<div class="s"><p class="t">shown</p><p class="gone">hidden</p></div>',
+    '.s { padding: 4px } .t { font-size: 16px; color: #ffffff }'
+    + ' .gone { display: none }',
+  );
+  assert.equal(texts(hidden).length, 1);
+});
+
 // ------------------------------------------------------------------ flex
 
 test('flex: row places children left to right with gap', () => {
@@ -346,7 +395,7 @@ test('focus: grid neighbors resolve spatially', () => {
 test('focus: autofocus wins over document order', () => {
   const ir = compileCss(
     '<div><div id="one" focusable>1</div><div id="two" focusable autofocus>2</div></div>',
-    'div { }',
+    'div { flex-direction: column }',
   );
   const initial = ir.focus.nodes.find((n) => n.id === ir.focus.initial);
   assert.equal(initial.name, 'two');
@@ -443,7 +492,7 @@ test('slots: multi-line placeholders and duplicate names are errors', () => {
   ), /single-line/);
   assert.throws(() => compileCss(
     '<div><p data-slot="t">a</p><p data-slot="t">b</p></div>',
-    'div {}',
+    'div { flex-direction: column }',
   ), /duplicate data-slot/);
 });
 
@@ -456,7 +505,7 @@ test('lint: overscan, font size, flicker and contrast all fire', () => {
        <div class="hair"></div>
        <p class="dim">low contrast</p>
      </div>`,
-    `.screen { background: #202020 }
+    `.screen { flex-direction: column; background: #202020 }
      .tiny { font-size: 10px }
      .hair { height: 1px; background: #ffffff; }
      .dim { font-size: 20px; color: #2a2a2a; margin-top: 40px; margin-left: 60px }`,
@@ -587,7 +636,8 @@ test('repeat: data-repeat stamps N copies with {i} and {n} substituted', () => {
          <p class="t" data-slot="title-{i}" data-slot-capacity="8">Item {n}</p>
        </div>
      </div>`,
-    '.s { background: #0a0e1a; gap: 4px } .row { background: #12182a; padding: 4px }'
+    '.s { flex-direction: column; gap: 4px; background: #0a0e1a }'
+    + ' .row { background: #12182a; padding: 4px }'
     + ' .t { font-size: 16px; color: #dbe2ee }',
   );
   assert.deepEqual(ir.focus.nodes.map((n) => n.name), ['row-0', 'row-1', 'row-2']);
@@ -597,7 +647,7 @@ test('repeat: data-repeat stamps N copies with {i} and {n} substituted', () => {
 });
 
 test('repeat: copies lay out as if they had been typed out', () => {
-  const css = '.s { background: #0a0e1a; gap: 4px }'
+  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
     + ' .row { background: #12182a; padding: 4px } .t { font-size: 16px; color: #dbe2ee }';
   const templated = compileCss(
     `<div class="s"><div class="row" data-repeat="3" id="r-{i}"><p class="t">Row {n}</p></div></div>`,
@@ -652,7 +702,8 @@ test('repeat: an index on a descendant attribute counts as an index', () => {
   const ir = compileCss(
     '<div class="s"><div class="row" data-repeat="3">'
     + '<p class="t" data-slot="title-{i}" data-slot-capacity="8">x</p></div></div>',
-    '.s { background: #0a0e1a } .row { background: #12182a; padding: 4px }'
+    '.s { flex-direction: column; background: #0a0e1a }'
+    + ' .row { background: #12182a; padding: 4px }'
     + ' .t { font-size: 16px; color: #dbe2ee }',
   );
   assert.deepEqual(ir.slots.map((x) => x.name), ['title-0', 'title-1', 'title-2']);
@@ -663,7 +714,7 @@ test('repeat: copies with no index are a warning, and duplicate slots an error',
   // Indistinguishable copies are legal but almost never intended.
   const ir = compileCss(
     '<div class="s"><p class="t" data-repeat="3">same</p></div>',
-    '.s { background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
+    '.s { flex-direction: column; background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
   );
   assert.ok(ir.warnings.some((w) => /no \{i\} or \{n\} anywhere inside/.test(w)));
 
@@ -672,7 +723,7 @@ test('repeat: copies with no index are a warning, and duplicate slots an error',
   assert.throws(
     () => compileCss(
       '<div class="s"><p class="t" data-repeat="2" data-slot="title">x</p></div>',
-      '.s { background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
+      '.s { flex-direction: column; background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
     ),
     /duplicate data-slot name "title"/,
   );
@@ -683,7 +734,7 @@ test('repeat: data-repeat never reaches the cascade as an attribute', () => {
   // attribute selector or the unknown-property path could see it.
   const ir = compileCss(
     '<div class="s"><p class="t" data-repeat="2" id="p-{i}">x</p></div>',
-    '.s { background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
+    '.s { flex-direction: column; background: #0a0e1a } .t { font-size: 16px; color: #dbe2ee }',
   );
   assert.equal(ir.warnings.filter((w) => /data-repeat/.test(w) && !/no \{i\}/.test(w)).length, 0);
 });
