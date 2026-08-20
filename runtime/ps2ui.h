@@ -53,7 +53,8 @@ extern "C" {
  * subtly wrong. */
 #define PS2UI_FEAT_DYNAMIC_TEXT (1u << 0)
 #define PS2UI_FEAT_KERNING      (1u << 1)
-#define PS2UI_FEAT_KNOWN        (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING)
+#define PS2UI_FEAT_SLOT_SPACING (1u << 2)
+#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING | PS2UI_FEAT_SLOT_SPACING)
 
 #define PS2UI_OP_QUAD          0
 #define PS2UI_OP_TEXQUAD       1
@@ -181,7 +182,10 @@ typedef struct ps2ui_slot_entry {
     uint16_t focus;              /* focus index or PS2UI_NONE          */
     uint8_t  color_base[4];      /* modulate domain, like every TEXQUAD */
     uint8_t  color_focus[4];
-    uint8_t  pad0[2];
+    /* Was pad (always zero) until feature bit 2: CSS letter-spacing in
+     * px, applied by the pen at every glyph junction alongside the
+     * kern. Zero means what the zeros always meant. */
+    int16_t  letter_spacing;
 } ps2ui_slot_entry;
 
 typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_dir;

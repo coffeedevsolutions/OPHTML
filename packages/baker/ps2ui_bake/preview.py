@@ -181,6 +181,7 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
         ell = glyphs.get(0x2026)
 
         kerns = font["kerns"]
+        spacing = slot.get("letter_spacing", 0)
 
         def advance_of(cp):
             g = glyphs.get(cp, fallback)
@@ -190,7 +191,11 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
             return cp in glyphs or fallback is not None
 
         def kern_of(prev, cp):
-            return 0 if prev is None else kerns.get((prev, cp), 0)
+            # The full junction cost: letter-spacing plus the pair's
+            # kern, zero before the first glyph — same as the runtime.
+            if prev is None:
+                return 0
+            return spacing + kerns.get((prev, cp), 0)
 
         def width_of(seq):
             # A codepoint with no glyph and no fallback is skipped

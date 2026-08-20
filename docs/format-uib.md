@@ -26,7 +26,7 @@ can rewrite tables without re-basing data pointers.
 |-----|------|---------------|--------------------------------|
 | 0   | u32  | magic         | `0x31424955` — "UIB1"          |
 | 4   | u16  | version       | 5                              |
-| 6   | u16  | feature_flags | bit 0 = dynamic text, bit 1 = kerning; a reader that sees a bit it does not know MUST reject the file |
+| 6   | u16  | feature_flags | bit 0 = dynamic text, bit 1 = kerning, bit 2 = slot letter-spacing; a reader that sees a bit it does not know MUST reject the file |
 | 8   | u16  | canvas_w      | 640 for NTSC                   |
 | 10  | u16  | canvas_h      | 448 (NTSC) / 512 (PAL)         |
 | 12  | u16  | n_tex         |                                |
@@ -202,11 +202,20 @@ the runtime's version is the one a player sees.
 | 20  | u16  | focus           | focus index or `0xFFFF`            |
 | 22  | u8×4 | color_base      | modulate domain, like any TEXQUAD  |
 | 26  | u8×4 | color_focus     |                                    |
-| 30  | u8×2 | pad             |                                    |
+| 30  | i16  | letter_spacing  | px per glyph junction; feature bit 2 |
 
 The runtime (`ps2ui_slot_set`) copies app strings into fixed per-slot
 buffers and composes glyph quads per frame: advance walk, optional
 ellipsis, alignment — no wrapping, no allocation.
+
+`letter_spacing` occupies what was pad. Every writer before the field
+wrote zeros there, and zero spacing is the meaning zeros already had,
+so the stride is unchanged and no version moved; feature bit 2 is what
+makes the field loud — it is set only when some slot carries a
+non-zero value, and a reader that predates it rejects the file rather
+than silently drawing unspaced text next to a box that was measured
+spaced. The pen applies it at every glyph junction, added to the kern,
+including the junction into the ellipsis.
 
 ## Screen entry (24 bytes)
 
