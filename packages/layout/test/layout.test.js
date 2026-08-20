@@ -198,6 +198,27 @@ test('lint: contrast never composites mutually exclusive focus states', () => {
   assert.ok(bad.warnings.some((w) => w.startsWith('contrast:')));
 });
 
+test('lint: the cross-node focused case is unreachable, and why', () => {
+  // `coexists` also refuses to composite two *different* nodes' focused
+  // states, since the runtime's `c->focus == ctx->focus` gives exactly
+  // one focused node per frame. Reaching that in the chain needs one
+  // focusable's rect to contain another's text — and today the only
+  // way to overlap two focusables is to nest them, which the compiler
+  // refuses outright. So the clause is forward cover for `position:
+  // absolute` (F8), not a live path. Pinned here so that if this error
+  // ever relaxes, someone is pointed at the lint clause that starts
+  // mattering.
+  assert.throws(
+    () => compileCss(
+      '<div class="row" id="r" focusable autofocus>'
+      + '<p class="btn" id="b" focusable>GO</p></div>',
+      '.row { background: #101623; padding: 6px; }'
+      + '.btn { font-size: 16px; color: #dbe2ee; }',
+    ),
+    /nested focusable/,
+  );
+});
+
 // ------------------------------------------------------------------ flex
 
 test('flex: row places children left to right with gap', () => {
