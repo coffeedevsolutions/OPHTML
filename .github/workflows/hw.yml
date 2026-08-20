@@ -94,11 +94,16 @@ jobs:
           # first build away and the emulator job booted nothing.
           make -C runtime/sample objclean
           make -C runtime/sample PROBE=1 EE_BIN=probe.elf
+          # The bench instrument: cycling UI plus the once-a-second
+          # telemetry line on stdout (PCSX2's console log captures it).
+          make -C runtime/sample objclean
+          make -C runtime/sample TELEMETRY=1 EE_BIN=telemetry.elf
           # Both must survive; the artifact is useless with either one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
           test -f runtime/sample/ps2ui_sample.elf
           test -f runtime/sample/probe.elf
+          test -f runtime/sample/telemetry.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -106,6 +111,7 @@ jobs:
           path: |
             runtime/sample/ps2ui_sample.elf
             runtime/sample/probe.elf
+            runtime/sample/telemetry.elf
 
   emulator:
     needs: [bake, elf]

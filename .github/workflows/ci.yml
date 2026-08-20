@@ -43,6 +43,12 @@ jobs:
       - name: Example builds end to end (includes runtime tests)
         run: ./examples/memcard/build.sh
 
+      # The sample only ever compiled inside the ps2dev container, so a
+      # change to the bring-up ELF was a push-and-hope. This runs the
+      # same flags on the host, seconds instead of a CI round trip.
+      - name: Sample compiles in every build variant
+        run: make -C runtime syntax-check
+
       - name: Runtime compat build (old gsKit, no GSTEXTURE::Function)
         run: make -C runtime UIB=../examples/memcard/build/ui.uib test-compat
 

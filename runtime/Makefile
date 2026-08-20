@@ -11,8 +11,23 @@ UIB     ?= ../examples/memcard/build/ui.uib
 # the compiler it is testing.
 LIST_UIB = build/list.uib
 
-test: build/test_runtime $(LIST_UIB)
+test: syntax-check build/test_runtime $(LIST_UIB)
 	./build/test_runtime $(UIB) $(LIST_UIB)
+
+# The sample is the bring-up instrument -- the ELF that goes on a
+# memory card -- and until this target existed nothing but the ps2dev
+# container in CI ever compiled main.c. A change to it was a
+# push-and-hope, and the telemetry build duly shipped `asm volatile`,
+# which -std=c99 rejects, with every local suite green. Same flags the
+# console build uses; -fsyntax-only because the host has no EE.
+SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_TELEMETRY
+
+syntax-check:
+	@for v in $(SAMPLE_VARIANTS); do \
+		$(CC) -std=c99 -Wall -Werror -fsyntax-only $$v \
+			-Istub -I. sample/main.c || exit 1; \
+		echo "ok - sample compiles: $$v"; \
+	done
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds
@@ -47,4 +62,4 @@ build/test_runtime_compat: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.
 clean:
 	rm -rf build
 
-.PHONY: test test-compat clean
+.PHONY: test test-compat syntax-check clean

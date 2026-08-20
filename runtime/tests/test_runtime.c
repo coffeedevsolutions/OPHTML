@@ -559,6 +559,51 @@ int main(int argc, char **argv)
         CHECK(render_and_count(&ctx, &gs) == base_prims, "and restores the frame");
     }
 
+    /* ---- render telemetry (ps2ui_stats) ----
+     * The stub counts gsKit calls; the runtime counts what it submits.
+     * Two independent tallies of the same frame must agree, which is
+     * the same discipline as the linear-scan pen checks: a counter
+     * compared against itself asserts nothing. */
+    {
+        int frame1, frame2, shown_slots = 0;
+        uint32_t k;
+        frame1 = render_and_count(&ctx, &gs);
+        CHECK((int)ctx.stats.prims == frame1,
+              "stats.prims agrees with the stub's independent count");
+        CHECK(ctx.stats.cmds == ctx.screen_table[ctx.screen].cmd_count,
+              "stats.cmds is the current screen's record count");
+        CHECK(ctx.stats.scissor_overflow == 0,
+              "a baked blob never overflows the scissor stack");
+        CHECK(ctx.stats.skipped_hidden == 0,
+              "nothing hidden, nothing skipped");
+        /* Count textured prims in the stub independently. Slot glyphs
+         * are a subset of them, so this bounds the counter against a
+         * tally the runtime did not produce. */
+        for (k = 0; k < (uint32_t)g_stub.n_prims; k++)
+            if (g_stub.prims[k].textured) shown_slots++;
+        CHECK(ctx.stats.slot_glyphs > 0
+              && (int)ctx.stats.slot_glyphs <= shown_slots,
+              "slot glyphs are a subset of the stub's textured prims");
+
+        /* Hiding moves records from prims to skipped_hidden, exactly. */
+        ps2ui_visible_set(&ctx, "tile-ico", 0);
+        frame2 = render_and_count(&ctx, &gs);
+        CHECK((int)ctx.stats.prims == frame2,
+              "stats.prims still agrees after hiding a node");
+        CHECK(ctx.stats.skipped_hidden > 0
+              && (int)(ctx.stats.prims + ctx.stats.skipped_hidden)
+                 >= frame1,
+              "hidden records are counted, not lost");
+        ps2ui_visible_reset(&ctx);
+
+        /* Counters are per-frame: two identical renders, identical
+         * stats — nothing accumulates across frames. */
+        render_and_count(&ctx, &gs);
+        k = ctx.stats.prims;
+        render_and_count(&ctx, &gs);
+        CHECK(ctx.stats.prims == k, "stats reset every frame");
+    }
+
     /* ---- lists and visibility against a real data-repeat blob ----
      * The memcard example cannot test this: its tiles are named after
      * games, so a list prefix matches nothing and every assertion below
@@ -634,6 +679,36 @@ int main(int argc, char **argv)
               "shrinking a list never leaves focus on a hidden row");
         CHECK(strcmp(ps2ui_focus_name(&lc), "row-1") == 0,
               "and focus follows the clamped selection");
+
+        /* Telemetry reconciles exactly on a list-shaped UI, which the
+         * memcard blob cannot test: its tiles carry no slots, so
+         * hiding one suppresses command records and nothing else. Here
+         * a hidden row takes its slot's glyphs with it, and those are
+         * counted in slots_hidden rather than vanishing from the
+         * arithmetic. */
+        {
+            uint32_t p0, g0, p1, g1, sh1, hid1;
+            ps2ui_visible_reset(&lc);
+            ps2ui_list_set_count(&lc, &list, 4);
+            ps2ui_list_apply_visibility(&lc, &list);
+            render_and_count(&lc, &gs);
+            p0 = lc.stats.prims; g0 = lc.stats.slot_glyphs;
+            CHECK(g0 > 0 && lc.stats.slots_hidden == 0,
+                  "all rows visible: slot glyphs drawn, none suppressed");
+
+            ps2ui_visible_set(&lc, "row-1", 0);
+            render_and_count(&lc, &gs);
+            p1 = lc.stats.prims; g1 = lc.stats.slot_glyphs;
+            sh1 = lc.stats.slots_hidden; hid1 = lc.stats.skipped_hidden;
+            CHECK(sh1 == 1, "hiding a row suppresses exactly its one slot");
+            CHECK(g1 < g0, "and its glyphs stop being composed");
+            /* Every primitive the frame lost is either a skipped
+             * command record or a suppressed slot's glyphs. Exact, not
+             * >=: this fixture can violate it, which is the point. */
+            CHECK(p0 - p1 == hid1 + (g0 - g1),
+                  "prims lost = records skipped + slot glyphs suppressed");
+            ps2ui_visible_reset(&lc);
+        }
 
         /* Feature bit 2: slot letter-spacing travels with the slot and
          * the pen applies it at every junction, alongside the kern.

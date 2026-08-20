@@ -1,4 +1,5 @@
-/* A stub of the slice of gsKit that ps2ui.c uses, for host-side tests.
+/* A stub of the slice of gsKit that ps2ui.c and the sample use, for
+ * host-side tests and `make syntax-check`.
  *
  * The point is not to emulate the GS — the Python previewer does the
  * visual verification. The stub exists so the real ps2ui.c compiles
@@ -17,6 +18,12 @@ typedef uint64_t u64;
 
 #define GS_PSM_CT32 0x00
 #define GS_PSM_T8   0x13
+#define GS_PSMZ_16S 0x0A
+
+#define GS_SETTING_OFF 0
+#define GS_SETTING_ON  1
+#define GS_ONESHOT     0
+#define GS_PERSISTENT  1
 
 #define GS_FILTER_NEAREST 0
 #define GS_FILTER_LINEAR  1
@@ -45,6 +52,9 @@ typedef struct GSTEXTURE {
 typedef struct GSGLOBAL {
     int Width, Height;
     u32 CurrentPointer; /* fake VRAM allocator cursor */
+    /* Set by the sample during init. Declared so main.c type-checks on
+     * the host; nothing here reads them. */
+    int PSM, PSMZ, DoubleBuffering, ZBuffering, PrimAlphaEnable;
 } GSGLOBAL;
 
 /* ---- stub bookkeeping the test asserts against ---- */
@@ -74,6 +84,14 @@ void stub_reset(void);
 
 u32  gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u32 type);
 u32  gsKit_texture_size(u32 width, u32 height, u32 psm);
+/* Used only by the sample; the runtime never inits or flips. */
+GSGLOBAL *gsKit_init_global(void);
+void gsKit_init_screen(GSGLOBAL *gs);
+void gsKit_mode_switch(GSGLOBAL *gs, int mode);
+void gsKit_queue_exec(GSGLOBAL *gs);
+void gsKit_sync_flip(GSGLOBAL *gs);
+void gsKit_clear(GSGLOBAL *gs, u64 color);
+
 void gsKit_texture_upload(GSGLOBAL *gs, GSTEXTURE *tex);
 void gsKit_set_scissor(GSGLOBAL *gs, u64 scissor);
 void gsKit_prim_sprite(GSGLOBAL *gs, float x1, float y1, float x2, float y2,

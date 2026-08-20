@@ -208,6 +208,28 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
  * data-repeat ceiling, since a long list is what needs this. */
 #define PS2UI_MAX_HIDEABLE      256
 
+/* Per-frame render telemetry, reset at the top of every ps2ui_render
+ * and complete when it returns. Counters only: the runtime does no
+ * timing (the EE cycle counter is the app's to read, and host tests
+ * have no EE) and no I/O (where a log goes — UDP, USB, screen, PCSX2's
+ * console capture — is the app's decision, same split as slot data).
+ * The cost is one increment per command record walked plus one per
+ * primitive drawn -- proportional to the frame, not to the API. */
+typedef struct ps2ui_stats {
+    uint32_t cmds;             /* command records walked                */
+    uint32_t prims;            /* primitives actually submitted to gsKit */
+    uint32_t skipped_hidden;   /* command records skipped by runtime
+                                * visibility -- records only; a hidden
+                                * row's suppressed slot shows up in
+                                * slots_hidden, not here               */
+    uint32_t slot_glyphs;      /* glyph quads composed by the slot pen  */
+    uint32_t slots_hidden;     /* slots suppressed by runtime visibility */
+    uint32_t scissor_overflow; /* SCISSOR_PUSHes refused for want of
+                                * stack; nonzero means a blob deeper
+                                * than PS2UI_MAX_SCISSOR_DEPTH slipped
+                                * past the baker somehow               */
+} ps2ui_stats;
+
 typedef struct ps2ui_ctx {
     const uint8_t         *data;     /* the whole .uib, caller-owned      */
     size_t                 size;
@@ -237,6 +259,8 @@ typedef struct ps2ui_ctx {
      * ps2ui_load, so a blob that never calls the API behaves exactly as
      * before and pays 32 bytes of context. */
     uint32_t  hidden[(PS2UI_MAX_HIDEABLE + 31) / 32];
+    /* Filled by ps2ui_render; see ps2ui_stats. */
+    ps2ui_stats stats;
 } ps2ui_ctx;
 
 /* Errors returned by ps2ui_load. */

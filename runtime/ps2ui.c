@@ -316,6 +316,8 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
     int overflow = 0;
     uint32_t i;
 
+    memset(&ctx->stats, 0, sizeof ctx->stats);
+
     stack[0].x0 = 0;
     stack[0].y0 = 0;
     stack[0].x1 = ctx->hdr->canvas_w;
@@ -327,6 +329,7 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
         uint32_t first = sc->cmd_first, endi = sc->cmd_first + sc->cmd_count;
         for (i = first; i < endi; i++) {
         const ps2ui_cmd *c = &ctx->cmd[i];
+        ctx->stats.cmds++;
 
         if (c->op == PS2UI_OP_SCISSOR_PUSH) {
             scissor_rect r, *top = &stack[depth];
@@ -335,6 +338,7 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
                  * which is larger, so it draws too much rather than
                  * corrupting the frame. */
                 overflow++;
+                ctx->stats.scissor_overflow++;
                 continue;
             }
             r.x0 = c->x > top->x0 ? c->x : top->x0;
@@ -359,9 +363,12 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
         }
         if (!cmd_visible(c, ctx->focus))
             continue;
-        if (node_hidden(ctx, c->focus))
+        if (node_hidden(ctx, c->focus)) {
+            ctx->stats.skipped_hidden++;
             continue;
+        }
 
+        ctx->stats.prims++;
         if (c->op == PS2UI_OP_QUAD) {
             gsKit_prim_sprite(gs,
                 (float)c->x, (float)c->y,
@@ -530,8 +537,10 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
          * in the command loop does not reach them. Without this, hiding
          * a row removes its panel and leaves its glyphs floating over
          * the background — worse than not hiding it at all. */
-        if (node_hidden(ctx, s->focus))
+        if (node_hidden(ctx, s->focus)) {
+            ctx->stats.slots_hidden++;
             continue;
+        }
         font = &ctx->fonts[s->font];
         text = slot_current_text(ctx, i);
         size_t draw_len;
@@ -565,6 +574,8 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (have_prev)
                 pen += s->letter_spacing + find_kern(ctx, font, prev, cp);
             if (g->w > 0) {
+                ctx->stats.prims++;
+                ctx->stats.slot_glyphs++;
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
                     (float)g->u, (float)g->v,
@@ -583,6 +594,8 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
                 pen += s->letter_spacing
                      + find_kern(ctx, font, prev, PS2UI_ELLIPSIS_CP);
             if (g && g->w > 0) {
+                ctx->stats.prims++;
+                ctx->stats.slot_glyphs++;
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
                     (float)g->u, (float)g->v,

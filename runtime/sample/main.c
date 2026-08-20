@@ -9,6 +9,7 @@
  */
 
 #include <kernel.h>
+#include <stdio.h>
 #include <gsKit.h>
 #include <dmaKit.h>
 
@@ -20,6 +21,55 @@ extern unsigned int size_ui_uib;
 
 /* Frames to hold each focus state — long enough for a screenshot. */
 #define FRAMES_PER_STATE 150
+
+/* Build with -DPS2UI_SAMPLE_TELEMETRY for a once-a-second log line on
+ * stdout. printf from the EE reaches PCSX2's console log, ps2link, and
+ * any TTY hook — no IRX modules, no storage, nothing to mount, which
+ * is why this is the first sink rather than USB or UDP: it works on
+ * the very first boot, before anything else is proven.
+ *
+ * The line is machine-fixed and grep-friendly:
+ *
+ *   ps2ui-telemetry frame=300 fps=60.0 miss=0 ee_us(min/avg/max)=412/430/501
+ *       prims=375 hidden=0 slotg=42 slothid=0 sciov=0
+ *
+ * fps is measured from elapsed wall-clock cycles, not derived from the
+ * miss count: a UI running steadily at half rate overruns a field on
+ * every frame, so `60 - missed` would report 0 fps for a program
+ * rendering perfectly well at 30. They are independent signals and the
+ * interval is a real second either way.
+ *
+ * ee_us is ps2ui_render alone (composition cost, not GPU), measured
+ * with the EE's COP0 cycle counter. miss counts frames where the whole
+ * loop overran one 60 Hz field.
+ *
+ * The ps2ui counters are aggregated across the interval, not sampled
+ * from its last frame. sciov especially: a nonzero value means a blob
+ * deeper than PS2UI_MAX_SCISSOR_DEPTH reached the console, and B16's
+ * lesson was that this condition is silent and remote from its cause —
+ * sampling it at a 1-in-60 duty cycle would keep it silent 98% of the
+ * time. prims/slotg report the interval's peak, which is the number
+ * that matters for budgeting.
+ */
+#ifdef PS2UI_SAMPLE_TELEMETRY
+/* COP0 Count on the R5900 ticks once per CPU cycle at 294.912 MHz.
+ * TODO(bench): confirm on hardware. Several MIPS implementations tick
+ * Count at half the core clock, and if the R5900 is one of them every
+ * ee_us here is 2x off. The bench session settles it: render a known
+ * fixed workload and compare ee_us against a stopwatch over 600
+ * frames. Until then treat ee_us as relative, not absolute. */
+#define EE_HZ 294912000u
+static inline u32 cop0_count(void)
+{
+    u32 v;
+    /* __asm__ __volatile__, not `asm volatile`: the sample builds
+     * -std=c99, which is strict ISO C where `asm` is not a keyword —
+     * GCC only spells it that way in the gnu* dialects. The
+     * underscored form is available in every mode. */
+    __asm__ __volatile__("mfc0 %0, $9" : "=r"(v));
+    return v;
+}
+#endif
 
 /* Build with -DPS2UI_SAMPLE_STATIC to hold the baked initial focus
  * forever instead of walking the graph.
@@ -151,12 +201,71 @@ int main(void)
         }
     }
 
+#ifdef PS2UI_SAMPLE_TELEMETRY
+    u32 t_min = 0xFFFFFFFFu, t_max = 0, t_sum = 0;
+    u32 sec_frames = 0, missed = 0, t_frame_prev = cop0_count();
+    u32 elapsed = 0;
+    /* Interval aggregates, not a last-frame sample. */
+    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0;
+#endif
+
     while (1) {
         /* Canvas background: #0a0e1a in flat-shaded full-range RGB. */
         gsKit_clear(gs, GS_SETREG_RGBAQ(0x0a, 0x0e, 0x1a, 0x80, 0x00));
+#ifdef PS2UI_SAMPLE_TELEMETRY
+        {
+            u32 t0 = cop0_count(), dt;
+            ps2ui_render(&ui, gs);
+            dt = cop0_count() - t0;
+            if (dt < t_min) t_min = dt;
+            if (dt > t_max) t_max = dt;
+            t_sum += dt;
+        }
+#else
         ps2ui_render(&ui, gs);
+#endif
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
+#ifdef PS2UI_SAMPLE_TELEMETRY
+        {
+            /* Wall time of the whole loop, vsync included: more than
+             * one field's worth of cycles means the flip missed. */
+            u32 now = cop0_count(), loop = now - t_frame_prev;
+            if (loop > EE_HZ / 60u + EE_HZ / 600u)
+                missed++;
+            elapsed += loop;
+            t_frame_prev = now;
+            sec_frames++;
+
+            /* Peaks for the budgeting numbers, a sum for the alarm:
+             * one overflowed frame in the interval must be visible. */
+            if (ui.stats.prims > a_prims) a_prims = ui.stats.prims;
+            if (ui.stats.skipped_hidden > a_hidden) a_hidden = ui.stats.skipped_hidden;
+            if (ui.stats.slot_glyphs > a_slotg) a_slotg = ui.stats.slot_glyphs;
+            if (ui.stats.slots_hidden > a_slothid) a_slothid = ui.stats.slots_hidden;
+            a_sciov += ui.stats.scissor_overflow;
+
+            /* Report on elapsed time, so the line is a real second at
+             * any frame rate rather than 60 frames however long those
+             * took. */
+            if (elapsed >= EE_HZ) {
+                u32 fps10 = (u32)(((u64)sec_frames * 10u * EE_HZ + elapsed / 2u)
+                                  / elapsed);
+                printf("ps2ui-telemetry frame=%u fps=%u.%u miss=%u "
+                       "ee_us(min/avg/max)=%u/%u/%u "
+                       "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u\n",
+                       frame, fps10 / 10u, fps10 % 10u, missed,
+                       t_min / (EE_HZ / 1000000u),
+                       (t_sum / sec_frames) / (EE_HZ / 1000000u),
+                       t_max / (EE_HZ / 1000000u),
+                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov);
+                t_min = 0xFFFFFFFFu; t_max = 0; t_sum = 0;
+                sec_frames = 0; missed = 0; elapsed = 0;
+                a_prims = 0; a_hidden = 0; a_slotg = 0;
+                a_slothid = 0; a_sciov = 0;
+            }
+        }
+#endif
 
         /* Walk every focus state so a timed screenshot sweep sees each
          * one: hold, then move right (wrapping via down) through the
