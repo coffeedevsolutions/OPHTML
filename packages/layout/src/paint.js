@@ -56,6 +56,10 @@ function emitRect(cmds, box, paint, state) {
     radius: Math.min(paint.radius, Math.floor(Math.min(box.width, box.height) / 2)),
     state,
     focusId: box.focusId,
+    // Only emitted when set: an absent key means the same thing as
+    // false to every consumer, and writing it on every command would
+    // grow the IR for one attribute almost nobody uses.
+    ...(box.keep ? { keep: true } : {}),
   });
 }
 

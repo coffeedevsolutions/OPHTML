@@ -27,7 +27,8 @@ import os
 import re
 import sys
 
-from ps2ui_bake.quads import FOCUS_NONE, OP_QUAD, OP_TEXQUAD
+from ps2ui_bake.quads import (FOCUS_NONE, OP_QUAD, OP_SCISSOR_PUSH,
+                               OP_TEXQUAD)
 from ps2ui_bake import gs
 from ps2ui_bake.uib import FEAT_DYNAMIC_TEXT, read_uib
 
@@ -182,6 +183,29 @@ def main(path: str) -> int:
                  if r.op == OP_QUAD and (r.w == 1 or r.h == 1)]
     check(not hairlines,
           f"no 1px quads to shimmer on an interlaced CRT ({len(hairlines)} found)")
+
+    # --- bring-up step 7's instrument (data-keep) --------------------
+    #
+    # A magenta quad parked outside .scissor's clip. It survives the
+    # dead-geometry trim only because of data-keep, and it is useful
+    # only while two things stay true: it is outside the clip that must
+    # suppress it, and inside the canvas so the framebuffer bounds are
+    # not doing the job instead. Either drifting turns a positive test
+    # for a negative into a quad that proves nothing, silently -- and
+    # the previewer cannot tell you, because a working instrument and a
+    # broken one both render as nothing.
+    tell = [r for r in uib.records if r.rgba[:3] == (255, 0, 255)]
+    check(len(tell) == 1,
+          f"the scissor tell quad survived the trim ({len(tell)} found)")
+    if len(tell) == 1:
+        t = tell[0]
+        clips = [r for r in uib.records if r.op == OP_SCISSOR_PUSH]
+        covering = [c for c in clips
+                    if c.x <= t.x and c.x + c.w >= t.x + t.w]
+        check(not covering,
+              f"and lies outside every clip rect (x={t.x}..{t.x + t.w})")
+        check(t.x + t.w <= uib.canvas_w and t.y + t.h <= uib.canvas_h,
+              "and inside the canvas, so the scissor is what must hide it")
 
     return report()
 

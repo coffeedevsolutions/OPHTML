@@ -200,9 +200,24 @@ touching the linter's safe areas.
 ## 7. Scissor nesting
 
 **Do:** navigate so an ellipsized title redraws (tiles clip their text
-via `overflow: hidden`).
+via `overflow: hidden`), and look at the probe screen's CLIP cell.
 **Expect:** text clips exactly at the tile's padding edge, identical to
-the previewer.
+the previewer — **and no magenta anywhere on the probe screen.**
+
+The probe's CLIP cell carries a 24px magenta quad parked at x=603,
+outside the cell's clip rect (x=479..594) but inside the 640px canvas.
+A correct GS never rasterizes it, so it is invisible and the screen
+looks the same with or without it. Magenta on screen means the scissor
+rect is not reaching the hardware at all.
+
+That is a positive test for a negative, which nothing else here
+provides: every other check on this screen confirms something *is*
+drawn, and a scissor that silently does nothing looks identical to a
+scissor that works whenever the clipped content would have fitted
+anyway. It survives the baker's dead-geometry trim only because it is
+marked `data-keep`; `examples/channel6/check.py` asserts it stayed
+outside its clip and inside the canvas, since a drift in either
+direction turns it back into a quad that proves nothing.
 **If wrong:** `GS_SETREG_SCISSOR` is inclusive on both ends — the
 runtime passes `x1 - 1` / `y1 - 1`; an off-by-one here shows as a 1px
 text bleed. Also confirm scissor state isn't cached across frames by

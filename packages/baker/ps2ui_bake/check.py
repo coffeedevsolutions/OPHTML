@@ -365,7 +365,7 @@ def _dead_commands(uib, sc) -> list:
         uib.records, sc["cmd_first"], sc["cmd_count"],
         uib.canvas_w, uib.canvas_h)
 
-def check_crt(uib, rep: Report, canvas) -> None:
+def check_crt(uib, rep: Report, canvas, allow_dead: int = 0) -> None:
     """Advisory. Legal blobs that waste the GS or look wrong on a CRT."""
     hairlines = [i for i, r in enumerate(uib.records)
                  if r.op == OP_QUAD and (r.w == 1 or r.h == 1)]
@@ -374,13 +374,26 @@ def check_crt(uib, rep: Report, canvas) -> None:
              if hairlines else
              "no 1px quads to shimmer on an interlaced CRT")
 
+    # `--allow-dead N` declares that N of these are deliberate. The flag
+    # that produced them (`data-keep`) is build-time only and never
+    # reaches the blob, so a validator reading the file cannot tell an
+    # instrument from waste -- and it should not guess. Declaring the
+    # count keeps the check strict: one more than expected still warns.
     dead = [i for sc in uib.screens for i in _dead_commands(uib, sc)]
-    rep.warn(not dead,
-             f"{len(dead)} command(s) fall entirely outside their clip and are "
-             f"submitted every frame for nothing (from command {dead[0]}); "
-             f"usually the tail of a nowrap run inside overflow:hidden"
-             if dead else
-             "every command can produce a pixel")
+    if allow_dead and len(dead) <= allow_dead:
+        rep.warn(True,
+                 f"{len(dead)} dead command(s), {allow_dead} declared "
+                 f"deliberate (--allow-dead)")
+    else:
+        surplus = len(dead) - allow_dead
+        rep.warn(not dead,
+                 f"{surplus} command(s) fall entirely outside their clip and "
+                 f"are submitted every frame for nothing (from command "
+                 f"{dead[0]}); usually the tail of a nowrap run inside "
+                 f"overflow:hidden"
+                 + (f"; {allow_dead} declared deliberate" if allow_dead else "")
+                 if dead else
+                 "every command can produce a pixel")
 
     unused = sorted(set(range(len(uib.textures))) -
                     {r.tex for r in uib.records if r.op == OP_TEXQUAD}
@@ -397,7 +410,7 @@ def check_vram(uib, rep: Report, budget=None) -> None:
     rep.error(ok, f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB")
 
 
-def check_blob(uib, budget=None) -> Report:
+def check_blob(uib, budget=None, allow_dead: int = 0) -> Report:
     """Every check, in dependency order. Returns the Report."""
     rep = Report()
     check_tables(uib, rep)
@@ -407,7 +420,7 @@ def check_blob(uib, budget=None) -> Report:
     check_gs_domains(uib, rep)
     check_fonts(uib, rep)
     check_vram(uib, rep, budget)
-    check_crt(uib, rep, (uib.canvas_w, uib.canvas_h))
+    check_crt(uib, rep, (uib.canvas_w, uib.canvas_h), allow_dead)
     return rep
 
 
@@ -418,6 +431,9 @@ def main(argv=None) -> int:
     ap.add_argument("uib", help="path to a .uib blob")
     ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",
                     help="override the default texture VRAM budget")
+    ap.add_argument("--allow-dead", type=int, default=0, metavar="N",
+                    help="N draw commands outside their clip are deliberate "
+                         "(data-keep instruments); more than N still warns")
     ap.add_argument("--strict", action="store_true",
                     help="treat CRT warnings as failures")
     args = ap.parse_args(argv)
@@ -428,7 +444,7 @@ def main(argv=None) -> int:
         print(f"ps2ui-check: {exc}", file=sys.stderr)
         return 2
 
-    rep = check_blob(uib, args.vram_budget)
+    rep = check_blob(uib, args.vram_budget, args.allow_dead)
     rep.emit()
 
     aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"

@@ -28,6 +28,7 @@ export class Box {
     this.text = null;           // for text boxes
     this.image = null;          // for <img>: { src, w, h } (intrinsic px)
     this.slot = null;           // for data-slot: { name, capacity }
+    this.keep = false;          // data-keep: exempt from the dead-geometry trim
     // Filled by the solver:
     this.x = 0; this.y = 0; this.width = 0; this.height = 0;
     this.lines = null;          // laid-out text lines
@@ -75,6 +76,12 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   if (style.display === 'none') return null;
 
   const box = new Box('element', el, style, focusStyle);
+  // data-keep: exempt this element's geometry from the baker's
+  // dead-geometry trim. The one case that wants it is deliberate
+  // observability -- the bring-up probe needs a quad that provably
+  // cannot draw, so that a television showing it means the scissor is
+  // not being applied.
+  box.keep = 'data-keep' in el.attrs;
   if ('data-slot' in el.attrs) {
     // Dynamic text (backlog F2): the element's text is a build-time
     // placeholder; the console composes the real string at runtime

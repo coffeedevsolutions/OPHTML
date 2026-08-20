@@ -931,6 +931,89 @@ class TestKernTable(unittest.TestCase):
 # Python-only machine does not cover this. CI's toolchain job installs
 # node, so the check always runs there.
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
+class TestDataKeep(unittest.TestCase):
+    """data-keep exempts geometry from the dead-geometry trim.
+
+    The trim's safety argument is that removing a record which could
+    never draw cannot change the image -- which is precisely what makes
+    a deliberately-clipped quad useless as an instrument unless it can
+    opt out."""
+
+    def ir(self, keep):
+        """A clip rect with two quads outside it, one opting out."""
+        cmds = [
+            {"op": "scissor_push", "x": 0, "y": 0, "w": 40, "h": 40,
+             "state": "always", "focusId": None},
+            {"op": "rect", "x": 200, "y": 0, "w": 20, "h": 20,
+             "fill": [255, 0, 255, 255], "borderWidth": 0,
+             "borderColor": None, "radius": 0,
+             "state": "always", "focusId": None},
+            {"op": "rect", "x": 240, "y": 0, "w": 20, "h": 20,
+             "fill": [0, 255, 0, 255], "borderWidth": 0,
+             "borderColor": None, "radius": 0,
+             "state": "always", "focusId": None},
+            {"op": "scissor_pop", "state": "always", "focusId": None},
+        ]
+        if keep:
+            cmds[1]["keep"] = True
+        return tiny_ir(cmds)
+
+    def bake(self, keep):
+        f = Flattener(self.ir(keep), font_paths())
+        f.run()
+        return f
+
+    def test_without_it_both_dead_quads_go(self):
+        f = self.bake(keep=False)
+        self.assertEqual(f.dropped, 2)
+        self.assertFalse([r for r in f.records if r.op == OP_QUAD])
+
+    def test_with_it_the_marked_one_survives(self):
+        f = self.bake(keep=True)
+        self.assertEqual(f.dropped, 1)
+        kept = [r for r in f.records if r.op == OP_QUAD]
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].rgba[:3], (255, 0, 255))
+        self.assertEqual(kept[0].x, 200)   # still outside the clip
+
+    def test_it_does_not_reach_the_blob(self):
+        # Build-time only: the runtime draws the records it is given and
+        # has no notion of one it should have dropped, so the flag has
+        # nowhere to go and no reason to cost format space.
+        f = self.bake(keep=True)
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 320, "h": 240}, f.records, f.textures,
+                      f.cluts, f.focus_nodes, None, screens=f.screens)
+            u = read_uib(path)
+        self.assertFalse(any(hasattr(r, "keep") and r.keep for r in u.records))
+
+    def test_the_validator_can_be_told_a_dead_quad_is_deliberate(self):
+        # ps2ui-check reads only the blob, and data-keep never reaches
+        # it, so the validator cannot tell an instrument from waste --
+        # and must not guess. --allow-dead declares the count, and one
+        # more than declared still warns.
+        from ps2ui_bake.check import check_blob
+        f = self.bake(keep=True)
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 320, "h": 240}, f.records, f.textures,
+                      f.cluts, f.focus_nodes, None, screens=f.screens)
+            u = read_uib(path)
+        self.assertEqual(check_blob(u).warnings, 1)
+        self.assertEqual(check_blob(u, allow_dead=1).warnings, 0)
+        self.assertEqual(check_blob(u, allow_dead=0).warnings, 1)
+
+    def test_it_never_rescues_geometry_that_could_draw(self):
+        # The flag only ever subtracts from the dead set, so a quad
+        # inside its clip is unaffected either way.
+        ir = self.ir(keep=True)
+        ir["commands"][1]["x"] = 5      # now inside the 40x40 clip
+        f = Flattener(ir, font_paths())
+        f.run()
+        self.assertEqual(f.dropped, 1)  # only the green one, as before
+
+
 class TestCrossLanguagePen(unittest.TestCase):
     """Node and Python must place every glyph on the same pixel.
 
