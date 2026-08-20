@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<body>
+<div class="screen">
+  <div class="topbar">
+    <h1>RECENTLY PLAYED</h1>
+    <div class="filters"></div>
+    <p class="counts" data-slot="rec-count" data-slot-capacity="16">28 sessions</p>
+  </div>
+  <div class="body">
+    <div class="rows">
+      <div class="row" data-repeat="9" id="rrow-{i}" focusable>
+        <img class="art" src="../../../examples/channel6/ui/assets/cover-aurora.png" palettize>
+        <div class="meta">
+          <p class="title" data-slot="rrow-{i}-title" data-slot-capacity="40">Session Title {n}</p>
+          <p class="sub" data-slot="rrow-{i}-sub" data-slot-capacity="32">yesterday · 1h 20m</p>
+        </div>
+        <p class="score" data-slot="rrow-{i}-pct" data-slot-capacity="5">45%</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <p class="hint">○ RESUME</p>
+    <p class="hint">✕ BACK</p>
+  </div>
+</div>
+</body>
+</html>

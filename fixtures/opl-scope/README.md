@@ -26,9 +26,16 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake build/opl.json \
 
 ## What it contains
 
-One library screen at the scale the anchor use case (UC-3) needs: nine
-rows with cover art, title, subtitle, Metacritic score and source tag;
-five filter chips; a continue-playing rail; a footer hint bar.
+The five screens the anchor use case (UC-3) needs, sharing one
+stylesheet and baking into one blob the way a real environment ships:
+
+| screen | what it is |
+|---|---|
+| `landing` | entry point: source tiles (HDD/USB/NET/…) and a continue-playing rail |
+| `library` | nine rows with cover art, title, subtitle, score, source; filter chips |
+| `detail` | one title's art, six metadata fields, a blurb, four action buttons |
+| `filters` | seven facet rows with a live match preview |
+| `recent` | nine session rows with progress |
 
 Nine rows, not twelve. Twelve was the first attempt and the linter
 refused it — at 34px per row (title over subtitle drives the height,
@@ -40,57 +47,100 @@ at twelve.
 
 ## The demand
 
-Measured from the baked blob, with `PS2UI_MAX_SLOTS` temporarily
-raised so the bake could complete:
+Per screen, from the layout stage:
+
+| screen | slots | focusables |
+|---|---:|---:|
+| landing | 15 | 7 |
+| library | 43 | 17 |
+| detail | 15 | 4 |
+| filters | 20 | 12 |
+| recent | 28 | 9 |
+| **environment** | **121** | **49** |
+
+And from the baked blob, with `PS2UI_MAX_SLOTS` temporarily raised so
+the bake could complete:
 
 | | measured | cap today |
 |---|---|---|
-| **slots** | **43** (9 rows × 4 fields + 3 continue × 2 + count) | **16** |
-| textures | 12 (nine-patch corners, three glyph atlases, cover art) | 32 |
-| fonts | 4 (size × weight combinations) | — |
-| focusables | 17 | 256 hideable |
-| draw records | 414 | — |
-| VRAM | 152 KiB of a 736 KiB budget (20%) | 4 MB total |
-| blob | 116 KiB | — |
-| glyph tables | 460 glyphs, 528 kern pairs | — |
+| **slots** | **121** | **16** |
+| screens | 5 | 8 |
+| textures | 15 | 32 |
+| fonts | 5 | — |
+| draw records | 1,232 | — |
+| VRAM | 248 KiB of a 736 KiB budget (33%) | 4 MB total |
+| blob | 210 KiB | — |
 
 Unmodified, the bake refuses, and correctly:
 
 ```
-runtime tables: 12/32 textures, 43/16 slots, 1/8 screens
-error: slots: 43 exceeds PS2UI_MAX_SLOTS = 16. ps2ui_load() would
+runtime tables: 15/32 textures, 121/16 slots, 5/8 screens
+error: slots: 121 exceeds PS2UI_MAX_SLOTS = 16. ps2ui_load() would
 return PS2UI_ERR_TOO_MANY.
 ```
 
-**One screen needs 2.7× the entire blob-wide slot budget.** Projecting
-the other four UC-3 screens (landing ~8, detail ~14, filters ~10,
-recent ~16) puts the environment near **91 slots, 5.7× the cap**.
+**The environment needs 7.6× the entire blob-wide slot budget** — and
+the library screen alone needs 2.7×.
+
+### Estimating this failed, which is the point
+
+An earlier revision measured only the library screen and *projected*
+the other four. The projection was 33% low, and wrong in a specific
+way:
+
+| screen | projected | measured | error |
+|---|---:|---:|---:|
+| landing | 8 | 15 | +88% |
+| library | 43 | 43 | — |
+| detail | 14 | 15 | +7% |
+| filters | 10 | 20 | +100% |
+| recent | 16 | 28 | +75% |
+| **total** | **91** | **121** | **+33%** |
+
+The two accurate rows are the one that was measured and the one that
+is mostly static text. Every screen built from repeated rows was
+underestimated by 75–100%, because `data-repeat` multiplies fields by
+rows and eyeballing does not. A resource model sized from estimates
+would have been undersized by a third, in the direction that fails on
+a television.
+
+### A second ceiling is already in view
+
+`5 of 8 screens`. A shipping OPL environment would want settings,
+network configuration, and an about page — that is exactly 8. The slot
+cap is the one that blocks today; `PS2UI_MAX_SCREENS` is the one that
+blocks the version after.
 
 The interesting part is what that costs under each model. Slot text
 lives in the context as `slot_text[MAX_SLOTS][96]`:
 
-- **fixed maxima**, raised to fit 91: **8,736 B**, paid by every blob
-  including a two-slot overlay that needs 192 B.
-- **blob-sized arena** (Phase 1): this screen asks for 4,128 B and a
-  small UI asks for what it uses.
+| | `slot_text` cost |
+|---|---:|
+| **fixed maxima**, raised to fit 121 | **11,616 B — on every blob** |
+| arena: this environment | 11,616 B |
+| arena: the memcard example (6 slots) | 576 B |
+| arena: a two-slot overlay | 192 B |
 
-That is §4.1 of the plan with numbers attached: the ceiling is not
-merely too low, it is the wrong shape. Raising `PS2UI_MAX_SLOTS` to
-256 "fixes" this screen and charges 24 KiB of context to everything
-that will never use it.
+A two-slot overlay pays **60× what it uses** under fixed maxima. That
+is §4.1 of the plan with numbers attached: the ceiling is not merely
+too low, it is the wrong shape, and raising it makes the waste worse
+rather than better.
 
-Textures and VRAM are comfortable — 20% of budget with cover art at
-16×16. That changes the moment art is shown at a readable size, which
-is what makes streamed texture slots (Phase 1) the other blocker
-rather than a nicety.
+Textures and VRAM are comfortable — 33% of budget, with cover art at
+16×16 in lists and 120×72 on the detail page. That changes the moment
+art is shown at a size a person would call readable, which is what
+makes streamed texture slots (Phase 1) the other blocker rather than a
+nicety.
 
 ## Kept honest
 
-`measure.sh` asserts the slot and focusable counts above, and CI runs
-it on every push. A fixture whose only job is to be re-measured at the
-Phase 1 gate is worthless if it has quietly stopped compiling, or if
-the demand moved and nobody noticed. Verified by sabotage: dropping a
-row reports `not ok - opl-scope slots: 39, README says 43` and exits 1.
+`measure.sh` asserts every screen's slot and focusable count above plus
+the environment total, and CI runs it on every push. A fixture whose
+only job is to be re-measured at the Phase 1 gate is worthless if it
+has quietly stopped compiling, or if the demand moved and nobody
+noticed. Verified by sabotage: dropping a row reports
+`not ok - library: 39 slots / 16 focusables, README says 43 / 17` and
+exits 1.
 
 ## Two defects this fixture found
 
