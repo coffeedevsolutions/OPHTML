@@ -65,6 +65,11 @@ release will not load.
   cannot drift from the renderer that produced it.
 
 ### Fixed
+- Slots dropped `letter-spacing`: layout measured and centered the box
+  with it while the runtime and previewer drew without it — 44px of
+  divergence over 12 glyphs at 4px spacing. The value now travels in
+  the slot entry (feature bit 2, stride unchanged) and every pen
+  applies it, kern included, ellipsis junction included.
 - The scissor stack could desynchronise: a `SCISSOR_PUSH` refused for
   want of stack was still being popped, leaving every *later* clip in
   the frame wrong rather than only the too-deep subtree. The bake now

@@ -232,6 +232,24 @@ test('flex: direction is only demanded where it could change anything', () => {
   assert.equal(texts(hidden).length, 1);
 });
 
+test('slots: letter-spacing travels with the slot descriptor', () => {
+  // The pen that draws slot text runs on the console, so every input
+  // to the pen must reach it. Leaving spacing behind meant layout
+  // measured the box with a value the glyphs were never drawn with.
+  const ir = compileCss(
+    '<div class="s"><p class="t" data-slot="title">Hello</p></div>',
+    '.s { padding: 4px; } .t { font-size: 16px; letter-spacing: 3px; }',
+  );
+  assert.equal(ir.slots.length, 1);
+  assert.equal(ir.slots[0].letterSpacing, 3);
+  // and zero when unstyled, so the baker's feature bit stays clear
+  const plain = compileCss(
+    '<div class="s"><p data-slot="t2">Hi</p></div>',
+    '.s { padding: 4px; }',
+  );
+  assert.equal(plain.slots[0].letterSpacing, 0);
+});
+
 test('lint: contrast never composites mutually exclusive focus states', () => {
   // `:focus` is a paint-only delta -- one command list carries both
   // states and the runtime draws whichever matches. A node's focused

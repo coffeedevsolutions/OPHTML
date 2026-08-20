@@ -165,6 +165,11 @@ h1 {
   font-size: 20px;
   font-weight: bold;
   color: #f2f5fa;
+  /* Same tracking as the static headings around it. This is a slot, so
+   * the spacing travels in the blob (feature bit 2) and the console pen
+   * applies it -- before that existed, runtime text here drew tighter
+   * than every heading beside it. */
+  letter-spacing: 2px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
