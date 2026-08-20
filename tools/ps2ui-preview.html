@@ -110,6 +110,10 @@ body.fullscreen #bar:hover{opacity:1}
 body.fullscreen #app{grid-template-rows:1fr}
 body.fullscreen #main{grid-template-columns:1fr}
 body.fullscreen #stage{background:#000}
+/* In a narrow pane the two side panels eat the stage, and the stage is
+   the point. Give the canvas the room back before hiding anything. */
+@media (max-width:1200px){#main{grid-template-columns:196px 1fr 262px}}
+@media (max-height:760px){#jsonWrap{height:118px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
