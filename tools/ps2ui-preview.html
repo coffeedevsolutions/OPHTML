@@ -1,0 +1,828 @@
+<!--
+  ps2ui-preview — look at a ps2ui build in a browser.
+
+  One self-contained file. No build step, no dependencies, no server:
+  double-click it and point it at a build directory.
+
+  The chrome, the token palette and the two-canvas stage are lifted from
+  OPLattice's opl-theme-previewer.html, which solved this shape of
+  problem for OPL themes. What is new here is the subject: ps2ui builds
+  are a flat command list, not a theme config.
+
+  WHERE THE PIXELS COME FROM
+
+  Deliberately not a second renderer competing with the Python
+  previewer. `ps2ui_bake --preview` replays the *baked* blob with the
+  console's quad order, scissor stack, CLUT lookups and GS alpha
+  domain, and that PNG stays the ground truth here — "Baked" is the
+  default source and it is those exact pixels, untouched.
+
+  "IR" replays ui.json on a 2D canvas instead. That is worth having
+  because it works before a bake, renders any focus state rather than
+  the ones the montage happens to hold, and hit-tests commands. It is
+  NOT GS-accurate: text goes through the browser's shaper and its own
+  font, so glyph advances will not match the baker's
+  floor(units * size / 1000 + 0.5) rule, and nothing here models CLUT
+  quantization or nine-patch rasterization.
+
+  So the two are cross-checked rather than trusted separately: "Diff"
+  shows them amplified against each other with an RMSE, the same
+  measure tools/framediff.py uses. Structure disagreements are real
+  bugs. Text disagreements are usually just the font.
+-->
+<meta charset="utf-8">
+<title>ps2ui preview</title>
+<style>
+:root{
+  --bg:#14171c; --panel:#1c2128; --panel2:#232a33; --line:#333c47;
+  --fg:#e6edf3; --dim:#8b96a3; --accent:#00aeff; --warn:#e3b341; --err:#f85149; --ok:#3fb950;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:4px 9px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.on{background:var(--accent);border-color:var(--accent);color:#04121c;font-weight:600}
+button:disabled{opacity:.4;cursor:default}
+button:disabled:hover{border-color:var(--line)}
+select{background:#11151a;border:1px solid var(--line);border-radius:4px;padding:3px 6px}
+label{color:var(--dim)}
+h3{margin:0;padding:7px 10px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+   border-bottom:1px solid var(--line);background:var(--panel2);position:sticky;top:0;z-index:2}
+
+#app{display:grid;grid-template-rows:auto 1fr;height:100%}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+#bar .sep{width:1px;height:20px;background:var(--line);margin:0 2px}
+#bar .grow{flex:1}
+#main{display:grid;grid-template-columns:250px 1fr 330px;min-height:0}
+#left,#right{background:var(--panel);overflow:auto;min-height:0}
+#left{border-right:1px solid var(--line)}
+#right{border-left:1px solid var(--line);display:flex;flex-direction:column}
+#center{display:grid;grid-template-rows:1fr auto;min-height:0;min-width:0}
+#stage{position:relative;overflow:auto;display:grid;place-items:center;padding:18px;background:
+  repeating-conic-gradient(#191d23 0% 25%,#15181d 0% 50%) 50%/16px 16px}
+#stack{position:relative;line-height:0;box-shadow:0 0 0 1px var(--line),0 8px 40px #0008}
+#stack canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#stack.smooth canvas{image-rendering:auto}
+#stack canvas:first-child{position:relative}
+#cOverlay{cursor:crosshair}
+
+#tree{font-family:var(--mono);font-size:11.5px;padding-bottom:10px}
+.el{padding:3px 8px;border-left:3px solid transparent;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el:hover{background:#ffffff08}
+.el.sel{background:#00aeff22;border-left-color:var(--accent)}
+.el.hid{opacity:.38}
+.el .n{color:var(--dim)}
+.el .b{display:inline-block;margin-left:5px;font-size:9px;padding:0 4px;border-radius:6px;background:#00aeff22;color:var(--accent)}
+
+#insp{padding:6px 10px 12px}
+.row{display:grid;grid-template-columns:92px 1fr;gap:6px;align-items:center;margin:3px 0}
+.row>label{font-size:11.5px;font-family:var(--mono)}
+.row>span{font-family:var(--mono);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.swatch{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid #ffffff30;vertical-align:-1px;margin-right:5px}
+.hint{color:var(--dim);font-size:11px;padding:4px 10px 8px}
+
+#diags{overflow:auto;flex:1;min-height:100px}
+.d{display:grid;grid-template-columns:auto 1fr;gap:7px;padding:5px 9px;border-bottom:1px solid #ffffff0d;cursor:pointer;font-size:11.5px}
+.d:hover{background:#ffffff08}
+.d .ic{font-weight:700;font-size:10px;letter-spacing:.05em;color:var(--warn)}
+.d code{font-family:var(--mono);font-size:10.5px;color:var(--dim);display:block;margin-top:2px}
+#sum{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+#sum th,#sum td{text-align:left;padding:2px 10px;border-bottom:1px solid #ffffff0d;font-weight:400}
+#sum th{color:var(--dim)}
+#sum td{text-align:right;font-variant-numeric:tabular-nums}
+
+#jsonWrap{display:grid;grid-template-rows:auto 1fr;min-height:0;height:170px;border-top:1px solid var(--line)}
+#json{margin:0;overflow:auto;background:#0f1216;color:#cdd9e5;font-family:var(--mono);font-size:11.5px;padding:8px 10px;white-space:pre}
+#drop{position:fixed;inset:0;background:#000c;display:none;place-items:center;z-index:50;font-size:20px;color:var(--accent)}
+#drop.on{display:grid}
+.empty{padding:14px 10px;color:var(--dim);font-size:12px}
+#status{color:var(--dim);font-size:11.5px;font-family:var(--mono)}
+#status.bad{color:var(--err)}
+
+body.fullscreen #bar > *:not(#btnFull),
+body.fullscreen #left, body.fullscreen #right, body.fullscreen #jsonWrap{display:none}
+body.fullscreen #bar{position:fixed;top:0;right:0;z-index:20;background:transparent;border:0;padding:6px;opacity:.25}
+body.fullscreen #bar:hover{opacity:1}
+body.fullscreen #app{grid-template-rows:1fr}
+body.fullscreen #main{grid-template-columns:1fr}
+body.fullscreen #stage{background:#000}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app">
+  <div id="bar">
+    <button id="btnFolder">Open build folder…</button>
+    <button id="btnLive" title="Chrome/Edge: watch the folder and reload whenever ps2ui-dev rebuilds it">Live reload</button>
+    <span class="sep"></span>
+    <label>Pixels</label>
+    <button id="srcBaked" class="on" title="The PNG from ps2ui_bake --preview. Ground truth.">Baked</button>
+    <button id="srcIr" title="ui.json replayed on canvas. Structural, not GS-accurate.">IR</button>
+    <button id="srcDiff" title="Baked vs IR, amplified, with an RMSE">Diff</button>
+    <span class="sep"></span>
+    <label for="focusSel">Focus</label>
+    <select id="focusSel"></select>
+    <span class="sep"></span>
+    <label for="zoomSel">Zoom</label>
+    <select id="zoomSel">
+      <option value="fit" selected>Fit</option><option value="1">1×</option>
+      <option value="2">2×</option><option value="3">3×</option>
+    </select>
+    <button id="btnAspect" class="on" title="Show at the television's pixel aspect instead of 1:1">Display aspect</button>
+    <button id="btnSmooth" title="Smooth vs nearest-neighbour upscaling">Smooth</button>
+    <span class="sep"></span>
+    <button id="btnGrid" title="8px grid">Grid</button>
+    <button id="btnSafe" title="Title-safe area — 10% inset, the CRT overscan budget">Safe area</button>
+    <button id="btnGraph" title="D-pad navigation edges between focusables">Focus graph</button>
+    <button id="btnFull" title="Screen only (F, Esc to leave)">Full screen</button>
+    <span class="grow"></span>
+    <span id="status">No build loaded.</span>
+  </div>
+
+  <div id="main">
+    <div id="left">
+      <h3>Commands <span id="cmdCount" style="float:right;text-transform:none;letter-spacing:0"></span></h3>
+      <div id="tree"><div class="empty">Open a build folder, or drop one on the window.</div></div>
+      <h3>Focusables</h3>
+      <div id="focusTree"></div>
+    </div>
+
+    <div id="center">
+      <div id="stage">
+        <div id="stack">
+          <canvas id="cScreen" width="640" height="448"></canvas>
+          <canvas id="cOverlay" width="640" height="448" tabindex="0"></canvas>
+        </div>
+      </div>
+      <div id="jsonWrap">
+        <h3>Selected record</h3>
+        <pre id="json">Click a command on the canvas or in the list.</pre>
+      </div>
+    </div>
+
+    <div id="right">
+      <h3>Inspector</h3>
+      <div id="insp"><div class="empty">Nothing selected.</div></div>
+      <h3>Warnings <span id="warnCount" style="float:right;text-transform:none;letter-spacing:0"></span></h3>
+      <div id="diags"></div>
+      <h3>Build</h3>
+      <table id="sum"></table>
+    </div>
+  </div>
+</div>
+<div id="drop">Drop a ps2ui build folder</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+
+/* A build directory as ps2ui-dev writes it: ui.json is required, the
+ * rest sharpen the picture. Files are keyed by basename because the IR
+ * records image `src` as a build-host absolute path that means nothing
+ * to a browser -- matching on the last path segment is what lets a
+ * dropped assets/ folder resolve. */
+const S = {
+  ir: null, blobs: new Map(), images: new Map(),
+  baked: null, montage: null,
+  source: "baked", focus: null, sel: null,
+  zoom: "fit", aspect: true, smooth: false,
+  grid: false, safe: false, graph: false,
+  dirHandle: null, watchTimer: 0, lastStamp: "",
+  rmse: null,
+};
+
+const CW = () => (S.ir ? S.ir.canvas.w : 640);
+const CH = () => (S.ir ? S.ir.canvas.h : 448);
+const base = (p) => String(p).split(/[\\/]/).pop().toLowerCase();
+const css = (c) => `rgba(${c[0]},${c[1]},${c[2]},${(c[3] / 255).toFixed(4)})`;
+const hex = (c) => "#" + [c[0], c[1], c[2]].map((v) => v.toString(16).padStart(2, "0")).join("");
+
+function setStatus(msg, bad) {
+  $("status").textContent = msg;
+  $("status").classList.toggle("bad", !!bad);
+}
+
+/* ---------------------------------------------------------- loading */
+
+async function ingest(fileList) {
+  const files = [...fileList].filter((f) => f.size >= 0);
+  S.blobs.clear(); S.images.clear();
+  S.baked = null; S.montage = null; S.ir = null; S.sel = null; S.rmse = null;
+  for (const f of files) S.blobs.set(base(f.name), f);
+
+  const irFile = S.blobs.get("ui.json");
+  if (!irFile) {
+    setStatus("No ui.json in that folder — point me at a ps2ui-dev output directory.", true);
+    return;
+  }
+  try {
+    S.ir = JSON.parse(await irFile.text());
+  } catch (err) {
+    setStatus("ui.json did not parse: " + err.message, true);
+    return;
+  }
+  if (!S.ir.commands || !S.ir.canvas) {
+    setStatus("ui.json has no commands/canvas — is it a ps2ui IR file?", true);
+    S.ir = null; return;
+  }
+
+  S.baked = await bitmap(S.blobs.get("preview.png"));
+  S.montage = await bitmap(S.blobs.get("states.png"));
+  for (const cmd of S.ir.commands) {
+    if (cmd.op !== "image" || !cmd.src) continue;
+    const f = S.blobs.get(base(cmd.src));
+    if (f && !S.images.has(cmd.src)) S.images.set(cmd.src, await bitmap(f));
+  }
+
+  S.focus = S.ir.focus ? S.ir.focus.initial : null;
+  if (!S.baked && S.source === "baked") S.source = "ir";
+  syncSourceButtons();
+  buildTrees(); buildWarnings(); buildSummary(); buildFocusSelect();
+  const bits = [`${S.ir.commands.length} commands`,
+    `${(S.ir.focus && S.ir.focus.nodes || []).length} focusables`,
+    `${(S.ir.slots || []).length} slots`];
+  if (!S.baked) bits.push("no preview.png — showing the IR replay");
+  setStatus(bits.join(" · "));
+  draw();
+}
+
+async function bitmap(file) {
+  if (!file) return null;
+  try { return await createImageBitmap(file); } catch { return null; }
+}
+
+$("btnFolder").onclick = () => {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.webkitdirectory = true; inp.multiple = true;
+  inp.onchange = () => ingest(inp.files);
+  inp.click();
+};
+
+/* Live reload pairs with `ps2ui-dev -o <dir>`: it rewrites ui.json and
+ * preview.png on every save, so polling their mtimes is enough to catch
+ * a rebuild without the page needing a server. */
+$("btnLive").onclick = async () => {
+  if (!window.showDirectoryPicker) {
+    setStatus("Live reload needs the File System Access API (Chrome/Edge).", true);
+    return;
+  }
+  if (S.watchTimer) {
+    clearInterval(S.watchTimer); S.watchTimer = 0; S.dirHandle = null;
+    $("btnLive").classList.remove("on"); setStatus("Live reload off.");
+    return;
+  }
+  try { S.dirHandle = await window.showDirectoryPicker(); } catch { return; }
+  $("btnLive").classList.add("on");
+  const pull = async () => {
+    const out = [];
+    for await (const [name, h] of S.dirHandle.entries()) {
+      if (h.kind === "file") { const f = await h.getFile(); out.push(f); }
+    }
+    const stamp = out.map((f) => f.name + ":" + f.lastModified).sort().join("|");
+    if (stamp === S.lastStamp) return;
+    S.lastStamp = stamp;
+    await ingest(out);
+  };
+  await pull();
+  S.watchTimer = setInterval(() => pull().catch(() => {}), 700);
+};
+
+const drop = $("drop");
+addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("on"); });
+addEventListener("dragleave", (e) => { if (e.relatedTarget === null) drop.classList.remove("on"); });
+addEventListener("drop", async (e) => {
+  e.preventDefault(); drop.classList.remove("on");
+  const out = [];
+  const walk = async (entry, path) => {
+    if (entry.isFile) {
+      await new Promise((res) => entry.file((f) => {
+        Object.defineProperty(f, "name", { value: path + f.name });
+        out.push(f); res();
+      }));
+    } else if (entry.isDirectory) {
+      const rd = entry.createReader();
+      const batch = await new Promise((res) => rd.readEntries(res));
+      for (const c of batch) await walk(c, path + entry.name + "/");
+    }
+  };
+  const entries = [...e.dataTransfer.items]
+    .map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (entries.length) { for (const en of entries) await walk(en, ""); await ingest(out); }
+  else await ingest(e.dataTransfer.files);
+});
+
+/* ------------------------------------------------- the IR replay */
+
+/* Mirrors ps2ui.c's cmd_visible() exactly: a command with no focus id
+ * counts as unfocused, so `unfocused` records outside any focusable
+ * still draw. Getting this wrong is invisible until a focus state is
+ * one quad short. */
+function visible(cmd, cur) {
+  if (cmd.state === "always") return true;
+  const isFocused = cmd.focusId != null && cmd.focusId === cur;
+  return cmd.state === "focused" ? isFocused : !isFocused;
+}
+
+function replayIR(ctx, cur) {
+  ctx.save();
+  ctx.clearRect(0, 0, CW(), CH());
+  let depth = 0;
+  for (const cmd of S.ir.commands) {
+    if (cmd.op === "scissor_push") {
+      /* Canvas clip() intersects with the current clip, which is the
+       * nesting rule the IR specifies -- so save/clip/restore is the
+       * scissor stack, for free. */
+      ctx.save(); depth++;
+      ctx.beginPath(); ctx.rect(cmd.x, cmd.y, cmd.w, cmd.h); ctx.clip();
+      continue;
+    }
+    if (cmd.op === "scissor_pop") { if (depth > 0) { ctx.restore(); depth--; } continue; }
+    if (!visible(cmd, cur)) continue;
+    if (cmd.op === "rect") drawRect(ctx, cmd);
+    else if (cmd.op === "text") drawText(ctx, cmd);
+    else if (cmd.op === "image") drawImage(ctx, cmd);
+  }
+  while (depth-- > 0) ctx.restore();
+  ctx.restore();
+}
+
+function pathRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (r > 0 && ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+  else ctx.rect(x, y, w, h);
+}
+
+function drawRect(ctx, c) {
+  if (c.fill) {
+    pathRect(ctx, c.x, c.y, c.w, c.h, c.radius || 0);
+    ctx.fillStyle = css(c.fill); ctx.fill();
+  }
+  if (c.borderWidth > 0 && c.borderColor) {
+    /* border-box: the border eats into the rect, so the stroke centre
+     * sits half a width inside the edge. */
+    const o = c.borderWidth / 2;
+    pathRect(ctx, c.x + o, c.y + o, c.w - c.borderWidth, c.h - c.borderWidth,
+      Math.max(0, (c.radius || 0) - o));
+    ctx.lineWidth = c.borderWidth; ctx.strokeStyle = css(c.borderColor); ctx.stroke();
+  }
+}
+
+function drawText(ctx, c) {
+  const fam = (S.ir.fonts && S.ir.fonts.regular && S.ir.fonts.regular.family) || "sans-serif";
+  ctx.font = `${c.weight || 400} ${c.size}px "${fam}", DejaVu Sans, sans-serif`;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = (c.letterSpacing || 0) + "px";
+  ctx.textBaseline = "top";
+  ctx.fillStyle = css(c.color);
+  ctx.fillText(c.text, c.x, c.y);
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+}
+
+function drawImage(ctx, c) {
+  const bm = S.images.get(c.src);
+  if (bm) { ctx.drawImage(bm, c.x, c.y, c.w, c.h); return; }
+  /* No pixels for it. Say so in place rather than leaving a hole that
+   * reads as a layout bug. */
+  ctx.save();
+  ctx.fillStyle = "#00aeff18"; ctx.fillRect(c.x, c.y, c.w, c.h);
+  ctx.strokeStyle = "#00aeff66"; ctx.lineWidth = 1;
+  ctx.strokeRect(c.x + .5, c.y + .5, c.w - 1, c.h - 1);
+  ctx.fillStyle = "#00aeffcc"; ctx.font = "9px " + getComputedStyle(document.body).fontFamily;
+  ctx.textBaseline = "top";
+  ctx.fillText(base(c.src).slice(0, Math.max(2, Math.floor(c.w / 5))), c.x + 3, c.y + 3);
+  ctx.restore();
+}
+
+/* --------------------------------------------------- baked pixels */
+
+/* montage() lays one tile per focusable in focus-table order, 3 to a
+ * row, 16px gutters -- and the baker builds that table straight from
+ * ir.focus.nodes in document order, so the index lines up. */
+const MONT_COLS = 3, MONT_GAP = 16;
+
+function bakedFrame(ctx, cur) {
+  const nodes = (S.ir.focus && S.ir.focus.nodes) || [];
+  const initial = S.ir.focus ? S.ir.focus.initial : null;
+  ctx.clearRect(0, 0, CW(), CH());
+  if (cur === initial && S.baked) { ctx.drawImage(S.baked, 0, 0); return "preview.png"; }
+  const i = nodes.findIndex((n) => n.id === cur);
+  if (i >= 0 && S.montage) {
+    const sx = MONT_GAP + (i % MONT_COLS) * (CW() + MONT_GAP);
+    const sy = MONT_GAP + Math.floor(i / MONT_COLS) * (CH() + MONT_GAP);
+    if (sx + CW() <= S.montage.width && sy + CH() <= S.montage.height) {
+      ctx.drawImage(S.montage, sx, sy, CW(), CH(), 0, 0, CW(), CH());
+      return "states.png";
+    }
+  }
+  if (S.baked) { ctx.drawImage(S.baked, 0, 0); return "preview.png (initial state)"; }
+  return null;
+}
+
+/* ------------------------------------------------------------ draw */
+
+function draw() {
+  const cv = $("cScreen");
+  if (cv.width !== CW() || cv.height !== CH()) {
+    cv.width = CW(); cv.height = CH();
+    $("cOverlay").width = CW(); $("cOverlay").height = CH();
+  }
+  const ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, CW(), CH());
+  S.rmse = null;
+  if (!S.ir) { layout(); return; }
+
+  if (S.source === "ir") replayIR(ctx, S.focus);
+  else if (S.source === "baked") {
+    const from = bakedFrame(ctx, S.focus);
+    if (!from) replayIR(ctx, S.focus);
+  } else {
+    drawDiff(ctx);
+  }
+  drawOverlay();
+  layout();
+  if ($("sum").children.length) buildSummary();
+}
+
+/* The same amplified-difference view tools/framediff.py writes, and the
+ * same global RMSE, so a number seen here means the same thing as a
+ * number seen in CI. */
+function drawDiff(ctx) {
+  const a = document.createElement("canvas"); a.width = CW(); a.height = CH();
+  const b = document.createElement("canvas"); b.width = CW(); b.height = CH();
+  const actx = a.getContext("2d", { willReadFrequently: true });
+  const bctx = b.getContext("2d", { willReadFrequently: true });
+  const ok = bakedFrame(actx, S.focus);
+  replayIR(bctx, S.focus);
+  if (!ok) {
+    ctx.fillStyle = "#14171c"; ctx.fillRect(0, 0, CW(), CH());
+    ctx.fillStyle = "#8b96a3"; ctx.font = "13px system-ui"; ctx.textAlign = "center";
+    ctx.fillText("No baked PNG to diff against — bake with --preview.", CW() / 2, CH() / 2);
+    ctx.textAlign = "left";
+    return;
+  }
+  const A = actx.getImageData(0, 0, CW(), CH()).data;
+  const B = bctx.getImageData(0, 0, CW(), CH()).data;
+  const out = ctx.createImageData(CW(), CH());
+  let sum = 0;
+  for (let i = 0; i < A.length; i += 4) {
+    let worst = 0;
+    for (let c = 0; c < 3; c++) {
+      const d = Math.abs(A[i + c] - B[i + c]);
+      sum += d * d;
+      if (d > worst) worst = d;
+    }
+    const v = Math.min(255, worst * 4);
+    out.data[i] = v; out.data[i + 1] = v * 0.55; out.data[i + 2] = v * 0.25;
+    out.data[i + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  S.rmse = Math.sqrt(sum / (CW() * CH() * 3));
+}
+
+function drawOverlay() {
+  const ctx = $("cOverlay").getContext("2d");
+  ctx.clearRect(0, 0, CW(), CH());
+  if (!S.ir) return;
+
+  if (S.grid) {
+    ctx.strokeStyle = "#ffffff12"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 8; x < CW(); x += 8) { ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, CH()); }
+    for (let y = 8; y < CH(); y += 8) { ctx.moveTo(0, y + .5); ctx.lineTo(CW(), y + .5); }
+    ctx.stroke();
+  }
+  if (S.safe) {
+    /* 10% inset each edge -- the title-safe box the CRT linter holds
+     * text inside. Anything outside it is a bet on the television. */
+    const ix = Math.round(CW() * 0.1), iy = Math.round(CH() * 0.1);
+    ctx.strokeStyle = "#e3b34188"; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.strokeRect(ix + .5, iy + .5, CW() - ix * 2 - 1, CH() - iy * 2 - 1);
+    ctx.setLineDash([]);
+  }
+
+  const nodes = (S.ir.focus && S.ir.focus.nodes) || [];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  if (S.graph) {
+    ctx.strokeStyle = "#00aeff70"; ctx.fillStyle = "#00aeff70"; ctx.lineWidth = 1;
+    for (const n of nodes) {
+      const [x, y, w, h] = n.rect;
+      const cx = x + w / 2, cy = y + h / 2;
+      for (const dir of ["up", "down", "left", "right"]) {
+        const t = byId.get(n[dir]);
+        if (!t) continue;
+        const tx = t.rect[0] + t.rect[2] / 2, ty = t.rect[1] + t.rect[3] / 2;
+        const a = Math.atan2(ty - cy, tx - cx);
+        const ex = tx - Math.cos(a) * 10, ey = ty - Math.sin(a) * 10;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ex + Math.cos(a) * 5, ey + Math.sin(a) * 5);
+        ctx.lineTo(ex + Math.cos(a + 2.6) * 5, ey + Math.sin(a + 2.6) * 5);
+        ctx.lineTo(ex + Math.cos(a - 2.6) * 5, ey + Math.sin(a - 2.6) * 5);
+        ctx.fill();
+      }
+    }
+  }
+  for (const n of nodes) {
+    const cur = n.id === S.focus;
+    ctx.strokeStyle = cur ? "#3fb950" : "#8b96a355";
+    ctx.lineWidth = 1; ctx.setLineDash(cur ? [] : [3, 3]);
+    ctx.strokeRect(n.rect[0] + .5, n.rect[1] + .5, n.rect[2] - 1, n.rect[3] - 1);
+    ctx.setLineDash([]);
+  }
+  if (S.sel != null) {
+    const c = S.ir.commands[S.sel];
+    const r = rectOf(c);
+    if (r) {
+      ctx.strokeStyle = "#00aeff"; ctx.lineWidth = 1;
+      ctx.strokeRect(r[0] - .5, r[1] - .5, r[2] + 1, r[3] + 1);
+      ctx.fillStyle = "#00aeff1f"; ctx.fillRect(r[0], r[1], r[2], r[3]);
+    }
+  }
+}
+
+/* A text command has no w/h in the IR -- the string was measured at
+ * compile time and thrown away. Measuring it here is only for a
+ * selection box, never for layout. */
+function rectOf(c) {
+  if (c.op === "rect" || c.op === "image" || c.op === "scissor_push")
+    return [c.x, c.y, c.w, c.h];
+  if (c.op === "text") {
+    const ctx = $("cScreen").getContext("2d");
+    const fam = (S.ir.fonts && S.ir.fonts.regular && S.ir.fonts.regular.family) || "sans-serif";
+    ctx.font = `${c.weight || 400} ${c.size}px "${fam}", DejaVu Sans, sans-serif`;
+    const w = ctx.measureText(c.text).width + (c.letterSpacing || 0) * c.text.length;
+    return [c.x, c.y, Math.ceil(w), Math.ceil(c.size * 1.25)];
+  }
+  return null;
+}
+
+/* Zoom, and the television's pixel aspect. The framebuffer is a pixel
+ * grid; ir.canvas.display is how wide the panel actually draws it, so
+ * a 16:9 build shows its real 24% stretch instead of a lie at 1:1. */
+function layout() {
+  const stack = $("stack");
+  const dispW = (S.aspect && S.ir && S.ir.canvas.display) ? S.ir.canvas.display.w : CW();
+  const dispH = (S.aspect && S.ir && S.ir.canvas.display) ? S.ir.canvas.display.h : CH();
+  let scale;
+  if (S.zoom === "fit") {
+    const st = $("stage");
+    const avail = Math.max(120, st.clientWidth - 36), availH = Math.max(120, st.clientHeight - 36);
+    scale = Math.min(avail / dispW, availH / dispH);
+  } else scale = parseFloat(S.zoom);
+  stack.style.width = Math.round(dispW * scale) + "px";
+  stack.style.height = Math.round(dispH * scale) + "px";
+  stack.classList.toggle("smooth", S.smooth);
+}
+addEventListener("resize", layout);
+
+/* ----------------------------------------------------------- panels */
+
+function opLabel(c, i) {
+  if (c.op === "rect") return `rect ${c.w}×${c.h}`;
+  if (c.op === "text") return `text “${c.text.length > 18 ? c.text.slice(0, 18) + "…" : c.text}”`;
+  if (c.op === "image") return `image ${base(c.src)}`;
+  if (c.op === "scissor_push") return `scissor ${c.w}×${c.h}`;
+  return c.op;
+}
+
+function buildTrees() {
+  const t = $("tree"); t.innerHTML = "";
+  $("cmdCount").textContent = S.ir.commands.length;
+  S.ir.commands.forEach((c, i) => {
+    const d = document.createElement("div");
+    d.className = "el" + (S.sel === i ? " sel" : "") + (visible(c, S.focus) ? "" : " hid");
+    d.dataset.i = i;
+    const swatch = c.fill ? `<span class="swatch" style="background:${css(c.fill)}"></span>`
+      : (c.color ? `<span class="swatch" style="background:${css(c.color)}"></span>` : "");
+    d.innerHTML = `<span class="n">${String(i).padStart(2, "0")}</span> ${swatch}${escapeHtml(opLabel(c, i))}`
+      + (c.state !== "always" ? `<span class="b">${c.state}</span>` : "");
+    d.onclick = () => select(i);
+    t.appendChild(d);
+  });
+
+  const ft = $("focusTree"); ft.innerHTML = "";
+  const nodes = (S.ir.focus && S.ir.focus.nodes) || [];
+  if (!nodes.length) ft.innerHTML = '<div class="empty">No focusables.</div>';
+  nodes.forEach((n) => {
+    const d = document.createElement("div");
+    d.className = "el" + (n.id === S.focus ? " sel" : "");
+    d.innerHTML = `<span class="n">${n.id}</span> ${escapeHtml(n.name)}`
+      + (S.ir.focus.initial === n.id ? '<span class="b">autofocus</span>' : "");
+    d.onclick = () => { S.focus = n.id; $("focusSel").value = String(n.id); draw(); buildTrees(); };
+    ft.appendChild(d);
+  });
+}
+
+function buildFocusSelect() {
+  const sel = $("focusSel"); sel.innerHTML = "";
+  const nodes = (S.ir.focus && S.ir.focus.nodes) || [];
+  const none = document.createElement("option");
+  none.value = ""; none.textContent = "none";
+  sel.appendChild(none);
+  for (const n of nodes) {
+    const o = document.createElement("option");
+    o.value = String(n.id);
+    o.textContent = n.name + (S.ir.focus.initial === n.id ? "  (autofocus)" : "");
+    sel.appendChild(o);
+  }
+  sel.value = S.focus == null ? "" : String(S.focus);
+  sel.onchange = () => {
+    S.focus = sel.value === "" ? null : Number(sel.value);
+    draw(); buildTrees();
+  };
+}
+
+function select(i) {
+  S.sel = i;
+  const c = S.ir.commands[i];
+  $("json").textContent = JSON.stringify(c, null, 2);
+  const rows = [];
+  const add = (k, v) => rows.push(`<div class="row"><label>${k}</label><span>${v}</span></div>`);
+  add("op", c.op);
+  if (c.x != null) add("position", `${c.x}, ${c.y}`);
+  if (c.w != null) add("size", `${c.w} × ${c.h}`);
+  if (c.fill) add("fill", `<span class="swatch" style="background:${css(c.fill)}"></span>${hex(c.fill)} · a${c.fill[3]}`);
+  if (c.borderWidth) add("border", `${c.borderWidth}px ${hex(c.borderColor)}`);
+  if (c.radius) add("radius", c.radius + "px");
+  if (c.op === "text") {
+    add("text", escapeHtml(c.text));
+    add("font", `${c.size}px / ${c.weight}`);
+    if (c.letterSpacing) add("tracking", c.letterSpacing + "px");
+    add("color", `<span class="swatch" style="background:${css(c.color)}"></span>${hex(c.color)}`);
+  }
+  if (c.op === "image") {
+    add("src", escapeHtml(base(c.src)));
+    add("resolved", S.images.has(c.src) ? "yes" : "no — drop assets/ too");
+    add("palettize", c.palettize ? "PSMT8 + CLUT" : "PSMCT32");
+  }
+  add("state", c.state);
+  add("focusId", c.focusId == null ? "—" : String(c.focusId));
+  add("drawn now", visible(c, S.focus) ? "yes" : "no (other focus state)");
+  $("insp").innerHTML = rows.join("");
+  buildTrees(); drawOverlay();
+}
+
+function buildWarnings() {
+  const d = $("diags"); d.innerHTML = "";
+  const ws = S.ir.warnings || [];
+  $("warnCount").textContent = ws.length || "";
+  if (!ws.length) { d.innerHTML = '<div class="empty">No warnings.</div>'; return; }
+  for (const w of ws) {
+    const i = w.indexOf(":");
+    const cat = i > 0 ? w.slice(0, i) : "warning";
+    const msg = i > 0 ? w.slice(i + 1).trim() : w;
+    const el = document.createElement("div");
+    el.className = "d";
+    el.innerHTML = `<span class="ic">!</span><span>${escapeHtml(msg)}<code>${escapeHtml(cat)}</code></span>`;
+    /* Most lint lines quote the offending string. Jump to the command
+     * that drew it so a warning is one click from the pixels. */
+    const q = w.match(/"([^"]+)"/);
+    if (q) el.onclick = () => {
+      const k = S.ir.commands.findIndex((c) => c.op === "text" && c.text === q[1]);
+      if (k >= 0) select(k);
+    };
+    d.appendChild(el);
+  }
+}
+
+function buildSummary() {
+  const c = S.ir.canvas;
+  const counts = {};
+  for (const cmd of S.ir.commands) counts[cmd.op] = (counts[cmd.op] || 0) + 1;
+  const rows = [
+    ["canvas", `${c.w}×${c.h}`],
+    ["display", c.display ? `${c.display.w}×${c.display.h}` : "—"],
+    ["pixel aspect", c.par != null ? c.par.toFixed(4) : "—"],
+    ["display aspect", c.displayAspect ? c.displayAspect.join(":") : "—"],
+    ["rect", counts.rect || 0],
+    ["text", counts.text || 0],
+    ["image", counts.image || 0],
+    ["scissor pairs", counts.scissor_push || 0],
+    ["focusables", ((S.ir.focus && S.ir.focus.nodes) || []).length],
+    ["slots", (S.ir.slots || []).length],
+    ["baked preview", S.baked ? "loaded" : "missing"],
+    ["state montage", S.montage ? "loaded" : "missing"],
+  ];
+  if (S.rmse != null) rows.push(["diff RMSE", S.rmse.toFixed(2)]);
+  if (S.source === "diff") rows.push(["diff floor", "text · browser font"]);
+  $("sum").innerHTML = rows
+    .map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("");
+}
+
+const escapeHtml = (s) => String(s).replace(/[&<>"]/g,
+  (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+
+/* ------------------------------------------------------- canvas hit */
+
+$("cOverlay").addEventListener("click", (e) => {
+  if (!S.ir) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * CW();
+  const y = (e.clientY - r.top) / r.height * CH();
+  /* Front-to-back, so the click lands on what is actually on top. */
+  for (let i = S.ir.commands.length - 1; i >= 0; i--) {
+    const c = S.ir.commands[i];
+    if (c.op === "scissor_push" || c.op === "scissor_pop") continue;
+    if (!visible(c, S.focus)) continue;
+    const b = rectOf(c);
+    if (b && x >= b[0] && x <= b[0] + b[2] && y >= b[1] && y <= b[1] + b[3]) {
+      select(i);
+      document.querySelector(`.el[data-i="${i}"]`)?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+  }
+});
+
+/* ---------------------------------------------------------- controls */
+
+function syncSourceButtons() {
+  $("srcBaked").classList.toggle("on", S.source === "baked");
+  $("srcIr").classList.toggle("on", S.source === "ir");
+  $("srcDiff").classList.toggle("on", S.source === "diff");
+  $("srcBaked").disabled = !S.baked;
+  $("srcDiff").disabled = !S.baked;
+}
+const setSource = (v) => { S.source = v; syncSourceButtons(); draw(); };
+$("srcBaked").onclick = () => setSource("baked");
+$("srcIr").onclick = () => setSource("ir");
+$("srcDiff").onclick = () => setSource("diff");
+
+const toggle = (btn, key, after) => {
+  $(btn).onclick = () => {
+    S[key] = !S[key];
+    $(btn).classList.toggle("on", S[key]);
+    (after || draw)();
+  };
+};
+toggle("btnAspect", "aspect", layout);
+toggle("btnSmooth", "smooth", layout);
+toggle("btnGrid", "grid", drawOverlay);
+toggle("btnSafe", "safe", drawOverlay);
+toggle("btnGraph", "graph", drawOverlay);
+$("btnAspect").classList.add("on");
+
+$("zoomSel").onchange = () => { S.zoom = $("zoomSel").value; layout(); };
+$("btnFull").onclick = () => {
+  document.body.classList.toggle("fullscreen");
+  $("btnFull").classList.toggle("on");
+  requestAnimationFrame(layout);
+};
+addEventListener("keydown", (e) => {
+  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+  if (e.key === "f") $("btnFull").click();
+  else if (e.key === "Escape" && document.body.classList.contains("fullscreen")) $("btnFull").click();
+  else if (e.key === "g") $("btnGrid").click();
+  else if (e.key === "s") $("btnSafe").click();
+  else if (e.key === "n") $("btnGraph").click();
+  else if (e.key === "1") setSource(S.baked ? "baked" : "ir");
+  else if (e.key === "2") setSource("ir");
+  else if (e.key === "3" && S.baked) setSource("diff");
+});
+
+/* ------------------------------------------------------- embedded */
+
+/* tools/ps2ui-preview-embed.py inlines a build into a copy of this
+ * file, so a preview can be attached to a PR or a CI run and opened by
+ * someone with no checkout and no toolchain. Same code path as a
+ * dropped folder from here on. */
+async function ingestEmbedded(p) {
+  S.blobs.clear(); S.images.clear();
+  S.ir = p.ir;
+  S.baked = await fromDataUrl(p.preview);
+  S.montage = await fromDataUrl(p.states);
+  for (const cmd of S.ir.commands) {
+    if (cmd.op !== "image" || !cmd.src) continue;
+    const d = p.images && p.images[base(cmd.src)];
+    if (d && !S.images.has(cmd.src)) S.images.set(cmd.src, await fromDataUrl(d));
+  }
+  S.focus = S.ir.focus ? S.ir.focus.initial : null;
+  if (!S.baked && S.source === "baked") S.source = "ir";
+  syncSourceButtons();
+  buildTrees(); buildWarnings(); buildSummary(); buildFocusSelect();
+  for (const id of ["btnFolder", "btnLive"]) {
+    $(id).disabled = true;
+    $(id).title = "This copy carries its build inside it — "
+      + "open tools/ps2ui-preview.html directly to load your own.";
+  }
+  setStatus(`${p.name || "embedded build"} · ${S.ir.commands.length} commands · `
+    + `${((S.ir.focus && S.ir.focus.nodes) || []).length} focusables`);
+  draw();
+}
+
+function fromDataUrl(url) {
+  if (!url) return Promise.resolve(null);
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = url;
+  });
+}
+
+syncSourceButtons();
+layout();
+if (window.PS2UI_EMBED) ingestEmbedded(window.PS2UI_EMBED);
+</script>

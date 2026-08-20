@@ -196,6 +196,54 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake.check build/ui.uib
 Output is TAP. Useful on any blob, including ones this toolchain didn't
 bake.
 
+## Previewing in a browser
+
+`ps2ui_bake --preview` writes the authoritative PNG, but a PNG is a
+picture: it cannot tell you which command drew a thing, why a focus
+state looks wrong, or what the compiler warned about.
+`tools/ps2ui-preview.html` puts that PNG in a browser next to the IR
+that produced it. One self-contained file — no build step, no
+dependencies, no server. Open it and point it at a build directory:
+
+```sh
+node packages/layout/bin/ps2ui-dev.js \
+    examples/memcard/ui/library.html examples/memcard/ui/library.css \
+    -o build/dev --montage
+# then open tools/ps2ui-preview.html and pick build/dev
+```
+
+- **The baked PNG is the pixels.** This is not a second renderer
+  competing with the Python previewer — "Baked" is `preview.png` and
+  the per-state tiles of `states.png`, untouched.
+- **The IR is the structure.** Click any command to see its record;
+  click the canvas to hit-test front-to-back. Focus rects, the D-pad
+  navigation graph, the title-safe box and an 8px grid draw over the
+  top. Compiler and CRT-lint warnings are listed, and clicking one
+  jumps to the command it names.
+- **"IR" replays `ui.json` on a canvas** for the cases the PNG cannot
+  cover: before a bake, or a focus state the montage does not hold.
+  It is *not* GS-accurate — text goes through the browser's shaper and
+  its own font, so glyph advances will not match the baker's rounding
+  rule, and nothing there models CLUT quantization or nine-patch
+  rasterization.
+- **"Diff"** shows the two amplified against each other with the same
+  global RMSE `tools/framediff.py` reports, so the browser renderer is
+  cross-checked rather than trusted. Structural disagreement is a bug;
+  a residual concentrated in glyph edges is just the font.
+
+Live reload (Chrome/Edge) watches the directory and re-reads it
+whenever `ps2ui-dev` rebuilds, which makes the pair a WYSIWYG loop.
+
+To send a preview somewhere that has no checkout — a pull request, a CI
+artifact — inline the build into a copy of the page:
+
+```sh
+python3 tools/ps2ui-preview-embed.py build/dev -o preview.html
+```
+
+The chrome is adapted from [OPLattice]'s `opl-theme-previewer.html`,
+which solved this shape of problem for Open PS2 Loader themes.
+
 ## Tests
 
 ```sh
@@ -232,3 +280,4 @@ Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 MIT, see [LICENSE](LICENSE).
 
 [gsKit]: https://github.com/ps2dev/gsKit
+[OPLattice]: https://github.com/coffeedevsolutions/OPLattice
