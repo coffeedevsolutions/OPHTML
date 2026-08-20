@@ -105,8 +105,11 @@ across `channel6.css` and `library.css` they specify
 are already paying for the divergence in every file; a CSS-correct
 default would delete those twenty declarations and need four.
 
-Not changed here. It is a breaking authoring change and belongs with
-the other Phase 1 authoring decisions, not as a drive-by.
+Not changed here, and not deferred either: it is fixed in its own
+change, where `flex-direction` becomes required rather than defaulted
+in either direction. See `docs/PLAN.md` §6 — the phase gates sequence
+new capability and do not queue defect fixes, and a property that
+diverges from the standard its syntax is borrowed from is a defect.
 
 **2. The contrast lint composited mutually exclusive focus states.**
 Fixed separately: a chip's focused background was being composited
