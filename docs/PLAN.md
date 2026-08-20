@@ -248,6 +248,24 @@ tutorial.
 > **Exit gate:** a stranger with npm, pip, and a TTF reproduces the
 > memcard example — and its hardware screenshot — without cloning the repo.
 
+### What the gates do not hold back
+
+The phases sequence **new capability**. They do not queue defect fixes,
+and they never hold a correctness fix behind a hardware session.
+
+A defect is: the toolchain does something other than what it documents,
+produces a wrong number, or contradicts the standard it borrows its
+syntax from. Those ship when found, in their own change, whatever phase
+is open. An authoring correction -- fixing a CSS property that
+diverges from CSS -- is a defect fix, not a feature, even though it
+breaks existing documents; the breakage is the cost of the fix, not
+evidence it is feature work.
+
+Stated because three documents in flight disagreed about which bucket
+the `flex-direction` default belonged in, and the sequencing authority
+should settle that rather than let the precedent be set by whichever
+PR merged first.
+
 ### The pull lane
 
 No phase: `position: absolute` (F8), gradients (F15), localization (F17),
