@@ -61,12 +61,27 @@ if (pad_pressed & PAD_CROSS) launch(ps2ui_focus_name(&ui));
 - Box model (border-box): padding, margin, borders, border-radius (baked as nine-patch textures)
 - Flat colors with real translucency
 - `font-size`, `font-weight`, `line-height`, `letter-spacing`, `text-align`
+- Kerning, on by default from the font's own pairs, see below
 - `white-space: nowrap` with `text-overflow: ellipsis`
 - `overflow: hidden` (GS scissor), `display: none`
 - `<img>`, see below
 - `:focus` as a paint-only state. A `:focus` rule that changes geometry is a compile error.
 
 Unknown properties warn. Unsupported values error with line numbers.
+
+## Kerning
+
+`ps2ui-fontgen` extracts the face's kern pairs into the metrics JSON, and every stage that walks a string applies them: the layout measurer, the baker's pen, and the runtime pen that composes `data-slot` text on the console. There is nothing to turn on.
+
+The pairs reach the console already resolved to pixels at each font's size, because the EE is not going to divide by 1000 per glyph pair. That makes the table per-size, and it means kerning is a **large-text feature**: `To` is -170 font units, which is -5px at 32px, -2px at 14px, and gone below about 10px. Headings tighten; body text does not measurably move. That is the honest behaviour of an integer pen on a machine with no subpixel glyph placement, not a knob that needs turning up.
+
+All three pens walk a string the same way — kern, place, advance — and they have to agree to the pixel, because layout sizes the box and the other two draw into it. `TestCrossLanguagePen` runs the Node and Python pens over a corpus and compares every glyph position; the runtime suite checks the C pen against an independent scan of the same tables. If you write a fourth implementation, the rule is in [docs/format-uib.md](docs/format-uib.md).
+
+Regenerate the committed metrics after changing `fontgen`:
+
+```sh
+./fonts/regen.sh
+```
 
 ## Images
 
@@ -231,6 +246,8 @@ Your desktop preview won't show you what a 2001 television does. The compiler wa
 - Low-contrast text
 - Focusables unreachable by D-pad
 
+The baker refuses a build outright when it would exceed what the runtime can load: any of the four static table caps, the texture VRAM budget, or `overflow: hidden` nested deeper than the scissor stack. Each error names the constant in `runtime/ps2ui.h` to raise if the limit is the wrong one.
+
 ## Repository layout
 
 | path | what |
@@ -298,11 +315,11 @@ Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 - [ ] First run on real hardware / PCSX2 ([docs/bringup.md](docs/bringup.md) is the procedure)
 - [ ] Working emulator screenshot job in CI
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
-- [ ] Kerning
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)
 - [ ] npm / PyPI releases
 - [x] List templating (`data-repeat`), list windowing, runtime visibility
+- [x] Kerning, applied identically by all three pens (`.uib` v5)
 - [x] Widescreen and per-mode pixel aspect (`.uib` v4)
 - [x] Dynamic text slots, multi-screen blobs, images with palettization (0.2.0)
 

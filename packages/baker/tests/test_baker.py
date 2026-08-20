@@ -8,7 +8,9 @@ Run:  cd packages/baker && python3 -m unittest discover -s tests -v
 import io
 import json
 import os
+import shutil
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -18,8 +20,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from PIL import Image
 
 from ps2ui_bake.rounding import (
-    round_half_up, glyph_advance_px, css_alpha_to_gs, css_channel_to_gs,
-    gs_alpha_to_css,
+    round_half_up, glyph_advance_px, kern_px, css_alpha_to_gs,
+    css_channel_to_gs, gs_alpha_to_css,
 )
 from ps2ui_bake import gs
 from ps2ui_bake.atlas import AtlasBuilder
@@ -28,7 +30,9 @@ from ps2ui_bake.quads import (
     Flattener, DrawRecord, OP_QUAD, OP_TEXQUAD, OP_SCISSOR_PUSH, OP_SCISSOR_POP,
     STATE_ALWAYS, STATE_UNFOCUSED, STATE_FOCUSED, FOCUS_NONE, TEX_NONE,
 )
-from ps2ui_bake.uib import write_uib, read_uib, MAGIC, _CMD, _HEADER, _FOCUS
+from ps2ui_bake.uib import (write_uib, read_uib, MAGIC, VERSION,
+                            FEAT_DYNAMIC_TEXT, FEAT_KERNING,
+                            _CMD, _HEADER, _FOCUS, _FONT, _KERN)
 from ps2ui_bake import preview
 
 REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
@@ -90,6 +94,80 @@ class TestRounding(unittest.TestCase):
     def test_negative_half_up(self):
         self.assertEqual(round_half_up(-0.5), 0)
         self.assertEqual(round_half_up(-1.5), -1)
+
+
+class TestKerningExtraction(unittest.TestCase):
+    """fontgen measures pairs rather than reading a kern table, so the
+    things that can go wrong are shaper behaviours, not parse errors."""
+
+    def setUp(self):
+        with open(METRICS, encoding="utf-8") as fh:
+            self.metrics = json.load(fh)
+        self.kern = self.metrics.get("kerning", {})
+
+    def test_the_classic_pairs_are_present_and_negative(self):
+        # If these are missing the shaper applied no GPOS at all, which
+        # is the failure mode an empty table cannot be told apart from.
+        for pair, label in (("84,111", "To"), ("65,86", "AV"),
+                            ("76,84", "LT"), ("80,46", "P.")):
+            self.assertIn(pair, self.kern, label)
+            self.assertLess(self.kern[pair], 0, label)
+
+    def test_ligatures_are_not_mistaken_for_kerns(self):
+        # DejaVu shapes "ff" as one glyph 15 units narrower than f + f.
+        # The pen draws two glyphs, so adopting that as a kern would
+        # make every measured width 15 units short of what is drawn.
+        self.assertNotIn("102,102", self.kern)   # ff
+        self.assertNotIn("102,105", self.kern)   # fi
+        self.assertNotIn("102,108", self.kern)   # fl
+
+    def test_only_nonzero_pairs_are_stored(self):
+        # ~13k pairs measured, a few hundred kept: the table is a
+        # sparse map, and a stored zero would just cost bytes.
+        self.assertTrue(all(v != 0 for v in self.kern.values()))
+        self.assertLess(len(self.kern), 2000)
+
+    def test_keys_name_codepoints_in_order(self):
+        for key in self.kern:
+            prev, cur = key.split(",")
+            self.assertTrue(prev.isdigit() and cur.isdigit(), key)
+        # Kerning is directional: "AV" and "VA" are separate entries,
+        # and a font may adjust one without the other.
+        self.assertIn("84,111", self.kern)       # To
+        self.assertNotIn("111,84", self.kern)    # oT is not kerned
+
+    def test_every_kerned_codepoint_has_an_advance(self):
+        adv = self.metrics["advances"]
+        for key in self.kern:
+            for cp in key.split(","):
+                self.assertIn(cp, adv, key)
+
+
+class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
+    """Without Raqm the advances come out identical and the kern table
+    comes out empty, so regenerating would produce a diff that deletes
+    every pair while every test still passes -- all three pens agree
+    perfectly on zero kerning. fontgen must refuse, before writing."""
+
+    def test_main_exits_nonzero_and_writes_nothing(self):
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "m.json")
+            with mock.patch.object(fontgen.features, "check",
+                                   return_value=False):
+                rc = fontgen.main([TTF, "DejaVu Sans", "400", out])
+            self.assertEqual(rc, 2)
+            self.assertFalse(os.path.exists(out))
+
+    def test_and_succeeds_with_raqm_present(self):
+        from ps2ui_bake import fontgen
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "m.json")
+            rc = fontgen.main([TTF, "DejaVu Sans", "400", out])
+            self.assertEqual(rc, 0)
+            with open(out, encoding="utf-8") as fh:
+                self.assertTrue(json.load(fh)["kerning"])
 
 
 class TestAlphaDomain(unittest.TestCase):
@@ -690,6 +768,257 @@ class TestDynamicText(unittest.TestCase):
                 read_uib(path)
 
 
+class TestKerningPen(unittest.TestCase):
+    """The baker's pen must place glyph n at the same integer x as
+    layout's Font.layout(), because layout sized the box this draws in."""
+
+    def text_ir(self, text, size=32, weight=400, spacing=0):
+        cmd = {"op": "text", "text": text, "x": 0, "y": 0,
+               "size": size, "weight": weight, "state": "always",
+               "color": [255, 255, 255, 255], "focusId": None}
+        if spacing:
+            cmd["letterSpacing"] = spacing
+        return tiny_ir([cmd])
+
+    def pen_xs(self, text, **kw):
+        f = Flattener(self.text_ir(text, **kw), font_paths())
+        f.run()
+        return [r for r in f.records if r.op == OP_TEXQUAD]
+
+    def test_a_kerned_pair_pulls_the_second_glyph_left(self):
+        # "To" is -170 units; at 32px that is -5px, and the 'o' must sit
+        # 5px left of where an unkerned pen would put it.
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        self.assertEqual(builder.kern(ord("T"), ord("o")), -5)
+        kerned = self.pen_xs("To", size=32)
+        unkerned_o = builder.add("T").advance + builder.add("o").bearing_x
+        self.assertEqual(kerned[1].x, unkerned_o - 5)
+
+    def test_the_first_glyph_is_never_kerned(self):
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        self.assertEqual(builder.kern(None, ord("o")), 0)
+        self.assertEqual(self.pen_xs("To", size=32)[0].x,
+                         builder.add("T").bearing_x)
+
+    def test_kerning_is_directional(self):
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        self.assertLess(builder.kern(ord("T"), ord("o")), 0)
+        self.assertEqual(builder.kern(ord("o"), ord("T")), 0)
+
+    def test_letter_spacing_and_kerning_both_apply(self):
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        plain = self.pen_xs("To", size=32)
+        spaced = self.pen_xs("To", size=32, spacing=3)
+        self.assertEqual(spaced[1].x - plain[1].x, 3)
+        # And spacing does not apply before the first glyph.
+        self.assertEqual(spaced[0].x, plain[0].x)
+
+    def test_an_unkerned_string_is_unchanged(self):
+        # The regression guard for every UI that has no kerned pairs:
+        # its geometry must be byte-identical to before kerning existed.
+        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        recs = self.pen_xs("iiiii", size=32)
+        x = 0
+        for r in recs:
+            self.assertEqual(r.x, x + builder.add("i").bearing_x)
+            x += builder.add("i").advance
+
+
+class TestKernTable(unittest.TestCase):
+    """The per-font table the runtime reads, and the format that carries
+    it."""
+
+    def bake(self, ir=None):
+        """Flatten and round-trip through a real .uib file."""
+        ir = ir or TestDynamicText().slot_ir()
+        f = Flattener(ir, font_paths())
+        f.run()
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                      f.focus_nodes, None, fonts=f.fonts, slots=f.slots,
+                      screens=f.screens)
+            return f, read_uib(path)
+
+    def test_pairs_are_pixels_at_this_font_size_not_units(self):
+        f, _ = self.bake()
+        font = f.fonts[0]
+        size = font["size"]
+        by_pair = {(k["prev"], k["cur"]): k["amount"] for k in font["kerns"]}
+        with open(METRICS, encoding="utf-8") as fh:
+            units = json.load(fh)["kerning"]
+        for (prev, cur), amount in by_pair.items():
+            self.assertEqual(amount, kern_px(units[f"{prev},{cur}"], size))
+
+    def test_pairs_that_round_to_zero_are_dropped(self):
+        f, _ = self.bake()
+        font = f.fonts[0]
+        self.assertTrue(all(k["amount"] != 0 for k in font["kerns"]))
+        # A 14px UI keeps far fewer pairs than the metrics carry: a
+        # sub-em adjustment only survives rounding once text is large.
+        with open(METRICS, encoding="utf-8") as fh:
+            self.assertLess(len(font["kerns"]),
+                            len(json.load(fh)["kerning"]))
+
+    def test_pairs_are_sorted_for_the_runtime_bsearch(self):
+        f, _ = self.bake()
+        for font in f.fonts:
+            keys = [(k["prev"], k["cur"]) for k in font["kerns"]]
+            self.assertEqual(keys, sorted(keys))
+
+    def test_a_bigger_font_keeps_more_pairs(self):
+        # The direct consequence of pre-rounding to pixels, and the
+        # reason the table is per-size rather than per-face.
+        kept = {}
+        for size in (10, 14, 24, 40):
+            b = AtlasBuilder(TTF, METRICS, 400, size)
+            for cp_str in b.metrics["advances"]:
+                b.add(chr(int(cp_str)))
+            kept[size] = len(Flattener._kern_table(b))
+        self.assertLess(kept[10], kept[24])
+        self.assertLess(kept[24], kept[40])
+
+    def test_orphan_pairs_are_not_stored(self):
+        # A pair naming a glyph the atlas never baked can never be
+        # looked up; storing it would only cost blob.
+        b = AtlasBuilder(TTF, METRICS, 400, 32)
+        b.add("T")   # deliberately no 'o'
+        pairs = Flattener._kern_table(b)
+        self.assertFalse([k for k in pairs if k["cur"] == ord("o")])
+
+    def test_the_format_carries_the_table_and_declares_it(self):
+        f, u = self.bake()
+        self.assertEqual(u.feature_flags & FEAT_DYNAMIC_TEXT, FEAT_DYNAMIC_TEXT)
+        self.assertEqual(u.feature_flags & FEAT_KERNING, FEAT_KERNING)
+        written = {(k["prev"], k["cur"]): k["amount"] for k in f.fonts[0]["kerns"]}
+        self.assertEqual(u.fonts[0]["kerns"], written)
+
+    def test_the_font_entry_grew_and_the_version_moved_with_it(self):
+        # A v4 reader would have walked the font table at a 16-byte
+        # stride and misparsed every entry, so the struct growing is
+        # what forces the version bump rather than a feature bit alone.
+        self.assertEqual(_FONT.size, 24)
+        self.assertEqual(_KERN.size, 12)
+        self.assertEqual(VERSION, 5)
+
+    def test_the_feature_bit_states_what_the_tables_hold(self):
+        # Stated, not inferred: with the bit clear the runtime may skip
+        # the lookup wholesale, so a blob that carried pairs without
+        # declaring them would kern in the previewer and not on console.
+        _, kerned = self.bake()
+        self.assertTrue(kerned.feature_flags & FEAT_KERNING)
+
+        ir = TestDynamicText().slot_ir()
+        f = Flattener(ir, font_paths())
+        f.run()
+        for font in f.fonts:
+            font["kerns"] = []
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                      f.focus_nodes, None, fonts=f.fonts, slots=f.slots,
+                      screens=f.screens)
+            bare = read_uib(path)
+        self.assertEqual(bare.feature_flags & FEAT_KERNING, 0)
+        # and the dynamic-text bit is untouched by it
+        self.assertEqual(bare.feature_flags & FEAT_DYNAMIC_TEXT,
+                         FEAT_DYNAMIC_TEXT)
+
+
+# Skipped without node -- silently, so a green local run on a
+# Python-only machine does not cover this. CI's toolchain job installs
+# node, so the check always runs there.
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class TestCrossLanguagePen(unittest.TestCase):
+    """Node and Python must place every glyph on the same pixel.
+
+    This is the seam the whole design rests on: layout measures the box
+    in Node, the baker draws into it in Python, and nothing downstream
+    can notice if they disagree — the text simply sits a few pixels off
+    or runs past its box, on a television, months later.
+
+    Together with the other two links the chain is closed: this test
+    covers Node <-> Python, TestKernTable covers Python -> blob, and
+    the runtime suite's linear-scan check covers blob <-> C.
+    """
+
+    CORPUS = [
+        "To the Victor",
+        "AV Ta Yo LT P. W. r. AW VA",
+        "Shadow of the Colossus",
+        "Library",
+        "PS2",
+        "iiiii",                    # nothing kerns
+        "AVAVAVAVAVAVAVAVAVAVAVAV",  # every pair kerns
+        "T",                        # one glyph, no pair at all
+        "",                         # and none
+    ]
+    SIZES = [11, 13, 14, 16, 20, 32, 48]
+    SPACINGS = [0, 1, 3]
+
+    def js_pen(self):
+        """{"size|spacing|text": [pen x per glyph]} from layout's pen."""
+        src = os.path.join(REPO, "packages", "layout", "src", "text.js")
+        script = (
+            "import { loadFont } from %s;\n"
+            "const f = loadFont(%s);\n"
+            "const out = {};\n"
+            "for (const size of %s)\n"
+            "  for (const ls of %s)\n"
+            "    for (const s of %s)\n"
+            "      out[`${size}|${ls}|${s}`] ="
+            " f.layout(s, size, ls).glyphs.map(g => g.x);\n"
+            "console.log(JSON.stringify(out));\n"
+        ) % (json.dumps(src), json.dumps(METRICS), json.dumps(self.SIZES),
+             json.dumps(self.SPACINGS), json.dumps(self.CORPUS))
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "pen.mjs")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(script)
+            out = subprocess.run([shutil.which("node"), path],
+                                 capture_output=True, text=True, check=True)
+        return json.loads(out.stdout)
+
+    def py_pen(self, text, size, spacing):
+        """The baker's pen, read back off the flattened records.
+
+        Reconstructed rather than read from the DrawRecords directly:
+        records carry x + bearing_x and exist only for inked glyphs, so
+        a space would vanish from the comparison and every position
+        would carry a bearing the other side does not add.
+        """
+        builder = AtlasBuilder(TTF, METRICS, 400, size)
+        xs = []
+        pen = 0
+        prev = None
+        for ch in text:
+            cp = ord(ch)
+            if prev is not None:
+                pen += spacing + builder.kern(prev, cp)
+            xs.append(pen)
+            pen += builder.add(ch).advance
+            prev = cp
+        return xs
+
+    def test_the_two_pens_place_every_glyph_on_the_same_pixel(self):
+        js = self.js_pen()
+        self.assertEqual(
+            len(js), len(self.SIZES) * len(self.SPACINGS) * len(self.CORPUS))
+        for key, expect in js.items():
+            size, spacing, text = key.split("|", 2)
+            got = self.py_pen(text, int(size), int(spacing))
+            self.assertEqual(got, expect, f"{text!r} at {size}px ls={spacing}")
+
+    def test_the_comparison_would_notice_a_disagreement(self):
+        # A test that compares two implementations is only worth
+        # anything if it fails when they differ. Shift one side by the
+        # kern it is supposed to apply and confirm the mismatch.
+        self.assertNotEqual(self.py_pen("To", 32, 0),
+                            [0, self.py_pen("To", 32, 0)[1] + 5])
+        self.assertEqual(self.py_pen("To", 32, 0)[1],
+                         AtlasBuilder(TTF, METRICS, 400, 32).add("T").advance - 5)
+
+
 class TestDisplayAspect(unittest.TestCase):
     """Widescreen: the framebuffer is not what the panel shows."""
 
@@ -1142,3 +1471,55 @@ class TestDeadGeometryTrim(unittest.TestCase):
         from ps2ui_bake import clip as clip_mod
         from ps2ui_bake import check as check_mod
         self.assertIs(check_mod.clip_mod, clip_mod)
+
+
+class TestScissorDepth(unittest.TestCase):
+    """PS2UI_MAX_SCISSOR_DEPTH, which nothing used to check.
+
+    caps.py's regex always matched the constant, but FALLBACK did not
+    list the key, so caps.update dropped it and no stage knew the limit
+    existed. The runtime meanwhile refused pushes past its fixed stack
+    while still popping them, which left the stack a level shallow and
+    every later clip in the frame wrong.
+    """
+
+    def records(self, depth):
+        from ps2ui_bake.quads import DrawRecord, OP_SCISSOR_PUSH, OP_SCISSOR_POP
+        recs = []
+        for _ in range(depth):
+            recs.append(DrawRecord(OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
+                                   0, 0, 100, 100, (0, 0, 0, 0)))
+        for _ in range(depth):
+            recs.append(DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
+                                   0, 0, 0, 0, (0, 0, 0, 0)))
+        return recs
+
+    def test_the_constant_is_actually_parsed(self):
+        from ps2ui_bake import caps
+        self.assertIn("PS2UI_MAX_SCISSOR_DEPTH", caps.parse_header())
+        self.assertEqual(caps.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"],
+                         caps.FALLBACK["PS2UI_MAX_SCISSOR_DEPTH"])
+
+    def test_peak_depth_is_measured_not_guessed(self):
+        from ps2ui_bake import caps
+        self.assertEqual(caps.max_scissor_depth(self.records(3)), 3)
+        # Sibling clips nest to 1, not 2: the pop returns to the parent.
+        self.assertEqual(
+            caps.max_scissor_depth(self.records(1) + self.records(1)), 1)
+
+    def test_a_blob_at_the_limit_is_refused_by_the_bake(self):
+        from ps2ui_bake import caps
+        limit = caps.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"]
+        errors, _ = caps.check([], [], [], [{"name": "s"}],
+                               records=self.records(limit))
+        self.assertTrue(any("scissor nesting" in e for e in errors))
+        self.assertTrue(any("PS2UI_MAX_SCISSOR_DEPTH" in e for e in errors))
+
+    def test_one_level_below_the_limit_passes(self):
+        # The runtime's guard is `depth + 1 >= MAX`, so MAX - 1 is the
+        # last usable level and must not be refused.
+        from ps2ui_bake import caps
+        limit = caps.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"]
+        errors, _ = caps.check([], [], [], [{"name": "s"}],
+                               records=self.records(limit - 1))
+        self.assertEqual([e for e in errors if "scissor" in e], [])

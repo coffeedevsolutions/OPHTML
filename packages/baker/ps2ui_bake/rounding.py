@@ -17,7 +17,22 @@ def round_half_up(x: float) -> int:
 
 def glyph_advance_px(units: int, size: int) -> int:
     """The rounding rule from docs/architecture.md. Layout's text.js
-    implements the identical expression; test_metrics_agree proves it."""
+    implements the identical expression; TestCrossLanguagePen runs both
+    pens over a corpus and compares every glyph position."""
+    return round_half_up(units * size / 1000)
+
+
+def kern_px(units: int, size: int) -> int:
+    """Pixel kern between an ordered glyph pair.
+
+    Deliberately the same rounding as an advance (layout's Font.kernPx
+    is the identical expression): a pen built from integral advances
+    and integral kerns can never land on a half pixel, which the GS
+    could not draw anyway. Kerns are almost all negative, and
+    floor(x + 0.5) sends a tie toward zero, so a tie under-applies the
+    kern -- text comes out a pixel wider than ideal, never narrower,
+    so the measured box is never smaller than what is drawn in it.
+    """
     return round_half_up(units * size / 1000)
 
 

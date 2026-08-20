@@ -21,7 +21,8 @@ both just walk the list.
 from dataclasses import dataclass, replace
 from typing import Optional
 
-from .rounding import css_alpha_to_gs, css_channel_to_gs, glyph_advance_px, round_half_up
+from .rounding import (css_alpha_to_gs, css_channel_to_gs, glyph_advance_px,
+                       kern_px, round_half_up)
 from . import gs
 from .atlas import AtlasBuilder
 from .ninepatch import patch_key, rasterize_patch, slice_quads
@@ -249,7 +250,15 @@ class Flattener:
         pen_x = cmd["x"]
         top_y = cmd["y"]
         spacing = cmd.get("letterSpacing", 0)
+        # The same pen walk as layout's Font.layout(): kern before the
+        # glyph, draw, then advance. Both hosts must place glyph n at
+        # the same integer x, because layout sized the box and this
+        # draws into it.
+        prev_cp = None
         for ch in cmd["text"]:
+            cp = ord(ch)
+            if prev_cp is not None:
+                pen_x += spacing + builder.kern(prev_cp, cp)
             glyph = builder.add(ch)
             if glyph.w > 0:
                 self.records.append(DrawRecord(
@@ -258,7 +267,8 @@ class Flattener:
                     glyph.w, glyph.h, tint,
                     tex, glyph.u, glyph.v, glyph.u + glyph.w, glyph.v + glyph.h,
                 ))
-            pen_x += glyph.advance + spacing
+            pen_x += glyph.advance
+            prev_cp = cp
 
     # ---------------------------------------------------------------- run
 
@@ -428,9 +438,38 @@ class Flattener:
     def _finish_slots(self):
         for f in self.fonts:
             builder = f.pop("_builder")
+            f["kerns"] = self._kern_table(builder)
             f["glyphs"] = [{
                 "codepoint": g.codepoint, "u": g.u, "v": g.v,
                 "w": g.w, "h": g.h,
                 "bearing_x": g.bearing_x, "bearing_y": g.bearing_y,
                 "advance": g.advance,
             } for g in builder.glyphs.values()]
+
+    @staticmethod
+    def _kern_table(builder):
+        """Kern pairs for one baked font, resolved to pixels at its size.
+
+        The runtime cannot divide by 1000 per glyph pair, so the pairs
+        are pre-rounded here by the same rule both hosts already use.
+        Most of the metrics' pairs round to zero at UI sizes and are
+        dropped: a sub-em adjustment only survives once the text is
+        large, which is exactly where kerning is visible.
+
+        Restricted to pairs whose codepoints the font actually baked --
+        a kern for a glyph not in the atlas can never be looked up, and
+        would only cost blob.
+        """
+        have = builder.glyphs.keys()
+        pairs = []
+        for key, units in builder.kerning.items():
+            prev_s, cur_s = key.split(",")
+            prev, cur = int(prev_s), int(cur_s)
+            if prev not in have or cur not in have:
+                continue
+            amount = kern_px(units, builder.size)
+            if amount:
+                pairs.append({"prev": prev, "cur": cur, "amount": amount})
+        # Sorted so the runtime can binary search, same as the glyphs.
+        pairs.sort(key=lambda k: (k["prev"], k["cur"]))
+        return pairs
