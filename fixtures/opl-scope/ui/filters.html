@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<body>
+<div class="screen">
+
+  <div class="topbar">
+    <h1>FILTERS</h1>
+    <div class="filters"></div>
+    <p class="counts" data-slot="flt-matched" data-slot-capacity="20">86 of 412 match</p>
+  </div>
+
+  <div class="body">
+    <div class="facets">
+      <div class="facet" data-repeat="7" id="facet-{i}" focusable>
+        <p class="facet-k" data-slot="facet-{i}-key" data-slot-capacity="20">Genre</p>
+        <p class="facet-v" data-slot="facet-{i}-val" data-slot-capacity="24">Any</p>
+      </div>
+    </div>
+
+    <div class="preview-col">
+      <p class="side-h">MATCHES</p>
+      <div class="match" data-repeat="5" id="match-{i}" focusable>
+        <p class="match-t" data-slot="match-{i}-title" data-slot-capacity="32">Matched Title {n}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="hint">○ APPLY</p>
+    <p class="hint">△ RESET</p>
+    <p class="hint">✕ BACK</p>
+  </div>
+
+</div>
+</body>
+</html>

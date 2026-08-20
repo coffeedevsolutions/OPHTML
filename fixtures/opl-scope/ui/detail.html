@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<body>
+<div class="screen">
+
+  <div class="topbar">
+    <h1 data-slot="det-title" data-slot-capacity="40">Title of a Game</h1>
+    <div class="filters"></div>
+    <p class="counts" data-slot="det-score" data-slot-capacity="8">92</p>
+  </div>
+
+  <div class="body">
+    <img class="det-art" src="../../../examples/channel6/ui/assets/cover-aurora.png" palettize>
+
+    <div class="det-fields">
+      <div class="field" data-repeat="6" id="fld-{i}">
+        <p class="field-k" data-slot="fld-{i}-key" data-slot-capacity="16">Publisher</p>
+        <p class="field-v" data-slot="fld-{i}-val" data-slot-capacity="32">Value {n}</p>
+      </div>
+      <p class="blurb" data-slot="det-blurb" data-slot-capacity="80">A short description of the title.</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <p class="action" id="act-launch" focusable autofocus>LAUNCH</p>
+    <p class="action" id="act-compat" focusable>COMPATIBILITY</p>
+    <p class="action" id="act-remove" focusable>REMOVE</p>
+    <p class="action" id="act-back" focusable>BACK</p>
+  </div>
+
+</div>
+</body>
+</html>
