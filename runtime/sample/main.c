@@ -152,45 +152,56 @@ static inline u32 cop0_count(void)
  *
  * A `.uib` is still linked into this ELF (bin2c runs regardless), so a
  * baked blob must exist to build it. Nothing draws it. */
-/* The ladder. Columns 0..4 are the real test: reference and test carry
- * the same alpha, so a correct GS paints each column as one solid
- * block. Column 5 is a calibration mismatch -- reference computed for
- * 0x60, test drawn at 0x40 -- so it MUST show a seam. Without it,
- * "I see no seam" is unfalsifiable: it could equally mean the observer,
- * the camera or the panel cannot resolve a seam at all. Column 5 is
- * what makes the other five columns evidence rather than a hope. */
-static const unsigned char probe_ref_alpha[]  = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x60 };
-static const unsigned char probe_test_alpha[] = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x40 };
+/* HARDWARE RESULT, v2, SCPH-50000: columns 1, 2, 3 and 6 painted both
+ * halves; columns 4 and 5 -- alpha 0x7f and 0x80 -- painted the
+ * reference and NOTHING in the test half. Play! did the same thing.
+ *
+ * Two independent GS implementations agreeing points at this tree, not
+ * at silicon, and the grep that follows is damning: nothing in
+ * runtime/ or sample/ has ever written the GS ALPHA register, the TEST
+ * register or PABE. Every one of them is whatever gsKit_init_screen
+ * happened to leave behind, while the baker computes alpha in the
+ * 0..128 domain on the assumption that the blend is
+ * (Cs - Cd) * As >> 7 + Cd with C selecting As. Nothing asserted that.
+ *
+ * Note what rules the obvious suspect out. The reference swatches carry
+ * vertex alpha 0x80 too, and column 5's reference drew perfectly. An
+ * alpha test rejecting high alpha would have taken it with the others.
+ * The only difference between a reference that draws and a test that
+ * vanishes is ABE, so the fault is in the blend, not in a discard.
+ *
+ * v3 therefore draws the ladder TWICE: once on inherited state, once
+ * with ALPHA, TEST and PABE set explicitly. Top ladder seamed and
+ * bottom ladder clean isolates it to the state and hands over the fix.
+ * If both read alike, gsKit applies this state at queue-exec rather
+ * than per primitive, which is worth knowing too and is why the
+ * comment above gsKit_clear already warns about PrimAlphaEnable. */
+static const unsigned char probe_ref_alpha[]  = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x80 };
+static const unsigned char probe_test_alpha[] = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x20 };
 #define PROBE_COLUMNS 6
 
 #define PROBE_GND_R 0x1a
 #define PROBE_GND_G 0x0e
 #define PROBE_GND_B 0x0a
 
-/* Everything that has to be READ lives inside the title-safe box: the
- * classic 10% inset, x 64..576 and y 45..403 of a 640x448 frame.
- *
- * This is not decoration. A CRT overscans, a flat panel with overscan
- * left on does the same, and Play! in fullscreen zooms 1.38x -- the CI
- * capture of the previous layout cut the frame off at x=433 and took
- * column 6 with it. Column 6 is the calibration; a run that loses it is
- * void rather than passing. An instrument whose validity depends on the
- * outer 10% of a television is an instrument that reports a fault in
- * itself as a fault in the hardware. */
+/* Not full magenta any more. Measuring the v2 photographs channel by
+ * channel showed the panel and camera together clip hard: references
+ * of #8c0784, #c503c1, #fd00fd and #ff00ff all came back within ten
+ * units of each other, so the top two thirds of the ladder were
+ * unreadable in absolute terms and the v2 calibration column -- a
+ * #c503c1 against a #8c0784 -- compressed into a false "seamless".
+ * A source that peaks at 0x90 keeps every rung inside the range the
+ * camera still resolves. The blend is linear in Cs, so testing at 0x90
+ * tests exactly what testing at 0xff would, and can be read. */
+#define PROBE_SRC_R 0x90
+#define PROBE_SRC_G 0x00
+#define PROBE_SRC_B 0x90
+
 #define PROBE_SAFE_X0 64
 #define PROBE_SAFE_Y0 45
 #define PROBE_SAFE_X1 576
 #define PROBE_SAFE_Y1 403
 
-/* The blend the GS is documented to perform, in integer arithmetic
- * identical to the hardware: (Cs - Cd) * As >> 7 + Cd, As in 0..128.
- *
- * The shift is on a signed value and Cs - Cd goes negative on the green
- * channel here (0 over 0x0e). An arithmetic shift is exactly what the
- * GS does and what both ee-gcc and the host compiler emit, so the
- * reference swatch reproduces hardware rounding rather than an
- * idealised divide -- which matters, because the whole point is to
- * detect a discrepancy of a few LSBs as readily as a gross one. */
 static int probe_blend(int cs, int cd, int as)
 {
     int v = (((cs - cd) * as) >> 7) + cd;
@@ -199,10 +210,6 @@ static int probe_blend(int cs, int cd, int as)
     return v;
 }
 
-/* An L bracket with its corner at (cx, cy) and arms running inward
- * along (dx, dy). Brackets rather than dots because a dot is binary --
- * present or not -- while an arm that is partly visible measures how
- * much edge is being eaten, which is the actual question. */
 static void probe_bracket(GSGLOBAL *gs, int cx, int cy, int dx, int dy,
                           int arm, int thick, u64 colour)
 {
@@ -219,56 +226,68 @@ static void probe_bracket(GSGLOBAL *gs, int cx, int cy, int dx, int dy,
     gsKit_prim_sprite(gs, x0, y0, x1, y1, 0, colour);
 }
 
-/* v1 of this probe asked the operator to name a colour ("are the bars
- * magenta or red?") and to count them. Both questions turned out to be
- * unanswerable from a photograph of a glossy panel: a phone camera
- * renders saturated magenta on an LED panel as violet, its tone curve
- * lifts the near-black ground into a visible maroon, and keystone
- * distortion off-axis defeats any attempt to measure a width. The first
- * hardware run came back genuinely ambiguous -- three broad bands where
- * five were drawn -- and no amount of re-photographing was going to
- * settle it, because the instrument was asking for a measurement.
- *
- * v2 asks for a judgement a camera cannot corrupt: is there a line
- * here, or not. Each column pairs a blended swatch against an
- * unblended swatch of the colour the blend equation predicts, sharing
- * an edge. Match and the pair is one rectangle; mismatch and the seam
- * is visible at any exposure, any white balance, any angle.
- *
- * Counting is fixed the same way: each column is numbered by tick
- * marks above it, so a column that vanishes into the ground is
- * identified by the gap in the ticks rather than inferred from a
- * width. */
-/* The safe-area promise, enforced at compile time rather than trusted.
- * Column pitch 85, width 70, first at 72; six ticks of 8 on a 12 pitch.
- * If someone widens a column or adds a seventh, the build stops here
- * instead of shipping an instrument a television can silently invalidate. */
-#if (72 + 85 * (PROBE_COLUMNS - 1) + 70) > PROBE_SAFE_X1
+static const int probe_col_x[PROBE_COLUMNS] = { 72, 157, 242, 327, 412, 497 };
+#define PROBE_COL_W 70
+
+/* One ladder: the colour the blend equation predicts, laid down
+ * literally with blending off, sitting directly on top of what the
+ * blend actually produces. Match and the column is one rectangle;
+ * mismatch and there is a seam, which survives any exposure, white
+ * balance or angle in a way that naming a colour does not. */
+static void probe_ladder(GSGLOBAL *gs, float ytop, float ymid, float ybot)
+{
+    int i;
+
+    gs->PrimAlphaEnable = GS_SETTING_OFF;
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        int as = probe_ref_alpha[i];
+        int r = probe_blend(PROBE_SRC_R, PROBE_GND_R, as);
+        int g = probe_blend(PROBE_SRC_G, PROBE_GND_G, as);
+        int b = probe_blend(PROBE_SRC_B, PROBE_GND_B, as);
+        gsKit_prim_sprite(gs, (float)probe_col_x[i], ytop,
+                          (float)(probe_col_x[i] + PROBE_COL_W), ymid, 0,
+                          GS_SETREG_RGBAQ(r, g, b, 0x80, 0x00));
+    }
+
+    gs->PrimAlphaEnable = GS_SETTING_ON;
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        gsKit_prim_sprite(gs, (float)probe_col_x[i], ymid,
+                          (float)(probe_col_x[i] + PROBE_COL_W), ybot, 0,
+                          GS_SETREG_RGBAQ(PROBE_SRC_R, PROBE_SRC_G, PROBE_SRC_B,
+                                          probe_test_alpha[i], 0x00));
+    }
+}
+
+/* Column 6 is the calibration: its reference is computed for 0x80 while
+ * its test is drawn at 0x20, so it MUST seam in both ladders. Without
+ * it "no seam" is unfalsifiable -- it could equally mean nothing here
+ * resolves a seam. v2 proved that is not a theoretical worry: its
+ * calibration pair was #c503c1 against #8c0784, the camera flattened
+ * both to the same value, and the column read clean when it was
+ * supposed to be the one thing that could not. The mismatch is now
+ * large and in the dark direction, where the response still has range. */
+#if (72 + 85 * (PROBE_COLUMNS - 1) + PROBE_COL_W) > PROBE_SAFE_X1
 #error "probe ladder runs past the title-safe box"
 #endif
 #if (72 + 85 * (PROBE_COLUMNS - 1) + 12 * (PROBE_COLUMNS - 1) + 8) > PROBE_SAFE_X1
 #error "probe tick marks run past the title-safe box"
 #endif
-#if 72 < PROBE_SAFE_X0 || 364 > PROBE_SAFE_Y1 || 60 < PROBE_SAFE_Y0
+#if 72 < PROBE_SAFE_X0 || 398 > PROBE_SAFE_Y1 || 52 < PROBE_SAFE_Y0
 #error "probe content runs outside the title-safe box"
 #endif
 
 static void probe_frame(GSGLOBAL *gs)
 {
-    static const int col_x[PROBE_COLUMNS] = { 72, 157, 242, 327, 412, 497 };
-    const int col_w = 70;
     int i, t;
 
     gs->PrimAlphaEnable = GS_SETTING_OFF;
     gsKit_clear(gs, GS_SETREG_RGBAQ(PROBE_GND_R, PROBE_GND_G,
                                     PROBE_GND_B, 0x80, 0x00));
 
-    /* Two rings of brackets. White sits on the true frame edge; cyan
-     * sits on the title-safe box. Both rings visible means no overscan
-     * at all. Cyan only means the panel is eating the edges but every
-     * swatch below is still intact, so the reading stands. Losing cyan
-     * as well is the only case that invalidates anything, and it says
-     * so unambiguously instead of looking like a missing primitive. */
+    /* White on the true frame edge, cyan on the title-safe box. Both
+     * rings means no overscan; cyan alone means the panel eats the
+     * edges but every swatch is still inside and the reading stands;
+     * neither means fix the display before believing anything. */
     for (i = 0; i < 4; i++) {
         int dx = (i & 1) ? -1 : 1;
         int dy = (i & 2) ? -1 : 1;
@@ -281,42 +300,41 @@ static void probe_frame(GSGLOBAL *gs)
 
     /* Controls: unblended, primary and full white. Red alone cannot
      * distinguish "green and blue are dead" from "red is correct". */
-    gsKit_prim_sprite(gs, 72.0f, 60.0f, 232.0f, 132.0f, 0,
+    gsKit_prim_sprite(gs, 72.0f, 52.0f, 232.0f, 112.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
-    gsKit_prim_sprite(gs, 272.0f, 60.0f, 432.0f, 132.0f, 0,
+    gsKit_prim_sprite(gs, 272.0f, 52.0f, 432.0f, 112.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
 
-    /* Column numbers: i+1 ticks over column i. */
+    /* Column numbers: i+1 ticks over column i, so a column that sinks
+     * into the ground is named by the gap rather than inferred from the
+     * width of its neighbours. They also pin the orientation: reading
+     * 1..6 left to right is what proved the v2 rectification honest. */
     for (i = 0; i < PROBE_COLUMNS; i++) {
         for (t = 0; t <= i; t++) {
-            float x = (float)(col_x[i] + t * 12);
-            gsKit_prim_sprite(gs, x, 170.0f, x + 8.0f, 182.0f, 0,
+            float x = (float)(probe_col_x[i] + t * 12);
+            gsKit_prim_sprite(gs, x, 124.0f, x + 8.0f, 136.0f, 0,
                               GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
         }
     }
 
-    /* Upper half of each column: what the blend SHOULD produce, laid
-     * down literally with blending off. */
-    for (i = 0; i < PROBE_COLUMNS; i++) {
-        int as = probe_ref_alpha[i];
-        int r = probe_blend(0xff, PROBE_GND_R, as);
-        int g = probe_blend(0x00, PROBE_GND_G, as);
-        int b = probe_blend(0xff, PROBE_GND_B, as);
-        gsKit_prim_sprite(gs, (float)col_x[i], 196.0f,
-                          (float)(col_x[i] + col_w), 280.0f, 0,
-                          GS_SETREG_RGBAQ(r, g, b, 0x80, 0x00));
-    }
+    /* Upper ladder: inherited state, exactly what v2 ran. */
+    probe_ladder(gs, 148.0f, 206.0f, 264.0f);
 
-    /* Lower half: what it actually produces. Same colour every time,
-     * only the alpha varies, so a wrong rung cannot be blamed on the
-     * colour register. */
-    gs->PrimAlphaEnable = GS_SETTING_ON;
-    for (i = 0; i < PROBE_COLUMNS; i++) {
-        gsKit_prim_sprite(gs, (float)col_x[i], 280.0f,
-                          (float)(col_x[i] + col_w), 364.0f, 0,
-                          GS_SETREG_RGBAQ(0xff, 0x00, 0xff,
-                                          probe_test_alpha[i], 0x00));
-    }
+    /* Lower ladder: the same draw calls with the blend spelled out.
+     *
+     *   ALPHA = (Cs - Cd) * As >> 7 + Cd   -- A=Cs B=Cd C=As D=Cd
+     *   TEST  = alpha test off             -- nothing discarded
+     *   PABE  = 0                          -- blend every pixel, not
+     *                                         only those with As bit 7
+     *
+     * This is the equation docs/format-uib.md says the file's alpha
+     * domain assumes. Asserting it here is the point: if the lower
+     * ladder is clean where the upper one seams, the shipping runtime
+     * needs these three lines too. */
+    gs->PrimAlpha = GS_SETREG_ALPHA(0, 1, 0, 1, 0);
+    gs->PABE = 0;
+    gsKit_set_test(gs, GS_ATEST_OFF);
+    probe_ladder(gs, 282.0f, 340.0f, 398.0f);
 }
 #endif
 

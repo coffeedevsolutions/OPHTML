@@ -14,6 +14,7 @@ Add a row per console; do not delete rows when a step later regresses.
 |---|---|---|
 | SCPH-50000 (NTSC, FMCB, USB) | 1 minimal | **pass** — blue, then back to the browser on its own |
 | SCPH-50000 | 2 probe v1 | **inconclusive** — clear, control and ladder all drew, so packet encoding, ABE and the blend unit are live; the ladder itself could not be read from a photograph (see step 2) |
+| SCPH-50000 | 2 probe v2 | **fault found** — columns 1, 2, 3 and 6 painted both halves; columns 4 and 5, alpha `0x7f` and `0x80`, painted the reference and nothing at all in the test half. Reproduced under Play!. See "What v2 found" below |
 | Play! (CI, llvmpipe) | 2 probe v2 | geometry confirmed to the pixel — columns landed at exactly the predicted coordinates, ticks 1-4 legible, both bracket rings present — but Play! applies the **wrong per-sprite alpha** to blended sprites (columns read 0x60/0x40/0x20/0x00 where 0x20/0x40/0x60/0x7f were submitted, while every unblended reference is exact). Its blend is not a verdict on anything |
 | SCPH-50000 | 10 aspect | 4:3 pillarboxed into a 16:9 panel, which is correct behaviour and explains why step 1's fill does not reach the panel edges |
 
@@ -167,14 +168,16 @@ hardware's, and paints it literally. So:
 - **visible horizontal seam** — it did not, and the darker half says
   which way
 
-| column | ticks | alpha | reference | verdict |
-|---|---|---|---|---|
-| 1 | ● | `0x20` | `#530a47` | must match |
-| 2 | ●● | `0x40` | `#8c0784` | must match |
-| 3 | ●●● | `0x60` | `#c503c1` | must match |
-| 4 | ●●●● | `0x7f` | `#fd00fd` | must match |
-| 5 | ●●●●● | `0x80` | `#ff00ff` | must match |
-| 6 | ●●●●●● | `0x40` vs `0x60` ref | `#c503c1` | **must show a seam** |
+| column | ticks | alpha | reference | test | verdict |
+|---|---|---|---|---|---|
+| 1 | ● | `0x20` | `#370a2b` | `0x20` | must match |
+| 2 | ●● | `0x40` | `#55074d` | `0x40` | must match |
+| 3 | ●●● | `0x60` | `#72036e` | `0x60` | must match |
+| 4 | ●●●● | `0x7f` | `#8f008e` | `0x7f` | must match |
+| 5 | ●●●●● | `0x80` | `#900090` | `0x80` | must match |
+| 6 | ●●●●●● | `0x80` | `#900090` | `0x20` | **must seam** |
+
+Both ladders carry the same six columns. Read each one the same way.
 
 Column 6 is deliberately mismatched and is the calibration. Without it,
 "I see no seam" is unfalsifiable — it could equally mean the observer,
@@ -234,6 +237,48 @@ never be mistaken for a UI capture in the same log.
   one.
 - **Wrong colours entirely** → RGBAQ packing order; verify
   `GS_SETREG_RGBAQ(r, g, b, a, q)` against your gsKit.
+
+### What v2 found
+
+Blended sprites at alpha `0x7f` and `0x80` produce nothing. Their
+reference halves — the same rectangles, same vertex alpha `0x80`, drawn
+with blending **off** — paint correctly, so this is not a discard: an
+alpha test rejecting high alpha would have taken the references too.
+The only difference between a reference that draws and a test that
+vanishes is ABE. The fault is in the blend.
+
+`0x80` is the value every `.uib` calls fully opaque. On this reading
+every opaque quad in every blob would be invisible while text, whose
+alpha comes from the atlas, still draws.
+
+The likely cause is that **nothing in this tree has ever written the GS
+blend state**:
+
+    $ grep -rn "PrimAlpha\b\|GS_SETREG_ALPHA\|gsKit_set_test\|PABE" runtime/
+    (nothing)
+
+`runtime/ps2ui.c` and the sample toggle `PrimAlphaEnable` and stop
+there. The `ALPHA` register, the `TEST` register and `PABE` are
+whatever `gsKit_init_screen` left behind, while the baker computes
+alpha in the 0..128 domain assuming `(Cs - Cd) * As >> 7 + Cd` with `C`
+selecting `As`. Nothing asserted that, on either side.
+
+v3 tests it directly: it draws the ladder twice, once on inherited
+state and once with `ALPHA`, `TEST` and `PABE` set explicitly.
+
+| upper ladder | lower ladder | means |
+|---|---|---|
+| seams at 4 and 5 | clean | the state was the fault — the runtime needs those three lines |
+| seams at 4 and 5 | seams at 4 and 5 | the state is not the fault, or gsKit applies it at queue-exec rather than per primitive |
+| clean | clean | not reproducible; check the build actually changed |
+
+v3 also drops the source colour from `#ff00ff` to `#900090`. Measuring
+the v2 photographs channel by channel showed the panel and camera
+together clip hard — references of `#8c0784`, `#c503c1`, `#fd00fd` and
+`#ff00ff` all came back within ten units of each other — so the top of
+the ladder was unreadable and the v2 calibration column compressed into
+a false "seamless". The blend is linear in `Cs`, so a dimmer source
+tests the same thing and can be read.
 
 ### What CI can and cannot tell you here
 

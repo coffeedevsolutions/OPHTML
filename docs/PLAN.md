@@ -333,7 +333,8 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 
 | Risk | Standing | Mitigation |
 |---|---|---|
-| Renderer unproven on silicon | **top risk** | Phase 0 gates everything; bring-up doc is a bench procedure; Play! anomaly recorded with exact fingerprints |
+| Renderer unproven on silicon | **top risk, now partly realised** | Phase 0 found a real fault at bring-up step 2 before any UI ran, which is what the gate is for |
+| Nothing in `runtime/` ever writes the GS `ALPHA`, `TEST` or `PABE` registers | **open, suspected cause of the step 2 fault** | the baker computes alpha in the 0..128 domain assuming `(Cs - Cd) * As >> 7 + Cd`; the runtime inherits whatever `gsKit_init_screen` left. probe v3 isolates it; if confirmed, `ps2ui_render` asserts the state itself rather than trusting a default |
 | Emulator not an oracle; PCSX2 needs a BIOS | standing | emulator job kept as characterisation, not verdict; fingerprint tool makes captures comparable |
 | Phase 1 is a breaking rework | accepted | that is why it happens before packaging creates external consumers; one v6 move |
 | Node + Python dual runtime friction | standing | packaging wraps it, doesn't remove it; accepted cost of replaceable stages |
@@ -345,7 +346,7 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 
 | Decision | Rationale | Revisit when |
 |---|---|---|
-| Stopped diagnosing Play!'s 0x7f/0x80 behaviour | HLE, not an oracle; characterised with exact fingerprints | Phase 0 bench |
+| ~~Stopped diagnosing Play!'s 0x7f/0x80 behaviour~~ **REOPENED** | It was not an HLE artifact. A SCPH-50000 does the same thing: blended sprites at As `0x7f` and `0x80` produce nothing, while their unblended references at the same vertex alpha paint correctly. Writing it off as emulator inaccuracy cost a cycle; the fingerprints are what made the hardware result recognisable when it arrived | now — probe v3 |
 | Deferred `visible_get/set` conflation fix (PR #16 review) | wants a deliberate API break | Phase 1 API pass |
 | Deferred the deliberately clipped probe quad (PR #15 review) | only observable on hardware | Phase 0 probe |
 | F19 unload parked; streaming re-derived as static reservation | the F19→F20 dependency was inherited, not derived | a shell-and-module use case |
