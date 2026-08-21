@@ -14,7 +14,7 @@ Add a row per console; do not delete rows when a step later regresses.
 |---|---|---|
 | SCPH-50000 (NTSC, FMCB, USB) | 1 minimal | **pass** — blue, then back to the browser on its own |
 | SCPH-50000 | 2 probe v1 | **inconclusive** — clear, control and ladder all drew, so packet encoding, ABE and the blend unit are live; the ladder itself could not be read from a photograph (see step 2) |
-| Play! (CI, llvmpipe) | 2 probe v2 | geometry confirmed to the pixel — columns landed at exactly the predicted coordinates — but the fullscreen capture zooms 1.38x and cropped columns 5-6, which is what moved the layout into the title-safe box |
+| Play! (CI, llvmpipe) | 2 probe v2 | geometry confirmed to the pixel — columns landed at exactly the predicted coordinates, ticks 1-4 legible, both bracket rings present — but Play! applies the **wrong per-sprite alpha** to blended sprites (columns read 0x60/0x40/0x20/0x00 where 0x20/0x40/0x60/0x7f were submitted, while every unblended reference is exact). Its blend is not a verdict on anything |
 | SCPH-50000 | 10 aspect | 4:3 pillarboxed into a 16:9 panel, which is correct behaviour and explains why step 1's fill does not reach the panel edges |
 
 Reference material, in the order you will reach for it:
@@ -216,6 +216,12 @@ never be mistaken for a UI capture in the same log.
   blob is invisible while text, whose alpha comes from the atlas, still
   draws. Do **not** "fix" that by scaling alpha down: the file domain is
   correct (see `docs/format-uib.md`) and a real GS treats `0x80` as 1.0.
+- **Seams in columns 1, 3 and 5 but not 2 and 4** → the ladder is
+  running backwards: the alpha applied to each sprite is not the one the
+  packet carried. Play! does exactly this (see below), and it is a
+  failure v1 could not have detected — a reversed ladder and a correct
+  one look identical when nothing says which rung is which. The tick
+  marks are what make it visible.
 - **Cyan brackets missing** → void run. Read the overscan table first;
   nothing below means anything until the safe box is on screen.
 - **Column 6 seamless too** → void run, not a pass. The comparison had

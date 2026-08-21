@@ -234,7 +234,12 @@ jobs:
           # the question you actually need when the answer to the first
           # one is no. Its four colours appear in no example, so the
           # fingerprint alone identifies what survived.
-          xvfb-run -s "-screen 0 640x448x24" sh -c '
+          # Play! fullscreen does not present 1:1 -- it scales 1.394x and
+          # anchors top-left, so on a 640x448 root the capture loses the
+          # right third of the frame and took probe columns 5 and 6 with
+          # it. Give it room; the probe capture is read as a palette, not
+          # diffed pixel-for-pixel, so a larger root costs nothing here.
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
             ./squashfs-root/AppRun --fullscreen --elf elf/probe.elf \
               >probe.log 2>&1 &
             P=$!
