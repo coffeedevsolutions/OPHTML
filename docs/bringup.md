@@ -15,6 +15,7 @@ Add a row per console; do not delete rows when a step later regresses.
 | SCPH-50000 (NTSC, FMCB, USB) | 1 minimal | **pass** — blue, then back to the browser on its own |
 | SCPH-50000 | 2 probe v1 | **inconclusive** — clear, control and ladder all drew, so packet encoding, ABE and the blend unit are live; the ladder itself could not be read from a photograph (see step 2) |
 | SCPH-50000 | 2 probe v2 | **fault found** — columns 1, 2, 3 and 6 painted both halves; columns 4 and 5, alpha `0x7f` and `0x80`, painted the reference and nothing at all in the test half. Reproduced under Play!. See "What v2 found" below |
+| SCPH-50000 | 2 probe v3 | **PASS, fix confirmed on hardware.** Upper ladder (gsKit default) seams at columns 1, 3, 4, 5, 6 with 4 and 5 dropping their test halves entirely; only column 2 is clean, `0x40` being the one rung where `128 - As` equals `As`. Lower ladder (fix applied) is solid through columns 1-5 with the calibration seam at 6. Exactly the predicted pattern, including which single column the bug leaves untouched |
 | Play! (CI, llvmpipe) | 2 probe v2 | geometry confirmed to the pixel — columns landed at exactly the predicted coordinates, ticks 1-4 legible, both bracket rings present — but Play! applies the **wrong per-sprite alpha** to blended sprites (columns read 0x60/0x40/0x20/0x00 where 0x20/0x40/0x60/0x7f were submitted, while every unblended reference is exact). Its blend is not a verdict on anything |
 | SCPH-50000 | 10 aspect | 4:3 pillarboxed into a 16:9 panel, which is correct behaviour and explains why step 1's fill does not reach the panel edges |
 
@@ -310,9 +311,35 @@ frame:
 | 5 | `0x80` | `0x00` | `0x80` |
 
 `128 - As` on every rung of the upper ladder; the identity on every
-rung of the lower one, to within a unit. Hardware still gets both
-ladders so it confirms the fix rather than being asked to take it on
-faith.
+rung of the lower one, to within a unit.
+
+**Hardware agrees.** A SCPH-50000 reading probe v3 shows the upper
+ladder seamed at 1, 3, 4, 5 and 6 — with 4 and 5 half-height, their
+test swatches composited entirely away — and the lower ladder solid
+through 1-5 with the calibration seam at 6. Column 2 is the only clean
+rung upstairs, which is itself a signature: `0x40` is the single alpha
+where `128 - As` equals `As`, so it is the one value the bug cannot
+disturb. Bring-up step 2 passes.
+
+### Reading these photographs
+
+Rectifying a photo against the cyan brackets and sampling framebuffer
+coordinates works well in daylight and produced the numbers above. It
+failed outright on an evening set: with the room dark the camera blew
+the blue channel across the whole picture, cyan stopped being
+distinctive, the homography collapsed, and the red control square
+mapped to `rgb(41, 75, 143)`.
+
+The **tick-mark count is the check that catches this**. If sampling the
+tick row does not return 1, 2, 3, 4, 5, 6 in order, the mapping is
+wrong and nothing else measured from that frame means anything. Do not
+read the columns until the ticks read straight.
+
+That case is also why the seam design matters: the operator standing in
+front of the panel read the frame correctly when the automated pass
+could not. "Is there a line here" and "is this block shorter than its
+neighbours" survive conditions that defeat any attempt to sample a
+colour.
 
 **A trap worth knowing about.** The first capture of the two-ladder
 build showed *both* ladders clean, which looked like a pass and was
