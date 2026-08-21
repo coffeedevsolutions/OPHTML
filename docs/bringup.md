@@ -294,8 +294,25 @@ the lower ladder came back byte-identical to the upper one, and that
 silence is what identified the call.
 
 `runtime/tests/test_runtime.c` now fails if the runtime stops asserting
-it. v3 still draws both ladders so hardware can confirm the fix rather
-than take it on faith.
+it — verified by deleting the line and watching the checks go red, not
+assumed.
+
+CI confirms the fix under Play!: all six columns composite within one
+unit of prediction, including 4 and 5, which drew nothing at all
+before. Hardware still gets both ladders so it confirms the fix rather
+than being asked to take it on faith.
+
+**A trap worth knowing about.** The first capture of the two-ladder
+build showed *both* ladders clean, which looked like a pass and was
+not. `probe_frame` runs every frame, so the `gsKit_set_primalpha` at
+the bottom persists into the next frame and from frame two onward the
+"inherited" ladder inherits the fixed state. A capture twenty seconds
+in was comparing the fix against itself. The probe now latches gsKit's
+default on the first frame and restores it explicitly before the upper
+ladder. This is the same hazard as the `PrimAlphaEnable` note above
+`gsKit_clear`, and the reason `ps2ui_render` re-asserts the blend per
+frame instead of once at init: **GS blend state is global and it
+survives your frame.**
 
 | upper ladder | lower ladder | means |
 |---|---|---|

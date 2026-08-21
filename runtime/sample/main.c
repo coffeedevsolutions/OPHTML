@@ -276,9 +276,20 @@ static void probe_ladder(GSGLOBAL *gs, float ytop, float ymid, float ybot)
 #error "probe content runs outside the title-safe box"
 #endif
 
+/* gsKit's ALPHA default, latched before anything overwrites it. Read
+ * once from the first probe_frame call rather than at init so it is
+ * captured after gsKit_init_screen has had its say. */
+static u64 probe_inherited_alpha;
+static int probe_latched;
+
 static void probe_frame(GSGLOBAL *gs)
 {
     int i, t;
+
+    if (!probe_latched) {
+        probe_inherited_alpha = gs->PrimAlpha;
+        probe_latched = 1;
+    }
 
     gs->PrimAlphaEnable = GS_SETTING_OFF;
     gsKit_clear(gs, GS_SETREG_RGBAQ(PROBE_GND_R, PROBE_GND_G,
@@ -317,7 +328,21 @@ static void probe_frame(GSGLOBAL *gs)
         }
     }
 
-    /* Upper ladder: inherited state, exactly what v2 ran. */
+    /* Upper ladder: gsKit's default blend, restored explicitly.
+     *
+     * Drawing it on "whatever state is current" looked equivalent and
+     * was not. probe_frame runs every frame, so the set_primalpha at
+     * the bottom of this function persists into the next one and from
+     * frame two onward the upper ladder inherits the FIXED state. A
+     * capture twenty seconds in showed both ladders clean and the A/B
+     * silently measuring nothing.
+     *
+     * The default is latched once at startup, before anything writes
+     * it, so the comparison stays a comparison on every frame. Same
+     * hazard as the PrimAlphaEnable note above gsKit_clear, and the
+     * same reason ps2ui_render re-asserts the equation per frame
+     * rather than once at init. */
+    gsKit_set_primalpha(gs, probe_inherited_alpha, 0);
     probe_ladder(gs, 148.0f, 206.0f, 264.0f);
 
     /* Lower ladder: the same draw calls with the blend spelled out.
