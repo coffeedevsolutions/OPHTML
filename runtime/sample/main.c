@@ -167,6 +167,21 @@ static const unsigned char probe_test_alpha[] = { 0x20, 0x40, 0x60, 0x7f, 0x80, 
 #define PROBE_GND_G 0x0e
 #define PROBE_GND_B 0x0a
 
+/* Everything that has to be READ lives inside the title-safe box: the
+ * classic 10% inset, x 64..576 and y 45..403 of a 640x448 frame.
+ *
+ * This is not decoration. A CRT overscans, a flat panel with overscan
+ * left on does the same, and Play! in fullscreen zooms 1.38x -- the CI
+ * capture of the previous layout cut the frame off at x=433 and took
+ * column 6 with it. Column 6 is the calibration; a run that loses it is
+ * void rather than passing. An instrument whose validity depends on the
+ * outer 10% of a television is an instrument that reports a fault in
+ * itself as a fault in the hardware. */
+#define PROBE_SAFE_X0 64
+#define PROBE_SAFE_Y0 45
+#define PROBE_SAFE_X1 576
+#define PROBE_SAFE_Y1 403
+
 /* The blend the GS is documented to perform, in integer arithmetic
  * identical to the hardware: (Cs - Cd) * As >> 7 + Cd, As in 0..128.
  *
@@ -184,15 +199,35 @@ static int probe_blend(int cs, int cd, int as)
     return v;
 }
 
+/* An L bracket with its corner at (cx, cy) and arms running inward
+ * along (dx, dy). Brackets rather than dots because a dot is binary --
+ * present or not -- while an arm that is partly visible measures how
+ * much edge is being eaten, which is the actual question. */
+static void probe_bracket(GSGLOBAL *gs, int cx, int cy, int dx, int dy,
+                          int arm, int thick, u64 colour)
+{
+    float x0 = (float)(dx > 0 ? cx : cx - arm);
+    float x1 = (float)(dx > 0 ? cx + arm : cx);
+    float y0 = (float)(dy > 0 ? cy : cy - thick);
+    float y1 = (float)(dy > 0 ? cy + thick : cy);
+    gsKit_prim_sprite(gs, x0, y0, x1, y1, 0, colour);
+
+    x0 = (float)(dx > 0 ? cx : cx - thick);
+    x1 = (float)(dx > 0 ? cx + thick : cx);
+    y0 = (float)(dy > 0 ? cy : cy - arm);
+    y1 = (float)(dy > 0 ? cy + arm : cy);
+    gsKit_prim_sprite(gs, x0, y0, x1, y1, 0, colour);
+}
+
 /* v1 of this probe asked the operator to name a colour ("are the bars
  * magenta or red?") and to count them. Both questions turned out to be
  * unanswerable from a photograph of a glossy panel: a phone camera
  * renders saturated magenta on an LED panel as violet, its tone curve
  * lifts the near-black ground into a visible maroon, and keystone
  * distortion off-axis defeats any attempt to measure a width. The first
- * run came back genuinely ambiguous -- three broad bands where five
- * were drawn -- and no amount of re-photographing was going to settle
- * it, because the instrument was asking for a measurement.
+ * hardware run came back genuinely ambiguous -- three broad bands where
+ * five were drawn -- and no amount of re-photographing was going to
+ * settle it, because the instrument was asking for a measurement.
  *
  * v2 asks for a judgement a camera cannot corrupt: is there a line
  * here, or not. Each column pairs a blended swatch against an
@@ -203,41 +238,59 @@ static int probe_blend(int cs, int cd, int as)
  * Counting is fixed the same way: each column is numbered by tick
  * marks above it, so a column that vanishes into the ground is
  * identified by the gap in the ticks rather than inferred from a
- * width. Corner marks answer the other open question -- whether the
- * visible region is clipped -- since four visible corners means the
- * whole framebuffer reached the screen. */
+ * width. */
+/* The safe-area promise, enforced at compile time rather than trusted.
+ * Column pitch 85, width 70, first at 72; six ticks of 8 on a 12 pitch.
+ * If someone widens a column or adds a seventh, the build stops here
+ * instead of shipping an instrument a television can silently invalidate. */
+#if (72 + 85 * (PROBE_COLUMNS - 1) + 70) > PROBE_SAFE_X1
+#error "probe ladder runs past the title-safe box"
+#endif
+#if (72 + 85 * (PROBE_COLUMNS - 1) + 12 * (PROBE_COLUMNS - 1) + 8) > PROBE_SAFE_X1
+#error "probe tick marks run past the title-safe box"
+#endif
+#if 72 < PROBE_SAFE_X0 || 364 > PROBE_SAFE_Y1 || 60 < PROBE_SAFE_Y0
+#error "probe content runs outside the title-safe box"
+#endif
+
 static void probe_frame(GSGLOBAL *gs)
 {
-    static const int col_x[PROBE_COLUMNS] = { 20, 122, 224, 326, 428, 530 };
-    const int col_w = 86;
+    static const int col_x[PROBE_COLUMNS] = { 72, 157, 242, 327, 412, 497 };
+    const int col_w = 70;
     int i, t;
 
     gs->PrimAlphaEnable = GS_SETTING_OFF;
     gsKit_clear(gs, GS_SETREG_RGBAQ(PROBE_GND_R, PROBE_GND_G,
                                     PROBE_GND_B, 0x80, 0x00));
 
-    /* Corner marks. All four visible => nothing is being cropped, and
-     * every coordinate in between can be trusted. A missing corner
-     * names which edge is lost and by roughly how much. */
+    /* Two rings of brackets. White sits on the true frame edge; cyan
+     * sits on the title-safe box. Both rings visible means no overscan
+     * at all. Cyan only means the panel is eating the edges but every
+     * swatch below is still intact, so the reading stands. Losing cyan
+     * as well is the only case that invalidates anything, and it says
+     * so unambiguously instead of looking like a missing primitive. */
     for (i = 0; i < 4; i++) {
-        float x = (i & 1) ? 624.0f : 0.0f;
-        float y = (i & 2) ? 432.0f : 0.0f;
-        gsKit_prim_sprite(gs, x, y, x + 16.0f, y + 16.0f, 0,
-                          GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
+        int dx = (i & 1) ? -1 : 1;
+        int dy = (i & 2) ? -1 : 1;
+        probe_bracket(gs, (i & 1) ? 640 : 0, (i & 2) ? 448 : 0, dx, dy,
+                      64, 6, GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
+        probe_bracket(gs, (i & 1) ? PROBE_SAFE_X1 : PROBE_SAFE_X0,
+                      (i & 2) ? PROBE_SAFE_Y1 : PROBE_SAFE_Y0, dx, dy,
+                      48, 6, GS_SETREG_RGBAQ(0x00, 0xff, 0xff, 0x80, 0x00));
     }
 
     /* Controls: unblended, primary and full white. Red alone cannot
      * distinguish "green and blue are dead" from "red is correct". */
-    gsKit_prim_sprite(gs, 40.0f, 40.0f, 200.0f, 120.0f, 0,
+    gsKit_prim_sprite(gs, 72.0f, 60.0f, 232.0f, 132.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
-    gsKit_prim_sprite(gs, 240.0f, 40.0f, 400.0f, 120.0f, 0,
+    gsKit_prim_sprite(gs, 272.0f, 60.0f, 432.0f, 132.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
 
     /* Column numbers: i+1 ticks over column i. */
     for (i = 0; i < PROBE_COLUMNS; i++) {
         for (t = 0; t <= i; t++) {
             float x = (float)(col_x[i] + t * 12);
-            gsKit_prim_sprite(gs, x, 180.0f, x + 8.0f, 190.0f, 0,
+            gsKit_prim_sprite(gs, x, 170.0f, x + 8.0f, 182.0f, 0,
                               GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
         }
     }
@@ -249,8 +302,8 @@ static void probe_frame(GSGLOBAL *gs)
         int r = probe_blend(0xff, PROBE_GND_R, as);
         int g = probe_blend(0x00, PROBE_GND_G, as);
         int b = probe_blend(0xff, PROBE_GND_B, as);
-        gsKit_prim_sprite(gs, (float)col_x[i], 210.0f,
-                          (float)(col_x[i] + col_w), 290.0f, 0,
+        gsKit_prim_sprite(gs, (float)col_x[i], 196.0f,
+                          (float)(col_x[i] + col_w), 280.0f, 0,
                           GS_SETREG_RGBAQ(r, g, b, 0x80, 0x00));
     }
 
@@ -259,8 +312,8 @@ static void probe_frame(GSGLOBAL *gs)
      * colour register. */
     gs->PrimAlphaEnable = GS_SETTING_ON;
     for (i = 0; i < PROBE_COLUMNS; i++) {
-        gsKit_prim_sprite(gs, (float)col_x[i], 290.0f,
-                          (float)(col_x[i] + col_w), 370.0f, 0,
+        gsKit_prim_sprite(gs, (float)col_x[i], 280.0f,
+                          (float)(col_x[i] + col_w), 364.0f, 0,
                           GS_SETREG_RGBAQ(0xff, 0x00, 0xff,
                                           probe_test_alpha[i], 0x00));
     }

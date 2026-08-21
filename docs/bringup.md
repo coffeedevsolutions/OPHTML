@@ -14,6 +14,7 @@ Add a row per console; do not delete rows when a step later regresses.
 |---|---|---|
 | SCPH-50000 (NTSC, FMCB, USB) | 1 minimal | **pass** — blue, then back to the browser on its own |
 | SCPH-50000 | 2 probe v1 | **inconclusive** — clear, control and ladder all drew, so packet encoding, ABE and the blend unit are live; the ladder itself could not be read from a photograph (see step 2) |
+| Play! (CI, llvmpipe) | 2 probe v2 | geometry confirmed to the pixel — columns landed at exactly the predicted coordinates — but the fullscreen capture zooms 1.38x and cropped columns 5-6, which is what moved the layout into the title-safe box |
 | SCPH-50000 | 10 aspect | 4:3 pillarboxed into a 16:9 panel, which is correct behaviour and explains why step 1's fill does not reach the panel edges |
 
 Reference material, in the order you will reach for it:
@@ -123,10 +124,31 @@ could not distinguish from the third.
 | what | how | expected |
 |------|-----|----------|
 | ground `#1a0e0a` | `gsKit_clear`, blending **off** | whole frame |
-| 4 corner marks | sprites, blending **off** | one at each corner |
+| white corner brackets | sprites, blending **off** | on the true frame edge |
+| cyan corner brackets | sprites, blending **off** | on the title-safe box |
 | red `#ff0000`, white `#ffffff` | sprites, blending **off** | top left, full strength |
 | tick marks | sprites, blending **off** | 1..6 dots over each column |
 | six columns | reference half blending **off**, test half blending **on** | middle band |
+
+### Overscan first
+
+Read the brackets before anything else, because they say whether the
+rest of the frame is trustworthy.
+
+| brackets visible | means |
+|---|---|
+| white and cyan | no overscan; the whole framebuffer reaches the panel |
+| cyan only | the panel eats the edges, which is normal on a CRT and on a flat panel with overscan left on. Every swatch is inside the cyan box, so **the reading still stands** |
+| neither | too much is being cropped to trust anything; fix the display before reading the ladder |
+
+Everything that has to be read lives inside the 10% title-safe box
+(x 64..576, y 45..403 of 640x448), and `runtime/sample/main.c` enforces
+that with `#error` guards rather than trusting it. The previous layout
+ran the ladder from x 20 to 620; Play! in fullscreen zooms 1.38x and
+the CI capture cut the frame at x=433, taking column 6 with it. Column
+6 is the calibration, so losing it converts a valid run into a void one
+— an instrument whose validity depends on the outer tenth of a
+television reports a fault in itself as a fault in the hardware.
 
 Those are three different things, not two. `gsKit_clear` builds a
 PACKED A+D list; `gsKit_prim_sprite` emits a sprite GIF tag with
@@ -194,6 +216,8 @@ never be mistaken for a UI capture in the same log.
   blob is invisible while text, whose alpha comes from the atlas, still
   draws. Do **not** "fix" that by scaling alpha down: the file domain is
   correct (see `docs/format-uib.md`) and a real GS treats `0x80` as 1.0.
+- **Cyan brackets missing** → void run. Read the overscan table first;
+  nothing below means anything until the safe box is on screen.
 - **Column 6 seamless too** → void run, not a pass. The comparison had
   no resolving power under those conditions; reshoot closer, straighter,
   or with the room darker before believing columns 1-5.
