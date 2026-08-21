@@ -84,7 +84,12 @@ the clear, unblended sprites, and blended alphas 0x20/0x40/0x60 with
 composites matching the blend equation exactly. Alpha **0x7f and 0x80
 rasterise wearing the previous primitive's color**. 0x80 is what every
 opaque quad carries — hence a captured UI frame 92.8% black with text
-intact. Bring-up steps 3/4/5 pass under it; step 2 does not. Only silicon
+intact. **This inference was correct and is now confirmed.** It was not
+Play!'s HLE: a SCPH-50000 does the same thing, because nothing in
+`runtime/` had ever written the GS `ALPHA` register and gsKit's default
+inverts it. With the equation asserted, the same capture returns 52.8%
+`#0a0e1a` against an expected 58.6% and RMSE 22.89, down from 72.89.
+Bring-up steps 3/4/5 pass under it; step 2 does not. Only silicon
 (or PCSX2 with a real BIOS) can say whether this is Play!'s blend HLE or
 our GS state. Chasing it further inside Play! was deliberately stopped.
 

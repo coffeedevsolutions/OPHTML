@@ -323,6 +323,29 @@ rung upstairs, which is itself a signature: `0x40` is the single alpha
 where `128 - As` equals `As`, so it is the one value the bug cannot
 disturb. Bring-up step 2 passes.
 
+### What the fix did to the UI capture
+
+The emulator's UI diff is characterisation, not a verdict, but it moved
+a long way:
+
+| | before | after | previewer |
+|---|---|---|---|
+| mean rgb | `(10.3, 10.6, 11.1)` | `(36.3, 37.5, 49.5)` | `(37.0, 38.3, 50.2)` |
+| dominant | 92.8% `#000000` | 52.8% `#0a0e1a` | 58.6% `#0a0e1a` |
+| global RMSE | 72.89 | 22.89 | — |
+
+The old "92.8% pure black" reading was long treated as evidence that
+untextured geometry never drew. It drew; it composited itself away. The
+render loop clears with ABE on at alpha `0x80`, and under gsKit's
+default that resolves to the destination — the previous framebuffer —
+instead of the clear colour. Text survived because its alpha comes from
+the atlas rather than from `0x80`.
+
+RMSE 22.89 against a tolerance of 8 still fails, and should: Play! is
+not an oracle and this number is a characterisation to watch, not a
+gate. What changed is that it is now measuring the renderer rather than
+a broken capture.
+
 ### Why this made another instrument un-failable
 
 Bring-up step 7's scissor tell quad bakes to `(255, 0, 255, 128)`. That

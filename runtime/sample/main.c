@@ -123,9 +123,24 @@ static inline u32 cop0_count(void)
  * changed.
  *
  * The first emulator capture came back 92.8% pure black with every text
- * colour present and correct to within one unit. So the textured path
- * works — atlas, CLUT, CSM1 swizzle, modulate domain — and nothing
- * untextured drew, including `gsKit_clear`, which is not ps2ui's code.
+ * colour present and correct to within one unit. That read as "the
+ * textured path works and nothing untextured drew", which sent the
+ * first version of this probe hunting GIF packet encoding.
+ *
+ * RESOLVED, and it was not packet encoding. It was the inverted blend,
+ * and the frame says so precisely: the shipping render loop clears with
+ * ABE on at alpha 0x80, and under gsKit's default that composites to
+ * the DESTINATION -- the previous framebuffer, i.e. black -- rather
+ * than to the clear colour. Untextured geometry drew all along and then
+ * composited itself away. Text survived because its alpha comes from
+ * the atlas, not from 0x80. With the blend asserted, the same capture
+ * comes back 52.8% #0a0e1a against an expected 58.6%, means within one
+ * unit per channel, and global RMSE down from 72.89 to 22.89.
+ *
+ * (A second, independent fault was masking this: the CI capture ran on
+ * a root the size of the canvas, which Play! does not present 1:1. Both
+ * are fixed; the reasoning above stands on the clear-colour argument,
+ * not on the RMSE alone.)
  *
  * What this actually separates is GIF packet encoding, then blending,
  * then the alpha value, which is a sharper instrument than "the clear
