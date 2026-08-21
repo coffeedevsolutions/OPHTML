@@ -89,11 +89,14 @@ Play!'s HLE: a SCPH-50000 does the same thing, because nothing in
 `runtime/` had ever written the GS `ALPHA` register and gsKit's default
 inverts it. With the equation asserted, the same capture returns 52.8%
 `#0a0e1a` against an expected 58.6% and RMSE 22.89, down from 72.89.
-Bring-up steps 3/4/5 pass under it; step 2 does not. Only silicon
-(or PCSX2 with a real BIOS) can say whether this is Play!'s blend HLE or
-our GS state. Chasing it further inside Play! was deliberately stopped.
+Bring-up steps 3/4/5 passed under it; step 2 did not. Silicon has now
+answered: it was **our GS state**, not Play!'s blend HLE. Stopping the
+chase inside Play! was the right call — the emulator could not have
+settled it, and the fingerprints kept from that run are what made the
+hardware result recognisable the moment it arrived.
 
-Everything downstream of Phase 0 is provisional against this gap.
+That gap is closed. Everything downstream of Phase 0 was provisional
+against it and no longer is; step 2 passes on a SCPH-50000.
 
 ## §4 The cohesion audit
 

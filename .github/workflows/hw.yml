@@ -271,28 +271,70 @@ jobs:
           if [ ! -f captured.png ]; then
             echo "no capture to trim"; exit 0
           fi
-          echo "raw capture: $(identify -format '%wx%h' captured.png)"
-          convert captured.png -bordercolor black -fuzz 5% -trim +repage \
-                  trimmed.png
-          TRIM=$(identify -format '%wx%h' trimmed.png)
-          echo "trimmed to : $TRIM"
-          # A trim that finds nothing leaves the full root, and a trim
-          # that runs away leaves a sliver; both would diff as though the
-          # renderer were at fault. Demand something canvas-shaped --
-          # 640:448 is 1.43, allow 1.2..1.7 -- and say so if it is not.
-          W=$(identify -format '%w' trimmed.png)
-          H=$(identify -format '%h' trimmed.png)
-          awk -v w="$W" -v h="$H" 'BEGIN {
-            r = w / h
-            printf "aspect     : %.3f (want ~1.429)\n", r
-            if (r < 1.2 || r > 1.7) {
-              printf "trim produced %dx%d, aspect %.3f -- not the canvas. ", w, h, r
+          RAW=$(identify -format '%wx%h' captured.png)
+          RW=$(identify -format '%w' captured.png)
+          RH=$(identify -format '%h' captured.png)
+          echo "raw capture: $RAW"
+          # -trim takes its reference from the image's CORNER PIXEL.
+          # -bordercolor feeds -border/-frame, not -trim, so naming it
+          # here would only look like it was setting the reference. The
+          # Xvfb root is black and Play! letterboxes onto it, so the
+          # corner is the border; 5% fuzz is safe against the canvas
+          # ground, which sits ~12% off black.
+          convert captured.png -fuzz 5% -trim +repage trimmed.png
+          TW=$(identify -format '%w' trimmed.png)
+          TH=$(identify -format '%h' trimmed.png)
+          echo "trimmed to : ${TW}x${TH}"
+          # Three independent conditions, because shape alone cannot
+          # carry this. The root is deliberately sized to hold Play!'s
+          # 1.4x presentation, and any root that does is liable to be
+          # near the canvas aspect itself -- so "canvas-shaped" is
+          # satisfied by an untrimmed root, which is the single most
+          # likely bad capture. Size says the trim did something;
+          # area says it did not run away; aspect says what is left is
+          # the frame. Derived from the capture, never hardcoded, so a
+          # change of root cannot leave this checking a stale model.
+          awk -v rw="$RW" -v rh="$RH" -v tw="$TW" -v th="$TH" 'BEGIN {
+            r = tw / th
+            area = (tw * th) / (rw * rh)
+            printf "aspect     : %.3f (want 1.38..1.48)\n", r
+            printf "area       : %.1f%% of root (want 25..90)\n", area * 100
+            bad = 0
+            if (tw == rw && th == rh) {
+              print "FAIL: trim found nothing -- this is the whole root, not the frame."
+              bad = 1
+            }
+            if (area < 0.25 || area > 0.90) {
+              printf "FAIL: trimmed area %.1f%% of the root is not a presented frame.\n", area * 100
+              bad = 1
+            }
+            if (r < 1.38 || r > 1.48) {
+              printf "FAIL: aspect %.3f is not the 1.429 canvas.\n", r
+              bad = 1
+            }
+            if (bad) {
               print "Refusing to diff a capture this step cannot vouch for."
               exit 1
             }
           }'
           convert trimmed.png -resize 640x448\! captured.png
           echo "final      : $(identify -format '%wx%h' captured.png)"
+
+      - name: Resampling floor of the capture pipeline
+        if: always()
+        run: |
+          # Play! upscales ~1.4x and the trim step scales back down, so
+          # the diff below has a non-zero floor before the renderer is
+          # considered at all. Measure it on the previewer PNG alone,
+          # round-tripped through the same two resizes with no renderer
+          # involved, and print it next to the real number. Quoting an
+          # RMSE without its floor invites reading resampling noise as a
+          # rendering fault.
+          if [ -f baked/preview.png ]; then
+            convert baked/preview.png -resize 900x630\! -resize 640x448\! floor.png
+            python3 tools/framediff.py baked/preview.png floor.png \
+              --rmse 999 --tile-rmse 999 || true
+          fi
 
       - name: Diff against previewer ground truth
         run: |

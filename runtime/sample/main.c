@@ -251,8 +251,26 @@ static void probe_bracket(GSGLOBAL *gs, int cx, int cy, int dx, int dy,
 #define PROBE_COL_W  70
 #define PROBE_TICK_DX 12
 #define PROBE_TICK_W  8
-#define PROBE_TOP_Y   52
-#define PROBE_BOT_Y   398
+
+/* Vertical layout, derived the same way for the same reason. The first
+ * pass at this macro-ised the columns and left every y a bare literal,
+ * which meant the guards could not see a 38px overlap between the two
+ * ladders, a tick row pushed past the safe box, or a control running
+ * off the right edge -- three sabotages, no diagnostic. An instrument
+ * whose guards cover one axis is an instrument with one axis guarded. */
+#define PROBE_CTRL_Y0  52
+#define PROBE_CTRL_H   60
+#define PROBE_CTRL_W   160
+#define PROBE_CTRL_GAP 40
+#define PROBE_CTRL2_X0 (PROBE_COL_X0 + PROBE_CTRL_W + PROBE_CTRL_GAP)
+#define PROBE_TICK_Y0  124
+#define PROBE_TICK_H   12
+#define PROBE_LAD1_Y0  148
+#define PROBE_BAND_H   58
+#define PROBE_LAD_GAP  18
+#define PROBE_LAD2_Y0  (PROBE_LAD1_Y0 + 2 * PROBE_BAND_H + PROBE_LAD_GAP)
+#define PROBE_TOP_Y    PROBE_CTRL_Y0
+#define PROBE_BOT_Y    (PROBE_LAD2_Y0 + 2 * PROBE_BAND_H)
 static const int probe_col_x[PROBE_COLUMNS] = {
     PROBE_COL_X0 + 0 * PROBE_COL_DX, PROBE_COL_X0 + 1 * PROBE_COL_DX,
     PROBE_COL_X0 + 2 * PROBE_COL_DX, PROBE_COL_X0 + 3 * PROBE_COL_DX,
@@ -310,6 +328,21 @@ static void probe_ladder(GSGLOBAL *gs, float ytop, float ymid, float ybot)
     || PROBE_TOP_Y < PROBE_SAFE_Y0
 #error "probe content runs outside the title-safe box"
 #endif
+#if (PROBE_CTRL2_X0 + PROBE_CTRL_W) > PROBE_SAFE_X1
+#error "probe control row runs past the title-safe box"
+#endif
+#if (PROBE_TICK_Y0 + PROBE_TICK_H) > PROBE_SAFE_Y1
+#error "probe tick row runs past the title-safe box"
+#endif
+#if PROBE_TICK_Y0 < (PROBE_CTRL_Y0 + PROBE_CTRL_H)
+#error "probe tick row overlaps the control row"
+#endif
+#if PROBE_LAD1_Y0 < (PROBE_TICK_Y0 + PROBE_TICK_H)
+#error "probe ladder overlaps the tick row"
+#endif
+#if PROBE_LAD_GAP < 1
+#error "probe ladders touch; a seam between ladders is not a seam within one"
+#endif
 
 /* gsKit's ALPHA default, latched before anything overwrites it. Read
  * once from the first probe_frame call rather than at init so it is
@@ -346,10 +379,13 @@ static void probe_frame(GSGLOBAL *gs)
 
     /* Controls: unblended, primary and full white. Red alone cannot
      * distinguish "green and blue are dead" from "red is correct". */
-    gsKit_prim_sprite(gs, (float)PROBE_COL_X0, (float)PROBE_TOP_Y,
-                      (float)PROBE_COL_X0 + 160.0f, (float)PROBE_TOP_Y + 60.0f, 0,
+    gsKit_prim_sprite(gs, (float)PROBE_COL_X0, (float)PROBE_CTRL_Y0,
+                      (float)(PROBE_COL_X0 + PROBE_CTRL_W),
+                      (float)(PROBE_CTRL_Y0 + PROBE_CTRL_H), 0,
                       GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
-    gsKit_prim_sprite(gs, 272.0f, 52.0f, 432.0f, 112.0f, 0,
+    gsKit_prim_sprite(gs, (float)PROBE_CTRL2_X0, (float)PROBE_CTRL_Y0,
+                      (float)(PROBE_CTRL2_X0 + PROBE_CTRL_W),
+                      (float)(PROBE_CTRL_Y0 + PROBE_CTRL_H), 0,
                       GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
 
     /* Column numbers: i+1 ticks over column i, so a column that sinks
@@ -359,7 +395,9 @@ static void probe_frame(GSGLOBAL *gs)
     for (i = 0; i < PROBE_COLUMNS; i++) {
         for (t = 0; t <= i; t++) {
             float x = (float)(probe_col_x[i] + t * PROBE_TICK_DX);
-            gsKit_prim_sprite(gs, x, 124.0f, x + (float)PROBE_TICK_W, 136.0f, 0,
+            gsKit_prim_sprite(gs, x, (float)PROBE_TICK_Y0,
+                              x + (float)PROBE_TICK_W,
+                              (float)(PROBE_TICK_Y0 + PROBE_TICK_H), 0,
                               GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
         }
     }
@@ -379,7 +417,9 @@ static void probe_frame(GSGLOBAL *gs)
      * same reason ps2ui_render re-asserts the equation per frame
      * rather than once at init. */
     gsKit_set_primalpha(gs, probe_inherited_alpha, 0);
-    probe_ladder(gs, 148.0f, 206.0f, 264.0f);
+    probe_ladder(gs, (float)PROBE_LAD1_Y0,
+                 (float)(PROBE_LAD1_Y0 + PROBE_BAND_H),
+                 (float)(PROBE_LAD1_Y0 + 2 * PROBE_BAND_H));
 
     /* Lower ladder: the same draw calls with the blend spelled out.
      *
@@ -399,7 +439,9 @@ static void probe_frame(GSGLOBAL *gs)
      * needs these three lines too. */
     gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
     gsKit_set_test(gs, GS_ATEST_OFF);
-    probe_ladder(gs, 282.0f, 340.0f, (float)PROBE_BOT_Y);
+    probe_ladder(gs, (float)PROBE_LAD2_Y0,
+                 (float)(PROBE_LAD2_Y0 + PROBE_BAND_H),
+                 (float)PROBE_BOT_Y);
 }
 #endif
 
