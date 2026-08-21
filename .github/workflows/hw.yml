@@ -192,14 +192,22 @@ jobs:
           SDL_AUDIODRIVER: dummy
           ALSOFT_DRIVERS: "null"
         run: |
-          # The X screen is the canvas size on purpose. `import -window
-          # root` grabs the whole root window, so at 1280x960 the capture
-          # was Play!'s title bar, menu bar and desktop background, which
-          # framediff then squashed into 640x448 and compared against a
-          # pure framebuffer render. Matching the screen to the canvas and
-          # running fullscreen makes the root window the frame itself, at
-          # 1:1, with no chrome and no resampling.
-          xvfb-run -s "-screen 0 640x448x24" sh -c '
+          # A 640x448 root does NOT give a 1:1 capture, which is what
+          # this step assumed for its whole life. Play! fullscreen scales
+          # 1.394x and anchors top-left, so on a root the size of the
+          # canvas the right third and bottom quarter of the frame fall
+          # off the screen entirely -- and this is the capture that gets
+          # pixel-diffed against the previewer, so the diff was defined
+          # by the distortion. The probe step found it; the probe step is
+          # also the one that could afford it, being read as a palette.
+          #
+          # Give Play! room, then trim the desktop border back off. Trim
+          # rather than a hardcoded crop because the scale factor is a
+          # property of a Play! build, not of anything here: `-trim`
+          # finds the rendered frame by looking for it. 5% fuzz is safe
+          # against the canvas ground (#0a0e1a sits ~12% off black), so
+          # it removes the desktop and stops at the frame edge.
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
             ./squashfs-root/AppRun --fullscreen --elf elf/ps2ui_sample.elf \
               >play.log 2>&1 &
             PLAY_PID=$!
@@ -257,6 +265,35 @@ jobs:
             # reads as a pass whatever the frame contains.
             python3 tools/framediff.py probe.png --stats-only || true
           fi
+      - name: Trim the capture back to the framebuffer
+        if: always()
+        run: |
+          if [ ! -f captured.png ]; then
+            echo "no capture to trim"; exit 0
+          fi
+          echo "raw capture: $(identify -format '%wx%h' captured.png)"
+          convert captured.png -bordercolor black -fuzz 5% -trim +repage \
+                  trimmed.png
+          TRIM=$(identify -format '%wx%h' trimmed.png)
+          echo "trimmed to : $TRIM"
+          # A trim that finds nothing leaves the full root, and a trim
+          # that runs away leaves a sliver; both would diff as though the
+          # renderer were at fault. Demand something canvas-shaped --
+          # 640:448 is 1.43, allow 1.2..1.7 -- and say so if it is not.
+          W=$(identify -format '%w' trimmed.png)
+          H=$(identify -format '%h' trimmed.png)
+          awk -v w="$W" -v h="$H" 'BEGIN {
+            r = w / h
+            printf "aspect     : %.3f (want ~1.429)\n", r
+            if (r < 1.2 || r > 1.7) {
+              printf "trim produced %dx%d, aspect %.3f -- not the canvas. ", w, h, r
+              print "Refusing to diff a capture this step cannot vouch for."
+              exit 1
+            }
+          }'
+          convert trimmed.png -resize 640x448\! captured.png
+          echo "final      : $(identify -format '%wx%h' captured.png)"
+
       - name: Diff against previewer ground truth
         run: |
           # --stats prints a colour fingerprint of both frames. An RMSE

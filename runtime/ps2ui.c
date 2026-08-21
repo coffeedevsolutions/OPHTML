@@ -336,7 +336,24 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
      * docs/format-uib.md documents the domain; this is the line that
      * makes the runtime honour it. Set it here, not once at init: the
      * value is global GS state and any other gsKit user in the host
-     * program can change it between frames. */
+     * program can change it between frames. gsKit_init_screen writes
+     * the default straight into GS_ALPHA_1/GS_ALPHA_2 rather than
+     * through gsGlobal->PrimAlpha, so a caller cannot pre-empt it by
+     * assigning the field either -- here is the only place this fits.
+     *
+     * The alpha TEST is deliberately NOT asserted alongside it, and the
+     * argument above does apply to it: a host that enables ATE between
+     * frames would silently discard ps2ui pixels, the same shape of
+     * fault found the same expensive way. It is left inherited because
+     * gsKit_init_screen defaults ATE off, the probe positively ruled a
+     * discard out (column 5's reference drew at the same vertex alpha
+     * its test vanished at), and TEST also carries ZTE and ZTST -- so
+     * rewriting it per frame through a preset whose full register
+     * semantics are not pinned down here would be depending on
+     * unverified GS state to fix a bug caused by depending on
+     * unverified GS state. If a discard ever does show up, probe step 2
+     * still covers it and gsKit_set_test(gs, GS_ATEST_OFF) is the line.
+     */
     gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
 
     stack[0].x0 = 0;

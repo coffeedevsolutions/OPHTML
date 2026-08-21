@@ -108,7 +108,9 @@ this repository's compiler or baker produced is on the path. (A `.uib`
 is still *linked* into the ELF, so a baked blob has to exist for the
 build to succeed. Nothing draws it.)
 
-It holds its screen for 90 seconds and then returns to the browser,
+It holds its screen for 5400 frames — about 90 seconds on NTSC, 108
+on PAL, since the loop counts fields and not wall clock — and then
+returns to the browser,
 deliberately rather than looping forever. A frozen console and a
 working one look identical on a static screen, so the return is the
 signal that separates them:
@@ -320,6 +322,19 @@ through 1-5 with the calibration seam at 6. Column 2 is the only clean
 rung upstairs, which is itself a signature: `0x40` is the single alpha
 where `128 - As` equals `As`, so it is the one value the bug cannot
 disturb. Bring-up step 2 passes.
+
+### Why this made another instrument un-failable
+
+Bring-up step 7's scissor tell quad bakes to `(255, 0, 255, 128)`. That
+alpha is `0x80` — the exact value this bug composited away to nothing.
+Under the pre-fix runtime the tell quad would have been invisible on
+hardware **whether or not the scissor was applied**, so the step 7
+instrument would have passed vacuously.
+
+That is the second instrument in this repository that could not fail,
+after the probe's own v2 calibration column. Both were caught by
+asking, of every check, what result would prove it wrong. Any
+step-7 hardware claim predating this fix is void and needs re-running.
 
 ### Reading these photographs
 

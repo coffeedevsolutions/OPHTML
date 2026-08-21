@@ -25,7 +25,7 @@ extern unsigned int size_ui_uib;
 /* How long the probe holds its screen before returning to the browser.
  * Long enough to look at it and photograph it; short enough that an
  * operator is not left wondering. */
-#define PROBE_SECONDS 90u
+#define PROBE_FRAMES (90u * 60u)   /* ~90 s NTSC, ~108 s PAL */
 
 /* `make MINIMAL=1` builds bring-up step 1 and nothing else: clear the
  * screen, hold, exit. Three gsKit calls, no sprites, no blending, no
@@ -44,7 +44,7 @@ extern unsigned int size_ui_uib;
  * is unmistakably BLUE and a byte-swapped one is unmistakably ORANGE.
  * "Wrong colours entirely" is a documented step 2 failure mode; this
  * catches it a step earlier and without ambiguity. */
-#define MINIMAL_SECONDS 30u
+#define MINIMAL_FRAMES (30u * 60u) /* ~30 s NTSC, ~36 s PAL */
 
 /* Build with -DPS2UI_SAMPLE_TELEMETRY for a once-a-second log line on
  * stdout. printf from the EE reaches PCSX2's console log, ps2link, and
@@ -226,8 +226,23 @@ static void probe_bracket(GSGLOBAL *gs, int cx, int cy, int dx, int dy,
     gsKit_prim_sprite(gs, x0, y0, x1, y1, 0, colour);
 }
 
-static const int probe_col_x[PROBE_COLUMNS] = { 72, 157, 242, 327, 412, 497 };
-#define PROBE_COL_W 70
+/* Geometry lives in macros so the #if guards below check the layout
+ * rather than a hand-copied model of it. The v2 probe ran outside the
+ * safe box; a guard that re-derives the columns from its own literals
+ * would go stale the moment someone edits the array, which is the same
+ * mistake one level up. */
+#define PROBE_COL_X0 72
+#define PROBE_COL_DX 85
+#define PROBE_COL_W  70
+#define PROBE_TICK_DX 12
+#define PROBE_TICK_W  8
+#define PROBE_TOP_Y   52
+#define PROBE_BOT_Y   398
+static const int probe_col_x[PROBE_COLUMNS] = {
+    PROBE_COL_X0 + 0 * PROBE_COL_DX, PROBE_COL_X0 + 1 * PROBE_COL_DX,
+    PROBE_COL_X0 + 2 * PROBE_COL_DX, PROBE_COL_X0 + 3 * PROBE_COL_DX,
+    PROBE_COL_X0 + 4 * PROBE_COL_DX, PROBE_COL_X0 + 5 * PROBE_COL_DX
+};
 
 /* One ladder: the colour the blend equation predicts, laid down
  * literally with blending off, sitting directly on top of what the
@@ -266,13 +281,18 @@ static void probe_ladder(GSGLOBAL *gs, float ytop, float ymid, float ybot)
  * both to the same value, and the column read clean when it was
  * supposed to be the one thing that could not. The mismatch is now
  * large and in the dark direction, where the response still has range. */
-#if (72 + 85 * (PROBE_COLUMNS - 1) + PROBE_COL_W) > PROBE_SAFE_X1
+#if (PROBE_COL_X0 + PROBE_COL_DX * (PROBE_COLUMNS - 1) + PROBE_COL_W) > PROBE_SAFE_X1
 #error "probe ladder runs past the title-safe box"
 #endif
-#if (72 + 85 * (PROBE_COLUMNS - 1) + 12 * (PROBE_COLUMNS - 1) + 8) > PROBE_SAFE_X1
+#if (PROBE_COL_X0 + PROBE_COL_DX * (PROBE_COLUMNS - 1) \
+     + PROBE_TICK_DX * (PROBE_COLUMNS - 1) + PROBE_TICK_W) > PROBE_SAFE_X1
 #error "probe tick marks run past the title-safe box"
 #endif
-#if 72 < PROBE_SAFE_X0 || 398 > PROBE_SAFE_Y1 || 52 < PROBE_SAFE_Y0
+#if PROBE_COL_DX < PROBE_COL_W
+#error "probe columns overlap; a seam between neighbours is not a seam within one"
+#endif
+#if PROBE_COL_X0 < PROBE_SAFE_X0 || PROBE_BOT_Y > PROBE_SAFE_Y1 \
+    || PROBE_TOP_Y < PROBE_SAFE_Y0
 #error "probe content runs outside the title-safe box"
 #endif
 
@@ -311,7 +331,8 @@ static void probe_frame(GSGLOBAL *gs)
 
     /* Controls: unblended, primary and full white. Red alone cannot
      * distinguish "green and blue are dead" from "red is correct". */
-    gsKit_prim_sprite(gs, 72.0f, 52.0f, 232.0f, 112.0f, 0,
+    gsKit_prim_sprite(gs, (float)PROBE_COL_X0, (float)PROBE_TOP_Y,
+                      (float)PROBE_COL_X0 + 160.0f, (float)PROBE_TOP_Y + 60.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
     gsKit_prim_sprite(gs, 272.0f, 52.0f, 432.0f, 112.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
@@ -322,8 +343,8 @@ static void probe_frame(GSGLOBAL *gs)
      * 1..6 left to right is what proved the v2 rectification honest. */
     for (i = 0; i < PROBE_COLUMNS; i++) {
         for (t = 0; t <= i; t++) {
-            float x = (float)(probe_col_x[i] + t * 12);
-            gsKit_prim_sprite(gs, x, 124.0f, x + 8.0f, 136.0f, 0,
+            float x = (float)(probe_col_x[i] + t * PROBE_TICK_DX);
+            gsKit_prim_sprite(gs, x, 124.0f, x + (float)PROBE_TICK_W, 136.0f, 0,
                               GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
         }
     }
@@ -363,7 +384,7 @@ static void probe_frame(GSGLOBAL *gs)
      * needs these three lines too. */
     gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
     gsKit_set_test(gs, GS_ATEST_OFF);
-    probe_ladder(gs, 282.0f, 340.0f, 398.0f);
+    probe_ladder(gs, 282.0f, 340.0f, (float)PROBE_BOT_Y);
 }
 #endif
 
@@ -392,7 +413,7 @@ int main(void)
 
 #ifdef PS2UI_SAMPLE_MINIMAL
     /* Bring-up step 1: does anything at all reach the screen? */
-    for (frame = 0; frame < MINIMAL_SECONDS * 60u; frame++) {
+    for (frame = 0; frame < MINIMAL_FRAMES; frame++) {
         gsKit_clear(gs, GS_SETREG_RGBAQ(0x40, 0x80, 0xc0, 0x80, 0x00));
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
@@ -415,7 +436,7 @@ int main(void)
      *   no picture, but returns              -> ran; the GS drew nothing
      *
      * Two of those four were indistinguishable before. */
-    for (frame = 0; frame < PROBE_SECONDS * 60u; frame++) {
+    for (frame = 0; frame < PROBE_FRAMES; frame++) {
         probe_frame(gs);
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);

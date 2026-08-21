@@ -334,7 +334,7 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 | Risk | Standing | Mitigation |
 |---|---|---|
 | Renderer unproven on silicon | **top risk, now partly realised** | Phase 0 found a real fault at bring-up step 2 before any UI ran, which is what the gate is for |
-| ~~Nothing in `runtime/` ever writes the GS `ALPHA`, `TEST` or `PABE` registers~~ | **closed — confirmed cause, fixed, and verified on hardware** | the baker computes alpha in the 0..128 domain assuming `(Cs - Cd) * As >> 7 + Cd`; the runtime inherits whatever `gsKit_init_screen` left. probe v3 isolates it; if confirmed, `ps2ui_render` asserts the state itself rather than trusting a default |
+| ~~Nothing in `runtime/` ever writes the GS `ALPHA`, `TEST` or `PABE` registers~~ | **closed — confirmed cause, fixed, and verified on hardware** | the baker computed alpha in the 0..128 domain assuming `(Cs - Cd) * As >> 7 + Cd`; the runtime inherited gsKit's `GS_BLEND_BACK2FRONT`, which is that equation with the operands swapped, so alpha ran inverted. probe v3 isolated it and a SCPH-50000 confirmed it. `ps2ui_render` now asserts the equation every frame and two runtime checks fail if it stops. **Residual:** the alpha TEST is still inherited — defensible (`ATE` defaults off, a discard was positively ruled out) and reasoned in `ps2ui.c`, but it is the same shape of exposure |
 | Emulator not an oracle; PCSX2 needs a BIOS | standing | emulator job kept as characterisation, not verdict; fingerprint tool makes captures comparable |
 | Phase 1 is a breaking rework | accepted | that is why it happens before packaging creates external consumers; one v6 move |
 | Node + Python dual runtime friction | standing | packaging wraps it, doesn't remove it; accepted cost of replaceable stages |
