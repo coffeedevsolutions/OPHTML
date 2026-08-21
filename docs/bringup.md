@@ -1,10 +1,20 @@
 # Hardware bring-up checklist
 
-The host toolchain is fully tested; the gsKit path is written against
-the documented API but has not yet run on real silicon. This is the
-ordered procedure for the first run on a console or emulator. Work the
-steps in order — each one isolates a single subsystem, and later steps
-are meaningless while an earlier one fails.
+The host toolchain is fully tested. This is the ordered procedure for
+the first run on a console or emulator. Work the steps in order — each
+one isolates a single subsystem, and later steps are meaningless while
+an earlier one fails.
+
+## Hardware log
+
+What has actually run on silicon, as opposed to what is expected to.
+Add a row per console; do not delete rows when a step later regresses.
+
+| console | step | result |
+|---|---|---|
+| SCPH-50000 (NTSC, FMCB, USB) | 1 minimal | **pass** — blue, then back to the browser on its own |
+| SCPH-50000 | 2 probe v1 | **inconclusive** — clear, control and ladder all drew, so packet encoding, ABE and the blend unit are live; the ladder itself could not be read from a photograph (see step 2) |
+| SCPH-50000 | 10 aspect | 4:3 pillarboxed into a 16:9 panel, which is correct behaviour and explains why step 1's fill does not reach the panel edges |
 
 Reference material, in the order you will reach for it:
 
@@ -113,8 +123,10 @@ could not distinguish from the third.
 | what | how | expected |
 |------|-----|----------|
 | ground `#1a0e0a` | `gsKit_clear`, blending **off** | whole frame |
-| red `#ff0000` | sprite, blending **off** | top left, full strength |
-| magenta ladder | five sprites, blending **on**, alpha `0x20` `0x40` `0x60` `0x7f` `0x80` | bottom row |
+| 4 corner marks | sprites, blending **off** | one at each corner |
+| red `#ff0000`, white `#ffffff` | sprites, blending **off** | top left, full strength |
+| tick marks | sprites, blending **off** | 1..6 dots over each column |
+| six columns | reference half blending **off**, test half blending **on** | middle band |
 
 Those are three different things, not two. `gsKit_clear` builds a
 PACKED A+D list; `gsKit_prim_sprite` emits a sprite GIF tag with
@@ -122,21 +134,49 @@ SPRITE_REGS. So the probe separates **packet encoding**, then blending
 on or off, then the alpha value. An emulator implementing one encoding
 and not the other looks exactly like "untextured is broken".
 
-Every rung of the ladder is the same colour and differs only in alpha,
-so a missing rung cannot be blamed on the colour register. Over the
-`#1a0e0a` ground, `(Cs - Cd) * As >> 7 + Cd` predicts each one exactly:
+### Reading it: seams, not colours
 
-| alpha | composites to |
-|-------|---------------|
-| `0x20` | `#530a47` |
-| `0x40` | `#8c0784` |
-| `0x60` | `#c503c1` |
-| `0x7f` | `#fd00fd` |
-| `0x80` | `#ff00ff` |
+Each column is one blended swatch sitting directly under an unblended
+swatch of the colour `(Cs - Cd) * As >> 7 + Cd` predicts. The runtime
+computes that reference itself, in integer arithmetic identical to the
+hardware's, and paints it literally. So:
 
-**Expect:** the clear, the red control, and all five rungs. The ground
-colour is the memcard canvas with its channels reversed, so a probe
-fingerprint can never be mistaken for a UI capture in the same log.
+- **no seam** — the GS blended exactly as the baker assumed
+- **visible horizontal seam** — it did not, and the darker half says
+  which way
+
+| column | ticks | alpha | reference | verdict |
+|---|---|---|---|---|
+| 1 | ● | `0x20` | `#530a47` | must match |
+| 2 | ●● | `0x40` | `#8c0784` | must match |
+| 3 | ●●● | `0x60` | `#c503c1` | must match |
+| 4 | ●●●● | `0x7f` | `#fd00fd` | must match |
+| 5 | ●●●●● | `0x80` | `#ff00ff` | must match |
+| 6 | ●●●●●● | `0x40` vs `0x60` ref | `#c503c1` | **must show a seam** |
+
+Column 6 is deliberately mismatched and is the calibration. Without it,
+"I see no seam" is unfalsifiable — it could equally mean the observer,
+the camera, or the panel cannot resolve a seam at all. **A run where
+column 6 also looks seamless is a void result, not a pass.**
+
+This replaced a v1 probe that asked the operator to name a colour and
+count bars. On hardware that turned out to be unanswerable from a
+photograph: a phone camera renders saturated magenta on an LED panel as
+violet, its tone curve lifts the near-black ground to a visible maroon,
+and off-axis keystone defeats measuring a width. Five bars read as
+three and no re-shoot was going to fix it, because the question
+required a measurement. "Is there a line here" survives any camera.
+
+The tick marks fix counting the same way: a column that vanishes into
+the ground is identified by the gap in the ticks rather than inferred
+from the width of its neighbours. The corner marks answer step 10 early
+— four visible corners means the whole framebuffer is reaching the
+panel and every coordinate in between can be trusted.
+
+**Expect:** the clear, both controls, four corners, six numbered
+columns, seamless in 1-5 and seamed in 6. The ground colour is the
+memcard canvas with its channels reversed, so a probe fingerprint can
+never be mistaken for a UI capture in the same log.
 
 **If wrong**, what is missing narrows the fault:
 
@@ -154,9 +194,11 @@ fingerprint can never be mistaken for a UI capture in the same log.
   blob is invisible while text, whose alpha comes from the atlas, still
   draws. Do **not** "fix" that by scaling alpha down: the file domain is
   correct (see `docs/format-uib.md`) and a real GS treats `0x80` as 1.0.
-- **Rungs present but the wrong colours** → compare against the table.
-  Values above the prediction mean alpha is being ignored; below, that
-  it is applied twice.
+- **Column 6 seamless too** → void run, not a pass. The comparison had
+  no resolving power under those conditions; reshoot closer, straighter,
+  or with the room darker before believing columns 1-5.
+- **Columns seamed, test half brighter** → alpha is being ignored or
+  partly ignored; darker means it is being applied twice.
 - **All rungs the same colour** → the colour register is not being
   reloaded between primitives, a gsKit queue problem rather than a blend
   one.

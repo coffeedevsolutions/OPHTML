@@ -111,7 +111,16 @@ static inline u32 cop0_count(void)
 #endif
 
 #ifdef PS2UI_SAMPLE_PROBE
-/* Bring-up step 2 as a program, for when solid fills do not appear.
+/* Bring-up step 2 as a program: which primitive paths reach the screen,
+ * and does the GS blend the way the baker assumed.
+ *
+ * HARDWARE, SCPH-50000, first run: the clear, the unblended control and
+ * the blended ladder all drew, and the ELF returned to the browser on
+ * its own. So GIF encoding, both packet forms, ABE and the blend unit
+ * are all live on real silicon -- that much is settled and this probe
+ * is no longer asking it. What the first run could NOT settle was the
+ * ladder itself; see the v2 note above probe_frame for why, and what
+ * changed.
  *
  * The first emulator capture came back 92.8% pure black with every text
  * colour present and correct to within one unit. So the textured path
@@ -143,34 +152,117 @@ static inline u32 cop0_count(void)
  *
  * A `.uib` is still linked into this ELF (bin2c runs regardless), so a
  * baked blob must exist to build it. Nothing draws it. */
-static const unsigned char probe_alphas[] = { 0x20, 0x40, 0x60, 0x7f, 0x80 };
+/* The ladder. Columns 0..4 are the real test: reference and test carry
+ * the same alpha, so a correct GS paints each column as one solid
+ * block. Column 5 is a calibration mismatch -- reference computed for
+ * 0x60, test drawn at 0x40 -- so it MUST show a seam. Without it,
+ * "I see no seam" is unfalsifiable: it could equally mean the observer,
+ * the camera or the panel cannot resolve a seam at all. Column 5 is
+ * what makes the other five columns evidence rather than a hope. */
+static const unsigned char probe_ref_alpha[]  = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x60 };
+static const unsigned char probe_test_alpha[] = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x40 };
+#define PROBE_COLUMNS 6
 
+#define PROBE_GND_R 0x1a
+#define PROBE_GND_G 0x0e
+#define PROBE_GND_B 0x0a
+
+/* The blend the GS is documented to perform, in integer arithmetic
+ * identical to the hardware: (Cs - Cd) * As >> 7 + Cd, As in 0..128.
+ *
+ * The shift is on a signed value and Cs - Cd goes negative on the green
+ * channel here (0 over 0x0e). An arithmetic shift is exactly what the
+ * GS does and what both ee-gcc and the host compiler emit, so the
+ * reference swatch reproduces hardware rounding rather than an
+ * idealised divide -- which matters, because the whole point is to
+ * detect a discrepancy of a few LSBs as readily as a gross one. */
+static int probe_blend(int cs, int cd, int as)
+{
+    int v = (((cs - cd) * as) >> 7) + cd;
+    if (v < 0) v = 0;
+    if (v > 255) v = 255;
+    return v;
+}
+
+/* v1 of this probe asked the operator to name a colour ("are the bars
+ * magenta or red?") and to count them. Both questions turned out to be
+ * unanswerable from a photograph of a glossy panel: a phone camera
+ * renders saturated magenta on an LED panel as violet, its tone curve
+ * lifts the near-black ground into a visible maroon, and keystone
+ * distortion off-axis defeats any attempt to measure a width. The first
+ * run came back genuinely ambiguous -- three broad bands where five
+ * were drawn -- and no amount of re-photographing was going to settle
+ * it, because the instrument was asking for a measurement.
+ *
+ * v2 asks for a judgement a camera cannot corrupt: is there a line
+ * here, or not. Each column pairs a blended swatch against an
+ * unblended swatch of the colour the blend equation predicts, sharing
+ * an edge. Match and the pair is one rectangle; mismatch and the seam
+ * is visible at any exposure, any white balance, any angle.
+ *
+ * Counting is fixed the same way: each column is numbered by tick
+ * marks above it, so a column that vanishes into the ground is
+ * identified by the gap in the ticks rather than inferred from a
+ * width. Corner marks answer the other open question -- whether the
+ * visible region is clipped -- since four visible corners means the
+ * whole framebuffer reached the screen. */
 static void probe_frame(GSGLOBAL *gs)
 {
-    int i;
+    static const int col_x[PROBE_COLUMNS] = { 20, 122, 224, 326, 428, 530 };
+    const int col_w = 86;
+    int i, t;
 
     gs->PrimAlphaEnable = GS_SETTING_OFF;
-    gsKit_clear(gs, GS_SETREG_RGBAQ(0x1a, 0x0e, 0x0a, 0x80, 0x00));
+    gsKit_clear(gs, GS_SETREG_RGBAQ(PROBE_GND_R, PROBE_GND_G,
+                                    PROBE_GND_B, 0x80, 0x00));
 
-    /* Control: unblended, and a colour used nowhere else. */
-    gsKit_prim_sprite(gs, 40.0f, 40.0f, 240.0f, 200.0f, 0,
+    /* Corner marks. All four visible => nothing is being cropped, and
+     * every coordinate in between can be trusted. A missing corner
+     * names which edge is lost and by roughly how much. */
+    for (i = 0; i < 4; i++) {
+        float x = (i & 1) ? 624.0f : 0.0f;
+        float y = (i & 2) ? 432.0f : 0.0f;
+        gsKit_prim_sprite(gs, x, y, x + 16.0f, y + 16.0f, 0,
+                          GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
+    }
+
+    /* Controls: unblended, primary and full white. Red alone cannot
+     * distinguish "green and blue are dead" from "red is correct". */
+    gsKit_prim_sprite(gs, 40.0f, 40.0f, 200.0f, 120.0f, 0,
                       GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
+    gsKit_prim_sprite(gs, 240.0f, 40.0f, 400.0f, 120.0f, 0,
+                      GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
 
-    /* Same colour every time, only the alpha varies, so a missing rung
-     * cannot be blamed on the colour register. Over the #1a0e0a ground
-     * the blend equation predicts each rung exactly:
-     *
-     *   0x20 -> #530a47   0x40 -> #8c0784   0x60 -> #c503c1
-     *   0x7f -> #fd00fd   0x80 -> #ff00ff
-     *
-     * A fingerprint missing only the last one puts the fault precisely
-     * at As = 128, which is the value the .uib calls opaque. */
+    /* Column numbers: i+1 ticks over column i. */
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        for (t = 0; t <= i; t++) {
+            float x = (float)(col_x[i] + t * 12);
+            gsKit_prim_sprite(gs, x, 180.0f, x + 8.0f, 190.0f, 0,
+                              GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
+        }
+    }
+
+    /* Upper half of each column: what the blend SHOULD produce, laid
+     * down literally with blending off. */
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        int as = probe_ref_alpha[i];
+        int r = probe_blend(0xff, PROBE_GND_R, as);
+        int g = probe_blend(0x00, PROBE_GND_G, as);
+        int b = probe_blend(0xff, PROBE_GND_B, as);
+        gsKit_prim_sprite(gs, (float)col_x[i], 210.0f,
+                          (float)(col_x[i] + col_w), 290.0f, 0,
+                          GS_SETREG_RGBAQ(r, g, b, 0x80, 0x00));
+    }
+
+    /* Lower half: what it actually produces. Same colour every time,
+     * only the alpha varies, so a wrong rung cannot be blamed on the
+     * colour register. */
     gs->PrimAlphaEnable = GS_SETTING_ON;
-    for (i = 0; i < 5; i++) {
-        float x = 20.0f + 120.0f * (float)i;
-        gsKit_prim_sprite(gs, x, 248.0f, x + 120.0f, 408.0f, 0,
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        gsKit_prim_sprite(gs, (float)col_x[i], 290.0f,
+                          (float)(col_x[i] + col_w), 370.0f, 0,
                           GS_SETREG_RGBAQ(0xff, 0x00, 0xff,
-                                          probe_alphas[i], 0x00));
+                                          probe_test_alpha[i], 0x00));
     }
 }
 #endif
