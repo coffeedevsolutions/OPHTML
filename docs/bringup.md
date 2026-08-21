@@ -297,10 +297,22 @@ silence is what identified the call.
 it — verified by deleting the line and watching the checks go red, not
 assumed.
 
-CI confirms the fix under Play!: all six columns composite within one
-unit of prediction, including 4 and 5, which drew nothing at all
-before. Hardware still gets both ladders so it confirms the fix rather
-than being asked to take it on faith.
+CI confirms the fix under Play!. Solving each rendered swatch back to
+the coverage that would produce it puts the before and after in one
+frame:
+
+| col | submitted `As` | upper ladder (gsKit default) | lower ladder (fixed) |
+|---|---|---|---|
+| 1 | `0x20` | `0x60` | `0x20` |
+| 2 | `0x40` | `0x3f` | `0x40` |
+| 3 | `0x60` | `0x20` | `0x60` |
+| 4 | `0x7f` | `0x00` | `0x7f` |
+| 5 | `0x80` | `0x00` | `0x80` |
+
+`128 - As` on every rung of the upper ladder; the identity on every
+rung of the lower one, to within a unit. Hardware still gets both
+ladders so it confirms the fix rather than being asked to take it on
+faith.
 
 **A trap worth knowing about.** The first capture of the two-ladder
 build showed *both* ladders clean, which looked like a pass and was
