@@ -171,7 +171,7 @@ static inline u32 cop0_count(void)
  * vanishes is ABE, so the fault is in the blend, not in a discard.
  *
  * v3 therefore draws the ladder TWICE: once on inherited state, once
- * with ALPHA, TEST and PABE set explicitly. Top ladder seamed and
+ * with the blend registers set explicitly. Top ladder seamed and
  * bottom ladder clean isolates it to the state and hands over the fix.
  * If both read alike, gsKit applies this state at queue-exec rather
  * than per primitive, which is worth knowing too and is why the
@@ -323,16 +323,20 @@ static void probe_frame(GSGLOBAL *gs)
     /* Lower ladder: the same draw calls with the blend spelled out.
      *
      *   ALPHA = (Cs - Cd) * As >> 7 + Cd   -- A=Cs B=Cd C=As D=Cd
-     *   TEST  = alpha test off             -- nothing discarded
      *   PABE  = 0                          -- blend every pixel, not
      *                                         only those with As bit 7
+     *   TEST  = alpha test off             -- nothing discarded
+     *
+     * Through gsKit_set_primalpha, not by assigning gs->PrimAlpha:
+     * the field is not what emits the register. v3 assigned it, the
+     * lower ladder came back byte-identical to the upper one, and that
+     * silence is what identified the call.
      *
      * This is the equation docs/format-uib.md says the file's alpha
      * domain assumes. Asserting it here is the point: if the lower
      * ladder is clean where the upper one seams, the shipping runtime
      * needs these three lines too. */
-    gs->PrimAlpha = GS_SETREG_ALPHA(0, 1, 0, 1, 0);
-    gs->PABE = 0;
+    gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
     gsKit_set_test(gs, GS_ATEST_OFF);
     probe_ladder(gs, 282.0f, 340.0f, 398.0f);
 }

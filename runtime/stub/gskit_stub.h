@@ -72,6 +72,12 @@ typedef struct GSGLOBAL {
 #define GS_ATEST_OFF 0x03
 #define GS_ATEST_ON  0x04
 void gsKit_set_test(GSGLOBAL *gs, unsigned char preset);
+/* Setting gs->PrimAlpha does NOT emit the register -- this call does.
+ * Probe v3 assigned the field, changed nothing, and that silence was
+ * the clue. */
+void gsKit_set_primalpha(GSGLOBAL *gs, u64 alpha_mode, unsigned char per_pixel);
+extern u64 stub_prim_alpha;
+extern unsigned char stub_prim_alpha_set;
 
 /* ---- stub bookkeeping the test asserts against ---- */
 

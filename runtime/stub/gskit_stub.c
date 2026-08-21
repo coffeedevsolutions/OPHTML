@@ -71,3 +71,22 @@ void gsKit_prim_sprite_texture(GSGLOBAL *gs, GSTEXTURE *tex,
     (void)gs; (void)z;
     record(1, tex, x1, y1, x2, y2, u1, v1, u2, v2, color);
 }
+
+void gsKit_set_test(GSGLOBAL *gs, unsigned char preset)
+{
+    (void)gs; (void)preset;
+}
+
+/* The host stub records the blend mode so a test can assert the
+ * runtime asserts it. Inheriting this value silently is the bug that
+ * cost a bench session; leaving it unobservable here would let it
+ * come back. */
+u64 stub_prim_alpha = 0;
+unsigned char stub_prim_alpha_set = 0;
+
+void gsKit_set_primalpha(GSGLOBAL *gs, u64 alpha_mode, unsigned char per_pixel)
+{
+    (void)gs; (void)per_pixel;
+    stub_prim_alpha = alpha_mode;
+    stub_prim_alpha_set = 1;
+}

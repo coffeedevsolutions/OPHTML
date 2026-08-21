@@ -251,8 +251,8 @@ vanishes is ABE. The fault is in the blend.
 every opaque quad in every blob would be invisible while text, whose
 alpha comes from the atlas, still draws.
 
-The likely cause is that **nothing in this tree has ever written the GS
-blend state**:
+**Cause, confirmed by measurement.** Nothing in this tree had ever
+written the GS blend state:
 
     $ grep -rn "PrimAlpha\b\|GS_SETREG_ALPHA\|gsKit_set_test\|PABE" runtime/
     (nothing)
@@ -263,8 +263,39 @@ whatever `gsKit_init_screen` left behind, while the baker computes
 alpha in the 0..128 domain assuming `(Cs - Cd) * As >> 7 + Cd` with `C`
 selecting `As`. Nothing asserted that, on either side.
 
-v3 tests it directly: it draws the ladder twice, once on inherited
-state and once with `ALPHA`, `TEST` and `PABE` set explicitly.
+Decoding what each test swatch actually composited to gives the
+effective coverage the GS used, and it fits one rule on all six rungs:
+
+| submitted `As` | effective | `128 - As` |
+|---|---|---|
+| `0x20` | `0x60` | `0x60` |
+| `0x40` | `0x40` | `0x40` |
+| `0x60` | `0x20` | `0x20` |
+| `0x7f` | `0x00` | `0x01` |
+| `0x80` | `0x00` | `0x00` |
+
+**Alpha was running exactly inverted.** gsKit's default `ALPHA` is
+`GS_BLEND_BACK2FRONT` = `0x01`, which decodes to `A=Cd B=Cs C=As D=Cs`
+— the operands swapped — giving `(Cd - Cs) * As >> 7 + Cs` instead of
+`(Cs - Cd) * As >> 7 + Cd`. A quad the format calls fully opaque
+composited to pure background and vanished; a nearly transparent one
+painted at almost full strength.
+
+The fix is one line in `ps2ui_render`, run every frame because the
+value is global GS state:
+
+```c
+gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
+```
+
+Note **`gsKit_set_primalpha`**, not `gs->PrimAlpha = ...`. Assigning the
+struct field does not emit the register. v3's first draft assigned it,
+the lower ladder came back byte-identical to the upper one, and that
+silence is what identified the call.
+
+`runtime/tests/test_runtime.c` now fails if the runtime stops asserting
+it. v3 still draws both ladders so hardware can confirm the fix rather
+than take it on faith.
 
 | upper ladder | lower ladder | means |
 |---|---|---|
