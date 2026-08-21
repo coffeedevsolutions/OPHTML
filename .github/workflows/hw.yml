@@ -92,6 +92,11 @@ jobs:
           # objclean, not clean: `clean` removes $(EE_BIN), which
           # defaults to the UI ELF, so cleaning here silently threw the
           # first build away and the emulator job booted nothing.
+          # Bring-up step 1 alone: clear, hold, exit. The smallest ELF
+          # that proves the boot and video path, so the first thing to
+          # touch a console is the smallest surface that can fail.
+          make -C runtime/sample objclean
+          make -C runtime/sample MINIMAL=1 EE_BIN=minimal.elf
           make -C runtime/sample objclean
           make -C runtime/sample PROBE=1 EE_BIN=probe.elf
           # The bench instrument: cycling UI plus the once-a-second
@@ -103,6 +108,7 @@ jobs:
           # failure rather than as a build error.
           test -f runtime/sample/ps2ui_sample.elf
           test -f runtime/sample/probe.elf
+          test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
       - uses: actions/upload-artifact@v7
         with:
@@ -111,6 +117,7 @@ jobs:
           path: |
             runtime/sample/ps2ui_sample.elf
             runtime/sample/probe.elf
+            runtime/sample/minimal.elf
             runtime/sample/telemetry.elf
 
   emulator:

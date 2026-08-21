@@ -52,6 +52,33 @@ stand-in short of a console.
 
 ## 1. Boot and clear
 
+**Do:** `make -C runtime/sample MINIMAL=1` and run it. It clears the
+screen, holds for 30 seconds, and returns to the browser. Three gsKit
+calls: no sprites, no blending, no textures, no blob.
+
+**Expect:** a solid **blue** screen, then the browser again.
+
+Blue confirms, in one frame, that the ELF loads and boots, dmaKit and
+gsKit initialise, the video mode is accepted, the framebuffer flips,
+and returning from main works — before a single primitive is
+submitted. Run this first on any console you have not run on before,
+so that if step 2 shows nothing you already know which half is at
+fault.
+
+**If wrong:**
+
+- **Orange, not blue** — channel order. The clear is
+  `RGBAQ(0x40, 0x80, 0xc0)`: strictly increasing, so correct is
+  blue-dominant and byte-swapped is orange-dominant. Fix
+  `GS_SETREG_RGBAQ` against your gsKit before going further; every
+  colour in every later step is wrong too.
+- **Black, then returns to the browser** — the loop ran and the GS
+  drew nothing. Boot is fine, the video path is not.
+- **Nothing, and never returns** — it hung before drawing. Suspect the
+  ELF itself, the load, or gsKit init.
+
+
+
 **Do:** run the sample ELF; it clears to the canvas background before
 drawing anything.
 **Expect:** a stable full-screen dark navy (`#0a0e1a`) frame, no rolling

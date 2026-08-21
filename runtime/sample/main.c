@@ -27,6 +27,25 @@ extern unsigned int size_ui_uib;
  * operator is not left wondering. */
 #define PROBE_SECONDS 90u
 
+/* `make MINIMAL=1` builds bring-up step 1 and nothing else: clear the
+ * screen, hold, exit. Three gsKit calls, no sprites, no blending, no
+ * textures, no blob.
+ *
+ * It exists so the first thing that ever touches a console is the
+ * smallest surface that can prove anything. If it works, then the ELF
+ * loads and boots, dmaKit and gsKit init, the video mode is accepted,
+ * the framebuffer flips, and returning from main gets back to the
+ * browser -- all confirmed before a single primitive is submitted.
+ * Step 2 then adds exactly one thing. A probe that draws everything at
+ * once cannot tell you which half failed.
+ *
+ * The colour is chosen so it also tests channel order for free: R, G
+ * and B are 0x40, 0x80, 0xc0, strictly increasing, so a correct frame
+ * is unmistakably BLUE and a byte-swapped one is unmistakably ORANGE.
+ * "Wrong colours entirely" is a documented step 2 failure mode; this
+ * catches it a step earlier and without ambiguity. */
+#define MINIMAL_SECONDS 30u
+
 /* Build with -DPS2UI_SAMPLE_TELEMETRY for a once-a-second log line on
  * stdout. printf from the EE reaches PCSX2's console log, ps2link, and
  * any TTY hook — no IRX modules, no storage, nothing to mount, which
@@ -178,6 +197,16 @@ int main(void)
     /* ps2ui blobs carry GS-domain alpha; the standard blend equation
      * (Cs - Cd) * As >> 7 + Cd is exactly what the baker assumed. */
     gs->PrimAlphaEnable = GS_SETTING_ON;
+
+#ifdef PS2UI_SAMPLE_MINIMAL
+    /* Bring-up step 1: does anything at all reach the screen? */
+    for (frame = 0; frame < MINIMAL_SECONDS * 60u; frame++) {
+        gsKit_clear(gs, GS_SETREG_RGBAQ(0x40, 0x80, 0xc0, 0x80, 0x00));
+        gsKit_queue_exec(gs);
+        gsKit_sync_flip(gs);
+    }
+    return 0;
+#endif
 
 #ifdef PS2UI_SAMPLE_PROBE
     /* No blob, no ps2ui: just the four primitive cases.
