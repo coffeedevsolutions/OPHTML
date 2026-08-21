@@ -68,6 +68,21 @@ this repository's compiler or baker produced is on the path. (A `.uib`
 is still *linked* into the ELF, so a baked blob has to exist for the
 build to succeed. Nothing draws it.)
 
+It holds its screen for 90 seconds and then returns to the browser,
+deliberately rather than looping forever. A frozen console and a
+working one look identical on a static screen, so the return is the
+signal that separates them:
+
+| picture | returns to browser | means |
+|---|---|---|
+| yes | yes | ran to completion — read the rungs |
+| yes | no | hung after drawing |
+| no | no | hung before drawing |
+| no | yes | ran, and the GS drew nothing |
+
+The last row is the interesting failure and the one an unbounded loop
+could not distinguish from the third.
+
 | what | how | expected |
 |------|-----|----------|
 | ground `#1a0e0a` | `gsKit_clear`, blending **off** | whole frame |

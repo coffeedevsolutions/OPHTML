@@ -22,6 +22,11 @@ extern unsigned int size_ui_uib;
 /* Frames to hold each focus state — long enough for a screenshot. */
 #define FRAMES_PER_STATE 150
 
+/* How long the probe holds its screen before returning to the browser.
+ * Long enough to look at it and photograph it; short enough that an
+ * operator is not left wondering. */
+#define PROBE_SECONDS 90u
+
 /* Build with -DPS2UI_SAMPLE_TELEMETRY for a once-a-second log line on
  * stdout. printf from the EE reaches PCSX2's console log, ps2link, and
  * any TTY hook — no IRX modules, no storage, nothing to mount, which
@@ -175,12 +180,26 @@ int main(void)
     gs->PrimAlphaEnable = GS_SETTING_ON;
 
 #ifdef PS2UI_SAMPLE_PROBE
-    /* No blob, no ps2ui: just the four primitive cases. */
-    while (1) {
+    /* No blob, no ps2ui: just the four primitive cases.
+     *
+     * Bounded, not `while (1)`. A frozen console and a working one look
+     * identical on a static screen, so an unbounded loop makes the
+     * operator guess -- and guessing wrong costs a bench session. After
+     * PROBE_SECONDS it returns to the browser, which turns "did it
+     * work?" into an observation:
+     *
+     *   picture, then back at the FMCB menu  -> ran to completion
+     *   picture, but never returns           -> hung after drawing
+     *   no picture, never returns            -> hung before drawing
+     *   no picture, but returns              -> ran; the GS drew nothing
+     *
+     * Two of those four were indistinguishable before. */
+    for (frame = 0; frame < PROBE_SECONDS * 60u; frame++) {
         probe_frame(gs);
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
     }
+    return 0;
 #endif
 
     rc = ps2ui_load(&ui, ui_uib, size_ui_uib);
