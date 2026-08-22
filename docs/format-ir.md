@@ -79,8 +79,13 @@ One command per laid-out line. `x`/`y` is the top-left of the glyph box
 ```
 
 An optional `"nocontrast": true` may appear, from `data-nocontrast` on
-the element. It is a **lint-only** flag: the baker ignores it, and it
-exists so text whose invisibility is the instrument — bring-up steps 4
+the element. It applies to **that element's own text only** — it does
+not cascade, so putting it on a wrapper does nothing. That is
+self-announcing rather than silent: the warning it was meant to
+suppress keeps appearing, so the author finds out at once.
+
+It is a **lint-only** flag: the baker ignores it, and it exists so text
+whose invisibility is the instrument — bring-up steps 4
 and 5 paint glyphs the exact colour of the block behind them — does not
 emit a permanent contrast warning on every build. Scoped to that one
 rule rather than a blanket opt-out, so it has to be argued for each
@@ -110,6 +115,14 @@ indexed PSMT8 with a per-image CLUT — 4× less VRAM per texel, ≤256
 colors; the whole bake can be forced with `ps2ui-bake
 --palettize-images`. Images have no focus variants: `state` is always
 `"always"`.
+
+An optional `"keep": true` may appear on a rect, from `data-keep` on the
+element. It exempts that geometry from the baker's dead-geometry trim,
+which otherwise drops any record that provably cannot draw. The one
+thing that wants it is deliberate observability: bring-up step 7 needs
+a quad that *provably cannot draw*, so that seeing it on a television
+means the scissor is not being applied. Trimming it would delete the
+test. Absent means false.
 
 ### `scissor_push` / `scissor_pop`
 

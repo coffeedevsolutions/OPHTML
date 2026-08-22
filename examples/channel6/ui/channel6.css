@@ -355,7 +355,26 @@ h1 {
   padding: 2px 6px;
 }
 
-.scissor .runner { font-size: 14px; color: #e8b64c; white-space: nowrap; }
+/* Explicit width, and it is load-bearing rather than cosmetic.
+ *
+ * .tell's position is scissor.x + padding + THIS + the twin + a margin.
+ * With the width left to the text, that chain ends in a string of
+ * English: the copy in probe.html decides how far the tell sits from
+ * the clip edge it has to clear. It has already drifted twice -- once
+ * when .tell-twin took 24px of the row, once when shortening this
+ * sentence moved the tell to within one pixel of the edge with every
+ * check still green.
+ *
+ * The element is nowrap inside overflow: hidden, so a fixed width
+ * changes nothing about what renders; it only stops the geometry from
+ * being a function of prose. check.py asserts the clearance that
+ * results, so neither this number nor the margin can drift quietly. */
+.scissor .runner {
+  font-size: 14px;
+  color: #e8b64c;
+  white-space: nowrap;
+  width: 60px;
+}
 
 /* Bring-up step 7's instrument, and the reason data-keep exists.
  *
@@ -412,7 +431,7 @@ h1 {
    * been doing the hiding. 36 puts it back to 603..627. The margin is
    * not decoration -- it is the whole difference between this cell
    * testing the scissor and testing nothing. */
-  margin-left: 36px;
+  margin-left: 40px;
   background: #ff00ff;
 }
 
