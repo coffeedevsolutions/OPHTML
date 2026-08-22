@@ -84,23 +84,53 @@ colour immediately beside the textured element.
   flat quad of that colour. Seam ⇒ `GSTEXTURE::Function` is not being
   applied, i.e. the `PS2UI_GSKIT_HAS_FUNCTION=0` fallback is live when
   it should not be.
-- **Step 3 (CSM1 swizzle).** The interesting one, and it can be made
-  binary and *targeted* rather than "do the glyphs look garbled".
+- **Step 3 (CSM1 swizzle).** The interesting one, now worked out
+  precisely — and it needs a baker change first.
 
-  CSM1 permutes bits 3 and 4 of the palette index. So build a PSMT8
-  tile using only indices that differ in exactly those bits — `0x00`,
-  `0x08`, `0x10`, `0x18` — and set the CLUT so all four **stored**
-  positions hold the same colour, while every other entry holds a
-  violently different one.
+  The CLUT is stored **linearly** in the `.uib`; the *runtime* permutes
+  it on upload (`ps2ui_clut_csm1`). So step 3 asks whether that
+  permutation agrees with the GS. It swaps bits 3 and 4 of the index,
+  so with a correct permutation index `i` renders `linear[i]`, and with
+  a wrong one index `i` renders `linear[csm1(i)]`.
 
-  Correct permutation ⇒ a flat field. Any error in bit 3 or bit 4 ⇒
-  those indices land on the loud entries and the tile bursts into
-  structure. **Uniform is the pass; any pattern at all is the fail**,
-  and it isolates the two bits that are actually in question instead of
-  reporting "text looks wrong".
+  A straight swap is symmetric and therefore hard to see: two regions
+  using indices `8` and `16` just exchange colours, which looks like a
+  boundary either way. Break the symmetry with an index the swap does
+  not touch.
 
-  Calibration: a second tile built with the permutation deliberately
-  inverted, which must show the loud pattern.
+  **Bit 3 probe.** Region A uses index `0` (bit3=bit4=0, unaffected),
+  region B uses index `8`. Set `linear[0] = linear[8] = X` and
+  `linear[16] = Y`, with `Y` violently unlike `X`.
+
+  | | region A (idx 0) | region B (idx 8) |
+  |---|---|---|
+  | correct | `linear[0]` = X | `linear[8]` = X |
+  | unpermuted | `linear[0]` = X | `linear[16]` = **Y** |
+
+  Uniform is the pass; any visible boundary is the fail.
+
+  **Bit 4 probe.** The permutation works on bits 3 and 4 of the whole
+  index, so block 1 (indices 32..63) repeats the structure
+  independently. Region C uses index `32`, region D uses index `48`;
+  set `linear[32] = linear[48] = X` and `linear[40] = Y`.
+
+  Together they isolate each bit rather than reporting "the text looks
+  garbled", and the calibration is a third pair built with the
+  permutation deliberately inverted, which must show the boundary.
+
+  **Blocked on a baker change.** `_image_texture` runs
+  `img.quantize(colors=256, FASTOCTREE)` on every palettized image, so
+  it picks its own palette and authored indices do not survive. The
+  tile needs the baker to preserve an already-indexed PNG's palette and
+  index data verbatim.
+
+  That is worth having on its own merits — re-quantizing an image that
+  is already indexed is lossy for no reason — but it is a change to the
+  baker with its own tests and its own review surface, so it belongs in
+  its own pull request rather than stacked behind two example cells and
+  a layout-package attribute. Resizing has to fall back to quantizing
+  (LANCZOS on index values blends indices into nonsense), which the
+  feature must say out loud.
 
 ## Step 6 — texel centres
 
@@ -128,10 +158,17 @@ reports failure rather than only ever returning 0.
 
 ## Order of work
 
-1. `.tell-twin` — closes a vacuity that exists on `main` right now
-2. Steps 4 and 5 reference swatches — mechanical, no new machinery
-3. Step 3 swizzle tile — new baker fixture, the most valuable of the three
+1. ~~`.tell-twin`~~ — done; closed a vacuity that was live on `main`
+2. ~~Steps 4 and 5 vanish rows~~ — done, with the `data-nocontrast`
+   exemption they needed
+3. **Step 3 swizzle tile** — blocked on the baker preserving authored
+   palettes; its own PR
 4. Step 6 calibration card
 5. Steps 8 and 9 — smallest, and independent of the rest
+
+Items 1 and 2 are one reviewable change: two probe cells, a lint
+exemption plumbed through the layout package, and the checks that fence
+them. Item 3 opens a second front in the baker. Splitting there keeps
+each reviewable; stacking would not.
 
 Each lands with its `check.py` assertions sabotage-tested per R3.
