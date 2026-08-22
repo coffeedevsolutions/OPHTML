@@ -31,7 +31,28 @@ because the point is a hand-controlled texture drawn 1:1:
     mushy corner says nothing;
   * 1px solid rules hugging all four canvas edges: a half-pixel
     primitive offset (or overscan) drops one of them;
-  * a 2px white cross at the exact canvas center for eyeballing.
+  * a 2px white cross at the exact canvas center for eyeballing;
+
+  * an INTERLACE PAIR below the wedge: one 1px-tall rule above one
+    2px-tall rule, same width and the same x. On a real 480i output the
+    1px rule lives in a single field and flickers at 30 Hz while the
+    2px rule spans both and sits still.
+
+    Step 8 used to say "expect a stable image" over an example the
+    linter had already stripped of every 1px line -- a screen with
+    nothing that could shimmer, confirmed not to shimmer. The pair
+    gives the step something that must move:
+
+        thin flickers, thick steady  -> interlaced, as expected
+        neither flickers             -> progressive output, or the
+                                        panel is deinterlacing; this
+                                        cell can say nothing, VOID
+        both flicker                 -> not field structure; suspect
+                                        the framebuffer height or sync
+
+    No photograph can capture this. Step 8 is an operator report by
+    design rather than by omission, and the thick rule is what stops
+    "nothing moved" from being both the pass and the void.
 
 Compare the emulator/hardware frame against the previewer render of
 this same blob (tools/framediff.py); the checker regions should match
@@ -62,6 +83,11 @@ CHECKER = 64  # texture side, in texels
 # and why the flat patch is worth drawing.
 WEDGE = (1, 2, 4)
 MUSH = (128, 128, 128)
+
+# Step 8's pair. 200 is wide enough to read from a couch and narrow
+# enough to stay inside the title-safe box; y sits clear of the wedge.
+INTERLACE_W = 200
+INTERLACE_Y = 300
 
 
 def checker_texture(cell: int) -> BakedTexture:
@@ -137,6 +163,16 @@ def build_records():
     records += [
         solid(cx - 16, cy - 1, 32, 2, (255, 255, 255)),
         solid(cx - 1, cy - 16, 2, 32, (255, 255, 255)),
+    ]
+
+    # Interlace pair (step 8). Same width, same x, adjacent: only the
+    # height differs, so only field structure can make them behave
+    # differently.
+    records += [
+        solid(cx - INTERLACE_W // 2, INTERLACE_Y, INTERLACE_W, 1,
+              (255, 255, 255)),
+        solid(cx - INTERLACE_W // 2, INTERLACE_Y + 20, INTERLACE_W, 2,
+              (255, 255, 255)),
     ]
     return records
 
@@ -228,6 +264,23 @@ def self_test() -> int:
           f"four colour-coded edge rules, one per side ({len(rules)})")
     check(len({r.rgba[:3] for r in rules}) == 4,
           "each a different colour, so a missing one names its side")
+
+    # Step 8's pair. Same width and x, adjacent, differing only in
+    # height -- if anything else about them differs, "the thin one
+    # moved" stops being attributable to field structure.
+    pair = sorted((r for r in records
+                   if r.op == OP_QUAD and r.w == INTERLACE_W),
+                  key=lambda r: r.h)
+    check(len(pair) == 2, f"an interlace pair below the wedge ({len(pair)})")
+    if len(pair) == 2:
+        thin, thick = pair
+        check((thin.h, thick.h) == (1, 2),
+              f"one 1px rule and one 2px rule ({thin.h}px, {thick.h}px)")
+        check(thin.x == thick.x and thin.w == thick.w,
+              "at the same x and width, so only height can explain a "
+              "difference in behaviour")
+        check(thin.rgba[:3] == thick.rgba[:3],
+              "and the same colour, so brightness cannot either")
 
     check(len(flat) == 2,
           f"a flat reference at each end of the wedge ({len(flat)})")

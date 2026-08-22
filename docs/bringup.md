@@ -588,20 +588,85 @@ your app between `ps2ui_render` calls.
 
 ## 8. Interlace and flicker
 
-**Do:** on a real CRT (or emulator interlace simulation), hold the
-default screen still.
-**Expect:** stable image; the linter has already flagged any 1px
-horizontal lines at compile time, and the example contains none.
-**If shimmering anyway:** field order / half-height framebuffer setup in
-your gsKit init, not in the baked data — the blob is field-agnostic.
+**Do:** run the test card on a real CRT (or an emulator that simulates
+interlace) and look at the **interlace pair** below the wedge: a 1px
+rule above a 2px rule, same width, same x, same colour.
+
+**Expect:** the **thin one flickers**, the thick one sits still.
+
+| thin | thick | reading |
+|---|---|---|
+| flickers | steady | interlaced as expected — **pass** |
+| steady | steady | **check `gsGlobal->Field` first**, then progressive output or a deinterlacing panel. **Void** either way |
+| flickers | flickers | field order, or a half-height framebuffer, in your gsKit init |
+
+**When nothing flickers, look in your own code before your
+television.** gsKit defaults `gsGlobal->Field` to `GS_FIELD` (FFMD 0),
+where each field reads every other line — which is what makes a 1px
+rule live in one field and flicker. Set it to `GS_FRAME` (FFMD 1) and
+every field reads every line: both rules sit still, on a perfectly
+interlaced output, and this cell reads void forever with no hint why.
+
+ps2ui's own sample never overrides it, so the pair reads as documented
+there. But ps2ui is a library inside a host program that owns
+`gsKit_init_screen` — which is exactly the OPL-class integration
+`docs/PLAN.md` is built around — so the host can change this out from
+under the cell.
+
+It matters past step 8. The CRT lint rule and `ps2ui-check`'s hairline
+warning — *"no 1px quads to shimmer on an interlaced CRT"* — are
+premised on FFMD 0, and **this pair is the only thing in the tree that
+tests that premise.** A void reading here means the linter's advice is
+unverified, not merely that the step is inconclusive.
+
+A 1px rule on a 480i output lives in one field and so flickers at 30 Hz;
+a 2px rule spans both and does not. That is physics, not a fault, and it
+is what makes the pair readable.
+
+**This step used to be unfalsifiable.** It said "expect a stable image"
+over an example the linter had already stripped of every 1px line — a
+screen with nothing that could shimmer, confirmed not to shimmer.
+"Nothing moved" was both the pass and the void, and no one could tell
+them apart. The thick rule is what separates them now.
+
+**No photograph can capture this.** Step 8 is an operator report by
+design rather than by omission; a still frame cannot show a 30 Hz
+alternation. Watch it, do not shoot it.
+
+Nothing here is in the baked data; the blob is field-agnostic.
 
 ## 9. VRAM pressure
 
-**Do:** check `ps2ui_upload`'s return value in the sample.
-**Expect:** 0. The baker already enforces a budget at bake time
-(`--vram-budget`, breakdown printed on every bake), so an alloc failure
-here means your app allocates VRAM (framebuffers, other textures) beyond
+**Do:** run the sample and read `ps2ui_upload`'s return value.
+`make -C runtime/sample TELEMETRY=1` prints it.
+
+**Expect:** 0. The baker enforces a budget at bake time
+(`--vram-budget`, breakdown printed on every bake), so a failure here
+means your app allocates VRAM — framebuffers, other textures — beyond
 what the budget assumed.
+
+**Why 0 means something.** A return value nobody has ever seen be
+non-zero is not a check: it gives the same answer on a console with 4 MB
+free and on one with none. `test_runtime` starves the stub allocator to
+the real 4 MB ceiling and asserts the upload reports failure, so the
+path is known reachable before anyone reads a 0 off a console. Deleting
+the `return -1` in `ps2ui_upload` fails that check.
+
+Both shapes are covered: nothing fitting at all, and — the case a real
+console actually meets — running out **partway**, with earlier textures
+already allocated and uploaded (measured at 18 of 19).
+
+**What a non-zero leaves behind:** `ctx->uploaded` stays 0 however far
+the upload got, so a caller cannot render through a half-built texture
+table. Asserted for both shapes.
+
+**Retrying:** call `gsKit_vram_clear()` first. gsKit's `USERBUFFER`
+allocator is a bump pointer with no per-allocation free, so the
+handles the failed attempt already took are stranded — and
+`ps2ui_upload` restarts from texture 0 and re-allocates every one of
+them. A second attempt without the clear consumes the footprint twice
+and is likelier to fail than the first.
+
 **Fix:** re-bake with `--vram-budget` set to what your app actually
 leaves free, and treat the printed per-texture breakdown as the
 negotiation table.

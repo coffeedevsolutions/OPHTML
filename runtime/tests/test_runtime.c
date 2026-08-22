@@ -102,6 +102,8 @@ int main(int argc, char **argv)
     CHECK(sizeof(ps2ui_cmd) == 32, "cmd struct is 32 bytes");
     CHECK(sizeof(ps2ui_focus_node) == 24, "focus node struct is 24 bytes");
 
+    u32 vram_before, vram_used;
+
     /* ---- loader ---- */
     CHECK(ps2ui_load(&ctx, blob, len) == PS2UI_OK, "load real blob");
     CHECK(ctx.hdr->canvas_w == 640 && ctx.hdr->canvas_h == 448, "canvas is 640x448");
@@ -149,7 +151,14 @@ int main(int argc, char **argv)
     CHECK(i == 256, "csm1 is an involution over 0..255");
 
     /* ---- upload ---- */
+    vram_before = gs.CurrentPointer;
     CHECK(ps2ui_upload(&ctx, &gs) == 0, "textures fit in 4 MB VRAM");
+    /* What the blob's textures actually cost. Step 9's starved cases at
+     * the end of this file size themselves from this rather than from a
+     * hardcoded budget: a constant tuned to today's example is a check
+     * that goes red when someone shrinks an asset by six percent, for a
+     * reason that has nothing to do with what they changed. */
+    vram_used = gs.CurrentPointer - vram_before;
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
     /* ---- render: focus filtering ---- */
@@ -788,6 +797,102 @@ int main(int argc, char **argv)
         }
 
         free(lblob);
+    }
+
+    /* ---- bring-up step 9: is a non-zero return reachable? ----------
+     *
+     * Step 9 asks the operator to read ps2ui_upload's return value and
+     * expect 0. That is worth nothing unless non-zero is reachable: a
+     * function that only ever returns 0 gives the same answer on a
+     * console with 4 MB free and on one with none, and the step reads
+     * as a pass either way.
+     *
+     * Last among the CHECKS and immediately before `report:`, which is
+     * the property that matters -- not last in the file. It sat after
+     * the label, so the one `goto report` fell into it and the bail-out
+     * path, whose whole job is to run nothing, ran two loads and two
+     * uploads on the way out.
+     *
+     * clut_pool is file-scope, not
+     * per-context, and ps2ui_upload writes a permuted CLUT into it
+     * BEFORE the allocation that fails -- so a second live context
+     * silently borrows the first one's CLUT storage. Run here, nothing
+     * afterwards can read what these contexts leave behind. It was
+     * originally placed beside the first upload check, where it was
+     * safe only because both contexts loaded the identical blob, an
+     * invariant nobody had written down. Worth remembering against the
+     * v6 arena work, which moves exactly this storage per-context:
+     * this test is not a precedent that two live contexts are fine.
+     *
+     * The stub models the real ceiling -- gsKit_vram_alloc refuses past
+     * 4 MB -- so these fail for the reason a crowded console would.
+     * `starved` is a COPY of gs, not a mutation of it -- an earlier
+     * version of this comment said "restore it afterwards", describing
+     * a hazard the code already sidesteps and reading as an invitation
+     * to "fix" it by starving gs directly. Nothing is restored because
+     * nothing is disturbed. */
+    {
+        ps2ui_ctx sc;
+        GSGLOBAL starved;
+        char partway[128];
+
+        /* (a) nothing fits: the first allocation fails. */
+        starved = gs;
+        starved.CurrentPointer = 4u * 1024u * 1024u - 16u;
+        memset(&sc, 0, sizeof sc);
+        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
+            CHECK(ps2ui_upload(&sc, &starved) != 0,
+                  "upload reports failure when VRAM is exhausted, so "
+                  "step 9's expected 0 is a result and not a constant");
+            CHECK(sc.uploaded == 0,
+                  "and leaves the context not-uploaded, so a caller "
+                  "cannot render through a half-built texture table");
+        } else {
+            CHECK(0, "starved-upload fixture failed to load");
+        }
+
+        /* (b) exhaustion PARTWAY, which is the case a real console
+         * hits: earlier textures allocated and uploaded, a later one
+         * refused. Only the first-allocation path was covered, which
+         * is the easiest path through the function and the least like
+         * the failure anyone will actually meet.
+         *
+         * The two cases turn out to cover different code, not just
+         * different budgets. ps2ui_upload has two ways to refuse -- the
+         * texture allocation and, for PSMT8, the CLUT allocation right
+         * after it. Case (a) trips the first; (b) at this budget trips
+         * the second. Neutralising only one of them leaves the other
+         * case green, which is how the pair was measured. */
+        starved = gs;
+        /* Half of what the blob really needs, so this lands in the
+         * middle of the table wherever the example's art goes next.
+         * The hardcoded 256 KiB it replaces gave 18 of 19 -- the
+         * narrowest partway available, failing on the LAST texture,
+         * with about 16 KiB between it and "everything fits". */
+        starved.CurrentPointer = 4u * 1024u * 1024u - vram_used / 2u;
+        memset(&sc, 0, sizeof sc);
+        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
+            int rc;
+            int before = g_stub.n_uploads;
+            int got;
+            rc = ps2ui_upload(&sc, &starved);
+            got = g_stub.n_uploads - before;
+            CHECK(rc != 0, "upload reports failure when VRAM runs out "
+                           "partway through the texture table");
+            /* Without this the case above is indistinguishable from
+             * (a): both return non-zero, and a budget that happened to
+             * fail on texture 0 would look like partway coverage while
+             * exercising the same three lines. */
+            snprintf(partway, sizeof partway,
+                     "having uploaded some but not all of them "
+                     "(%d of %u), which is the case a console meets",
+                     got, (unsigned)sc.hdr->n_tex);
+            CHECK(got > 0 && got < (int)sc.hdr->n_tex, partway);
+            CHECK(sc.uploaded == 0,
+                  "and still leaves it not-uploaded, however far it got");
+        } else {
+            CHECK(0, "partway-starved fixture failed to load");
+        }
     }
 
 report:
