@@ -23,7 +23,7 @@ wrong rectangles.
 import argparse
 import sys
 
-from PIL import Image
+from PIL import Image, ImageStat
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from make_testcard import CANVAS_W, CANVAS_H, CHECKER, WEDGE, MUSH  # noqa: E402
@@ -79,11 +79,11 @@ def patch_boxes(w, h):
 
 
 def stats(im, box):
-    px = list(im.crop(box).convert("L").getdata())
-    n = len(px)
-    mean = sum(px) / n
-    var = sum((p - mean) ** 2 for p in px) / n
-    return mean, var ** 0.5
+    # ImageStat does the mean/sd in C. Image.getdata() is deprecated
+    # for removal in Pillow 14 and CI installs Pillow unpinned, so the
+    # list-of-pixels form is a warning today and a break later.
+    st = ImageStat.Stat(im.crop(box).convert("L"))
+    return st.mean[0], st.stddev[0]
 
 
 def read(path, verbose=True):

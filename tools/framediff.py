@@ -22,11 +22,15 @@ from PIL import Image, ImageChops, ImageStat
 
 
 def rmse(a: Image.Image, b: Image.Image) -> float:
+    # ImageStat.sum2 is the sum of squares, computed in C. The
+    # list-of-pixels form this replaced used Image.getdata(), which
+    # Pillow deprecates for removal in 14 -- and CI installs Pillow
+    # unpinned, so that is a warning in every log today and a break
+    # on some future runner.
     diff = ImageChops.difference(a.convert("RGB"), b.convert("RGB"))
-    px = list(diff.getdata())
-    n = len(px) * 3
-    total = sum(c * c for p in px for c in p)
-    return (total / n) ** 0.5
+    st = ImageStat.Stat(diff)
+    n = diff.size[0] * diff.size[1] * 3
+    return (sum(st.sum2) / n) ** 0.5
 
 
 def worst_tile(a: Image.Image, b: Image.Image, tile: int):
