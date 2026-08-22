@@ -586,11 +586,12 @@ so the comparison is side by side rather than remembered. Every checker
 averages the same 50% grey, which is exactly why a mushed one is
 indistinguishable from it — and exactly why it is worth drawing.
 
-**If wrong:** a half-texel UV offset. The baker emits texel-corner UVs
-and the GS samples at pixel centres; the `+0.5` convention has to match
-on both sides. Under bilinear a mismatch averages neighbouring texels
-into grey; under nearest it shifts the checker by one cell, which the
-corner copies make visible against the canvas edges.
+**If wrong:** not a missing `+0.5` — see "The UV convention is settled"
+below, which works the arithmetic and shows the bias would put every
+pixel one texel past the one it asked for. Under the nearest filtering
+ps2ui uses, texel-corner UVs at 1:1 are correct. Look instead at
+whether the quad is drawn at its UV span (anything else resamples), and
+at the texture's format and buffer width.
 
 `make_testcard.py --self-test` fences the construction, and CI runs it.
 The property that matters most there is the 1:1 mapping: a wedge quad
@@ -724,9 +725,11 @@ palette index for CLUT storage (CSM1), and 0 and 1 are fixed points of
 that permutation — so this probe cannot read a swizzle fault as an
 addressing one. Step 3 owns the swizzle; this is step 6.
 
-**The `+0.5` bias is deliberately not tested.** Testing a candidate fix
-before reproducing the fault is backwards. Once a column shows the
-artifact, that column is where a bias belongs.
+**The `+0.5` bias is not among the columns**, and by now not because
+testing a fix before reproducing the fault is backwards — though it is
+— but because the arithmetic above shows it is not a fix at all. It
+would move every pixel one texel past its target. Nothing here should
+grow a column for it.
 
 **No text anywhere**, deliberately: text is the thing under suspicion,
 and labelling the bands through the glyph path would be asking the
