@@ -10,6 +10,7 @@
 
 #include <kernel.h>
 #include <stdio.h>
+#include <string.h>
 #include <gsKit.h>
 #include <dmaKit.h>
 
@@ -110,6 +111,23 @@ static inline u32 cop0_count(void)
 #define PS2UI_SAMPLE_CYCLE 1
 #endif
 
+/* Shared by every probe in this file, which is why they are not inside
+ * one probe's #ifdef: the title-safe box is a property of NTSC and of
+ * the linter, not of step 2, and a second probe that redefined it could
+ * drift from the first without anything noticing.
+ *
+ * The ground is #1a0e0a -- the memcard canvas #0a0e1a with its channels
+ * reversed -- so a probe fingerprint can never be mistaken for a UI
+ * capture in the same log. */
+#define PROBE_GND_R 0x1a
+#define PROBE_GND_G 0x0e
+#define PROBE_GND_B 0x0a
+
+#define PROBE_SAFE_X0 64
+#define PROBE_SAFE_Y0 45
+#define PROBE_SAFE_X1 576
+#define PROBE_SAFE_Y1 403
+
 #ifdef PS2UI_SAMPLE_PROBE
 /* Bring-up step 2 as a program: which primitive paths reach the screen,
  * and does the GS blend the way the baker assumed.
@@ -195,9 +213,6 @@ static const unsigned char probe_ref_alpha[]  = { 0x20, 0x40, 0x60, 0x7f, 0x80, 
 static const unsigned char probe_test_alpha[] = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x20 };
 #define PROBE_COLUMNS 6
 
-#define PROBE_GND_R 0x1a
-#define PROBE_GND_G 0x0e
-#define PROBE_GND_B 0x0a
 
 /* Not full magenta any more. Measuring the v2 photographs channel by
  * channel showed the panel and camera together clip hard: references
@@ -212,10 +227,6 @@ static const unsigned char probe_test_alpha[] = { 0x20, 0x40, 0x60, 0x7f, 0x80, 
 #define PROBE_SRC_G 0x00
 #define PROBE_SRC_B 0x90
 
-#define PROBE_SAFE_X0 64
-#define PROBE_SAFE_Y0 45
-#define PROBE_SAFE_X1 576
-#define PROBE_SAFE_Y1 403
 
 static int probe_blend(int cs, int cd, int as)
 {
@@ -445,6 +456,193 @@ static void probe_frame(GSGLOBAL *gs)
 }
 #endif
 
+#ifdef PS2UI_SAMPLE_PROBE6
+/* Bring-up step 6 as a program: does a texel land on a pixel centre?
+ *
+ * The emulator asked this without being asked. The first UI capture to
+ * get past the harness bugs came back with every text run differing
+ * while flat quads matched, and at 4x `Library` reads `Liibrarny` --
+ * each glyph carrying a sliver of its neighbour in the ATLAS. Slivers
+ * are not blur: a resampler cannot insert an `n` between `r` and `y`.
+ * Something samples outside the texels it asked for.
+ *
+ * The two sides of the question have never agreed in writing.
+ * ps2ui.c passes u1 = u + w -- the exact texel edge, no offset -- and
+ * the previewer crops exact integer texels, [u0, u1). With
+ * GS_FILTER_NEAREST a UV sitting exactly on a texel boundary does not
+ * average anything; it rounds, and which way it rounds at the boundary
+ * decides whether a column is taken twice or skipped. That is the
+ * shape of the artifact.
+ *
+ * DESIGN: three bands, two seams, and exactly one seam should vanish.
+ *
+ *     band 1   textured, u1 = u + w        (what ps2ui does today)
+ *     ---- seam A ----
+ *     band 2   drawn with QUADS, no texture sampling at all
+ *     ---- seam B ----
+ *     band 3   textured, +0.5 on every UV
+ *
+ * The middle band is the calibration and it cannot be wrong: solid
+ * sprites do not sample a texture, so it is what the pattern is
+ * supposed to look like. Putting it between the two candidates gives
+ * each one a shared edge with the truth, and turns the whole reading
+ * into the only judgement a camera cannot corrupt -- is there a line
+ * here:
+ *
+ *     seam A gone, seam B visible  -> today's convention is correct
+ *     seam A visible, seam B gone  -> the +0.5 is the fix
+ *     both gone                    -> the GS cannot tell them apart;
+ *                                     the glyph artifact is elsewhere
+ *     both visible                 -> neither matches the reference.
+ *                                     VOID: upload, filter or format,
+ *                                     not the UV convention
+ *
+ * NO TEXT ANYWHERE IN THIS PROBE, deliberately. Text is the thing under
+ * suspicion; a probe that labelled its own bands through the glyph path
+ * would be asking the suspect to testify. The bands are identified by
+ * position, and docs/bringup.md says which is which.
+ *
+ * Drawn at 1:1 and nowhere else. A quad drawn at any size other than
+ * its UV span makes the GS resample, and a resampled pattern degrades
+ * for reasons that have nothing to do with texel centres -- the test
+ * card's own self-test carries the same warning. Hence the tiling: the
+ * band is three copies of a 64-wide texture at 64 pixels each, never
+ * one texture stretched to 192.
+ *
+ * Vertical bars test U; horizontal bars test V. Both, because a
+ * convention that is right in one axis and wrong in the other would
+ * read as a pass on the axis nobody drew. */
+#define P6_TEX      64           /* texture side, in texels */
+#define P6_BAR      4            /* bar width, in texels */
+#define P6_TILES    3            /* copies per band, each drawn 1:1 */
+#define P6_BAND_W   (P6_TEX * P6_TILES)
+#define P6_BAND_H   P6_TEX
+#define P6_LEFT_X   72           /* vertical bars: tests U */
+#define P6_RIGHT_X  344          /* horizontal bars: tests V */
+#define P6_TOP_Y    120
+
+/* Mid-tones, not black and white. The step 2 probe learned this the
+ * expensive way: a phone against a panel clips the top of the range,
+ * so references 40 units apart came back indistinguishable. These two
+ * are 160 apart in luma and both inside what a camera resolves. */
+#define P6_ON_R  0xc0
+#define P6_ON_G  0xc0
+#define P6_ON_B  0xc0
+#define P6_OFF_R 0x20
+#define P6_OFF_G 0x24
+#define P6_OFF_B 0x30
+
+#if (P6_TEX % (2 * P6_BAR)) != 0
+#error "step 6 probe: the bar period must divide the texture, or tiling seams"
+#endif
+#if P6_LEFT_X < PROBE_SAFE_X0 || (P6_RIGHT_X + P6_BAND_W) > PROBE_SAFE_X1
+#error "step 6 probe runs outside the title-safe box horizontally"
+#endif
+#if P6_TOP_Y < PROBE_SAFE_Y0 || (P6_TOP_Y + 3 * P6_BAND_H) > PROBE_SAFE_Y1
+#error "step 6 probe runs outside the title-safe box vertically"
+#endif
+#if (P6_LEFT_X + P6_BAND_W) >= P6_RIGHT_X
+#error "step 6 probe groups overlap; a seam between them is not a seam within one"
+#endif
+
+static u32 p6_vbars[P6_TEX * P6_TEX] __attribute__((aligned(16)));
+static u32 p6_hbars[P6_TEX * P6_TEX] __attribute__((aligned(16)));
+static GSTEXTURE p6_tex_v, p6_tex_h;
+
+/* GS_PSM_CT32 texels are little-endian ABGR in memory. */
+#define P6_TEXEL(r, g, b) \
+    ((u32)(r) | ((u32)(g) << 8) | ((u32)(b) << 16) | ((u32)0x80 << 24))
+
+static int p6_bar_on(int i)
+{
+    return ((i / P6_BAR) & 1) == 0;
+}
+
+static void p6_fill(u32 *dst, int vertical)
+{
+    int x, y;
+    for (y = 0; y < P6_TEX; y++)
+        for (x = 0; x < P6_TEX; x++)
+            dst[y * P6_TEX + x] = p6_bar_on(vertical ? x : y)
+                ? P6_TEXEL(P6_ON_R, P6_ON_G, P6_ON_B)
+                : P6_TEXEL(P6_OFF_R, P6_OFF_G, P6_OFF_B);
+}
+
+static int p6_upload(GSGLOBAL *gs, GSTEXTURE *t, u32 *mem)
+{
+    memset(t, 0, sizeof *t);
+    t->Width  = P6_TEX;
+    t->Height = P6_TEX;
+    t->PSM    = GS_PSM_CT32;
+    /* NEAREST, matching ps2ui.c. Under bilinear a boundary UV averages
+     * its neighbours into mush; under nearest it rounds, and rounding
+     * is what duplicates a column. Testing the wrong filter would
+     * answer a question nobody asked. */
+    t->Filter = GS_FILTER_NEAREST;
+    t->Mem    = mem;
+    t->Vram   = gsKit_vram_alloc(gs, gsKit_texture_size(P6_TEX, P6_TEX, GS_PSM_CT32),
+                                 GSKIT_ALLOC_USERBUFFER);
+    if (t->Vram == GSKIT_ALLOC_ERROR)
+        return -1;
+    gsKit_texture_upload(gs, t);
+    return 0;
+}
+
+/* One band of tiles, each drawn at exactly its texel size. `bias` is
+ * added to every UV: 0.0f for the convention ps2ui uses today, 0.5f for
+ * the texel-centre convention this probe exists to choose between. */
+static void p6_band_textured(GSGLOBAL *gs, GSTEXTURE *t, int x0, int y0,
+                             float bias)
+{
+    int i;
+    for (i = 0; i < P6_TILES; i++) {
+        float x = (float)(x0 + i * P6_TEX);
+        gsKit_prim_sprite_texture(gs, t,
+            x, (float)y0, bias, bias,
+            x + (float)P6_TEX, (float)(y0 + P6_TEX),
+            (float)P6_TEX + bias, (float)P6_TEX + bias,
+            0, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00));
+    }
+}
+
+/* The same pattern with no texture in it. This is the calibration and
+ * the reason the reading is a seam rather than an opinion: solid
+ * sprites cannot sample wrongly, so this band is what correct looks
+ * like, drawn from the same numbers the texture was filled from. */
+static void p6_band_reference(GSGLOBAL *gs, int x0, int y0, int vertical)
+{
+    u64 on  = GS_SETREG_RGBAQ(P6_ON_R,  P6_ON_G,  P6_ON_B,  0x80, 0x00);
+    u64 off = GS_SETREG_RGBAQ(P6_OFF_R, P6_OFF_G, P6_OFF_B, 0x80, 0x00);
+    int i, n = vertical ? P6_BAND_W : P6_BAND_H;
+    for (i = 0; i < n; i += P6_BAR) {
+        u64 c = p6_bar_on(i) ? on : off;
+        if (vertical)
+            gsKit_prim_sprite(gs, (float)(x0 + i), (float)y0,
+                              (float)(x0 + i + P6_BAR), (float)(y0 + P6_BAND_H),
+                              0, c);
+        else
+            gsKit_prim_sprite(gs, (float)x0, (float)(y0 + i),
+                              (float)(x0 + P6_BAND_W), (float)(y0 + i + P6_BAR),
+                              0, c);
+    }
+}
+
+static void p6_group(GSGLOBAL *gs, GSTEXTURE *t, int x0, int vertical)
+{
+    p6_band_textured (gs, t, x0, P6_TOP_Y,                  0.0f);
+    p6_band_reference(gs,    x0, P6_TOP_Y + P6_BAND_H,      vertical);
+    p6_band_textured (gs, t, x0, P6_TOP_Y + 2 * P6_BAND_H,  0.5f);
+}
+
+static void p6_frame(GSGLOBAL *gs)
+{
+    gsKit_clear(gs, GS_SETREG_RGBAQ(PROBE_GND_R, PROBE_GND_G,
+                                    PROBE_GND_B, 0x80, 0x00));
+    p6_group(gs, &p6_tex_v, P6_LEFT_X,  1);
+    p6_group(gs, &p6_tex_h, P6_RIGHT_X, 0);
+}
+#endif
+
 int main(void)
 {
     GSGLOBAL *gs;
@@ -495,6 +693,37 @@ int main(void)
      * Two of those four were indistinguishable before. */
     for (frame = 0; frame < PROBE_FRAMES; frame++) {
         probe_frame(gs);
+        gsKit_queue_exec(gs);
+        gsKit_sync_flip(gs);
+    }
+    return 0;
+#endif
+
+#ifdef PS2UI_SAMPLE_PROBE6
+    /* Bring-up step 6. Same bounded shape as step 2 above, and for the
+     * same reason: a frozen console and a working one look identical on
+     * a static screen, so returning to the browser is what separates
+     * "it ran" from "it hung after drawing". */
+    p6_fill(p6_vbars, 1);
+    p6_fill(p6_hbars, 0);
+    if (p6_upload(gs, &p6_tex_v, p6_vbars) != 0 ||
+        p6_upload(gs, &p6_tex_h, p6_hbars) != 0) {
+        /* Solid olive = VRAM, the same as everywhere else in this file.
+         * Two 16 KiB textures cannot plausibly exhaust 4 MB, so this is
+         * really a guard against reading a blank probe as a verdict. */
+        while (1) {
+            gsKit_clear(gs, GS_SETREG_RGBAQ(0x80, 0x80, 0x00, 0x80, 0x00));
+            gsKit_queue_exec(gs);
+            gsKit_sync_flip(gs);
+        }
+    }
+    /* Opaque, unblended. The blend is step 2's question and it is
+     * settled; leaving ABE on here would put a second variable into a
+     * frame whose whole value is that only one thing differs between
+     * its bands. */
+    gs->PrimAlphaEnable = GS_SETTING_OFF;
+    for (frame = 0; frame < PROBE_FRAMES; frame++) {
+        p6_frame(gs);
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
     }

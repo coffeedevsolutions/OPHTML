@@ -12,7 +12,7 @@ order of operations.
 ## Before you start
 
 **Get the ELFs.** From the latest green `hw` run on `main`, download the
-`ps2ui-sample-elf` artifact. It contains six files:
+`ps2ui-sample-elf` artifact. It contains seven files:
 
 | file | what it is for |
 |---|---|
@@ -20,6 +20,7 @@ order of operations.
 | `probe.elf` | step 2 — already passed, keep it for the same reason |
 | `conform.elf` | steps 3, 4, 5, 7 — the conformance grid |
 | `testcard.elf` | steps 6 and 8 — the alignment card |
+| `probe6.elf` | step 6b — which UV convention the GS wants |
 | `ps2ui_sample.elf` | step 9, and the only one that looks like a real UI |
 | `telemetry.elf` | frame timing, not a bring-up step |
 
@@ -141,6 +142,25 @@ obviously unlike the grey at either end.
 | grey | crisp | crisp | **FAIL** — a real half-texel sampling offset |
 | grey | grey | crisp | **VOID** — this is the panel's resolution limit, not a fault. Move closer or use a different display |
 | grey | grey | grey | **VOID** — read nothing from this card |
+
+### Step 6b — which UV convention (run this one too)
+
+**Run** `probe6.elf`. Two groups of three stacked bands, no text
+anywhere. Ignore the bars themselves; look only at the two horizontal
+boundaries within each group.
+
+**Expect:** exactly one of the two boundaries to disappear.
+
+| upper boundary | lower boundary | verdict |
+|---|---|---|
+| invisible | visible | **PASS** — the renderer's convention is correct |
+| visible | invisible | **FAIL** — the `+0.5` convention is the right one |
+| both invisible | | **VOID** — the console cannot tell the two apart |
+| both visible | | **VOID** — neither matches the reference; not a UV problem |
+
+Check the left group **and** the right group; they test different axes
+and can disagree. This is the one step where a photo is genuinely
+useful, because a seam survives a camera. Shoot it straight on.
 
 Also on this card, worth a glance: four **1px colour-coded rules**
 hugging the canvas edges — red top, green bottom, blue left, yellow

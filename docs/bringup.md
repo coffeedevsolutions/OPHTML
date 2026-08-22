@@ -637,6 +637,51 @@ A console reading the wedge by eye settles it. Until then the emulator
 job reports the card every run, so the question is at least being asked
 continuously rather than waiting on a bench session.
 
+### The step 6 probe — two seams, one of which should vanish
+
+`make -C runtime/sample PROBE6=1` builds `probe6.elf`; CI ships it in
+the artifact. It exists because the wedge asks an operator to judge
+whether something *looks* mushed, and this project has already learned
+what that judgement is worth: step 2's v1 probe asked for a colour and
+a bar count, and a photograph could not answer either.
+
+So the probe asks the only question a camera cannot corrupt. Two
+groups — vertical bars on the left testing **U**, horizontal bars on
+the right testing **V** — each drawn as three stacked bands:
+
+| band | what it is |
+|---|---|
+| top | textured, `u1 = u + w` — what `ps2ui.c` does today |
+| **middle** | the same pattern drawn with **solid sprites**, no texture sampled |
+| bottom | textured, `+0.5` on every UV |
+
+The middle band cannot be wrong: an untextured sprite has nothing to
+sample. Putting it between the two candidates gives each a shared edge
+with the truth, so the reading is which boundary disappeared.
+
+| seam above the reference | seam below it | verdict |
+|---|---|---|
+| gone | visible | today's convention is right — **change nothing** |
+| visible | gone | the `+0.5` is the fix |
+| gone | gone | the GS cannot tell them apart; the glyph artifact is elsewhere |
+| visible | visible | **VOID** — neither matches the reference, so this is upload, filter or format, not the UV convention |
+
+Read both groups. A convention correct in U and wrong in V would read
+as a pass on whichever axis you happened to look at.
+
+**There is no text in this probe**, deliberately. Text is the thing
+under suspicion; labelling the bands through the glyph path would be
+asking the suspect to testify. Position identifies them, and this table
+says which is which.
+
+Everything is drawn at 1:1 — each band is three copies of a 64-wide
+texture at 64 pixels each, never one texture stretched to 192. A quad
+drawn at any size other than its UV span makes the GS resample, and a
+resampled pattern degrades for reasons that have nothing to do with
+texel centres. Four `#error` guards hold the geometry inside the
+title-safe box and keep the bar period dividing the texture; each was
+verified to fire on the fault it names.
+
 ## 7. Scissor nesting
 
 **Do:** navigate so an ellipsized title redraws (tiles clip their text

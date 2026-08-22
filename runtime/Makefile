@@ -20,7 +20,7 @@ test: syntax-check build/test_runtime $(LIST_UIB)
 # push-and-hope, and the telemetry build duly shipped `asm volatile`,
 # which -std=c99 rejects, with every local suite green. Same flags the
 # console build uses; -fsyntax-only because the host has no EE.
-SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_TELEMETRY
+SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY
 
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \
