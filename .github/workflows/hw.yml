@@ -180,6 +180,13 @@ jobs:
     needs: [bake, elf]
     runs-on: ubuntu-latest
     continue-on-error: true # experimental until the first proven run
+    env:
+      # Named once, because it moved once. The `baked` artifact's root
+      # is the least common ancestor of its paths, so adding a second
+      # example relocated every file inside it -- and this job read the
+      # previewer PNG from the old place in two steps, one of which
+      # skipped silently when it was missing.
+      PREVIEW: baked/memcard/build/preview.png
     # An emulator that comes up but never draws would otherwise sit on a
     # runner until the 6-hour default. Everything here is bounded work:
     # install, download, boot, one screenshot.
@@ -386,18 +393,25 @@ jobs:
           # involved, and print it next to the real number. Quoting an
           # RMSE without its floor invites reading resampling noise as a
           # rendering fault.
-          if [ -f baked/preview.png ]; then
-            convert baked/preview.png -resize 900x630\! -resize 640x448\! floor.png
-            python3 tools/framediff.py baked/preview.png floor.png \
-              --rmse 999 --tile-rmse 999 || true
+          # Not `if [ -f ]`: a missing ground truth used to skip this
+          # step without a word, so the floor silently stopped being
+          # measured and the diff below quoted an RMSE with nothing to
+          # read it against. Say so instead.
+          if [ ! -f "$PREVIEW" ]; then
+            echo "no ground truth at $PREVIEW -- floor not measured"
+            ls -R baked || true
+            exit 1
           fi
+          convert "$PREVIEW" -resize 900x630\! -resize 640x448\! floor.png
+          python3 tools/framediff.py "$PREVIEW" floor.png \
+            --rmse 999 --tile-rmse 999 || true
 
       - name: Diff against previewer ground truth
         run: |
           # --stats prints a colour fingerprint of both frames. An RMSE
           # says they differ; the palette says how, which is the only
           # way to read this failure without opening the artifact.
-          python3 tools/framediff.py baked/preview.png captured.png \
+          python3 tools/framediff.py "$PREVIEW" captured.png \
             --out framediff.png --rmse 8 --tile-rmse 32 --stats
       - uses: actions/upload-artifact@v7
         if: always()
