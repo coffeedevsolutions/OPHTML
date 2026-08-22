@@ -29,6 +29,7 @@ import sys
 
 from ps2ui_bake.quads import (FOCUS_NONE, OP_QUAD, OP_SCISSOR_PUSH,
                                OP_TEXQUAD)
+from ps2ui_bake.rounding import css_channel_to_gs
 from ps2ui_bake import gs
 from ps2ui_bake.uib import FEAT_DYNAMIC_TEXT, read_uib
 
@@ -44,7 +45,8 @@ GAMES_FOCUS = [
 ]
 PROBE_FOCUS = [
     "probe-alpha", "probe-radius", "probe-type",
-    "probe-clip", "probe-image", "probe-aspect", "probe-flex",
+    "probe-clip", "probe-modulate", "probe-image", "probe-aspect",
+    "probe-flex",
 ]
 # name -> capacity, the buffer the runtime is allowed to write into.
 GAMES_SLOTS = {
@@ -183,6 +185,58 @@ def main(path: str) -> int:
                  if r.op == OP_QUAD and (r.w == 1 or r.h == 1)]
     check(not hairlines,
           f"no 1px quads to shimmer on an interlaced CRT ({len(hairlines)} found)")
+
+    # --- bring-up steps 4 and 5: the vanish rows ---------------------
+    #
+    # Text painted the same colour as the block behind it, so a correct
+    # console renders nothing. That only tests anything while the two
+    # colours actually match, and they match in different domains: the
+    # block is a QUAD in full-range CSS RGB, the glyphs are a TEXQUAD in
+    # the GS 0x80-identity modulate domain. A CSS edit that nudged
+    # either would leave text permanently legible and read as a
+    # hardware fault forever.
+    #
+    # The third row must NOT match, or "I see no text" and "this cell
+    # draws no text" become the same observation and the first two rows
+    # prove nothing.
+    VANISH = ((0x7a, 0x5c, 0x3e), (0x3e, 0x6a, 0x7a))
+    CONTROL_INK = (0xd0, 0xd8, 0xe4)
+
+    for css in VANISH:
+        want = tuple(css_channel_to_gs(c) for c in css)
+        hexc = "#%02x%02x%02x" % css
+        # The block must be an untextured QUAD. A border-radius would
+        # make it a nine-patch, which reaches the framebuffer through
+        # TEX MODULATE just like the glyphs -- a domain error would then
+        # scale both by the same factor, the text would vanish anyway,
+        # and this cell would pass on broken hardware. The two must
+        # arrive by different paths or the comparison is vacuous.
+        # Asserting OP_QUAD *is* the untextured assertion: a rounded
+        # block bakes as nine textured pieces and no flat quad of this
+        # colour survives at all, so this check fires on exactly that.
+        #
+        # A separate "no TEXQUAD covers the block" check lived here for
+        # one commit and could never fail -- it matched the block's own
+        # 115px-wide geometry, which a nine-patch never emits, since it
+        # splits into corners and edges. Deleted rather than repaired:
+        # the property is already covered, and a check that cannot fail
+        # is worse than no check, because it reads like coverage.
+        block = [r for r in uib.records
+                 if r.op == OP_QUAD and r.rgba[:3] == css]
+        ink = [r for r in uib.records
+               if r.op == OP_TEXQUAD and r.rgba[:3] == want]
+        check(bool(block) and bool(ink),
+              f"vanish row {hexc}: untextured block and tinted glyphs "
+              f"both baked ({len(block)} block, {len(ink)} glyph)")
+
+    want_ctl = tuple(css_channel_to_gs(c) for c in CONTROL_INK)
+    ctl = [r for r in uib.records
+           if r.op == OP_TEXQUAD and r.rgba[:3] == want_ctl]
+    check(bool(ctl), "the control row's glyphs are baked")
+    check(want_ctl not in [tuple(css_channel_to_gs(c) for c in v)
+                           for v in VANISH],
+          "and its ink does not match either block, so it must be "
+          "legible when the vanish rows are not")
 
     # --- bring-up step 7's instrument (data-keep) --------------------
     #

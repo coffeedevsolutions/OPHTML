@@ -250,6 +250,41 @@ test('slots: letter-spacing travels with the slot descriptor', () => {
   assert.equal(plain.slots[0].letterSpacing, 0);
 });
 
+test('lint: data-nocontrast exempts text whose invisibility is the point', () => {
+  // Bring-up steps 4 and 5 paint glyphs the exact colour of the block
+  // behind them, so a correct console renders nothing and the operator
+  // answers "can you see letters here" instead of judging a shade no
+  // photograph can convey. The contrast rule is right to hate that, and
+  // would emit a permanent false alarm on every build -- which is how a
+  // linter teaches people to skim past it.
+  const html = '<div class="blk"><p class="ink">MMMM</p></div>';
+  const css = '.blk { background: #7a5c3e; height: 20px; } '
+            + '.ink { color: #7a5c3e; font-size: 14px; }';
+
+  // Without the attribute the rule must fire, or the test below proves
+  // nothing: an exemption that silences a warning nobody was raising is
+  // not an exemption.
+  const loud = compileCss(html, css);
+  assert.ok(loud.warnings.some((w) => w.startsWith('contrast:')),
+            'identical ink and block must trip the contrast rule');
+
+  const quiet = compileCss(
+    '<div class="blk"><p class="ink" data-nocontrast>MMMM</p></div>', css);
+  assert.equal(
+    quiet.warnings.filter((w) => w.startsWith('contrast:')).length, 0,
+    'data-nocontrast must silence it');
+
+  // Scoped to the one rule. A blanket data-nolint gets reached for;
+  // this one has to be argued for each time, so prove the others still
+  // speak through it.
+  const tiny = compileCss(
+    '<div class="blk"><p class="ink" data-nocontrast>MMMM</p></div>',
+    '.blk { background: #7a5c3e; height: 20px; } '
+    + '.ink { color: #7a5c3e; font-size: 9px; }');
+  assert.ok(tiny.warnings.some((w) => w.startsWith('min-font-size:')),
+            'other rules must still fire on an exempted element');
+});
+
 test('lint: contrast never composites mutually exclusive focus states', () => {
   // `:focus` is a paint-only delta -- one command list carries both
   // states and the runtime draws whichever matches. A node's focused

@@ -78,6 +78,14 @@ One command per laid-out line. `x`/`y` is the top-left of the glyph box
 }
 ```
 
+An optional `"nocontrast": true` may appear, from `data-nocontrast` on
+the element. It is a **lint-only** flag: the baker ignores it, and it
+exists so text whose invisibility is the instrument — bring-up steps 4
+and 5 paint glyphs the exact colour of the block behind them — does not
+emit a permanent contrast warning on every build. Scoped to that one
+rule rather than a blanket opt-out, so it has to be argued for each
+time it is used. Absent means false, like `keep` on a rect.
+
 The string is already wrapped, ellipsized and positioned; the baker must
 not re-measure it, only advance the pen by the shared rounding rule
 `floor(units * size / 1000 + 0.5)` per glyph (see

@@ -233,7 +233,12 @@ export function lintDocument(commands, focusGraph, options = {}) {
         chain.push(r.fill);
       }
     }
-    if (chain.length && cmd.color[3] > 0) {
+    // data-nocontrast: text whose unreadability is the point. Bring-up
+    // steps 4 and 5 paint glyphs the exact colour of their block so a
+    // correct console shows nothing; warning about that every build
+    // would be four permanent false alarms, and a linter with permanent
+    // false alarms is a linter people learn to skim past.
+    if (chain.length && cmd.color[3] > 0 && !cmd.nocontrast) {
       const seeThrough = transmittance(chain) > 0;
       const backdrops = seeThrough ? BACKDROP_EXTREMES : [[0, 0, 0]];
       let worst = Infinity;
