@@ -73,7 +73,13 @@ jobs:
         run: git diff --exit-code examples/memcard/screenshots examples/channel6/screenshots
 
       - name: Test card still tests what its reading table claims
-        run: python3 tools/make_testcard.py --self-test
+        run: |
+          python3 tools/make_testcard.py --self-test
+          # And the reader that grades it. Its first version called an
+          # all-grey card CRISP, because with no variation anywhere the
+          # ratio it judged by had a zero denominator -- caught by this
+          # self-test, which is the argument for having one.
+          python3 tools/read_testcard.py --self-test
 
       - name: Generated assets match their generators
         run: |

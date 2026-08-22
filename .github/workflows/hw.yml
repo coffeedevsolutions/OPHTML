@@ -51,6 +51,7 @@ jobs:
           python3 tools/make_testcard.py examples/memcard/build/testcard.uib \
             --preview examples/memcard/build/testcard-expected.png
           python3 tools/framediff.py --self-test
+          python3 tools/read_testcard.py --self-test
           python3 tools/play_appimage_url.py --self-test
       - name: Validate every blob against the runtime's assumptions
         run: |
@@ -404,6 +405,50 @@ jobs:
           python3 tools/framediff.py "$PREVIEW" floor.png \
             --rmse 999 --tile-rmse 999 || true
 
+      - name: Bring-up step 6 — do texels land on pixel centres?
+        if: always()
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
+        run: |
+          # The card exists for this question and nothing was ever
+          # pointed at it: the emulator booted the UI and the step 2
+          # probe, never testcard.elf, so step 6 needed a console to
+          # answer even though the instrument was sitting in the
+          # artifact.
+          #
+          # Read, not diffed. Play! presents at ~1.4x and the capture is
+          # scaled back down, so a pixel-wise diff of this card would
+          # measure the resampler. The card is built to be read as
+          # "patterned or flat" against a flat reference in the same
+          # frame, which survives any scaling the capture applies.
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf elf/testcard.elf \
+              >testcard.log 2>&1 &
+            P=$!
+            sleep 20
+            if kill -0 $P 2>/dev/null; then
+              import -window root testcard_raw.png
+            else
+              echo "test card ELF exited early:"; cat testcard.log
+            fi
+            kill -9 $P 2>/dev/null || true
+          ' || true
+          if [ ! -f testcard_raw.png ]; then
+            echo "no test card capture"; exit 0
+          fi
+          convert testcard_raw.png -fuzz 5% -trim +repage \
+            -resize 640x448\! testcard.png
+          identify -format 'trimmed to %wx%h\n' testcard.png
+          # Reports, never gates. Its verdict is advisory until a console
+          # has read the same card by eye -- Play! has already been wrong
+          # about the GS once (per-sprite alpha, see the hardware log),
+          # and a sampling verdict from an emulator is a lead, not a
+          # finding.
+          python3 tools/read_testcard.py testcard.png --report-only
+
       - name: Diff against previewer ground truth
         run: |
           # --stats prints a colour fingerprint of both frames. An RMSE
@@ -420,3 +465,4 @@ jobs:
             captured.png
             framediff.png
             probe.png
+            testcard.png
