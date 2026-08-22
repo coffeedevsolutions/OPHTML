@@ -91,20 +91,25 @@ jobs:
       # memcard example too. The two overlap on the table caps by design:
       # one reads the file, the other reads what the baker wrote.
       - name: Validate every blob against the runtime's assumptions
+        # Which warnings each blob may carry, and how many, live in the
+        # script -- not here. Spelled out per workflow they drifted:
+        # hw.yml checked the channel-6 blob with no flags while this
+        # file checked the same bytes with --allow-dead 1 --strict.
+        #
+        # Named, not bare. A bare call skips blobs that are absent,
+        # which is right for hw.yml (it does not bake the 16:9 one) and
+        # wrong here: this job bakes all three, so a missing one is a
+        # build failure, and skipping it would leave "3 blob(s)
+        # validated" as the only trace of a blob that stopped existing.
+        # Naming them makes absence an error.
+        #
+        # Three, not four: the test card is baked by hw.yml. Here
+        # make_testcard.py only runs --self-test, which writes no blob.
         run: |
-          PYTHONPATH=packages/baker python3 -m ps2ui_bake.check \
-              examples/memcard/build/ui.uib --strict
-          # --allow-dead 1: the probe screen parks one quad outside its
-          # clip on purpose (bring-up step 7's instrument). data-keep is
-          # build-time only and never reaches the blob, so a validator
-          # reading the file cannot tell an instrument from waste and
-          # should not guess -- the count is declared here instead, and
-          # one more than declared still warns.
-          for blob in examples/channel6/build/ui.uib \
-                      examples/channel6/build/ui-16x9.uib; do
-            PYTHONPATH=packages/baker python3 -m ps2ui_bake.check "$blob" \
-                --allow-dead 1 --strict
-          done
+          ./tools/check-blobs.sh \
+            examples/memcard/build/ui.uib \
+            examples/channel6/build/ui.uib \
+            examples/channel6/build/ui-16x9.uib
 
       - name: Upload previews
         uses: actions/upload-artifact@v7

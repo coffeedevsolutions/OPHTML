@@ -43,6 +43,11 @@ jobs:
       - name: Bake example + test card
         run: |
           ./examples/memcard/build.sh
+          # The channel-6 blob carries the `probe` conformance screen,
+          # which is where bring-up steps 3, 4, 5 and 7 are read. Only
+          # ci.yml built it before, and ci.yml produces no ELF, so those
+          # four steps had nothing to run at the bench.
+          ./examples/channel6/build.sh
           python3 tools/make_testcard.py examples/memcard/build/testcard.uib \
             --preview examples/memcard/build/testcard-expected.png
           python3 tools/framediff.py --self-test
@@ -51,11 +56,24 @@ jobs:
         run: |
           # Independent of the bakers that produced them: ps2ui-check
           # re-reads each file and asserts the invariants ps2ui.c relies
-          # on but cannot afford to verify at load time.
-          for blob in examples/memcard/build/ui.uib \
-                      examples/memcard/build/testcard.uib; do
-            PYTHONPATH=packages/baker python3 -m ps2ui_bake.check "$blob"
-          done
+          # on but cannot afford to verify at load time. The rules live
+          # in the script so this workflow and ci.yml cannot disagree
+          # about what "valid" means for the same bytes.
+          ./tools/check-blobs.sh
+          # conform.elf is built SCREEN=probe. That name lives in
+          # probe.html and nothing else in the tree forces the two to
+          # agree, so a rename would produce an ELF that holds solid
+          # blue -- a failure nobody discovers until a console is
+          # already on the bench.
+          PYTHONPATH=packages/baker python3 - <<'PY'
+          import sys
+          from ps2ui_bake.uib import read_uib
+          blob = 'examples/channel6/build/ui.uib'
+          names = [s['name'] for s in read_uib(blob).screens]
+          if 'probe' not in names:
+              sys.exit("conform.elf opens on screen 'probe'; blob has %s" % names)
+          print('ok - the channel-6 blob has the screen conform.elf opens on')
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: baked
@@ -65,6 +83,7 @@ jobs:
             examples/memcard/build/preview.png
             examples/memcard/build/testcard.uib
             examples/memcard/build/testcard-expected.png
+            examples/channel6/build/ui.uib
 
   elf:
     needs: bake
@@ -72,10 +91,22 @@ jobs:
     container: ghcr.io/ps2dev/ps2dev:latest
     steps:
       - uses: actions/checkout@v7
+      # upload-artifact stores paths relative to their least common
+      # ancestor, which across the memcard and channel-6 blobs is
+      # `examples/`. Downloading there puts each one back exactly where
+      # its build.sh left it -- and the guard below is what keeps that
+      # a fact rather than an assumption, because a wrong root here
+      # would surface as a linker error about a missing ui_uib.c
+      # rather than as "the blob is not where you thought".
       - uses: actions/download-artifact@v8
         with:
           name: baked
-          path: examples/memcard/build
+          path: examples
+      - name: Every blob the ELF builds against is present
+        run: |
+          test -f examples/memcard/build/ui.uib
+          test -f examples/memcard/build/testcard.uib
+          test -f examples/channel6/build/ui.uib
       - name: Build sample ELF with the PS2SDK toolchain
         run: |
           apk add --no-cache make
@@ -103,13 +134,34 @@ jobs:
           # telemetry line on stdout (PCSX2's console log captures it).
           make -C runtime/sample objclean
           make -C runtime/sample TELEMETRY=1 EE_BIN=telemetry.elf
-          # Both must survive; the artifact is useless with either one
+          # The test card, which is a .uib and so needs an ELF of its
+          # own: the sample embeds whatever UIB= points at, at build
+          # time. Without this there is no way to run it on a console --
+          # bring-up steps 6 and 8 both live on this card, and both were
+          # unreachable at the bench while every other step had an ELF.
+          # An instrument nobody can load is not an instrument.
+          # STATIC=1 so the frame is frozen by construction rather than
+          # because this card happens to have no focusables: a card you
+          # photograph must not change while you are photographing it.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 EE_BIN=testcard.elf \
+            UIB=../../examples/memcard/build/testcard.uib
+          # The conformance grid: channel-6's `probe` screen, which is
+          # screen 1 of that blob. SCREEN= is what makes it reachable;
+          # STATIC=1 freezes the focus so the cells being read are not
+          # moving while you read them.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 SCREEN=probe EE_BIN=conform.elf \
+            UIB=../../examples/channel6/build/ui.uib
+          # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
           test -f runtime/sample/ps2ui_sample.elf
           test -f runtime/sample/probe.elf
           test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
+          test -f runtime/sample/testcard.elf
+          test -f runtime/sample/conform.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -119,11 +171,20 @@ jobs:
             runtime/sample/probe.elf
             runtime/sample/minimal.elf
             runtime/sample/telemetry.elf
+            runtime/sample/testcard.elf
+            runtime/sample/conform.elf
 
   emulator:
     needs: [bake, elf]
     runs-on: ubuntu-latest
     continue-on-error: true # experimental until the first proven run
+    env:
+      # Named once, because it moved once. The `baked` artifact's root
+      # is the least common ancestor of its paths, so adding a second
+      # example relocated every file inside it -- and this job read the
+      # previewer PNG from the old place in two steps, one of which
+      # skipped silently when it was missing.
+      PREVIEW: baked/memcard/build/preview.png
     # An emulator that comes up but never draws would otherwise sit on a
     # runner until the 6-hour default. Everything here is bounded work:
     # install, download, boot, one screenshot.
@@ -330,18 +391,25 @@ jobs:
           # involved, and print it next to the real number. Quoting an
           # RMSE without its floor invites reading resampling noise as a
           # rendering fault.
-          if [ -f baked/preview.png ]; then
-            convert baked/preview.png -resize 900x630\! -resize 640x448\! floor.png
-            python3 tools/framediff.py baked/preview.png floor.png \
-              --rmse 999 --tile-rmse 999 || true
+          # Not `if [ -f ]`: a missing ground truth used to skip this
+          # step without a word, so the floor silently stopped being
+          # measured and the diff below quoted an RMSE with nothing to
+          # read it against. Say so instead.
+          if [ ! -f "$PREVIEW" ]; then
+            echo "no ground truth at $PREVIEW -- floor not measured"
+            ls -R baked || true
+            exit 1
           fi
+          convert "$PREVIEW" -resize 900x630\! -resize 640x448\! floor.png
+          python3 tools/framediff.py "$PREVIEW" floor.png \
+            --rmse 999 --tile-rmse 999 || true
 
       - name: Diff against previewer ground truth
         run: |
           # --stats prints a colour fingerprint of both frames. An RMSE
           # says they differ; the palette says how, which is the only
           # way to read this failure without opening the artifact.
-          python3 tools/framediff.py baked/preview.png captured.png \
+          python3 tools/framediff.py "$PREVIEW" captured.png \
             --out framediff.png --rmse 8 --tile-rmse 32 --stats
       - uses: actions/upload-artifact@v7
         if: always()

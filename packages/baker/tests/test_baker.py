@@ -1449,7 +1449,9 @@ class TestCheck(unittest.TestCase):
                       fonts=list(kw.get("fonts", ())),
                       slots=list(kw.get("slots", ())),
                       screens=kw.get("screens"))
-            return check_blob(read_uib(path))
+            return check_blob(read_uib(path),
+                              allow_dead=kw.get("allow_dead", 0),
+                              allow_hairline=kw.get("allow_hairline", 0))
 
     def failures(self, report):
         return [label for ok, _sev, label in report.results if not ok]
@@ -1528,6 +1530,43 @@ class TestCheck(unittest.TestCase):
         self.assertEqual(rep.errors, 0)
         self.assertEqual(rep.warnings, 1)
         self.assertTrue(any("shimmer" in f for f in self.failures(rep)))
+
+    def test_a_declared_hairline_is_not_a_warning(self):
+        # Same argument as --allow-dead: a 1px quad is usually an
+        # accident and sometimes the instrument. The test card's edge
+        # rules and its interlace pair ARE the shimmer bring-up step 8
+        # measures, and a blob cannot say so about itself.
+        rep = self.build([self.quad(h=1), self.quad(w=1, y=20)],
+                         allow_hairline=2)
+        self.assertEqual(rep.warnings, 0)
+
+    def test_fewer_hairlines_than_declared_warns(self):
+        # The direction the first version could not see. --allow-hairline
+        # named specific instruments -- the card's four edge rules and
+        # the step 8 thin rule -- and accepted "at most N", so deleting
+        # one left the check reporting 4 of 5 declared and passing. The
+        # flag exists to assert those quads are present; a ceiling
+        # cannot.
+        rep = self.build([self.quad(h=1)], allow_hairline=2)
+        self.assertEqual(rep.warnings, 1)
+        self.assertTrue(any("is gone" in f for f in self.failures(rep)))
+
+    def test_fewer_dead_commands_than_declared_warns(self):
+        # Same fix on the flag that shipped the pattern first, so a
+        # third flag cannot inherit the ceiling instead of the fix.
+        rep = self.build([self.quad()], allow_dead=1)
+        self.assertEqual(rep.warnings, 1)
+        self.assertTrue(any("is gone" in f for f in self.failures(rep)))
+
+    def test_one_more_hairline_than_declared_still_warns(self):
+        # The half that makes --allow-hairline a declaration rather than
+        # an off switch. Without this the flag could be implemented as
+        # "skip the check" and nothing here would notice.
+        rep = self.build([self.quad(h=1), self.quad(w=1, y=20)],
+                         allow_hairline=1)
+        self.assertEqual(rep.warnings, 1)
+        self.assertTrue(any("1 1px quad(s) will shimmer" in f
+                            for f in self.failures(rep)))
 
     def test_unreachable_focusable_is_an_error(self):
         # Two nodes, no edges between them: the D-pad can never reach the

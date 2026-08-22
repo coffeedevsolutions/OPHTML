@@ -365,14 +365,57 @@ def _dead_commands(uib, sc) -> list:
         uib.records, sc["cmd_first"], sc["cmd_count"],
         uib.canvas_w, uib.canvas_h)
 
-def check_crt(uib, rep: Report, canvas, allow_dead: int = 0) -> None:
+def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):
+    """Report a count that was declared on the command line.
+
+    A declaration is an assertion, not a ceiling. `--allow-dead 1` and
+    `--allow-hairline 5` name specific instruments -- a quad parked
+    outside its clip to prove the scissor works, four edge rules whose
+    absence IS bring-up step 6's reading -- and the first version of
+    both flags accepted "at most N", so the declaration could not
+    notice its instruments leaving. Deleting the test card's red top
+    edge rule left the check reporting "4 1px quad(s), 5 declared
+    deliberate" and passing.
+
+    So all three directions are verdicts: fewer than declared is an
+    instrument that went missing, more is the accident the check exists
+    for, and only the exact count passes.
+
+    One function, because the second flag inherited the first flag's
+    ceiling instead of its fix. A third cannot.
+    """
+    if declared and n == declared:
+        rep.warn(True, f"{n} {noun}, {declared} declared deliberate ({flag})")
+    elif declared and n < declared:
+        rep.warn(False,
+                 f"{n} {noun}, but {declared} declared deliberate ({flag}): "
+                 f"{declared - n} of the instruments that count names is "
+                 f"gone, and the check can no longer see what it measures")
+    elif n:
+        rep.warn(False, surplus_text
+                 + (f"; {declared} declared deliberate" if declared else ""))
+    else:
+        rep.warn(True, clean_text)
+
+
+def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,
+              allow_hairline: int = 0) -> None:
     """Advisory. Legal blobs that waste the GS or look wrong on a CRT."""
+    # `--allow-hairline N`, for the same reason as --allow-dead below: a
+    # 1px quad is usually an accident and sometimes the instrument. The
+    # test card's edge rules and its interlace pair ARE the shimmer being
+    # measured (bring-up step 8), and a blob cannot say so about itself.
+    # Declaring the count keeps this strict -- one more still warns --
+    # and turns the only remaining permanent warning in CI into a number
+    # somebody chose. A linter with standing false alarms is one people
+    # learn to skim.
     hairlines = [i for i, r in enumerate(uib.records)
                  if r.op == OP_QUAD and (r.w == 1 or r.h == 1)]
-    rep.warn(not hairlines,
-             f"{len(hairlines)} 1px quad(s) will shimmer on an interlaced CRT"
-             if hairlines else
-             "no 1px quads to shimmer on an interlaced CRT")
+    _declared_count(
+        rep, len(hairlines), allow_hairline, "--allow-hairline", "1px quad(s)",
+        f"{len(hairlines) - allow_hairline} 1px quad(s) will shimmer on an "
+        f"interlaced CRT",
+        "no 1px quads to shimmer on an interlaced CRT")
 
     # `--allow-dead N` declares that N of these are deliberate. The flag
     # that produced them (`data-keep`) is build-time only and never
@@ -380,20 +423,13 @@ def check_crt(uib, rep: Report, canvas, allow_dead: int = 0) -> None:
     # instrument from waste -- and it should not guess. Declaring the
     # count keeps the check strict: one more than expected still warns.
     dead = [i for sc in uib.screens for i in _dead_commands(uib, sc)]
-    if allow_dead and len(dead) <= allow_dead:
-        rep.warn(True,
-                 f"{len(dead)} dead command(s), {allow_dead} declared "
-                 f"deliberate (--allow-dead)")
-    else:
-        surplus = len(dead) - allow_dead
-        rep.warn(not dead,
-                 f"{surplus} command(s) fall entirely outside their clip and "
-                 f"are submitted every frame for nothing (from command "
-                 f"{dead[0]}); usually the tail of a nowrap run inside "
-                 f"overflow:hidden"
-                 + (f"; {allow_dead} declared deliberate" if allow_dead else "")
-                 if dead else
-                 "every command can produce a pixel")
+    _declared_count(
+        rep, len(dead), allow_dead, "--allow-dead", "dead command(s)",
+        f"{len(dead) - allow_dead} command(s) fall entirely outside their "
+        f"clip and are submitted every frame for nothing (from command "
+        f"{dead[0] if dead else 0}); usually the tail of a nowrap run "
+        f"inside overflow:hidden",
+        "every command can produce a pixel")
 
     unused = sorted(set(range(len(uib.textures))) -
                     {r.tex for r in uib.records if r.op == OP_TEXQUAD}
@@ -410,7 +446,8 @@ def check_vram(uib, rep: Report, budget=None) -> None:
     rep.error(ok, f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB")
 
 
-def check_blob(uib, budget=None, allow_dead: int = 0) -> Report:
+def check_blob(uib, budget=None, allow_dead: int = 0,
+               allow_hairline: int = 0) -> Report:
     """Every check, in dependency order. Returns the Report."""
     rep = Report()
     check_tables(uib, rep)
@@ -420,7 +457,8 @@ def check_blob(uib, budget=None, allow_dead: int = 0) -> Report:
     check_gs_domains(uib, rep)
     check_fonts(uib, rep)
     check_vram(uib, rep, budget)
-    check_crt(uib, rep, (uib.canvas_w, uib.canvas_h), allow_dead)
+    check_crt(uib, rep, (uib.canvas_w, uib.canvas_h), allow_dead,
+              allow_hairline)
     return rep
 
 
@@ -434,6 +472,9 @@ def main(argv=None) -> int:
     ap.add_argument("--allow-dead", type=int, default=0, metavar="N",
                     help="N draw commands outside their clip are deliberate "
                          "(data-keep instruments); more than N still warns")
+    ap.add_argument("--allow-hairline", type=int, default=0, metavar="N",
+                    help="N 1px quads are deliberate (the test card's edge "
+                         "rules and interlace pair); more than N still warns")
     ap.add_argument("--strict", action="store_true",
                     help="treat CRT warnings as failures")
     args = ap.parse_args(argv)
@@ -444,7 +485,8 @@ def main(argv=None) -> int:
         print(f"ps2ui-check: {exc}", file=sys.stderr)
         return 2
 
-    rep = check_blob(uib, args.vram_budget, args.allow_dead)
+    rep = check_blob(uib, args.vram_budget, args.allow_dead,
+                     args.allow_hairline)
     rep.emit()
 
     aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"

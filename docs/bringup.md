@@ -5,6 +5,11 @@ the first run on a console or emulator. Work the steps in order — each
 one isolates a single subsystem, and later steps are meaningless while
 an earlier one fails.
 
+**At a bench, read `docs/bench-runbook.md` instead.** It is one page:
+which ELF to boot for which step, what the cell should look like, and
+the verdict table for what you see. This document is the reasoning
+behind those verdicts and where to go when one of them reads FAIL.
+
 ## Hardware log
 
 What has actually run on silicon, as opposed to what is expected to.
@@ -33,6 +38,39 @@ Reference material, in the order you will reach for it:
   instead: a timed capture then always lands on the frame `--preview`
   rendered, which is the only way an automated diff means anything. CI
   uses `STATIC=1` for exactly that reason.
+
+  `SCREEN=probe` opens on a named screen rather than screen 0. The
+  sample walks focus but never switches screens, so without it the
+  conformance grid — screen 1 of the channel-6 blob, and where steps 3,
+  4, 5 and 7 are read — cannot be reached on a console at all. CI
+  builds that combination as `conform.elf`. A name the blob does not
+  carry holds solid magenta rather than falling back to screen 0.
+
+### The flat-fill vocabulary
+
+A full-screen flat colour is always a status, never a UI. Four of them
+exist and an operator reads them across ELFs, so they are listed
+together — picking a fifth means picking one distinct from all of these
+in hue and well clear of black:
+
+| fill | luma | means |
+|---|---:|---|
+| steel blue `#4080c0` | 116 | `minimal.elf` passed (step 1) |
+| dark red `#800000` | 38 | `ps2ui_load` failed |
+| olive `#808000` | 113 | `ps2ui_upload` failed (step 9) |
+| magenta `#ff00ff` | 105 | `SCREEN=` names no screen in this blob |
+
+Black is not in this table on purpose: black is *no picture*, which is
+a boot failure. That is why none of the four may be dark.
+
+Read these live, not from a photograph. Step 2's own notes above record
+that a phone renders saturated magenta on a panel as violet and lifts
+the near-black ground to maroon, so a hex is not what reaches a report.
+What survives a camera is the judgement these are actually for: the
+whole frame is one flat colour, and it is this one of five rather than
+that one. Full-frame is what makes that safe — the tone curve that
+defeats measuring a 24px swatch cannot turn one of five apart-in-hue
+fills into another.
 - `tools/make_testcard.py` — the texel-alignment card, a narrower
   instrument for step 6 alone.
 - The previewer PNGs are ground truth throughout. They replay the same
@@ -565,22 +603,38 @@ centres — a false fault reported confidently on correct hardware.
 **Do:** navigate so an ellipsized title redraws (tiles clip their text
 via `overflow: hidden`), and look at the probe screen's CLIP cell.
 **Expect:** text clips exactly at the tile's padding edge, identical to
-the previewer — **and no magenta anywhere on the probe screen.**
+the previewer — and **exactly one magenta square**, never two and never
+none.
 
-The probe's CLIP cell carries a 24px magenta quad parked at x=603,
-outside the cell's clip rect (x=479..594) but inside the 640px canvas.
-A correct GS never rasterizes it, so it is invisible and the screen
-looks the same with or without it. Magenta on screen means the scissor
-rect is not reaching the hardware at all.
+The CLIP cell carries a *pair* of 24x24 magenta quads, and the count is
+the whole reading:
 
-That is a positive test for a negative, which nothing else here
-provides: every other check on this screen confirms something *is*
-drawn, and a scissor that silently does nothing looks identical to a
-scissor that works whenever the clipped content would have fitted
-anyway. It survives the baker's dead-geometry trim only because it is
-marked `data-keep`; `examples/channel6/check.py` asserts it stayed
-outside its clip and inside the canvas, since a drift in either
-direction turns it back into a quad that proves nothing.
+| magenta squares | verdict |
+|---|---|
+| exactly one | **pass** — the scissor suppressed the twin |
+| two | **fail** — the scissor rect is not reaching the hardware |
+| none | **void** — the quad never drew, which says nothing about clipping |
+
+One is parked outside the cell's clip rect but inside the 640px canvas,
+so a correct GS never rasterizes it. That quad alone is a positive test
+for a negative, which nothing else here provides: every other check on
+this screen confirms something *is* drawn, and a scissor that silently
+does nothing looks identical to a scissor that works whenever the
+clipped content would have fitted anyway.
+
+Alone, though, it was un-failable in the other direction — an invisible
+magenta quad means either the scissor suppressed it or the quad never
+drew at all, and nothing on screen told those apart. Hence the twin,
+inside the clip, same size, differing only in position: it is the
+calibration, and its absence is what turns "no magenta" from a pass
+into a void.
+
+Both survive the baker's dead-geometry trim only because they are
+marked `data-keep`; `examples/channel6/check.py` asserts one stayed
+outside its clip while the other stayed drawable, that both are the
+same size so only position distinguishes them, and that the hidden one
+clears the clip edge by 15px so an ordinary layout edit cannot walk it
+back inside.
 **If wrong:** `GS_SETREG_SCISSOR` is inclusive on both ends — the
 runtime passes `x1 - 1` / `y1 - 1`; an off-by-one here shows as a 1px
 text bleed. Also confirm scissor state isn't cached across frames by
@@ -637,8 +691,10 @@ Nothing here is in the baked data; the blob is field-agnostic.
 
 ## 9. VRAM pressure
 
-**Do:** run the sample and read `ps2ui_upload`'s return value.
-`make -C runtime/sample TELEMETRY=1` prints it.
+**Do:** run the sample. You do not need a wire to read this: an upload
+that fails holds the screen **solid yellow** and never draws anything
+else, so the result is a colour. `TELEMETRY=1` adds a stats line on
+stdout, but frame timing is what that line carries — not this.
 
 **Expect:** 0. The baker enforces a budget at bake time
 (`--vram-budget`, breakdown printed on every bake), so a failure here
@@ -654,7 +710,7 @@ the `return -1` in `ps2ui_upload` fails that check.
 
 Both shapes are covered: nothing fitting at all, and — the case a real
 console actually meets — running out **partway**, with earlier textures
-already allocated and uploaded (measured at 18 of 19).
+already allocated and uploaded (measured at 7 of 19).
 
 **What a non-zero leaves behind:** `ctx->uploaded` stays 0 however far
 the upload got, so a caller cannot render through a half-built texture
