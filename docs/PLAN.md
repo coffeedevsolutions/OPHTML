@@ -174,16 +174,38 @@ phases do not.
 
 ### Phase 0 — Verify the metal
 
-Run `docs/bringup.md` on real hardware and/or PCSX2 with a real BIOS: nine
-ordered steps (boot/clear, 0x80 alpha blend, CLUT swizzle, text tinting and
-its fallback, modulate domain, texel centers via the test card, scissor
-nesting, interlace field order, VRAM alloc failure). Resolve the Play!
-0x7f/0x80 question. Add the deliberately clipped probe quad (deferred from
-PR #15 review). Record findings; fixes land with regression tests.
+Run `docs/bringup.md` on real hardware and/or PCSX2 with a real BIOS.
+**Ten** ordered steps, not nine — step 10 (display aspect) was added
+after this section was first written.
 
-> **Exit gate:** all nine steps pass on at least one real PS2; hardware
+**Done, on a SCPH-50000 (NTSC, FMCB, USB):**
+
+- **Step 1 — boot and clear: PASS.** ELF load, dmaKit and gsKit init,
+  video mode accepted, framebuffer flip, clean return to the browser.
+- **Step 2 — solid quads and the blend unit: PASS, after finding a
+  fault.** Alpha ran exactly inverted: nothing in `runtime/` had ever
+  written the GS `ALPHA` register and gsKit's default swaps the
+  operands, so effective coverage was `128 - As` and every quad the
+  format calls opaque composited to background. Fixed in
+  `ps2ui_render`, fenced by two runtime checks.
+- **The Play! 0x7f/0x80 question: resolved.** Not HLE inaccuracy. Real
+  silicon does the same thing, for the reason above.
+- **The deliberately clipped probe quad** (deferred from PR #15
+  review): landed, and it needed the blend fix first — at alpha `0x80`
+  it could not have appeared whether or not the scissor worked.
+- **Step 10 — display aspect: characterised.** 4:3 pillarboxed into a
+  16:9 panel, which is correct behaviour.
+
+**Left:** steps 3-9 — CLUT upload and CSM1 swizzle, text tinting and
+its `HAS_FUNCTION=0` fallback, modulate domain, texel centres via the
+test card, scissor nesting, interlace field order, VRAM pressure. The
+bench is now cheap to re-enter: the drive works, `probe.elf` runs, and
+the loop has been done once end to end.
+
+> **Exit gate:** all ten steps pass on at least one real PS2; hardware
 > confidence multipliers flip to verified; the "not hardware-verified"
-> caveat leaves the README.
+> caveat leaves the README. **Partially met** — 1, 2 and 10 are in, the
+> gate is not.
 
 ### Phase 1 — One resource model
 

@@ -335,13 +335,21 @@ The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit
 
 The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain, boots it in the Play! emulator and fingerprints the frame. That emulator job is non-gating (`continue-on-error`) until its first green run.
 
-Still not hardware-verified, but no longer entirely unverified. Measured by the palette fingerprint `framediff.py --stats` prints for the captured frame and the previewer's, under Play! 0.72 (`Play!-8de4a71f-x86_64.AppImage`) on llvmpipe, [run 32065976980](https://github.com/coffeedevsolutions/OPHTML/actions/runs/32065976980):
+**It has now run on a real PlayStation 2** — a SCPH-50000, NTSC, booted from USB under FreeMcBoot. Bring-up steps 1 and 2 pass; steps 3-9 are still ahead. See [docs/bringup.md](docs/bringup.md) for the hardware log.
+
+Step 2 found a real fault, of the kind only hardware could find:
+
+- **Alpha ran exactly inverted, and had since the renderer's first line.** Nothing in `runtime/` had ever written the GS `ALPHA` register, and gsKit's default is `GS_BLEND_BACK2FRONT` — `A=Cd B=Cs C=As D=Cs`, the operands swapped — so effective coverage was `128 - As`. A quad the `.uib` calls fully opaque at `As = 0x80` composited to pure background and disappeared; a nearly transparent one painted at almost full strength. Measured on six rungs on hardware and again under Play!, every one fitting `128 - As` to within a unit. `ps2ui_render` now asserts `(Cs - Cd) * As >> 7 + Cd` every frame, and two runtime checks fail if it stops.
+
+**A correction to what this section used to say.** It claimed "the blend equation is right," citing the probe ladder compositing to `#8c0784` at `0x40` and `#c503c1` at `0x60`. Both colours were indeed on screen — but the ladder was running *backwards*, so they belonged to different rungs than the ones named. `0x40` is the single alpha where the correct and inverted equations agree, which is exactly why a check that looked for the presence of expected colours could not tell the difference. The colours were all there; the mapping was inverted.
+
+Emulator measurements below, under Play! 0.72 (`Play!-8de4a71f-x86_64.AppImage`) on llvmpipe:
 
 - **Textured rendering is correct.** The six most common colours in the captured frame are, apart from the background, all stylesheet text colours matched to within one unit — `#8b94a7` → `#8c94a8`, `#f2f5fa` → `#f2f6fa`, `#e8ecf4` and `#ffffff` exact. That exercises the glyph atlas, the CLUT upload, the CSM1 bit-3/bit-4 swizzle, `GSTEXTURE::Function` modulate and the 0x80-identity colour domain, and the `+1`s are the quantisation `Cv = Ct·Cf >> 7` produces. Bring-up steps 3, 4 and 5.
-- **The blend equation is right.** The step-2 probe's alpha ladder composites to `#8c0784` at `0x40` and `#c503c1` at `0x60`, which is `(Cs - Cd) * As >> 7 + Cd` exactly.
-- **Solid fills at alpha `0x7f` and `0x80` do not appear** — and specifically, they rasterise wearing the *previous* primitive's colour rather than being discarded. `0x80` is the value every opaque quad in a `.uib` carries, which is why the UI frame came back 92.8% black with its text intact. That is bring-up step 2, and it is why the emulator diff is still red. Whether a real GS agrees is the open question: Play! is HLE, and untextured primitives and GIF packing are where it diverges most.
+- **Solid fills at alpha `0x7f` and `0x80` did not appear.** `0x80` is the value every opaque quad in a `.uib` carries, which is why the UI frame came back 92.8% black with its text intact — text survives because its alpha comes from the atlas, not from `0x80`. This was recorded as a possible Play! HLE artifact. **It was not.** Real silicon does the same thing, for the reason above, and the frame was black because the render loop clears with blending on: under the inverted equation a clear at `0x80` resolves to the *destination*.
+- **With the blend asserted**, the same capture returns 52.8% `#0a0e1a` against an expected 58.6%, means within one unit per channel, and global RMSE 22.89 down from 72.89. Of that 22.89, **6.40 is the capture pipeline's own resampling floor**, measured on the runner by round-tripping the previewer PNG through the same resizes with no renderer involved.
 
-For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF, `make -C runtime/sample PROBE=1` builds the step 2 instrument, and `tools/make_testcard.py` builds a texel-alignment card.
+For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF. Start with `make -C runtime/sample MINIMAL=1`, which is step 1 alone — clear, hold, exit, three gsKit calls — so that if nothing appears you already know whether the boot path or the drawing failed. `PROBE=1` then builds the step 2 instrument, and `tools/make_testcard.py` builds a texel-alignment card.
 
 See [docs/architecture.md](docs/architecture.md) for the decision log.
 
@@ -349,7 +357,7 @@ See [docs/architecture.md](docs/architecture.md) for the decision log.
 
 Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 
-- [ ] First run on real hardware / PCSX2 ([docs/bringup.md](docs/bringup.md) is the procedure)
+- [ ] Finish hardware bring-up: steps 3-9 ([docs/bringup.md](docs/bringup.md) is the procedure; 1, 2 and 10 are done)
 - [ ] Working emulator screenshot job in CI
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
 - [ ] `position: absolute` for overlays and dialogs
