@@ -428,8 +428,44 @@ captures; on composite, use your eyes.
 
 ## 3. CLUT upload and the CSM1 swizzle
 
-**Do:** enable TEXQUADs; look at any text.
-**Expect:** legible antialiased glyphs.
+**Do:** look at the bar across the top of the probe screen's
+`IMAGE` cell.
+
+**Expect:** a flat dark-teal bar with **one bright-orange stripe hard
+against its right edge** — nothing else.
+
+The two colours are 119 apart in Rec.601 luma and 108 in Rec.709, so
+the stripe survives a monochrome capture, a badly tinted CRT, or a
+photograph with the saturation crushed. The pair before them looked
+emphatic and was 1.2 apart in Rec.709 — #636363 against #747474 in
+greyscale — which is the same trap the step 2 ladder fell into.
+
+    correct        [ X X X X X | Y ]
+    bit 3 wrong     X Y X X X | Y      stripe appears at 1/6
+    bit 4 wrong     X X X Y X | Y      stripe appears at 3/6
+    no permutation  X Y X Y X | Y
+
+The stripe's *position* names which bit failed, so the cell does not
+only say "wrong". Verified against the real baked CLUT: skipping the
+permutation changes exactly regions 1 and 3, which are the two probes.
+
+**The rightmost stripe is the calibration.** Its two indices carry
+genuinely different palette entries and both sit below bit 3, so no
+permutation — right or wrong — can remove it. If it is missing, this
+cell cannot show you a stripe at all: the run is **void, not a pass**,
+and nothing above it means anything.
+
+Built by `tools/make_swizzle_tile.py`, which carries the construction
+and the reason a straight swap of two indices would have been
+invisible: swapping two regions is symmetric, so it looks like a
+boundary either way. The tile breaks that symmetry with index 0, which
+the permutation does not touch. `check.py` asserts the traps still
+differ from the probes, because if `linear[16]` ever equalled
+`linear[8]` a bit-3 fault would render identically to a correct upload.
+
+**Do (secondary):** look at any text; legible antialiased glyphs mean
+the atlas path agrees too.
+
 **If wrong (glyphs render as banded/garbled noise):** the CSM1
 permutation. CLUTs are stored *linearly* in the .uib; the runtime
 permutes on upload via `ps2ui_clut_csm1()` (bit-3/bit-4 swap). If your

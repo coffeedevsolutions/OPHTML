@@ -161,8 +161,8 @@ reports failure rather than only ever returning 0.
 1. ~~`.tell-twin`~~ — done; closed a vacuity that was live on `main`
 2. ~~Steps 4 and 5 vanish rows~~ — done, with the `data-nocontrast`
    exemption they needed
-3. **Step 3 swizzle tile** — blocked on the baker preserving authored
-   palettes; its own PR
+3. ~~Step 3 swizzle tile~~ — done, once the baker preserved authored
+   palettes
 4. Step 6 calibration card
 5. Steps 8 and 9 — smallest, and independent of the rest
 

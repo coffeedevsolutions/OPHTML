@@ -251,6 +251,76 @@ def main(path: str) -> int:
           "and its ink does not match either block, so it must be "
           "legible when the vanish rows are not")
 
+    # --- bring-up step 3: the CSM1 swizzle tile ----------------------
+    #
+    # The CLUT ships linearly and the runtime permutes it on upload,
+    # swapping bits 3 and 4 of the index. The tile is built so a correct
+    # permutation renders it flat with one stripe at the right, and a
+    # wrong one puts a stripe at 1/6 (bit 3) or 3/6 (bit 4).
+    #
+    # None of that survives unless the construction does, and the
+    # construction lives in a PNG that nothing else validates. In
+    # particular the TRAP entries have to differ from the probe entries:
+    # if linear[16] ever equalled linear[8], a bit-3 fault would render
+    # identically to a correct upload and the probe could not fail.
+    swz = [t for t in uib.textures
+           if t.fmt == gs.PSMT8 and (t.width, t.height) == (96, 20)]
+    check(len(swz) == 1, f"the swizzle tile baked as PSMT8 ({len(swz)} found)")
+    if len(swz) == 1:
+        tile = swz[0]
+        check(sorted(set(tile.data)) == [0, 1, 2, 8, 32, 48],
+              f"and kept its authored indices "
+              f"({sorted(set(tile.data))})")
+
+        # ORDER, not just membership. The whole diagnostic is that a
+        # stripe's position names the failing bit, and the position is
+        # the region order -- so validating the palette exhaustively
+        # while ignoring the geometry validates everything about this
+        # instrument except the property it is read by.
+        #
+        # Reordering REGIONS to [0, 32, 8, 2, 1, 48] passed all 42
+        # checks while moving the calibration stripe off the right edge
+        # and making every row of bringup.md's reading table wrong.
+        cell = tile.width // 6
+        first = tile.data[:tile.width]
+        order = [first[c * cell] for c in range(6)]
+        check(order == [0, 8, 32, 48, 1, 2],
+              f"in the order the reading table depends on ({order})")
+        # And every pixel of a region has to match that region's
+        # sample, not merely be uniform along its own row. The first
+        # version of this check tested each region-row independently,
+        # which a per-row shuffle satisfies while rendering six stripes
+        # that change down the tile -- uniform on every line, wrong
+        # everywhere. The order sample is taken from row 0, so the
+        # property is that the rest of the tile agrees with row 0.
+        solid = all(
+            tile.data[r * tile.width + x] == order[c]
+            for c in range(6)
+            for x in range(c * cell, (c + 1) * cell)
+            for r in range(tile.height)
+        )
+        check(solid,
+              "and every region is that index all the way down, so the "
+              "sample above describes the whole tile")
+        clut = uib.cluts[tile.clut]
+
+        def entry(i):
+            return tuple(clut[i * 4:i * 4 + 3])
+
+        probes = (0, 8, 32, 48, 1)
+        check(len({entry(i) for i in probes}) == 1,
+              f"every probe index carries one colour "
+              f"({sorted({entry(i) for i in probes})})")
+        # The three that must differ, and why each one matters:
+        #   16 is where index 8 lands if bit 3 is not swapped
+        #   40 is where index 48 lands if bit 4 is not swapped
+        #   2 is the calibration, which no permutation can reach
+        for trap, probe, what in ((16, 8, "bit 3"), (40, 48, "bit 4"),
+                                  (2, 1, "the calibration")):
+            check(entry(trap) != entry(probe),
+                  f"{what}: linear[{trap}] differs from linear[{probe}], "
+                  f"so a fault there is visible")
+
     # --- bring-up step 7's instrument (data-keep) --------------------
     #
     # A PAIR of magenta quads, and the pair is the instrument -- one

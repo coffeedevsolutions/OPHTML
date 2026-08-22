@@ -280,9 +280,17 @@ h1 {
   gap: 10px;
 }
 
-/* Seven cells at 135px wrap 4 + 3 inside the 572px content width
- * (4*135 + 3*10 gap = 570), which is what keeps the third row from
- * pushing the footer off a 448-line frame. */
+/* EIGHT cells at 135px wrap 4 + 4 inside the 572px content width
+ * (4*135 + 3*10 gap = 570). A ninth starts a third row, and the third
+ * row pushes the footer off a 448-line frame -- adding one put
+ * `probe-flex`'s text at y=474 and y=514 on a 448-tall canvas, with
+ * twelve overscan warnings to say so. That is why the swizzle tile
+ * lives inside the IMAGE cell rather than in a cell of its own: it is
+ * a PSMT8+CLUT source, so it belongs there anyway, and the grid has no
+ * room to disagree.
+ *
+ * Anything new goes inside an existing cell, or the cells get narrower
+ * and every tile inside them has to be re-fitted. */
 .cell {
   flex-direction: column;
   width: 135px;
@@ -496,6 +504,38 @@ h1 {
  * no text" and "this cell renders no text at all" are the same
  * observation, and rows 1 and 2 would be unfalsifiable. */
 .ink-c { color: #d0d8e4; }
+
+/* Bring-up step 3, asked as "is there a stripe here".
+ *
+ * The CLUT ships linearly and the runtime permutes it on upload,
+ * swapping bits 3 and 4 of the palette index. This tile is built from
+ * indices chosen so a correct permutation renders it flat and a wrong
+ * one breaks it into stripes -- see tools/make_swizzle_tile.py for the
+ * construction and why a straight swap of two indices would have been
+ * invisible.
+ *
+ *   correct        [ X X X X X | Y ]   one stripe, hard against the right
+ *   bit 3 wrong    a stripe appears at 1/6
+ *   bit 4 wrong    a stripe appears at 3/6
+ *
+ * So the tile does not only say "wrong", it says which bit.
+ *
+ * The last pair is the calibration: its two indices carry genuinely
+ * different palette entries, so no permutation can remove that stripe.
+ * If it is missing, the cell cannot show a stripe at all and the run is
+ * void rather than a pass.
+ *
+ * Width and height are the PNG's own. An indexed source laid out at any
+ * other size is a build error, because resampling index values is
+ * meaningless -- which is exactly the property this tile depends on.
+ *
+ * It sits in the IMAGE cell rather than one of its own: it IS a
+ * PSMT8+CLUT source, so it is the third member of that cell's family,
+ * and a ninth cell overflows the grid (see .cell). */
+.swz {
+  width: 96px;
+  height: 20px;
+}
 
 /* Images: identical source, PSMCT32 on the left, PSMT8+CLUT right. */
 .img-row { flex-direction: row; align-items: center; gap: 8px; }
