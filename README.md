@@ -114,7 +114,7 @@ Regenerate the committed metrics after changing `fontgen`:
 - Keep art in an `assets/` folder next to your HTML: `<img src="assets/badge.png">` (PNG only at build time)
 - Paths resolve relative to the HTML document
 - The baker decodes, pre-scales to the laid-out size, and packs the pixels into the `.uib`. The console never touches a filesystem
-- Add the `palettize` attribute (or bake with `--palettize-images`) to quantize an image to 8-bit indexed + CLUT. 4x less VRAM per texel for art within 256 colors. An already-indexed PNG keeps its own palette and index values instead of being requantized; laying one out at a size other than its own is a build error rather than a silent requantize
+- Add the `palettize` attribute (or bake with `--palettize-images`) to quantize an image to 8-bit indexed + CLUT. 4x less VRAM per texel for art within 256 colors. An already-indexed PNG keeps its own palette and index values instead of being requantized. Laying one out at a size other than its own is a build error when `palettize` asked for that image; under the project-wide `--palettize-images` it warns and requantizes instead, since that flag is a VRAM request rather than a claim about any one asset
 - One deliberate CSS deviation: flex `stretch` never distorts an image's aspect ratio. Give it an explicit size if you want stretching
 
 ## Dynamic text

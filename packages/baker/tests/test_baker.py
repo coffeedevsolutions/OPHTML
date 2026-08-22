@@ -672,6 +672,37 @@ class TestImages(unittest.TestCase):
                 f.run()
             self.assertIn("indexed PNG", str(cm.exception))
 
+    def test_palettize_all_requantizes_an_indexed_png_rather_than_failing(self):
+        # The two opt-ins are not the same claim. `palettize` on an
+        # <img> says "I care about this image's palette".
+        # --palettize-images says "quantize everything to save VRAM" --
+        # its author made no claim about any particular asset, so
+        # failing their build over one indexed PNG answers a question
+        # nobody asked, and the refusal message points at an attribute
+        # they never wrote.
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_indexed_png(td, size=(16, 12))
+            f = Flattener(
+                tiny_ir([self.image_cmd(src, w=32, h=24, palettize=False)]),
+                font_paths(), palettize_all=True)
+            f.run()  # must not raise
+            tex = f.textures[f.records[0].tex]
+            self.assertEqual(tex.fmt, gs.PSMT8)
+            self.assertEqual((tex.width, tex.height), (32, 24))
+
+    def test_palettize_all_still_bakes_a_matching_indexed_png_verbatim(self):
+        # Requantizing under the blanket flag is the fall-back, not the
+        # rule: when no resize is needed there is nothing to trade away,
+        # so the authored indices still survive.
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_indexed_png(td, size=(16, 12))
+            f = Flattener(
+                tiny_ir([self.image_cmd(src, w=16, h=12, palettize=False)]),
+                font_paths(), palettize_all=True)
+            f.run()
+            tex = f.textures[f.records[0].tex]
+            self.assertEqual(sorted(set(tex.data)), [0, 8, 32, 48])
+
     def test_indexed_png_without_palettize_is_still_rgba(self):
         # The verbatim path is opt-in through the same attribute as
         # before; an indexed source with no `palettize` is ordinary art.

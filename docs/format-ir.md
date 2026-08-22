@@ -115,11 +115,18 @@ A short palette is padded to the full 256 entries, because the GS reads
 a 256-entry CLUT and the runtime permutes all of them.
 
 An indexed source laid out at a size other than its own is a **build
-error**, not a silent fall-back to quantizing. Resampling index values
-is meaningless, and quietly requantizing would leave the author
-believing the indices survived with nothing to say otherwise. Bake it
-at its natural size, or drop `palettize` to have it requantized on
-purpose.
+error** when `palettize` was asked for on that image, not a silent
+fall-back to quantizing. Resampling index values is meaningless, and
+quietly requantizing would leave the author believing the indices
+survived with nothing to say otherwise. Bake it at its natural size, or
+drop `palettize` to have it requantized on purpose.
+
+The project-wide `--palettize-images` is a different claim: it asks for
+VRAM savings across the board, not for any particular asset's palette.
+There it **warns and requantizes** rather than failing a build over an
+image nobody made a claim about. Verbatim is still the rule when no
+resize is needed — under the blanket flag too, since then there is
+nothing to trade away.
 
 ### `scissor_push` / `scissor_pop`
 
