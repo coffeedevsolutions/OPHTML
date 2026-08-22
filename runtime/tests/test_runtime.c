@@ -210,6 +210,23 @@ int main(int argc, char **argv)
         CHECK(domain_ok, "texquad colors in the 0x80 modulate domain");
     }
 
+    /* ---- render: the blend equation is asserted, not inherited ----
+     *
+     * gsKit's default ALPHA is GS_BLEND_BACK2FRONT, which decodes to
+     * A=Cd B=Cs C=As D=Cs -- the operands swapped -- so the effective
+     * coverage is (128 - As). Every blended quad ran with its alpha
+     * inverted, and a quad the format calls fully opaque composited to
+     * pure background. It took a console to find, because nothing in
+     * the host toolchain models GS state. This is the fence. */
+    {
+        u64 want = GS_SETREG_ALPHA(0, 1, 0, 1, 0);
+        stub_prim_alpha = 0;
+        stub_prim_alpha_set = 0;
+        ps2ui_render(&ctx, &gs);
+        CHECK(stub_prim_alpha_set, "render sets the GS blend mode rather than inheriting it");
+        CHECK(stub_prim_alpha == want, "and sets it to (Cs - Cd) * As >> 7 + Cd");
+    }
+
     /* ---- render: geometry stays on canvas ---- */
     {
         int k, in_bounds = 1;

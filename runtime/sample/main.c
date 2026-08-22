@@ -22,6 +22,30 @@ extern unsigned int size_ui_uib;
 /* Frames to hold each focus state — long enough for a screenshot. */
 #define FRAMES_PER_STATE 150
 
+/* How long the probe holds its screen before returning to the browser.
+ * Long enough to look at it and photograph it; short enough that an
+ * operator is not left wondering. */
+#define PROBE_FRAMES (90u * 60u)   /* ~90 s NTSC, ~108 s PAL */
+
+/* `make MINIMAL=1` builds bring-up step 1 and nothing else: clear the
+ * screen, hold, exit. Three gsKit calls, no sprites, no blending, no
+ * textures, no blob.
+ *
+ * It exists so the first thing that ever touches a console is the
+ * smallest surface that can prove anything. If it works, then the ELF
+ * loads and boots, dmaKit and gsKit init, the video mode is accepted,
+ * the framebuffer flips, and returning from main gets back to the
+ * browser -- all confirmed before a single primitive is submitted.
+ * Step 2 then adds exactly one thing. A probe that draws everything at
+ * once cannot tell you which half failed.
+ *
+ * The colour is chosen so it also tests channel order for free: R, G
+ * and B are 0x40, 0x80, 0xc0, strictly increasing, so a correct frame
+ * is unmistakably BLUE and a byte-swapped one is unmistakably ORANGE.
+ * "Wrong colours entirely" is a documented step 2 failure mode; this
+ * catches it a step earlier and without ambiguity. */
+#define MINIMAL_FRAMES (30u * 60u) /* ~30 s NTSC, ~36 s PAL */
+
 /* Build with -DPS2UI_SAMPLE_TELEMETRY for a once-a-second log line on
  * stdout. printf from the EE reaches PCSX2's console log, ps2link, and
  * any TTY hook — no IRX modules, no storage, nothing to mount, which
@@ -87,12 +111,36 @@ static inline u32 cop0_count(void)
 #endif
 
 #ifdef PS2UI_SAMPLE_PROBE
-/* Bring-up step 2 as a program, for when solid fills do not appear.
+/* Bring-up step 2 as a program: which primitive paths reach the screen,
+ * and does the GS blend the way the baker assumed.
+ *
+ * HARDWARE, SCPH-50000, first run: the clear, the unblended control and
+ * the blended ladder all drew, and the ELF returned to the browser on
+ * its own. So GIF encoding, both packet forms, ABE and the blend unit
+ * are all live on real silicon -- that much is settled and this probe
+ * is no longer asking it. What the first run could NOT settle was the
+ * ladder itself; see the v2 note above probe_frame for why, and what
+ * changed.
  *
  * The first emulator capture came back 92.8% pure black with every text
- * colour present and correct to within one unit. So the textured path
- * works — atlas, CLUT, CSM1 swizzle, modulate domain — and nothing
- * untextured drew, including `gsKit_clear`, which is not ps2ui's code.
+ * colour present and correct to within one unit. That read as "the
+ * textured path works and nothing untextured drew", which sent the
+ * first version of this probe hunting GIF packet encoding.
+ *
+ * RESOLVED, and it was not packet encoding. It was the inverted blend,
+ * and the frame says so precisely: the shipping render loop clears with
+ * ABE on at alpha 0x80, and under gsKit's default that composites to
+ * the DESTINATION -- the previous framebuffer, i.e. black -- rather
+ * than to the clear colour. Untextured geometry drew all along and then
+ * composited itself away. Text survived because its alpha comes from
+ * the atlas, not from 0x80. With the blend asserted, the same capture
+ * comes back 52.8% #0a0e1a against an expected 58.6%, means within one
+ * unit per channel, and global RMSE down from 72.89 to 22.89.
+ *
+ * (A second, independent fault was masking this: the CI capture ran on
+ * a root the size of the canvas, which Play! does not present 1:1. Both
+ * are fixed; the reasoning above stands on the clear-colour argument,
+ * not on the RMSE alone.)
  *
  * What this actually separates is GIF packet encoding, then blending,
  * then the alpha value, which is a sharper instrument than "the clear
@@ -119,35 +167,281 @@ static inline u32 cop0_count(void)
  *
  * A `.uib` is still linked into this ELF (bin2c runs regardless), so a
  * baked blob must exist to build it. Nothing draws it. */
-static const unsigned char probe_alphas[] = { 0x20, 0x40, 0x60, 0x7f, 0x80 };
+/* HARDWARE RESULT, v2, SCPH-50000: columns 1, 2, 3 and 6 painted both
+ * halves; columns 4 and 5 -- alpha 0x7f and 0x80 -- painted the
+ * reference and NOTHING in the test half. Play! did the same thing.
+ *
+ * Two independent GS implementations agreeing points at this tree, not
+ * at silicon, and the grep that follows is damning: nothing in
+ * runtime/ or sample/ has ever written the GS ALPHA register, the TEST
+ * register or PABE. Every one of them is whatever gsKit_init_screen
+ * happened to leave behind, while the baker computes alpha in the
+ * 0..128 domain on the assumption that the blend is
+ * (Cs - Cd) * As >> 7 + Cd with C selecting As. Nothing asserted that.
+ *
+ * Note what rules the obvious suspect out. The reference swatches carry
+ * vertex alpha 0x80 too, and column 5's reference drew perfectly. An
+ * alpha test rejecting high alpha would have taken it with the others.
+ * The only difference between a reference that draws and a test that
+ * vanishes is ABE, so the fault is in the blend, not in a discard.
+ *
+ * v3 therefore draws the ladder TWICE: once on inherited state, once
+ * with the blend registers set explicitly. Top ladder seamed and
+ * bottom ladder clean isolates it to the state and hands over the fix.
+ * If both read alike, gsKit applies this state at queue-exec rather
+ * than per primitive, which is worth knowing too and is why the
+ * comment above gsKit_clear already warns about PrimAlphaEnable. */
+static const unsigned char probe_ref_alpha[]  = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x80 };
+static const unsigned char probe_test_alpha[] = { 0x20, 0x40, 0x60, 0x7f, 0x80, 0x20 };
+#define PROBE_COLUMNS 6
 
-static void probe_frame(GSGLOBAL *gs)
+#define PROBE_GND_R 0x1a
+#define PROBE_GND_G 0x0e
+#define PROBE_GND_B 0x0a
+
+/* Not full magenta any more. Measuring the v2 photographs channel by
+ * channel showed the panel and camera together clip hard: references
+ * of #8c0784, #c503c1, #fd00fd and #ff00ff all came back within ten
+ * units of each other, so the top two thirds of the ladder were
+ * unreadable in absolute terms and the v2 calibration column -- a
+ * #c503c1 against a #8c0784 -- compressed into a false "seamless".
+ * A source that peaks at 0x90 keeps every rung inside the range the
+ * camera still resolves. The blend is linear in Cs, so testing at 0x90
+ * tests exactly what testing at 0xff would, and can be read. */
+#define PROBE_SRC_R 0x90
+#define PROBE_SRC_G 0x00
+#define PROBE_SRC_B 0x90
+
+#define PROBE_SAFE_X0 64
+#define PROBE_SAFE_Y0 45
+#define PROBE_SAFE_X1 576
+#define PROBE_SAFE_Y1 403
+
+static int probe_blend(int cs, int cd, int as)
+{
+    int v = (((cs - cd) * as) >> 7) + cd;
+    if (v < 0) v = 0;
+    if (v > 255) v = 255;
+    return v;
+}
+
+static void probe_bracket(GSGLOBAL *gs, int cx, int cy, int dx, int dy,
+                          int arm, int thick, u64 colour)
+{
+    float x0 = (float)(dx > 0 ? cx : cx - arm);
+    float x1 = (float)(dx > 0 ? cx + arm : cx);
+    float y0 = (float)(dy > 0 ? cy : cy - thick);
+    float y1 = (float)(dy > 0 ? cy + thick : cy);
+    gsKit_prim_sprite(gs, x0, y0, x1, y1, 0, colour);
+
+    x0 = (float)(dx > 0 ? cx : cx - thick);
+    x1 = (float)(dx > 0 ? cx + thick : cx);
+    y0 = (float)(dy > 0 ? cy : cy - arm);
+    y1 = (float)(dy > 0 ? cy + arm : cy);
+    gsKit_prim_sprite(gs, x0, y0, x1, y1, 0, colour);
+}
+
+/* Geometry lives in macros so the #if guards below check the layout
+ * rather than a hand-copied model of it. The v2 probe ran outside the
+ * safe box; a guard that re-derives the columns from its own literals
+ * would go stale the moment someone edits the array, which is the same
+ * mistake one level up. */
+#define PROBE_COL_X0 72
+#define PROBE_COL_DX 85
+#define PROBE_COL_W  70
+#define PROBE_TICK_DX 12
+#define PROBE_TICK_W  8
+
+/* Vertical layout, derived the same way for the same reason. The first
+ * pass at this macro-ised the columns and left every y a bare literal,
+ * which meant the guards could not see a 38px overlap between the two
+ * ladders, a tick row pushed past the safe box, or a control running
+ * off the right edge -- three sabotages, no diagnostic. An instrument
+ * whose guards cover one axis is an instrument with one axis guarded. */
+#define PROBE_CTRL_Y0  52
+#define PROBE_CTRL_H   60
+#define PROBE_CTRL_W   160
+#define PROBE_CTRL_GAP 40
+#define PROBE_CTRL2_X0 (PROBE_COL_X0 + PROBE_CTRL_W + PROBE_CTRL_GAP)
+#define PROBE_TICK_Y0  124
+#define PROBE_TICK_H   12
+#define PROBE_LAD1_Y0  148
+#define PROBE_BAND_H   58
+#define PROBE_LAD_GAP  18
+#define PROBE_LAD2_Y0  (PROBE_LAD1_Y0 + 2 * PROBE_BAND_H + PROBE_LAD_GAP)
+#define PROBE_TOP_Y    PROBE_CTRL_Y0
+#define PROBE_BOT_Y    (PROBE_LAD2_Y0 + 2 * PROBE_BAND_H)
+static const int probe_col_x[PROBE_COLUMNS] = {
+    PROBE_COL_X0 + 0 * PROBE_COL_DX, PROBE_COL_X0 + 1 * PROBE_COL_DX,
+    PROBE_COL_X0 + 2 * PROBE_COL_DX, PROBE_COL_X0 + 3 * PROBE_COL_DX,
+    PROBE_COL_X0 + 4 * PROBE_COL_DX, PROBE_COL_X0 + 5 * PROBE_COL_DX
+};
+
+/* One ladder: the colour the blend equation predicts, laid down
+ * literally with blending off, sitting directly on top of what the
+ * blend actually produces. Match and the column is one rectangle;
+ * mismatch and there is a seam, which survives any exposure, white
+ * balance or angle in a way that naming a colour does not. */
+static void probe_ladder(GSGLOBAL *gs, float ytop, float ymid, float ybot)
 {
     int i;
 
     gs->PrimAlphaEnable = GS_SETTING_OFF;
-    gsKit_clear(gs, GS_SETREG_RGBAQ(0x1a, 0x0e, 0x0a, 0x80, 0x00));
-
-    /* Control: unblended, and a colour used nowhere else. */
-    gsKit_prim_sprite(gs, 40.0f, 40.0f, 240.0f, 200.0f, 0,
-                      GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
-
-    /* Same colour every time, only the alpha varies, so a missing rung
-     * cannot be blamed on the colour register. Over the #1a0e0a ground
-     * the blend equation predicts each rung exactly:
-     *
-     *   0x20 -> #530a47   0x40 -> #8c0784   0x60 -> #c503c1
-     *   0x7f -> #fd00fd   0x80 -> #ff00ff
-     *
-     * A fingerprint missing only the last one puts the fault precisely
-     * at As = 128, which is the value the .uib calls opaque. */
-    gs->PrimAlphaEnable = GS_SETTING_ON;
-    for (i = 0; i < 5; i++) {
-        float x = 20.0f + 120.0f * (float)i;
-        gsKit_prim_sprite(gs, x, 248.0f, x + 120.0f, 408.0f, 0,
-                          GS_SETREG_RGBAQ(0xff, 0x00, 0xff,
-                                          probe_alphas[i], 0x00));
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        int as = probe_ref_alpha[i];
+        int r = probe_blend(PROBE_SRC_R, PROBE_GND_R, as);
+        int g = probe_blend(PROBE_SRC_G, PROBE_GND_G, as);
+        int b = probe_blend(PROBE_SRC_B, PROBE_GND_B, as);
+        gsKit_prim_sprite(gs, (float)probe_col_x[i], ytop,
+                          (float)(probe_col_x[i] + PROBE_COL_W), ymid, 0,
+                          GS_SETREG_RGBAQ(r, g, b, 0x80, 0x00));
     }
+
+    gs->PrimAlphaEnable = GS_SETTING_ON;
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        gsKit_prim_sprite(gs, (float)probe_col_x[i], ymid,
+                          (float)(probe_col_x[i] + PROBE_COL_W), ybot, 0,
+                          GS_SETREG_RGBAQ(PROBE_SRC_R, PROBE_SRC_G, PROBE_SRC_B,
+                                          probe_test_alpha[i], 0x00));
+    }
+}
+
+/* Column 6 is the calibration: its reference is computed for 0x80 while
+ * its test is drawn at 0x20, so it MUST seam in both ladders. Without
+ * it "no seam" is unfalsifiable -- it could equally mean nothing here
+ * resolves a seam. v2 proved that is not a theoretical worry: its
+ * calibration pair was #c503c1 against #8c0784, the camera flattened
+ * both to the same value, and the column read clean when it was
+ * supposed to be the one thing that could not. The mismatch is now
+ * large and in the dark direction, where the response still has range. */
+#if (PROBE_COL_X0 + PROBE_COL_DX * (PROBE_COLUMNS - 1) + PROBE_COL_W) > PROBE_SAFE_X1
+#error "probe ladder runs past the title-safe box"
+#endif
+#if (PROBE_COL_X0 + PROBE_COL_DX * (PROBE_COLUMNS - 1) \
+     + PROBE_TICK_DX * (PROBE_COLUMNS - 1) + PROBE_TICK_W) > PROBE_SAFE_X1
+#error "probe tick marks run past the title-safe box"
+#endif
+#if PROBE_COL_DX < PROBE_COL_W
+#error "probe columns overlap; a seam between neighbours is not a seam within one"
+#endif
+#if PROBE_COL_X0 < PROBE_SAFE_X0 || PROBE_BOT_Y > PROBE_SAFE_Y1 \
+    || PROBE_TOP_Y < PROBE_SAFE_Y0
+#error "probe content runs outside the title-safe box"
+#endif
+#if (PROBE_CTRL2_X0 + PROBE_CTRL_W) > PROBE_SAFE_X1
+#error "probe control row runs past the title-safe box"
+#endif
+#if (PROBE_TICK_Y0 + PROBE_TICK_H) > PROBE_SAFE_Y1
+#error "probe tick row runs past the title-safe box"
+#endif
+#if PROBE_TICK_Y0 < (PROBE_CTRL_Y0 + PROBE_CTRL_H)
+#error "probe tick row overlaps the control row"
+#endif
+#if PROBE_LAD1_Y0 < (PROBE_TICK_Y0 + PROBE_TICK_H)
+#error "probe ladder overlaps the tick row"
+#endif
+#if PROBE_LAD_GAP < 1
+#error "probe ladders touch; a seam between ladders is not a seam within one"
+#endif
+
+/* gsKit's ALPHA default, latched before anything overwrites it. Read
+ * once from the first probe_frame call rather than at init so it is
+ * captured after gsKit_init_screen has had its say. */
+static u64 probe_inherited_alpha;
+static int probe_latched;
+
+static void probe_frame(GSGLOBAL *gs)
+{
+    int i, t;
+
+    if (!probe_latched) {
+        probe_inherited_alpha = gs->PrimAlpha;
+        probe_latched = 1;
+    }
+
+    gs->PrimAlphaEnable = GS_SETTING_OFF;
+    gsKit_clear(gs, GS_SETREG_RGBAQ(PROBE_GND_R, PROBE_GND_G,
+                                    PROBE_GND_B, 0x80, 0x00));
+
+    /* White on the true frame edge, cyan on the title-safe box. Both
+     * rings means no overscan; cyan alone means the panel eats the
+     * edges but every swatch is still inside and the reading stands;
+     * neither means fix the display before believing anything. */
+    for (i = 0; i < 4; i++) {
+        int dx = (i & 1) ? -1 : 1;
+        int dy = (i & 2) ? -1 : 1;
+        probe_bracket(gs, (i & 1) ? 640 : 0, (i & 2) ? 448 : 0, dx, dy,
+                      64, 6, GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
+        probe_bracket(gs, (i & 1) ? PROBE_SAFE_X1 : PROBE_SAFE_X0,
+                      (i & 2) ? PROBE_SAFE_Y1 : PROBE_SAFE_Y0, dx, dy,
+                      48, 6, GS_SETREG_RGBAQ(0x00, 0xff, 0xff, 0x80, 0x00));
+    }
+
+    /* Controls: unblended, primary and full white. Red alone cannot
+     * distinguish "green and blue are dead" from "red is correct". */
+    gsKit_prim_sprite(gs, (float)PROBE_COL_X0, (float)PROBE_CTRL_Y0,
+                      (float)(PROBE_COL_X0 + PROBE_CTRL_W),
+                      (float)(PROBE_CTRL_Y0 + PROBE_CTRL_H), 0,
+                      GS_SETREG_RGBAQ(0xff, 0x00, 0x00, 0x80, 0x00));
+    gsKit_prim_sprite(gs, (float)PROBE_CTRL2_X0, (float)PROBE_CTRL_Y0,
+                      (float)(PROBE_CTRL2_X0 + PROBE_CTRL_W),
+                      (float)(PROBE_CTRL_Y0 + PROBE_CTRL_H), 0,
+                      GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
+
+    /* Column numbers: i+1 ticks over column i, so a column that sinks
+     * into the ground is named by the gap rather than inferred from the
+     * width of its neighbours. They also pin the orientation: reading
+     * 1..6 left to right is what proved the v2 rectification honest. */
+    for (i = 0; i < PROBE_COLUMNS; i++) {
+        for (t = 0; t <= i; t++) {
+            float x = (float)(probe_col_x[i] + t * PROBE_TICK_DX);
+            gsKit_prim_sprite(gs, x, (float)PROBE_TICK_Y0,
+                              x + (float)PROBE_TICK_W,
+                              (float)(PROBE_TICK_Y0 + PROBE_TICK_H), 0,
+                              GS_SETREG_RGBAQ(0xff, 0xff, 0xff, 0x80, 0x00));
+        }
+    }
+
+    /* Upper ladder: gsKit's default blend, restored explicitly.
+     *
+     * Drawing it on "whatever state is current" looked equivalent and
+     * was not. probe_frame runs every frame, so the set_primalpha at
+     * the bottom of this function persists into the next one and from
+     * frame two onward the upper ladder inherits the FIXED state. A
+     * capture twenty seconds in showed both ladders clean and the A/B
+     * silently measuring nothing.
+     *
+     * The default is latched once at startup, before anything writes
+     * it, so the comparison stays a comparison on every frame. Same
+     * hazard as the PrimAlphaEnable note above gsKit_clear, and the
+     * same reason ps2ui_render re-asserts the equation per frame
+     * rather than once at init. */
+    gsKit_set_primalpha(gs, probe_inherited_alpha, 0);
+    probe_ladder(gs, (float)PROBE_LAD1_Y0,
+                 (float)(PROBE_LAD1_Y0 + PROBE_BAND_H),
+                 (float)(PROBE_LAD1_Y0 + 2 * PROBE_BAND_H));
+
+    /* Lower ladder: the same draw calls with the blend spelled out.
+     *
+     *   ALPHA = (Cs - Cd) * As >> 7 + Cd   -- A=Cs B=Cd C=As D=Cd
+     *   PABE  = 0                          -- blend every pixel, not
+     *                                         only those with As bit 7
+     *   TEST  = alpha test off             -- nothing discarded
+     *
+     * Through gsKit_set_primalpha, not by assigning gs->PrimAlpha:
+     * the field is not what emits the register. v3 assigned it, the
+     * lower ladder came back byte-identical to the upper one, and that
+     * silence is what identified the call.
+     *
+     * This is the equation docs/format-uib.md says the file's alpha
+     * domain assumes. Asserting it here is the point: if the lower
+     * ladder is clean where the upper one seams, the shipping runtime
+     * needs these three lines too. */
+    gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
+    gsKit_set_test(gs, GS_ATEST_OFF);
+    probe_ladder(gs, (float)PROBE_LAD2_Y0,
+                 (float)(PROBE_LAD2_Y0 + PROBE_BAND_H),
+                 (float)PROBE_BOT_Y);
 }
 #endif
 
@@ -174,13 +468,37 @@ int main(void)
      * (Cs - Cd) * As >> 7 + Cd is exactly what the baker assumed. */
     gs->PrimAlphaEnable = GS_SETTING_ON;
 
+#ifdef PS2UI_SAMPLE_MINIMAL
+    /* Bring-up step 1: does anything at all reach the screen? */
+    for (frame = 0; frame < MINIMAL_FRAMES; frame++) {
+        gsKit_clear(gs, GS_SETREG_RGBAQ(0x40, 0x80, 0xc0, 0x80, 0x00));
+        gsKit_queue_exec(gs);
+        gsKit_sync_flip(gs);
+    }
+    return 0;
+#endif
+
 #ifdef PS2UI_SAMPLE_PROBE
-    /* No blob, no ps2ui: just the four primitive cases. */
-    while (1) {
+    /* No blob, no ps2ui: just the four primitive cases.
+     *
+     * Bounded, not `while (1)`. A frozen console and a working one look
+     * identical on a static screen, so an unbounded loop makes the
+     * operator guess -- and guessing wrong costs a bench session. After
+     * PROBE_FRAMES it returns to the browser, which turns "did it
+     * work?" into an observation:
+     *
+     *   picture, then back at the FMCB menu  -> ran to completion
+     *   picture, but never returns           -> hung after drawing
+     *   no picture, never returns            -> hung before drawing
+     *   no picture, but returns              -> ran; the GS drew nothing
+     *
+     * Two of those four were indistinguishable before. */
+    for (frame = 0; frame < PROBE_FRAMES; frame++) {
         probe_frame(gs);
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
     }
+    return 0;
 #endif
 
     rc = ps2ui_load(&ui, ui_uib, size_ui_uib);
@@ -210,8 +528,24 @@ int main(void)
 #endif
 
     while (1) {
-        /* Canvas background: #0a0e1a in flat-shaded full-range RGB. */
+        /* Canvas background: #0a0e1a in flat-shaded full-range RGB.
+         *
+         * Blending OFF across the clear, and that is load-bearing. This
+         * loop clears BEFORE ps2ui_render, so with ABE on the clear
+         * composites through whatever ALPHA is current -- which on the
+         * very first frame is still gsKit's inverted default, where an
+         * alpha of 0x80 resolves to the destination and paints the
+         * previous framebuffer instead of the canvas colour. From frame
+         * two it would come out right, inheriting the equation
+         * ps2ui_render asserted the frame before, which is a worse kind
+         * of correct: right only because something else ran first.
+         *
+         * A background clear has nothing to blend against, so the fix
+         * is to stop asking it to. probe_frame does the same thing for
+         * the same reason. */
+        gs->PrimAlphaEnable = GS_SETTING_OFF;
         gsKit_clear(gs, GS_SETREG_RGBAQ(0x0a, 0x0e, 0x1a, 0x80, 0x00));
+        gs->PrimAlphaEnable = GS_SETTING_ON;
 #ifdef PS2UI_SAMPLE_TELEMETRY
         {
             u32 t0 = cop0_count(), dt;

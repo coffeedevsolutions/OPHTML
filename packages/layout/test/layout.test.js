@@ -303,6 +303,25 @@ test('lint: the cross-node focused case is unreachable, and why', () => {
   );
 });
 
+test('data-keep: the attribute reaches the IR, and only when present', () => {
+  // The baker cannot exempt geometry from the trim unless layout tells
+  // it which. Absent means absent -- not `keep: false` on every
+  // command, which would grow the IR for an attribute almost nothing
+  // uses.
+  const ir = compileCss(
+    '<div class="s"><div class="a" data-keep></div><div class="b"></div></div>',
+    '.s { flex-direction: row; padding: 4px }'
+    + '.a { width: 10px; height: 10px; background: #ff00ff }'
+    + '.b { width: 10px; height: 10px; background: #00ff00 }',
+  );
+  const marked = rects(ir).filter((c) => c.keep === true);
+  assert.equal(marked.length, 1);
+  assert.deepEqual(marked[0].fill.slice(0, 3), [255, 0, 255]);
+  // and the sibling carries no key at all
+  const plain = rects(ir).find((c) => c.fill && c.fill[1] === 255);
+  assert.equal('keep' in plain, false);
+});
+
 // ------------------------------------------------------------------ flex
 
 test('flex: row places children left to right with gap', () => {

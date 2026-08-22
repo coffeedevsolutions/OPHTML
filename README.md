@@ -69,6 +69,19 @@ if (pad_pressed & PAD_CROSS) launch(ps2ui_focus_name(&ui));
 
 Unknown properties warn. Unsupported values error with line numbers.
 
+### `data-keep`
+
+The baker drops draw commands that cannot produce a pixel — geometry
+entirely outside its `overflow: hidden` clip is submitted every frame
+and can never be seen. `data-keep` on an element exempts its own
+geometry from that trim (it does not cascade to children).
+
+There is one good reason to want it: an instrument. The channel-6
+probe parks a magenta quad outside a clip rect so that a console
+showing it proves the scissor is not being applied — a test that only
+works while the quad provably cannot draw, which is exactly what the
+trim would otherwise remove.
+
 ### `flex-direction` is required, not defaulted
 
 Any container laying out two or more children must say which way they go:
