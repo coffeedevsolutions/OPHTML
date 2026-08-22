@@ -62,6 +62,15 @@ in hue and well clear of black:
 
 Black is not in this table on purpose: black is *no picture*, which is
 a boot failure. That is why none of the four may be dark.
+
+Read these live, not from a photograph. Step 2's own notes above record
+that a phone renders saturated magenta on a panel as violet and lifts
+the near-black ground to maroon, so a hex is not what reaches a report.
+What survives a camera is the judgement these are actually for: the
+whole frame is one flat colour, and it is this one of five rather than
+that one. Full-frame is what makes that safe — the tone curve that
+defeats measuring a 24px swatch cannot turn one of five apart-in-hue
+fills into another.
 - `tools/make_testcard.py` — the texel-alignment card, a narrower
   instrument for step 6 alone.
 - The previewer PNGs are ground truth throughout. They replay the same
@@ -594,22 +603,38 @@ centres — a false fault reported confidently on correct hardware.
 **Do:** navigate so an ellipsized title redraws (tiles clip their text
 via `overflow: hidden`), and look at the probe screen's CLIP cell.
 **Expect:** text clips exactly at the tile's padding edge, identical to
-the previewer — **and no magenta anywhere on the probe screen.**
+the previewer — and **exactly one magenta square**, never two and never
+none.
 
-The probe's CLIP cell carries a 24px magenta quad parked at x=603,
-outside the cell's clip rect (x=479..594) but inside the 640px canvas.
-A correct GS never rasterizes it, so it is invisible and the screen
-looks the same with or without it. Magenta on screen means the scissor
-rect is not reaching the hardware at all.
+The CLIP cell carries a *pair* of 24x24 magenta quads, and the count is
+the whole reading:
 
-That is a positive test for a negative, which nothing else here
-provides: every other check on this screen confirms something *is*
-drawn, and a scissor that silently does nothing looks identical to a
-scissor that works whenever the clipped content would have fitted
-anyway. It survives the baker's dead-geometry trim only because it is
-marked `data-keep`; `examples/channel6/check.py` asserts it stayed
-outside its clip and inside the canvas, since a drift in either
-direction turns it back into a quad that proves nothing.
+| magenta squares | verdict |
+|---|---|
+| exactly one | **pass** — the scissor suppressed the twin |
+| two | **fail** — the scissor rect is not reaching the hardware |
+| none | **void** — the quad never drew, which says nothing about clipping |
+
+One is parked outside the cell's clip rect but inside the 640px canvas,
+so a correct GS never rasterizes it. That quad alone is a positive test
+for a negative, which nothing else here provides: every other check on
+this screen confirms something *is* drawn, and a scissor that silently
+does nothing looks identical to a scissor that works whenever the
+clipped content would have fitted anyway.
+
+Alone, though, it was un-failable in the other direction — an invisible
+magenta quad means either the scissor suppressed it or the quad never
+drew at all, and nothing on screen told those apart. Hence the twin,
+inside the clip, same size, differing only in position: it is the
+calibration, and its absence is what turns "no magenta" from a pass
+into a void.
+
+Both survive the baker's dead-geometry trim only because they are
+marked `data-keep`; `examples/channel6/check.py` asserts one stayed
+outside its clip while the other stayed drawable, that both are the
+same size so only position distinguishes them, and that the hidden one
+clears the clip edge by 15px so an ordinary layout edit cannot walk it
+back inside.
 **If wrong:** `GS_SETREG_SCISSOR` is inclusive on both ends — the
 runtime passes `x1 - 1` / `y1 - 1`; an off-by-one here shows as a 1px
 text bleed. Also confirm scissor state isn't cached across frames by

@@ -38,18 +38,23 @@ build.
 a phone at arm's length can read it. Nothing needs a measurement.
 
 **A screen filled edge to edge with one flat colour is never a UI.**
-It is the ELF telling you something before it ever draws:
+It is the ELF telling you something before it ever draws. **Read these
+off the screen, not off a photo** — a phone renders saturated magenta
+on a panel as violet and lifts near-black to a visible maroon, which is
+exactly the failure the rest of this page is built to avoid:
 
 | fill | means |
 |---|---|
 | steel blue | `minimal.elf` passed — this one is a **pass** |
 | dark red | the blob failed to load |
 | olive/dark yellow | the upload ran out of VRAM (that is step 9) |
-| magenta | the ELF asked for a screen this blob does not have |
+| magenta, or violet on a photo | the ELF asked for a screen this blob does not have |
 | **black, or no picture** | it did not boot. Nothing below applies |
 
-Magenta means the build is wrong, not the renderer. Report it and stop;
-nothing measured after it means anything.
+You are not naming a colour here, only noticing that the whole frame is
+one flat thing and which of five it is — a judgement that survives any
+camera. Magenta means the build is wrong, not the renderer. Report it
+and stop; nothing measured after it means anything.
 
 ---
 

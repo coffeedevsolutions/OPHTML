@@ -95,7 +95,21 @@ jobs:
         # script -- not here. Spelled out per workflow they drifted:
         # hw.yml checked the channel-6 blob with no flags while this
         # file checked the same bytes with --allow-dead 1 --strict.
-        run: ./tools/check-blobs.sh
+        #
+        # Named, not bare. A bare call skips blobs that are absent,
+        # which is right for hw.yml (it does not bake the 16:9 one) and
+        # wrong here: this job bakes all three, so a missing one is a
+        # build failure, and skipping it would leave "3 blob(s)
+        # validated" as the only trace of a blob that stopped existing.
+        # Naming them makes absence an error.
+        #
+        # Three, not four: the test card is baked by hw.yml. Here
+        # make_testcard.py only runs --self-test, which writes no blob.
+        run: |
+          ./tools/check-blobs.sh \
+            examples/memcard/build/ui.uib \
+            examples/channel6/build/ui.uib \
+            examples/channel6/build/ui-16x9.uib
 
       - name: Upload previews
         uses: actions/upload-artifact@v7

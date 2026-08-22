@@ -1540,6 +1540,24 @@ class TestCheck(unittest.TestCase):
                          allow_hairline=2)
         self.assertEqual(rep.warnings, 0)
 
+    def test_fewer_hairlines_than_declared_warns(self):
+        # The direction the first version could not see. --allow-hairline
+        # named specific instruments -- the card's four edge rules and
+        # the step 8 thin rule -- and accepted "at most N", so deleting
+        # one left the check reporting 4 of 5 declared and passing. The
+        # flag exists to assert those quads are present; a ceiling
+        # cannot.
+        rep = self.build([self.quad(h=1)], allow_hairline=2)
+        self.assertEqual(rep.warnings, 1)
+        self.assertTrue(any("is gone" in f for f in self.failures(rep)))
+
+    def test_fewer_dead_commands_than_declared_warns(self):
+        # Same fix on the flag that shipped the pattern first, so a
+        # third flag cannot inherit the ceiling instead of the fix.
+        rep = self.build([self.quad()], allow_dead=1)
+        self.assertEqual(rep.warnings, 1)
+        self.assertTrue(any("is gone" in f for f in self.failures(rep)))
+
     def test_one_more_hairline_than_declared_still_warns(self):
         # The half that makes --allow-hairline a declaration rather than
         # an off switch. Without this the flag could be implemented as
