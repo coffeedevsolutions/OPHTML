@@ -24,7 +24,11 @@ because the point is a hand-controlled texture drawn 1:1:
 
     The flat patch is what a mushed checker looks like, placed next to
     them so the comparison is side by side rather than remembered;
-  * the same checker drawn at the four corners of the safe area;
+  * the finest checker repeated at the four corners of the 10%
+    title-safe box. These have no coarser rung beside them, so they
+    carry the fault/limit ambiguity the wedge exists to remove: read
+    them ONLY once the centre wedge shows 1px crisp. Until then a
+    mushy corner says nothing;
   * 1px solid rules hugging all four canvas edges: a half-pixel
     primitive offset (or overscan) drops one of them;
   * a 2px white cross at the exact canvas center for eyeballing.
@@ -97,16 +101,31 @@ def build_records():
     cx, cy = CANVAS_W // 2, CANVAS_H // 2
 
     # The wedge: 1px, 2px, 4px, then flat grey, centred as one row.
+    # A flat patch at BOTH ends. One patch sat beside the 4px rung --
+    # the one least likely to mush -- and 216px from the 1px rung whose
+    # mushing is actually being judged. Finest-first is right for
+    # reading the wedge as a ramp, but it put the reference where it was
+    # least needed. Two costs one quad and puts one against each end.
     gap = 8
-    span = len(WEDGE) * CHECKER + CHECKER + gap * len(WEDGE)
+    cols = 1 + len(WEDGE) + 1
+    span = cols * CHECKER + gap * (cols - 1)
     wx = cx - span // 2
     wy = cy - CHECKER // 2
+    step = CHECKER + gap
+    records.append(solid(wx, wy, CHECKER, CHECKER, MUSH))
     for i, _cell in enumerate(WEDGE):
-        records.append(checker_quad(wx + i * (CHECKER + gap), wy, tex=i))
-    records.append(solid(wx + len(WEDGE) * (CHECKER + gap), wy,
+        records.append(checker_quad(wx + (i + 1) * step, wy, tex=i))
+    records.append(solid(wx + (len(WEDGE) + 1) * step, wy,
                          CHECKER, CHECKER, MUSH))
 
-    inset = 32
+    # 64 is the 10% title-safe inset the linter and the rest of bring-up
+    # use. It was 32 -- 5% -- while the docstring called it "the four
+    # corners of the safe area", so these sat outside the box they claim
+    # to mark, in the region where CRT focus and convergence are worst
+    # and overscan crops first. A mushy corner there was more likely to
+    # be the panel than the centre checker ever was, with nothing beside
+    # it to say so.
+    inset = 64
     for x, y in (
         (inset, inset),
         (CANVAS_W - inset - CHECKER, inset),
@@ -145,10 +164,13 @@ def self_test() -> int:
 
     texes = [checker_texture(c) for c in WEDGE]
     for cell, tex in zip(WEDGE, texes):
-        px = gs.decode_psmct32(tex.data) if hasattr(gs, "decode_psmct32") else None
-        if px is None:
-            # Read the red channel straight out of the encoded texels.
-            px = [tex.data[i] for i in range(0, len(tex.data), 4)]
+        # Red channel straight out of the encoded texels. There was a
+        # hasattr() probe for a gs.decode_psmct32 here; no such function
+        # exists, so only this branch ever ran -- and adding one would
+        # have fed RGBA tuples into arithmetic expecting ints and
+        # crashed the self-test. A defensive branch whose only reachable
+        # effect is to break the thing it guards.
+        px = [tex.data[i] for i in range(0, len(tex.data), 4)]
         vals = sorted(set(px))
         check(vals == [0, 255], f"{cell}px checker is pure black and white ({vals})")
         mean = sum(px) / len(px)
@@ -181,16 +203,38 @@ def self_test() -> int:
     # checker. Searching records for MUSH and asserting it equals MUSH
     # is a tautology -- it passed with the patch recoloured to a red
     # nobody could confuse with mush, which is the entire point of it.
-    want = round(sum(px) / len(px))
+    #
+    # From WEDGE[0] explicitly. This used to reuse `px` after the loop,
+    # which is whichever rung iteration happened to end on; it worked
+    # only because all three average the same, so the assertion's stated
+    # intent and its actual subject had drifted apart silently.
+    finest = checker_texture(WEDGE[0])
+    fine_px = [finest.data[i] for i in range(0, len(finest.data), 4)]
+    want = round(sum(fine_px) / len(fine_px))
     flat = [r for r in records
             if r.op == OP_QUAD and r.w == CHECKER and r.h == CHECKER
             and len(set(r.rgba[:3])) == 1]
-    check(len(flat) == 1, f"one flat checker-sized patch ({len(flat)})")
-    if flat:
-        got = flat[0].rgba[0]
-        check(abs(got - want) <= 1,
+    # The edge rules are the second instrument on this card and they
+    # test a different fault -- a half-pixel PRIMITIVE offset, not a
+    # half-texel UV one. A rewrite of bringup.md dropped them from the
+    # procedure entirely: the card still drew them, the operator was no
+    # longer told to look, and the failure reading was gone. An
+    # instrument nobody is told to read is in the same category as one
+    # that cannot fail, so the count is fenced here.
+    rules = [r for r in records if r.op == OP_QUAD
+             and (r.w == 1 or r.h == 1)
+             and len(set(r.rgba[:3])) > 1]
+    check(len(rules) == 4,
+          f"four colour-coded edge rules, one per side ({len(rules)})")
+    check(len({r.rgba[:3] for r in rules}) == 4,
+          "each a different colour, so a missing one names its side")
+
+    check(len(flat) == 2,
+          f"a flat reference at each end of the wedge ({len(flat)})")
+    for f in flat:
+        check(abs(f.rgba[0] - want) <= 1,
               f"and it is the colour a mushed checker becomes "
-              f"({got} vs {want})")
+              f"({f.rgba[0]} vs {want})")
 
     print(f"{'PASS' if not failures else 'FAIL'}: "
           f"{len(failures)} failure(s)")
