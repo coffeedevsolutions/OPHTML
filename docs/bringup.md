@@ -598,6 +598,45 @@ drawn at any size other than its UV span makes the GS resample, and a
 resampled checker mushes for reasons that have nothing to do with texel
 centres — a false fault reported confidently on correct hardware.
 
+`tools/read_testcard.py` grades a capture of the card, and the CI
+emulator job now boots `testcard.elf` and runs it. It reads variance
+per rung against the flat patches in the same frame rather than
+diffing pixels, because Play! presents at ~1.4x and a pixel diff of
+this card would measure the resampler. Its verdict is advisory: read
+the coarser rungs first, since through a scaled capture the 1px rung
+sits close to what survives at all.
+
+### What the emulator saw, and why it is a lead and not a finding
+
+The first UI capture to get past the harness bugs came back with
+**every text run in the frame differing while the card interiors
+matched**. At 4x, `Library` reads `Liibrarny`: each glyph carries a
+sliver of its neighbour *in the atlas*.
+
+That is this step's failure mode, arriving unbidden from the other
+instrument. Resampling cannot insert an `n` between `r` and `y` — those
+texels come from elsewhere in the atlas — and the job's own resampling
+floor already controls for the scaling (6.40 RMSE floor against 22.89
+measured, worst tile 18.07 against 96.35).
+
+The code agrees that the question is open. `runtime/ps2ui.c` passes
+`u1 = u + w`, the glyph's exact edge, with no half-texel offset
+anywhere; `preview.py` crops exact integer texels, `[u0, u1)`. The two
+sides have no stated convention between them, which is the situation
+this step exists to resolve.
+
+**It is still not a finding, and must not be fixed on this evidence.**
+Play! has been wrong about the GS before — it applied the wrong
+per-sprite alpha to every blended sprite in the step 2 probe while
+getting the geometry exact to the pixel (see the hardware log). A
+sampling verdict from an emulator with a known blend fault is a lead.
+Changing a UV convention to satisfy it, without a console, risks
+trading a real bug for a subtler one that the emulator happens to like.
+
+A console reading the wedge by eye settles it. Until then the emulator
+job reports the card every run, so the question is at least being asked
+continuously rather than waiting on a bench session.
+
 ## 7. Scissor nesting
 
 **Do:** navigate so an ellipsized title redraws (tiles clip their text
