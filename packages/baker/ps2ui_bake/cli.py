@@ -93,7 +93,15 @@ def main(argv=None) -> int:
     font_paths = load_font_manifest(fonts_path)
 
     flat = Flattener(ir, font_paths, palettize_all=args.palettize_images)
-    flat.run_screens(named_irs)
+    try:
+        flat.run_screens(named_irs)
+    except ValueError as exc:
+        # The bake's own diagnostics are written to be read; a traceback
+        # buries them under a stack the author cannot act on. Matches
+        # what ps2ui-check already does. "This indexed PNG isn't at its
+        # natural size" is a routine authoring mistake, not a crash.
+        print(f"ps2ui-bake: {exc}", file=sys.stderr)
+        return 1
 
     # Runtime table caps before anything else: a blob past them loads
     # nowhere, and every host stage downstream would happily accept it

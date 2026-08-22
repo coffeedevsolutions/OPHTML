@@ -574,6 +574,145 @@ class TestImages(unittest.TestCase):
             clut = f.cluts[tex.clut]
             self.assertLessEqual(max(clut[3::4]), 0x80)  # GS-domain alpha
 
+    def _write_indexed_png(self, td, size=(16, 12)):
+        """An indexed PNG whose index values carry meaning.
+
+        Indices 0 and 8 differ only in bit 3, and 32 and 48 only in
+        bit 4 -- the two bits CSM1 permutes. Palette entries are set so
+        a correct CLUT upload renders the tile uniform and an
+        unpermuted one renders a boundary; that only works if the baker
+        leaves both the indices and the palette exactly as authored.
+        """
+        from PIL import Image
+        path = os.path.join(td, "indexed.png")
+        img = Image.new("P", size)
+        pal = [0, 0, 0] * 256
+        for idx, rgb in ((0, (0x30, 0x60, 0x90)), (8, (0x30, 0x60, 0x90)),
+                         (16, (0xff, 0x00, 0x00)), (32, (0x30, 0x60, 0x90)),
+                         (48, (0x30, 0x60, 0x90)), (40, (0xff, 0x00, 0x00))):
+            pal[idx * 3:idx * 3 + 3] = list(rgb)
+        img.putpalette(pal)
+        quarter = size[0] // 4
+        for x in range(size[0]):
+            idx = (0, 8, 32, 48)[min(x // quarter, 3)]
+            for y in range(size[1]):
+                img.putpixel((x, y), idx)
+        img.save(path)
+        return path
+
+    def test_indexed_png_keeps_its_own_indices_and_palette(self):
+        # Re-quantizing an already-indexed image is lossy for nothing,
+        # and it destroys any meaning the indices carried.
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_indexed_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src, palettize=True)]),
+                          font_paths())
+            f.run()
+            tex = f.textures[f.records[0].tex]
+            self.assertEqual(tex.fmt, gs.PSMT8)
+            # The authored index values survive, not a quantizer's.
+            self.assertEqual(sorted(set(tex.data)), [0, 8, 32, 48])
+            clut = f.cluts[tex.clut]
+            self.assertEqual(len(clut), 256 * 4, "CLUT padded to 256 entries")
+
+            def entry(i):
+                return tuple(clut[i * 4:i * 4 + 3])
+
+            # The pairs the swizzle test depends on: equal to each
+            # other, and unlike the entry each would land on if the
+            # permutation were skipped.
+            self.assertEqual(entry(0), entry(8))
+            self.assertEqual(entry(32), entry(48))
+            self.assertNotEqual(entry(8), entry(16))
+            self.assertNotEqual(entry(48), entry(40))
+
+    def test_indexed_png_with_a_short_palette_is_padded_to_256(self):
+        # A P-mode PNG only defines the entries it uses, and Pillow
+        # hands back exactly those. The GS reads a 256-entry CLUT and
+        # the runtime permutes all 256 of them, so a short palette has
+        # to be padded or the upload walks off the end of the table.
+        #
+        # This case exists because the padding line was untested: the
+        # other fixture authors a full 768-byte palette, so padding was
+        # a no-op there and deleting it changed nothing.
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "short.png")
+            img = Image.new("P", (16, 12))
+            img.putpalette([0x30, 0x60, 0x90,
+                            0xff, 0x00, 0x00,
+                            0x00, 0xff, 0x00,
+                            0x00, 0x00, 0xff])
+            for x in range(16):
+                for y in range(12):
+                    img.putpixel((x, y), x % 4)
+            img.save(path)
+
+            f = Flattener(tiny_ir([self.image_cmd(path, palettize=True)]),
+                          font_paths())
+            f.run()
+            tex = f.textures[f.records[0].tex]
+            clut = f.cluts[tex.clut]
+            self.assertEqual(len(clut), 256 * 4,
+                             "a 4-entry palette must still bake a full CLUT")
+            self.assertEqual(tuple(clut[0:3]), (0x30, 0x60, 0x90))
+            self.assertEqual(bytes(clut[4 * 4:]), bytes(256 * 4 - 16),
+                             "unused entries are zero, not absent")
+
+    def test_indexed_png_refuses_to_be_resized(self):
+        # A quiet fall-back to quantizing is the failure this feature
+        # exists to prevent: the author believes the indices survived,
+        # they did not, and nothing says so.
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_indexed_png(td, size=(16, 12))
+            f = Flattener(
+                tiny_ir([self.image_cmd(src, w=32, h=24, palettize=True)]),
+                font_paths())
+            with self.assertRaises(ValueError) as cm:
+                f.run()
+            self.assertIn("indexed PNG", str(cm.exception))
+
+    def test_palettize_all_requantizes_an_indexed_png_rather_than_failing(self):
+        # The two opt-ins are not the same claim. `palettize` on an
+        # <img> says "I care about this image's palette".
+        # --palettize-images says "quantize everything to save VRAM" --
+        # its author made no claim about any particular asset, so
+        # failing their build over one indexed PNG answers a question
+        # nobody asked, and the refusal message points at an attribute
+        # they never wrote.
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_indexed_png(td, size=(16, 12))
+            f = Flattener(
+                tiny_ir([self.image_cmd(src, w=32, h=24, palettize=False)]),
+                font_paths(), palettize_all=True)
+            f.run()  # must not raise
+            tex = f.textures[f.records[0].tex]
+            self.assertEqual(tex.fmt, gs.PSMT8)
+            self.assertEqual((tex.width, tex.height), (32, 24))
+
+    def test_palettize_all_still_bakes_a_matching_indexed_png_verbatim(self):
+        # Requantizing under the blanket flag is the fall-back, not the
+        # rule: when no resize is needed there is nothing to trade away,
+        # so the authored indices still survive.
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_indexed_png(td, size=(16, 12))
+            f = Flattener(
+                tiny_ir([self.image_cmd(src, w=16, h=12, palettize=False)]),
+                font_paths(), palettize_all=True)
+            f.run()
+            tex = f.textures[f.records[0].tex]
+            self.assertEqual(sorted(set(tex.data)), [0, 8, 32, 48])
+
+    def test_indexed_png_without_palettize_is_still_rgba(self):
+        # The verbatim path is opt-in through the same attribute as
+        # before; an indexed source with no `palettize` is ordinary art.
+        with tempfile.TemporaryDirectory() as td:
+            src = self._write_indexed_png(td)
+            f = Flattener(tiny_ir([self.image_cmd(src, palettize=False)]),
+                          font_paths())
+            f.run()
+            self.assertEqual(f.textures[f.records[0].tex].fmt, gs.PSMCT32)
+
     def test_palettize_all_overrides_per_image(self):
         with tempfile.TemporaryDirectory() as td:
             src = self._write_png(td)

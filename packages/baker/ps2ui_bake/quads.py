@@ -18,6 +18,7 @@ order the GS must draw them. The previewer and the console runtime
 both just walk the list.
 """
 
+import sys
 from dataclasses import dataclass, replace
 from typing import Optional
 
@@ -192,7 +193,22 @@ class Flattener:
 
     # -------------------------------------------------------------- images
 
-    def _image_texture(self, src: str, w: int, h: int, palettize: bool) -> int:
+    @staticmethod
+    def _clut_from_palette(pal) -> bytes:
+        """RGBA palette bytes -> a full 256-entry GS CLUT.
+
+        Shared because the two palettize paths disagree about length and
+        agree about everything else: FASTOCTREE always hands back 256
+        entries, while an authored P-mode PNG hands back only the ones
+        it defines. Padding here keeps that difference from being a
+        property of which branch you happen to be in."""
+        clut = bytearray()
+        for i in range(0, len(pal), 4):
+            clut += gs.pack_rgba_gs(pal[i], pal[i + 1], pal[i + 2], pal[i + 3])
+        return bytes(clut) + bytes(256 * 4 - len(clut))
+
+    def _image_texture(self, src: str, w: int, h: int, palettize: bool,
+                       strict: bool = False) -> int:
         """Decode + pre-scale an image to its laid-out size. Keyed by
         (src, w, h, palettize): the same asset at two sizes is two
         textures, because the GS never scales at runtime here.
@@ -204,23 +220,70 @@ class Flattener:
         <img>, or --palettize-images for the whole bake)."""
         from PIL import Image  # deferred so text-only bakes never import it twice
 
-        key = (src, w, h, palettize)
+        key = (src, w, h, palettize, strict)
         if key not in self._images:
             try:
-                img = Image.open(src).convert("RGBA")
+                raw = Image.open(src)
+                raw.load()
             except OSError as err:
                 raise ValueError(f"image: cannot decode {src!r}: {err}") from err
+
+            # An already-indexed PNG keeps its own palette and its own
+            # index values. Re-quantizing one is lossy for nothing, and
+            # it destroys any meaning the indices carried -- which is
+            # the whole point for bring-up step 3, where the tile is
+            # built from indices chosen to differ only in the two bits
+            # CSM1 permutes, so a correct CLUT upload renders uniform
+            # and a wrong one renders a boundary.
+            if palettize and raw.mode == "P" and raw.size != (w, h):
+                # The two opt-ins mean different things and only one of
+                # them is a claim about indices.
+                #
+                # `palettize` on an <img> says "I care about this
+                # image's palette", so silently requantizing it would
+                # destroy the thing that was asked for -- refuse.
+                #
+                # --palettize-images says "quantize everything to save
+                # VRAM". Its author made no claim about any particular
+                # asset, so failing their build over one indexed PNG is
+                # answering a question nobody asked, with a remedy that
+                # points at an attribute they never wrote. Warn and
+                # requantize, which is exactly what the flag requested.
+                if strict:
+                    raise ValueError(
+                        f"image: {src!r} is an indexed PNG at "
+                        f"{raw.size[0]}x{raw.size[1]} but is laid out at "
+                        f"{w}x{h}. Indexed sources are baked verbatim to "
+                        f"preserve their palette, which resizing cannot "
+                        f"do. Author it at the laid-out size, or remove "
+                        f"`palettize` to have it requantized instead."
+                    )
+                print(
+                    f"warning: {src!r} is an indexed PNG at "
+                    f"{raw.size[0]}x{raw.size[1]} laid out at {w}x{h}; "
+                    f"--palettize-images requantized it, so its authored "
+                    f"palette and index values did not survive. Author it "
+                    f"at the laid-out size to keep them.",
+                    file=sys.stderr,
+                )
+            elif palettize and raw.mode == "P":
+                pal = raw.getpalette(rawmode="RGBA") or []
+                self.cluts.append(self._clut_from_palette(pal))
+                self.textures.append(BakedTexture(
+                    gs.PSMT8, w, h, len(self.cluts) - 1, raw.tobytes(),
+                ))
+                self._images[key] = len(self.textures) - 1
+                return self._images[key]
+
+            img = raw.convert("RGBA")
             if img.size != (w, h):
                 img = img.resize((w, h), Image.LANCZOS)
             if palettize:
                 # FASTOCTREE is the quantizer that keeps RGBA (alpha
                 # lands in the palette entries, not a separate band).
                 q = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE)
-                pal = q.getpalette(rawmode="RGBA")
-                clut = bytearray()
-                for i in range(0, len(pal), 4):
-                    clut += gs.pack_rgba_gs(pal[i], pal[i + 1], pal[i + 2], pal[i + 3])
-                self.cluts.append(bytes(clut))
+                self.cluts.append(
+                    self._clut_from_palette(q.getpalette(rawmode="RGBA")))
                 self.textures.append(BakedTexture(
                     gs.PSMT8, w, h, len(self.cluts) - 1, q.tobytes(),
                 ))
@@ -237,9 +300,12 @@ class Flattener:
         x, y, w, h = cmd["x"], cmd["y"], cmd["w"], cmd["h"]
         if w <= 0 or h <= 0:
             return
+        # Both opt-ins reach the texture builder separately: only the
+        # per-image attribute is a claim about indices, so only it
+        # refuses to requantize one.
+        attr = bool(cmd.get("palettize"))
         tex = self._image_texture(
-            cmd["src"], w, h,
-            bool(cmd.get("palettize")) or self.palettize_all,
+            cmd["src"], w, h, attr or self.palettize_all, strict=attr,
         )
         # Identity tint in the modulate domain; the texels carry the art.
         self.records.append(DrawRecord(
