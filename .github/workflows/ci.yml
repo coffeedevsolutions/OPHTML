@@ -79,10 +79,18 @@ jobs:
       # one reads the file, the other reads what the baker wrote.
       - name: Validate every blob against the runtime's assumptions
         run: |
-          for blob in examples/memcard/build/ui.uib \
-                      examples/channel6/build/ui.uib \
+          PYTHONPATH=packages/baker python3 -m ps2ui_bake.check \
+              examples/memcard/build/ui.uib --strict
+          # --allow-dead 1: the probe screen parks one quad outside its
+          # clip on purpose (bring-up step 7's instrument). data-keep is
+          # build-time only and never reaches the blob, so a validator
+          # reading the file cannot tell an instrument from waste and
+          # should not guess -- the count is declared here instead, and
+          # one more than declared still warns.
+          for blob in examples/channel6/build/ui.uib \
                       examples/channel6/build/ui-16x9.uib; do
-            PYTHONPATH=packages/baker python3 -m ps2ui_bake.check "$blob"
+            PYTHONPATH=packages/baker python3 -m ps2ui_bake.check "$blob" \
+                --allow-dead 1 --strict
           done
 
       - name: Upload previews

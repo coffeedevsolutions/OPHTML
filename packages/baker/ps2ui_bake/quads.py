@@ -56,6 +56,11 @@ class DrawRecord:
     v0: int = 0
     u1: int = 0
     v1: int = 0
+    # data-keep: exempt from the dead-geometry trim. Build-time only --
+    # it never reaches the .uib, because the runtime draws whatever
+    # records it is given and has no notion of a record it should have
+    # dropped.
+    keep: bool = False
 
 
 @dataclass
@@ -147,6 +152,7 @@ class Flattener:
     def _flatten_rect(self, cmd):
         state = _STATE_NAMES[cmd["state"]]
         focus = self._focus_of(cmd)
+        keep = bool(cmd.get("keep"))
         x, y, w, h = cmd["x"], cmd["y"], cmd["w"], cmd["h"]
         fill = cmd["fill"]
         bw = cmd["borderWidth"]
@@ -161,13 +167,14 @@ class Flattener:
             for (dx, dy, dw, dh), (su, sv, sw, sh) in slice_quads(patch, x, y, w, h):
                 self.records.append(DrawRecord(
                     OP_TEXQUAD, state, focus, dx, dy, dw, dh, white,
-                    tex, su, sv, su + sw, sv + sh,
+                    tex, su, sv, su + sw, sv + sh, keep=keep,
                 ))
             return
 
         if fill:
             self.records.append(DrawRecord(
                 OP_QUAD, state, focus, x, y, w, h, self._gs_color(fill),
+                keep=keep,
             ))
         if bw > 0 and bc:
             c = self._gs_color(bc)
@@ -180,7 +187,7 @@ class Flattener:
             for ex, ey, ew, eh in edges:
                 if ew > 0 and eh > 0:
                     self.records.append(DrawRecord(
-                        OP_QUAD, state, focus, ex, ey, ew, eh, c,
+                        OP_QUAD, state, focus, ex, ey, ew, eh, c, keep=keep,
                     ))
 
     # -------------------------------------------------------------- images
@@ -297,6 +304,14 @@ class Flattener:
         dead = set(clip_mod.dead_indices(
             self.records, first, len(self.records) - first,
             canvas["w"], canvas["h"]))
+        # data-keep survives. The trim's safety argument is "removing a
+        # record that could never draw cannot change the image", and
+        # that is exactly what makes a deliberately-clipped quad
+        # useless as an instrument: bring-up step 7 needs geometry that
+        # provably cannot draw, so that seeing it on a television means
+        # the scissor is not being applied. Trimming it would delete
+        # the test.
+        dead -= {i for i in dead if self.records[i].keep}
         if not dead:
             return 0
         self.records[first:] = [

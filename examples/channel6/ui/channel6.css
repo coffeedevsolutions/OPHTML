@@ -347,6 +347,7 @@ h1 {
 }
 
 .scissor {
+  flex-direction: row;
   height: 22px;
   overflow: hidden;
   background: #0b1120;
@@ -355,6 +356,32 @@ h1 {
 }
 
 .scissor .runner { font-size: 14px; color: #e8b64c; white-space: nowrap; }
+
+/* Bring-up step 7's instrument, and the reason data-keep exists.
+ *
+ * A magenta quad parked far outside .scissor's clip: the GS must never
+ * rasterize it, so on a correct console this element is invisible and
+ * the probe looks the same with or without it. Seeing magenta anywhere
+ * on the probe screen means the scissor rect is not reaching the
+ * hardware -- a positive test for a negative, which nothing else on
+ * this screen provides.
+ *
+ * data-keep is required because the baker's dead-geometry trim would
+ * otherwise delete it at build time, on exactly the correct reasoning
+ * that a quad which cannot draw cannot change the image. Here that
+ * property is the point rather than waste. */
+.tell {
+  width: 24px;
+  height: 24px;
+  /* Tuned to land just past .scissor's right clip edge while staying
+   * inside the 640px canvas. Both halves matter: outside the clip so
+   * the scissor is what must suppress it, and inside the canvas so
+   * that the framebuffer bounds are not doing the job instead --
+   * off-screen geometry would test nothing. check.py asserts both, so
+   * a layout change cannot quietly turn this into a no-op. */
+  margin-left: 60px;
+  background: #ff00ff;
+}
 
 /* Images: identical source, PSMCT32 on the left, PSMT8+CLUT right. */
 .img-row { flex-direction: row; align-items: center; gap: 8px; }
