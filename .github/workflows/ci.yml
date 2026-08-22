@@ -72,6 +72,9 @@ jobs:
       - name: Committed screenshots match the renderer
         run: git diff --exit-code examples/memcard/screenshots examples/channel6/screenshots
 
+      - name: Test card still tests what its reading table claims
+        run: python3 tools/make_testcard.py --self-test
+
       - name: Generated assets match their generators
         run: |
           # swizzle.png is the step 3 instrument and its meaning lives
