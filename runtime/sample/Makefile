@@ -33,6 +33,13 @@ endif
 ifdef PROBE
 EE_CFLAGS += -DPS2UI_SAMPLE_PROBE
 endif
+# `make PROBE6=1` builds the bring-up step 6 instrument: one texture
+# drawn with each UV convention either side of an untextured reference
+# of the same pattern, so the reading is which of two seams vanished.
+# No .uib and no ps2ui involved -- it asks the GS directly.
+ifdef PROBE6
+EE_CFLAGS += -DPS2UI_SAMPLE_PROBE6
+endif
 # `make SCREEN=probe` opens on the named screen rather than screen 0.
 # The sample walks focus but never switches screens, so without this a
 # blob's later screens cannot be reached on a console at all -- see the
