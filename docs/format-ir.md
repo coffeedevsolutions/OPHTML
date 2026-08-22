@@ -103,6 +103,24 @@ colors; the whole bake can be forced with `ps2ui-bake
 --palettize-images`. Images have no focus variants: `state` is always
 `"always"`.
 
+**An already-indexed source is baked verbatim.** If the PNG is mode `P`
+the baker keeps its palette and its index values exactly as authored
+rather than re-quantizing: re-quantizing an indexed image is lossy for
+nothing, and it destroys any meaning the indices carried. Bring-up
+step 3 depends on that meaning — its tile is built from indices chosen
+to differ only in the two bits CSM1 permutes, so a correct CLUT upload
+renders it uniform and a wrong one renders a boundary.
+
+A short palette is padded to the full 256 entries, because the GS reads
+a 256-entry CLUT and the runtime permutes all of them.
+
+An indexed source laid out at a size other than its own is a **build
+error**, not a silent fall-back to quantizing. Resampling index values
+is meaningless, and quietly requantizing would leave the author
+believing the indices survived with nothing to say otherwise. Bake it
+at its natural size, or drop `palettize` to have it requantized on
+purpose.
+
 ### `scissor_push` / `scissor_pop`
 
 ```jsonc

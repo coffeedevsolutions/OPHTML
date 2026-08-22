@@ -207,9 +207,55 @@ class Flattener:
         key = (src, w, h, palettize)
         if key not in self._images:
             try:
-                img = Image.open(src).convert("RGBA")
+                raw = Image.open(src)
+                raw.load()
             except OSError as err:
                 raise ValueError(f"image: cannot decode {src!r}: {err}") from err
+
+            # An already-indexed PNG keeps its own palette and its own
+            # index values. Re-quantizing one is lossy for nothing, and
+            # it destroys any meaning the indices carried -- which is
+            # the whole point for bring-up step 3, where the tile is
+            # built from indices chosen to differ only in the two bits
+            # CSM1 permutes, so a correct CLUT upload renders uniform
+            # and a wrong one renders a boundary.
+            if palettize and raw.mode == "P":
+                if raw.size != (w, h):
+                    # Refuse rather than fall back. LANCZOS on index
+                    # values blends indices into nonsense, and NEAREST
+                    # would silently drop rows -- but the real reason is
+                    # that a quiet fall-back to quantizing is exactly
+                    # the failure this feature exists to prevent: the
+                    # author believes the indices survived and they did
+                    # not, with nothing on screen or in the log to say
+                    # so. Bake it at its natural size or drop the
+                    # `palettize` attribute and let it be requantized on
+                    # purpose.
+                    raise ValueError(
+                        f"image: {src!r} is an indexed PNG at "
+                        f"{raw.size[0]}x{raw.size[1]} but is laid out at "
+                        f"{w}x{h}. Indexed sources are baked verbatim to "
+                        f"preserve their palette, which resizing cannot "
+                        f"do. Author it at the laid-out size, or remove "
+                        f"`palettize` to have it requantized instead."
+                    )
+                # getpalette returns only the entries the file defines;
+                # the GS reads a 256-entry CLUT and the runtime permutes
+                # all 256, so the tail is padded rather than left short.
+                pal = raw.getpalette(rawmode="RGBA") or []
+                clut = bytearray()
+                for i in range(0, len(pal), 4):
+                    clut += gs.pack_rgba_gs(pal[i], pal[i + 1],
+                                            pal[i + 2], pal[i + 3])
+                clut += bytes(256 * 4 - len(clut))
+                self.cluts.append(bytes(clut))
+                self.textures.append(BakedTexture(
+                    gs.PSMT8, w, h, len(self.cluts) - 1, raw.tobytes(),
+                ))
+                self._images[key] = len(self.textures) - 1
+                return self._images[key]
+
+            img = raw.convert("RGBA")
             if img.size != (w, h):
                 img = img.resize((w, h), Image.LANCZOS)
             if palettize:
