@@ -25,6 +25,11 @@ endif
 ifdef TELEMETRY
 EE_CFLAGS += -DPS2UI_SAMPLE_TELEMETRY
 endif
+# `make MINIMAL=1` builds bring-up step 1 alone: clear, hold, exit.
+# The smallest thing that can prove the boot and video path.
+ifdef MINIMAL
+EE_CFLAGS += -DPS2UI_SAMPLE_MINIMAL
+endif
 ifdef PROBE
 EE_CFLAGS += -DPS2UI_SAMPLE_PROBE
 endif

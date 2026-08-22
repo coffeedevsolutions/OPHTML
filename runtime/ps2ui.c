@@ -318,6 +318,44 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
 
     memset(&ctx->stats, 0, sizeof ctx->stats);
 
+    /* Assert the blend this format's alpha domain assumes, every frame,
+     * rather than inheriting whatever gsKit_init_screen left:
+     *
+     *     Cv = (Cs - Cd) * As >> 7 + Cd        A=Cs B=Cd C=As D=Cd
+     *
+     * Until a SCPH-50000 read the step 2 probe, nothing in this tree
+     * had ever written the GS ALPHA register, and gsKit's default is
+     * not this. Its default is GS_BLEND_BACK2FRONT, which decodes to
+     * A=Cd B=Cs C=As D=Cs -- the operands swapped, so the effective
+     * coverage is (128 - As) rather than As. Alpha ran exactly
+     * inverted: a quad the .uib calls fully opaque at As=0x80 composited
+     * to pure background and disappeared, while a nearly transparent
+     * one painted at almost full strength. The probe measured that on
+     * six rungs and every one fit 128 - As to within a unit.
+     *
+     * docs/format-uib.md documents the domain; this is the line that
+     * makes the runtime honour it. Set it here, not once at init: the
+     * value is global GS state and any other gsKit user in the host
+     * program can change it between frames. gsKit_init_screen writes
+     * the default straight into GS_ALPHA_1/GS_ALPHA_2 rather than
+     * through gsGlobal->PrimAlpha, so a caller cannot pre-empt it by
+     * assigning the field either -- here is the only place this fits.
+     *
+     * The alpha TEST is deliberately NOT asserted alongside it, and the
+     * argument above does apply to it: a host that enables ATE between
+     * frames would silently discard ps2ui pixels, the same shape of
+     * fault found the same expensive way. It is left inherited because
+     * gsKit_init_screen defaults ATE off, the probe positively ruled a
+     * discard out (column 5's reference drew at the same vertex alpha
+     * its test vanished at), and TEST also carries ZTE and ZTST -- so
+     * rewriting it per frame through a preset whose full register
+     * semantics are not pinned down here would be depending on
+     * unverified GS state to fix a bug caused by depending on
+     * unverified GS state. If a discard ever does show up, probe step 2
+     * still covers it and gsKit_set_test(gs, GS_ATEST_OFF) is the line.
+     */
+    gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
+
     stack[0].x0 = 0;
     stack[0].y0 = 0;
     stack[0].x1 = ctx->hdr->canvas_w;

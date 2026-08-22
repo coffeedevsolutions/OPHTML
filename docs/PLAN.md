@@ -84,11 +84,19 @@ the clear, unblended sprites, and blended alphas 0x20/0x40/0x60 with
 composites matching the blend equation exactly. Alpha **0x7f and 0x80
 rasterise wearing the previous primitive's color**. 0x80 is what every
 opaque quad carries — hence a captured UI frame 92.8% black with text
-intact. Bring-up steps 3/4/5 pass under it; step 2 does not. Only silicon
-(or PCSX2 with a real BIOS) can say whether this is Play!'s blend HLE or
-our GS state. Chasing it further inside Play! was deliberately stopped.
+intact. **This inference was correct and is now confirmed.** It was not
+Play!'s HLE: a SCPH-50000 does the same thing, because nothing in
+`runtime/` had ever written the GS `ALPHA` register and gsKit's default
+inverts it. With the equation asserted, the same capture returns 52.8%
+`#0a0e1a` against an expected 58.6% and RMSE 22.89, down from 72.89.
+Bring-up steps 3/4/5 passed under it; step 2 did not. Silicon has now
+answered: it was **our GS state**, not Play!'s blend HLE. Stopping the
+chase inside Play! was the right call — the emulator could not have
+settled it, and the fingerprints kept from that run are what made the
+hardware result recognisable the moment it arrived.
 
-Everything downstream of Phase 0 is provisional against this gap.
+That gap is closed. Everything downstream of Phase 0 was provisional
+against it and no longer is; step 2 passes on a SCPH-50000.
 
 ## §4 The cohesion audit
 
@@ -333,7 +341,8 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 
 | Risk | Standing | Mitigation |
 |---|---|---|
-| Renderer unproven on silicon | **top risk** | Phase 0 gates everything; bring-up doc is a bench procedure; Play! anomaly recorded with exact fingerprints |
+| Renderer unproven on silicon | **top risk, now partly realised** | Phase 0 found a real fault at bring-up step 2 before any UI ran, which is what the gate is for |
+| ~~Nothing in `runtime/` ever writes the GS `ALPHA`, `TEST` or `PABE` registers~~ | **closed — confirmed cause, fixed, and verified on hardware** | the baker computed alpha in the 0..128 domain assuming `(Cs - Cd) * As >> 7 + Cd`; the runtime inherited gsKit's `GS_BLEND_BACK2FRONT`, which is that equation with the operands swapped, so alpha ran inverted. probe v3 isolated it and a SCPH-50000 confirmed it. `ps2ui_render` now asserts the equation every frame and two runtime checks fail if it stops. **Residual:** the alpha TEST is still inherited — defensible (`ATE` defaults off, a discard was positively ruled out) and reasoned in `ps2ui.c`, but it is the same shape of exposure |
 | Emulator not an oracle; PCSX2 needs a BIOS | standing | emulator job kept as characterisation, not verdict; fingerprint tool makes captures comparable |
 | Phase 1 is a breaking rework | accepted | that is why it happens before packaging creates external consumers; one v6 move |
 | Node + Python dual runtime friction | standing | packaging wraps it, doesn't remove it; accepted cost of replaceable stages |
@@ -345,7 +354,7 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 
 | Decision | Rationale | Revisit when |
 |---|---|---|
-| Stopped diagnosing Play!'s 0x7f/0x80 behaviour | HLE, not an oracle; characterised with exact fingerprints | Phase 0 bench |
+| ~~Stopped diagnosing Play!'s 0x7f/0x80 behaviour~~ **REOPENED, then RESOLVED** | It was not an HLE artifact. A SCPH-50000 does the same thing: blended sprites at As `0x7f` and `0x80` produce nothing, while their unblended references at the same vertex alpha paint correctly. Writing it off as emulator inaccuracy cost a cycle; the fingerprints are what made the hardware result recognisable when it arrived | now — probe v3 |
 | Deferred `visible_get/set` conflation fix (PR #16 review) | wants a deliberate API break | Phase 1 API pass |
 | Deferred the deliberately clipped probe quad (PR #15 review) | only observable on hardware | Phase 0 probe |
 | F19 unload parked; streaming re-derived as static reservation | the F19→F20 dependency was inherited, not derived | a shell-and-module use case |
