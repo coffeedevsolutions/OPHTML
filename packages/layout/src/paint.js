@@ -79,6 +79,7 @@ function emitTextLines(cmds, box, paint, state) {
       color: paint.color,
       state,
       focusId: box.focusId,
+      ...(box.nocontrast ? { nocontrast: true } : {}),
     });
   }
 }

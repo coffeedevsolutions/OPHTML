@@ -27,8 +27,10 @@ import os
 import re
 import sys
 
-from ps2ui_bake.quads import (FOCUS_NONE, OP_QUAD, OP_SCISSOR_PUSH,
-                               OP_TEXQUAD)
+from ps2ui_bake.quads import (FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP,
+                               OP_SCISSOR_PUSH, OP_TEXQUAD)
+from ps2ui_bake.rounding import css_channel_to_gs
+from ps2ui_bake.clip import can_draw, intersect
 from ps2ui_bake import gs
 from ps2ui_bake.uib import FEAT_DYNAMIC_TEXT, read_uib
 
@@ -44,7 +46,8 @@ GAMES_FOCUS = [
 ]
 PROBE_FOCUS = [
     "probe-alpha", "probe-radius", "probe-type",
-    "probe-clip", "probe-image", "probe-aspect", "probe-flex",
+    "probe-clip", "probe-modulate", "probe-image", "probe-aspect",
+    "probe-flex",
 ]
 # name -> capacity, the buffer the runtime is allowed to write into.
 GAMES_SLOTS = {
@@ -184,28 +187,146 @@ def main(path: str) -> int:
     check(not hairlines,
           f"no 1px quads to shimmer on an interlaced CRT ({len(hairlines)} found)")
 
+    # --- bring-up steps 4 and 5: the vanish rows ---------------------
+    #
+    # Text painted the same colour as the block behind it, so a correct
+    # console renders nothing. That only tests anything while the two
+    # colours actually match, and they match in different domains: the
+    # block is a QUAD in full-range CSS RGB, the glyphs are a TEXQUAD in
+    # the GS 0x80-identity modulate domain. A CSS edit that nudged
+    # either would leave text permanently legible and read as a
+    # hardware fault forever.
+    #
+    # The third row must NOT match, or "I see no text" and "this cell
+    # draws no text" become the same observation and the first two rows
+    # prove nothing.
+    VANISH = ((0x7a, 0x5c, 0x3e), (0x3e, 0x6a, 0x7a))
+    CONTROL_INK = (0xd0, 0xd8, 0xe4)
+
+    for css in VANISH:
+        want = tuple(css_channel_to_gs(c) for c in css)
+        hexc = "#%02x%02x%02x" % css
+        # The block must be an untextured QUAD. A border-radius would
+        # make it a nine-patch, which reaches the framebuffer through
+        # TEX MODULATE just like the glyphs -- a domain error would then
+        # scale both by the same factor, the text would vanish anyway,
+        # and this cell would pass on broken hardware. The two must
+        # arrive by different paths or the comparison is vacuous.
+        # Asserting OP_QUAD *is* the untextured assertion: a rounded
+        # block bakes as nine textured pieces and no flat quad of this
+        # colour survives at all, so this check fires on exactly that.
+        #
+        # A separate "no TEXQUAD covers the block" check lived here for
+        # one commit and could never fail -- it matched the block's own
+        # 115px-wide geometry, which a nine-patch never emits, since it
+        # splits into corners and edges. Deleted rather than repaired:
+        # the property is already covered, and a check that cannot fail
+        # is worse than no check, because it reads like coverage.
+        block = [r for r in uib.records
+                 if r.op == OP_QUAD and r.rgba[:3] == css]
+        ink = [r for r in uib.records
+               if r.op == OP_TEXQUAD and r.rgba[:3] == want]
+        check(bool(block) and bool(ink),
+              f"vanish row {hexc}: untextured block and tinted glyphs "
+              f"both baked ({len(block)} block, {len(ink)} glyph)")
+        # Existence is not the property; the glyphs have to sit ON the
+        # block. A future edit that moved the text out of its row would
+        # leave both records present, both matched, and the cell testing
+        # nothing at all -- text on the canvas ground is legible whatever
+        # the modulate domain does.
+        on_block = [g for g in ink
+                    if any(b.x <= g.x and g.x + g.w <= b.x + b.w
+                           and b.y <= g.y and g.y + g.h <= b.y + b.h
+                           for b in block)]
+        check(len(on_block) == len(ink),
+              f"vanish row {hexc}: every glyph sits inside its block "
+              f"({len(on_block)}/{len(ink)})")
+
+    want_ctl = tuple(css_channel_to_gs(c) for c in CONTROL_INK)
+    ctl = [r for r in uib.records
+           if r.op == OP_TEXQUAD and r.rgba[:3] == want_ctl]
+    check(bool(ctl), "the control row's glyphs are baked")
+    check(want_ctl not in [tuple(css_channel_to_gs(c) for c in v)
+                           for v in VANISH],
+          "and its ink does not match either block, so it must be "
+          "legible when the vanish rows are not")
+
     # --- bring-up step 7's instrument (data-keep) --------------------
     #
-    # A magenta quad parked outside .scissor's clip. It survives the
-    # dead-geometry trim only because of data-keep, and it is useful
-    # only while two things stay true: it is outside the clip that must
-    # suppress it, and inside the canvas so the framebuffer bounds are
-    # not doing the job instead. Either drifting turns a positive test
-    # for a negative into a quad that proves nothing, silently -- and
-    # the previewer cannot tell you, because a working instrument and a
-    # broken one both render as nothing.
-    tell = [r for r in uib.records if r.rgba[:3] == (255, 0, 255)]
-    check(len(tell) == 1,
-          f"the scissor tell quad survived the trim ({len(tell)} found)")
-    if len(tell) == 1:
-        t = tell[0]
-        clips = [r for r in uib.records if r.op == OP_SCISSOR_PUSH]
-        covering = [c for c in clips
-                    if c.x <= t.x and c.x + c.w >= t.x + t.w]
-        check(not covering,
-              f"and lies outside every clip rect (x={t.x}..{t.x + t.w})")
-        check(t.x + t.w <= uib.canvas_w and t.y + t.h <= uib.canvas_h,
-              "and inside the canvas, so the scissor is what must hide it")
+    # A PAIR of magenta quads, and the pair is the instrument -- one
+    # alone is not. `.tell` sits outside .scissor's clip, so the GS must
+    # suppress it; `.tell-twin` sits inside, so the GS must draw it.
+    #
+    # Without the twin, "no magenta on screen" means either the scissor
+    # worked or the quad never drew, and the cell cannot say which. Not
+    # a hypothetical: both bake at alpha 0x80, and until the GS blend
+    # equation was asserted every quad at that alpha composited to
+    # background -- so this cell read "scissor works" on a console where
+    # the scissor was doing nothing whatsoever.
+    #
+    # Classified with clip.py's own stack walk rather than a predicate
+    # written here. The one this replaces asked whether some clip
+    # CONTAINED the quad, which is not the question: a quad straddling
+    # a clip edge is contained by nothing, so it was filed "outside" and
+    # passed while 84 of its pixels rendered. With the twin in place
+    # that stops being a confusing result and becomes a confident wrong
+    # verdict -- a sliver of magenta beside the twin reads as "both
+    # visible", which the table below calls a hardware fault.
+    #
+    # can_draw() asks the real question, intersection not containment,
+    # and the walk tracks push/pop nesting inside this screen only. The
+    # old version compared against every OP_SCISSOR_PUSH in the blob,
+    # the games screen included, so a clip belonging to another screen
+    # could flip the classification.
+    tell = [i for i, r in enumerate(uib.records)
+            if r.rgba[:3] == (255, 0, 255)]
+    check(len(tell) == 2,
+          f"the scissor tell pair survived the trim ({len(tell)} found)")
+    if len(tell) == 2:
+        # Effective clip for every record, per screen, exactly as the
+        # baker's trim computes it.
+        effective = {}
+        for sc in uib.screens:
+            stack = [(0, 0, uib.canvas_w, uib.canvas_h)]
+            lo = sc["cmd_first"]
+            for i in range(lo, lo + sc["cmd_count"]):
+                r = uib.records[i]
+                if r.op == OP_SCISSOR_PUSH:
+                    stack.append(intersect(stack[-1], r.x, r.y, r.w, r.h))
+                elif r.op == OP_SCISSOR_POP:
+                    if len(stack) > 1:
+                        stack.pop()
+                else:
+                    effective[i] = stack[-1]
+
+        drawable = [i for i in tell
+                    if i in effective and can_draw(uib.records[i], effective[i])]
+        hidden = [i for i in tell if i not in drawable]
+        check(len(drawable) == 1 and len(hidden) == 1,
+              f"one quad the scissor must hide and one it must draw "
+              f"({len(hidden)} hidden, {len(drawable)} drawable)")
+        if len(drawable) == 1 and len(hidden) == 1:
+            t, twin = uib.records[hidden[0]], uib.records[drawable[0]]
+            check(t.x + t.w <= uib.canvas_w and t.y + t.h <= uib.canvas_h,
+                  f"the hidden one is inside the canvas, so the scissor "
+                  f"is what must hide it (x={t.x}..{t.x + t.w})")
+            check(twin.x + twin.w <= uib.canvas_w
+                  and twin.y + twin.h <= uib.canvas_h,
+                  "and the visible one is on screen, so its absence "
+                  "would mean the quad never drew")
+            check((t.w, t.h) == (twin.w, twin.h),
+                  f"both are the same size ({t.w}x{t.h}), so only "
+                  f"position distinguishes them")
+            # Clearance, not just correctness. The layout that puts
+            # .tell outside its clip has drifted twice already -- once
+            # when the twin was added, once when the runner's copy
+            # changed length -- and a quad one pixel clear of the edge
+            # is a quad that will be inside it after the next edit.
+            clip = effective[hidden[0]]
+            gap = clip[0] + clip[2] - t.x
+            check(gap <= -12,
+                  f"and clears the clip edge by {-gap}px, so an ordinary "
+                  f"layout edit cannot walk it back inside")
 
     return report()
 

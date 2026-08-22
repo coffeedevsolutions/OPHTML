@@ -64,6 +64,14 @@ The layout stage guarantees `radius <= min(w, h) / 2` and that a
 border-color without width (or a fully transparent paint) is normalized
 away, so identical unfocused/focused paints always merge to `always`.
 
+An optional `"keep": true` may appear on a rect, from `data-keep` on the
+element. It exempts that geometry from the baker's dead-geometry trim,
+which otherwise drops any record that provably cannot draw. The one
+thing that wants it is deliberate observability: bring-up step 7 needs
+a quad that *provably cannot draw*, so that seeing it on a television
+means the scissor is not being applied. Trimming it would delete the
+test. Absent means false.
+
 ### `text`
 
 One command per laid-out line. `x`/`y` is the top-left of the glyph box
@@ -77,6 +85,19 @@ One command per laid-out line. `x`/`y` is the top-left of the glyph box
   "state": "unfocused", "focusId": 9
 }
 ```
+
+An optional `"nocontrast": true` may appear, from `data-nocontrast` on
+the element. It applies to **that element's own text only** — it does
+not cascade, so putting it on a wrapper does nothing. That is
+self-announcing rather than silent: the warning it was meant to
+suppress keeps appearing, so the author finds out at once.
+
+It is a **lint-only** flag: the baker ignores it, and it exists so text
+whose invisibility is the instrument — bring-up steps 4
+and 5 paint glyphs the exact colour of the block behind them — does not
+emit a permanent contrast warning on every build. Scoped to that one
+rule rather than a blanket opt-out, so it has to be argued for each
+time it is used. Absent means false, like `keep` on a rect.
 
 The string is already wrapped, ellipsized and positioned; the baker must
 not re-measure it, only advance the pen by the shared rounding rule

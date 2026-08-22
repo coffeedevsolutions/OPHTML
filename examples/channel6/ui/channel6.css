@@ -355,7 +355,26 @@ h1 {
   padding: 2px 6px;
 }
 
-.scissor .runner { font-size: 14px; color: #e8b64c; white-space: nowrap; }
+/* Explicit width, and it is load-bearing rather than cosmetic.
+ *
+ * .tell's position is scissor.x + padding + THIS + the twin + a margin.
+ * With the width left to the text, that chain ends in a string of
+ * English: the copy in probe.html decides how far the tell sits from
+ * the clip edge it has to clear. It has already drifted twice -- once
+ * when .tell-twin took 24px of the row, once when shortening this
+ * sentence moved the tell to within one pixel of the edge with every
+ * check still green.
+ *
+ * The element is nowrap inside overflow: hidden, so a fixed width
+ * changes nothing about what renders; it only stops the geometry from
+ * being a function of prose. check.py asserts the clearance that
+ * results, so neither this number nor the margin can drift quietly. */
+.scissor .runner {
+  font-size: 14px;
+  color: #e8b64c;
+  white-space: nowrap;
+  width: 60px;
+}
 
 /* Bring-up step 7's instrument, and the reason data-keep exists.
  *
@@ -370,6 +389,32 @@ h1 {
  * otherwise delete it at build time, on exactly the correct reasoning
  * that a quad which cannot draw cannot change the image. Here that
  * property is the point rather than waste. */
+/* The twin, and the reason .tell alone is not a test.
+ *
+ * An invisible .tell means one of two things: the scissor suppressed
+ * it, or it never drew. Those are not the same result and the cell
+ * could not tell them apart. Not hypothetical either -- .tell bakes at
+ * alpha 0x80, and until the GS blend equation was asserted every quad
+ * at that alpha composited to background, so this cell would have read
+ * "scissor works" on a console where the scissor was doing nothing at
+ * all.
+ *
+ * Same quad, same size, same colour, same data-keep, placed INSIDE the
+ * clip where it must be visible. Now the pair discriminates:
+ *
+ *   twin visible, tell hidden  -> scissor works
+ *   both visible               -> scissor is not reaching the GS
+ *   both hidden                -> void; the quad never drew and this
+ *                                 cell says nothing about clipping
+ *
+ * "Both hidden" reading as void rather than as a pass is the whole
+ * point. A check with no reachable failing state is not a check. */
+.tell-twin {
+  width: 24px;
+  height: 24px;
+  background: #ff00ff;
+}
+
 .tell {
   width: 24px;
   height: 24px;
@@ -378,10 +423,79 @@ h1 {
    * the scissor is what must suppress it, and inside the canvas so
    * that the framebuffer bounds are not doing the job instead --
    * off-screen geometry would test nothing. check.py asserts both, so
-   * a layout change cannot quietly turn this into a no-op. */
-  margin-left: 60px;
+   * a layout change cannot quietly turn this into a no-op.
+   *
+   * It asserted exactly that when .tell-twin was added: the twin is
+   * 24px of flex row ahead of this quad, which pushed it to x=627..651
+   * and out past the canvas edge, where the framebuffer would have
+   * been doing the hiding. 36 puts it back to 603..627. The margin is
+   * not decoration -- it is the whole difference between this cell
+   * testing the scissor and testing nothing. */
+  margin-left: 40px;
   background: #ff00ff;
 }
+
+/* Bring-up steps 4 and 5, asked as a question a camera can answer.
+ *
+ * Both steps used to read "look at the text and decide whether the
+ * brightness seems right", which is the failure mode that cost the
+ * step 2 probe three rewrites: it wants a measurement, and a handheld
+ * photograph of a glossy panel cannot give one. Measured on the real
+ * photographs, references of #8c0784, #c503c1, #fd00fd and #ff00ff all
+ * came back within ten units of each other.
+ *
+ * Invert it. Paint text the SAME colour as the block behind it. On a
+ * correct console the text is invisible -- not "about right", gone.
+ * "Can you see letters here" survives any exposure, angle or panel.
+ *
+ *   rows 1 and 2 legible -> step 4 or 5 is broken
+ *   row 3 NOT legible    -> void run; this cell cannot show you
+ *                           anything and rows 1-2 prove nothing
+ *
+ * Which of the two steps it is comes from the direction. Text brighter
+ * than its block means the tint is not being applied at all and glyphs
+ * are rendering at raw atlas white -- step 4, GSTEXTURE::Function, or
+ * an unintended PS2UI_GSKIT_HAS_FUNCTION=0 build. Text merely the wrong
+ * shade means the tint applied in the wrong domain -- step 5, the
+ * 0x80-identity modulate rule, which the previewer structurally cannot
+ * catch because it normalises by 255.
+ *
+ * Two vanish rows rather than one, in unrelated colours, so a single
+ * lucky coincidence cannot read as a pass. 'MMMM' because a heavy
+ * repeated glyph maximises inked area: the more ink, the louder any
+ * mismatch. */
+.vanish {
+  height: 20px;
+  padding: 0 6px;
+  margin-bottom: 3px;
+  /* NO border-radius, and that is the whole test.
+   *
+   * A rounded rect bakes as a nine-patch, which is TEXTURED -- the
+   * colour arrives from a texture through TEX MODULATE, exactly like
+   * the glyphs on top of it. A modulate-domain error would then scale
+   * block and text by the same factor, the text would vanish anyway,
+   * and this cell would report a pass on broken hardware.
+   *
+   * Square corners keep the block an untextured QUAD in full-range
+   * RGB. Now the block and the glyphs reach the framebuffer by
+   * different paths, and only agreement between those paths makes the
+   * text disappear. check.py asserts the block is untextured, because
+   * one `border-radius: 3px` would silently undo it. */
+}
+
+.vanish-a { background: #7a5c3e; }
+.vanish-b { background: #3e6a7a; }
+
+.vanish p { font-size: 14px; }
+
+/* Matched to their blocks: these must disappear. */
+.ink-a { color: #7a5c3e; }
+.ink-b { color: #3e6a7a; }
+
+/* Deliberately unmatched: this one MUST be legible. Without it, "I see
+ * no text" and "this cell renders no text at all" are the same
+ * observation, and rows 1 and 2 would be unfalsifiable. */
+.ink-c { color: #d0d8e4; }
 
 /* Images: identical source, PSMCT32 on the left, PSMT8+CLUT right. */
 .img-row { flex-direction: row; align-items: center; gap: 8px; }

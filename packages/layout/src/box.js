@@ -29,6 +29,7 @@ export class Box {
     this.image = null;          // for <img>: { src, w, h } (intrinsic px)
     this.slot = null;           // for data-slot: { name, capacity }
     this.keep = false;          // data-keep: exempt from the dead-geometry trim
+    this.nocontrast = false;    // data-nocontrast: exempt from the contrast lint
     // Filled by the solver:
     this.x = 0; this.y = 0; this.width = 0; this.height = 0;
     this.lines = null;          // laid-out text lines
@@ -82,6 +83,22 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   // cannot draw, so that a television showing it means the scissor is
   // not being applied.
   box.keep = 'data-keep' in el.attrs;
+
+  // data-nocontrast: exempt this element's text from the contrast lint.
+  //
+  // Same shape of exemption as data-keep, for the same reason. The trim
+  // deletes geometry that cannot draw, and data-keep exists for the one
+  // case where a quad that cannot draw IS the instrument. The contrast
+  // rule warns about text a viewer cannot read, and this exists for the
+  // one case where text a viewer cannot read is the instrument: bring-up
+  // steps 4 and 5 paint glyphs the exact colour of the block behind them,
+  // so that a correct console renders nothing and "can you see letters
+  // here" replaces a judgement of shade that no photograph can support.
+  //
+  // Deliberately scoped to the contrast rule alone rather than a blanket
+  // data-nolint. A general escape hatch gets reached for; a rule-specific
+  // one has to be argued for each time.
+  box.nocontrast = 'data-nocontrast' in el.attrs;
   if ('data-slot' in el.attrs) {
     // Dynamic text (backlog F2): the element's text is a build-time
     // placeholder; the console composes the real string at runtime
@@ -149,6 +166,11 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   for (const child of el.children) {
     if (child.type === 'text') {
       const tbox = new Box('text', el, anonymousTextStyle(style), null);
+      // The lines live on this anonymous child, not on the element box,
+      // so the exemption has to come down with them or it never reaches
+      // the command that carries the colour. data-keep needs no such
+      // hop: rects are emitted from the element box itself.
+      tbox.nocontrast = box.nocontrast;
       // Text inside a focus scope needs the focus-state text style too.
       tbox.focusStyle = focusStyle !== style ? anonymousTextStyle(focusStyle) : tbox.style;
       tbox.text = child.text;
