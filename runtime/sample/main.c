@@ -509,16 +509,29 @@ static void probe_frame(GSGLOBAL *gs)
  * makes the GS resample, and a resampled pattern degrades for reasons
  * that have nothing to do with addressing -- the same warning the test
  * card's own self-test carries. */
-#define P6_ATLAS    128          /* atlas side, in texels */
-#define P6_W        88           /* drawn width, in pixels and texels */
-#define P6_H        64           /* one band's height */
+#define P6_ATLAS    128          /* square atlas side, in texels */
+/* The real font atlas geometry, and the reason column F exists. Every
+ * shipped blob packs glyphs into a 256-wide PSMT8 atlas -- memcard
+ * 256x64, channel-6 256x64 and 256x128 -- and TEX0.TBW is texture
+ * buffer width in units of 64 texels, so those are TBW=4. The crisp
+ * test card is 64x64 (TBW=1) and the square atlas above is 128x128
+ * (TBW=2): between them the first five columns matched neither the
+ * known-good case nor the suspect one, and held the difference fixed
+ * at a third value. A cause living in TBW or in the non-square shape
+ * would have come back as five clean columns, read as "not the format,
+ * not the origin, not the scale" -- an answer nobody can act on, which
+ * is the exact failure this probe was rewritten to avoid. */
+#define P6_WIDE_W   256
+#define P6_WIDE_H   64
+#define P6_W        72           /* drawn width, in pixels and texels */
+#define P6_H        56           /* one band's height */
 #define P6_CELL     8            /* checker cell, in texels */
 #define P6_OFF      3            /* the "not the corner" UV origin */
-#define P6_COLS     5
-#define P6_GAP      12
-#define P6_X0       76
-#define P6_TOP_Y    140
-#define P6_GLYPH_W  8            /* column E's quad size, glyph-scale */
+#define P6_COLS     6
+#define P6_GAP      10
+#define P6_X0       79
+#define P6_TOP_Y    150
+#define P6_GLYPH_W  8            /* columns E and F: glyph-scale quads */
 #define P6_GLYPH_H  8
 
 /* A checker, not bars: a sampling error in either axis breaks alignment
@@ -539,6 +552,15 @@ static void probe_frame(GSGLOBAL *gs)
 #if (P6_ATLAS - P6_OFF) < P6_W || (P6_ATLAS - P6_OFF) < P6_H
 #error "step 6 probe: the offset sub-rect does not fit inside the atlas"
 #endif
+/* Separately from the square one: the wide atlas is only 64 tall, so
+ * it is the height that runs out first and the square guard above
+ * cannot see it. */
+#if (P6_WIDE_W - P6_OFF) < P6_W || (P6_WIDE_H - P6_OFF) < P6_H
+#error "step 6 probe: the offset sub-rect does not fit inside the wide atlas"
+#endif
+#if (P6_WIDE_W % 64) != 0
+#error "step 6 probe: the wide atlas must be a whole number of TBW units"
+#endif
 #if (P6_W % P6_GLYPH_W) != 0 || (P6_H % P6_GLYPH_H) != 0
 #error "step 6 probe: glyph-sized quads must tile the band exactly"
 #endif
@@ -552,8 +574,9 @@ static void probe_frame(GSGLOBAL *gs)
 
 static u32 p6_ct32[P6_ATLAS * P6_ATLAS] __attribute__((aligned(16)));
 static unsigned char p6_idx8[P6_ATLAS * P6_ATLAS] __attribute__((aligned(16)));
+static unsigned char p6_wide[P6_WIDE_W * P6_WIDE_H] __attribute__((aligned(16)));
 static u32 p6_clut[256] __attribute__((aligned(16)));
-static GSTEXTURE p6_tex32, p6_tex8;
+static GSTEXTURE p6_tex32, p6_tex8, p6_tex8w;
 
 /* GS_PSM_CT32 texels are little-endian ABGR in memory. */
 #define P6_TEXEL(r, g, b) \
@@ -581,6 +604,12 @@ static void p6_fill(void)
             p6_idx8[y * P6_ATLAS + x] = (unsigned char)(on ? 1 : 0);
         }
     }
+    /* Same pattern, real font-atlas geometry. Filled from the same
+     * p6_on() so column F's reference band is the one every other
+     * column uses -- only the buffer width underneath it changes. */
+    for (y = 0; y < P6_WIDE_H; y++)
+        for (x = 0; x < P6_WIDE_W; x++)
+            p6_wide[y * P6_WIDE_W + x] = (unsigned char)(p6_on(x, y) ? 1 : 0);
     for (i = 0; i < 256; i++)
         p6_clut[i] = P6_TEXEL(P6_OFF_R, P6_OFF_G, P6_OFF_B);
     p6_clut[1] = P6_TEXEL(P6_ON_R, P6_ON_G, P6_ON_B);
@@ -623,6 +652,25 @@ static int p6_upload(GSGLOBAL *gs)
     if (p6_tex8.VramClut == GSKIT_ALLOC_ERROR)
         return -1;
     gsKit_texture_upload(gs, &p6_tex8);
+
+    memset(&p6_tex8w, 0, sizeof p6_tex8w);
+    p6_tex8w.Width   = P6_WIDE_W;
+    p6_tex8w.Height  = P6_WIDE_H;
+    p6_tex8w.PSM     = GS_PSM_T8;
+    p6_tex8w.ClutPSM = GS_PSM_CT32;
+    p6_tex8w.Filter  = GS_FILTER_NEAREST;
+    p6_tex8w.Mem     = (u32 *)(void *)p6_wide;
+    p6_tex8w.Clut    = p6_clut;
+    p6_tex8w.Vram    = gsKit_vram_alloc(gs,
+        gsKit_texture_size(P6_WIDE_W, P6_WIDE_H, GS_PSM_T8),
+        GSKIT_ALLOC_USERBUFFER);
+    if (p6_tex8w.Vram == GSKIT_ALLOC_ERROR)
+        return -1;
+    p6_tex8w.VramClut = gsKit_vram_alloc(gs,
+        gsKit_texture_size(16, 16, GS_PSM_CT32), GSKIT_ALLOC_USERBUFFER);
+    if (p6_tex8w.VramClut == GSKIT_ALLOC_ERROR)
+        return -1;
+    gsKit_texture_upload(gs, &p6_tex8w);
     return 0;
 }
 
@@ -687,6 +735,10 @@ static void p6_frame(GSGLOBAL *gs)
     p6_column(gs, 2, &p6_tex8,  0,       P6_W,       P6_H);
     p6_column(gs, 3, &p6_tex8,  P6_OFF,  P6_W,       P6_H);
     p6_column(gs, 4, &p6_tex8,  P6_OFF,  P6_GLYPH_W, P6_GLYPH_H);
+    /* The closest replica of a real text run this probe can draw:
+     * indexed, an origin off the corner, glyph-scale quads, and the
+     * 256-wide atlas every shipped blob actually uses. */
+    p6_column(gs, 5, &p6_tex8w, P6_OFF,  P6_GLYPH_W, P6_GLYPH_H);
 }
 #endif
 

@@ -696,18 +696,34 @@ Three differences at once. So the question is no longer *which UV
 convention* but *which of these breaks it*, and the probe gives each
 one a column:
 
-| column | format | UV origin | quads | isolates |
-|---|---|---|---|---|
-| A | CT32 | `(0,0)` | one | **the calibration** — must be seamless |
-| B | CT32 | `(3,3)` | one | a UV origin that is not the corner |
-| C | T8+CLUT | `(0,0)` | one | the indexed path |
-| D | T8+CLUT | `(3,3)` | one | both |
-| E | T8+CLUT | `(3,3)` | 8×8 tiles | and at glyph scale |
+| column | format | atlas | UV origin | quads | isolates |
+|---|---|---|---|---|---|
+| A | CT32 | 128×128 | `(0,0)` | one | **the calibration** — must be seamless |
+| B | CT32 | 128×128 | `(3,3)` | one | a UV origin that is not the corner |
+| C | T8+CLUT | 128×128 | `(0,0)` | one | the indexed path |
+| D | T8+CLUT | 128×128 | `(3,3)` | one | both |
+| E | T8+CLUT | 128×128 | `(3,3)` | 8×8 | and at glyph scale |
+| F | T8+CLUT | **256×64** | `(3,3)` | 8×8 | and the real atlas geometry |
 
-Every column draws the same 88×64 checker from the same 128×128 atlas
-at 1:1, with an untextured reference of that image directly beneath —
-phase-shifted by that column's own UV origin, so each reference is what
-*that* column should look like. One seam per column.
+**Column F exists because texture geometry is a variable too**, and the
+first five columns held it constant at a value matching nothing:
+
+| | atlas | TBW |
+|---|---|---:|
+| test card — crisp | 64×64 CT32 | 1 |
+| columns A–E | 128×128 | 2 |
+| every shipped font atlas — the suspect | **256×64 PSMT8** | **4** |
+
+`TEX0.TBW` is texture buffer width in units of 64 texels, so a
+256-wide atlas addresses differently from a square 128-wide one. Had
+the cause lived there, A–E would all have come back clean and been read
+as *"not the format, not the origin, not the scale"* — an answer nobody
+can act on, and the same shape of mistake as this probe's v1.
+
+Every column draws the same 72×56 checker at 1:1, with an untextured
+reference of that image directly beneath — phase-shifted by that
+column's own UV origin, so each reference is what *that* column should
+look like. One seam per column.
 
 **Read it as: which seam is visible.** A solid sprite cannot address a
 texture wrongly, so the reference band is what correct looks like and
@@ -716,7 +732,7 @@ the boundary either disappears or it does not.
 | what you see | verdict |
 |---|---|
 | every seam invisible | none of these reproduces the artifact — look further out |
-| A seamless, one of B–E visible | **that column names the cause** |
+| A seamless, one of B–F visible | **that column names the cause** |
 | **A visible** | **VOID** — the probe is wrong, not the renderer |
 | several visible | read the leftmost; the columns are cumulative |
 
@@ -738,11 +754,14 @@ which.
 
 Everything is drawn at 1:1. A quad drawn at any size other than its UV
 span makes the GS resample, and a resampled pattern degrades for
-reasons unrelated to addressing. Four `#error` guards hold the geometry
-inside the title-safe box, keep the sub-rect inside the atlas, and keep
-the glyph-sized quads tiling the band exactly; each was verified to
-fire on the fault it names, and the horizontal one separately from the
-atlas guard that otherwise masks it.
+reasons unrelated to addressing. Six `#error` guards hold the geometry
+inside the title-safe box, keep the sub-rect inside both atlases, keep
+the wide atlas a whole number of TBW units, and keep the glyph-sized
+quads tiling the band exactly; each was verified to fire on the fault
+it names. Two needed separate cases from the ones that would otherwise
+mask them: the horizontal safe-box guard, and the wide atlas's height,
+which runs out before the square atlas's does and so is invisible to
+that check.
 
 ## 7. Scissor nesting
 

@@ -145,7 +145,7 @@ obviously unlike the grey at either end.
 
 ### Step 6b — which part of the texture path (run this one too)
 
-**Run** `probe6.elf`. Five columns, no text anywhere. Each column is a
+**Run** `probe6.elf`. Six columns, no text anywhere. Each column is a
 patterned patch with a reference patch directly beneath it. Ignore the
 pattern; look only at the horizontal boundary inside each column.
 
@@ -153,7 +153,7 @@ pattern; look only at the horizontal boundary inside each column.
 
 | what you see | verdict |
 |---|---|
-| all five seamless | **PASS** — none of these reproduces it |
+| all six seamless | **PASS** — none of these reproduces it |
 | leftmost seamless, another visible | **FAIL** — note which column, counting from the left |
 | **leftmost visible** | **VOID** — the leftmost is the calibration; if it seams the probe is wrong, not the console |
 
