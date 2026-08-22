@@ -43,10 +43,23 @@ import sys
 
 from PIL import Image
 
-# Not used anywhere else in the probe, and far apart in both hue and
-# luminance so the stripe survives a photograph of a CRT.
-X = (0x2e, 0x7d, 0x6b)   # teal
-Y = (0xd9, 0x4f, 0x2b)   # orange
+# Not used anywhere else in the probe, and far apart in LUMINANCE as
+# well as hue -- measured, not assumed.
+#
+#   Rec.601  54.4 vs 173.4   delta 119
+#   Rec.709  60.2 vs 168.6   delta 108
+#
+# The first pair tried here was #2e7d6b against #d94f2b, which looks
+# emphatic and is not: 16.8 apart in Rec.601 and 1.2 in Rec.709, so in
+# greyscale they are #636363 against #747474. That claim sat in this
+# docstring as a justification while being numerically false, in a repo
+# that had already lost a probe revision to exactly that assumption --
+# the step 2 ladder, whose rungs a camera flattened to within ten units
+# of each other. A stripe that only exists in chroma is a stripe that
+# vanishes on a monochrome capture, a badly tinted CRT, or a photograph
+# with the saturation crushed.
+X = (0x0d, 0x4a, 0x3e)   # dark teal
+Y = (0xff, 0x9a, 0x3c)   # bright orange
 
 # (index, colour). The three Y entries are traps: nothing draws them on
 # correct hardware except the calibration's.

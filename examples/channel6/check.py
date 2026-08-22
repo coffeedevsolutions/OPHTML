@@ -271,6 +271,37 @@ def main(path: str) -> int:
         check(sorted(set(tile.data)) == [0, 1, 2, 8, 32, 48],
               f"and kept its authored indices "
               f"({sorted(set(tile.data))})")
+
+        # ORDER, not just membership. The whole diagnostic is that a
+        # stripe's position names the failing bit, and the position is
+        # the region order -- so validating the palette exhaustively
+        # while ignoring the geometry validates everything about this
+        # instrument except the property it is read by.
+        #
+        # Reordering REGIONS to [0, 32, 8, 2, 1, 48] passed all 42
+        # checks while moving the calibration stripe off the right edge
+        # and making every row of bringup.md's reading table wrong.
+        cell = tile.width // 6
+        first = tile.data[:tile.width]
+        order = [first[c * cell] for c in range(6)]
+        check(order == [0, 8, 32, 48, 1, 2],
+              f"in the order the reading table depends on ({order})")
+        # And every pixel of a region has to match that region's
+        # sample, not merely be uniform along its own row. The first
+        # version of this check tested each region-row independently,
+        # which a per-row shuffle satisfies while rendering six stripes
+        # that change down the tile -- uniform on every line, wrong
+        # everywhere. The order sample is taken from row 0, so the
+        # property is that the rest of the tile agrees with row 0.
+        solid = all(
+            tile.data[r * tile.width + x] == order[c]
+            for c in range(6)
+            for x in range(c * cell, (c + 1) * cell)
+            for r in range(tile.height)
+        )
+        check(solid,
+              "and every region is that index all the way down, so the "
+              "sample above describes the whole tile")
         clut = uib.cluts[tile.clut]
 
         def entry(i):

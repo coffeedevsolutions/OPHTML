@@ -431,8 +431,14 @@ captures; on composite, use your eyes.
 **Do:** look at the bar across the top of the probe screen's
 `IMAGE` cell.
 
-**Expect:** a flat teal bar with **one orange stripe hard against its
-right edge** — nothing else.
+**Expect:** a flat dark-teal bar with **one bright-orange stripe hard
+against its right edge** — nothing else.
+
+The two colours are 119 apart in Rec.601 luma and 108 in Rec.709, so
+the stripe survives a monochrome capture, a badly tinted CRT, or a
+photograph with the saturation crushed. The pair before them looked
+emphatic and was 1.2 apart in Rec.709 — #636363 against #747474 in
+greyscale — which is the same trap the step 2 ladder fell into.
 
     correct        [ X X X X X | Y ]
     bit 3 wrong     X Y X X X | Y      stripe appears at 1/6

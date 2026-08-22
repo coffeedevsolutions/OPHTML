@@ -72,6 +72,16 @@ jobs:
       - name: Committed screenshots match the renderer
         run: git diff --exit-code examples/memcard/screenshots examples/channel6/screenshots
 
+      - name: Generated assets match their generators
+        run: |
+          # swizzle.png is the step 3 instrument and its meaning lives
+          # in exact index values, so a hand-edit or a stale checkout
+          # would change what the cell tests with nothing to say so.
+          # The test card has make_testcard.py run over it already;
+          # this asset had no such tie until it drifted once.
+          python3 tools/make_swizzle_tile.py examples/channel6/ui/assets/swizzle.png
+          git diff --exit-code examples/channel6/ui/assets/swizzle.png
+
       # check.py asserts what these particular blobs promise (their focus
       # names, slot capacities, screen order). ps2ui-check asserts what
       # *any* blob owes the runtime, so it covers the 16:9 bake and the
