@@ -186,26 +186,48 @@ def main(path: str) -> int:
 
     # --- bring-up step 7's instrument (data-keep) --------------------
     #
-    # A magenta quad parked outside .scissor's clip. It survives the
-    # dead-geometry trim only because of data-keep, and it is useful
-    # only while two things stay true: it is outside the clip that must
-    # suppress it, and inside the canvas so the framebuffer bounds are
-    # not doing the job instead. Either drifting turns a positive test
-    # for a negative into a quad that proves nothing, silently -- and
-    # the previewer cannot tell you, because a working instrument and a
-    # broken one both render as nothing.
+    # A PAIR of magenta quads, and the pair is the instrument -- one
+    # alone is not. `.tell` sits outside .scissor's clip, so the GS must
+    # suppress it; `.tell-twin` sits inside, so the GS must draw it.
+    #
+    # Without the twin, "no magenta on screen" means either the scissor
+    # worked or the quad never drew, and the cell cannot say which. Not
+    # a hypothetical: both bake at alpha 0x80, and until the GS blend
+    # equation was asserted every quad at that alpha composited to
+    # background -- so this cell read "scissor works" on a console where
+    # the scissor was doing nothing whatsoever.
+    #
+    # Both must also stay inside the canvas, or the framebuffer bounds
+    # do the hiding instead and the test proves nothing. The previewer
+    # cannot warn about any of this: a working instrument and a broken
+    # one both render as nothing.
     tell = [r for r in uib.records if r.rgba[:3] == (255, 0, 255)]
-    check(len(tell) == 1,
-          f"the scissor tell quad survived the trim ({len(tell)} found)")
-    if len(tell) == 1:
-        t = tell[0]
+    check(len(tell) == 2,
+          f"the scissor tell pair survived the trim ({len(tell)} found)")
+    if len(tell) == 2:
         clips = [r for r in uib.records if r.op == OP_SCISSOR_PUSH]
-        covering = [c for c in clips
-                    if c.x <= t.x and c.x + c.w >= t.x + t.w]
-        check(not covering,
-              f"and lies outside every clip rect (x={t.x}..{t.x + t.w})")
-        check(t.x + t.w <= uib.canvas_w and t.y + t.h <= uib.canvas_h,
-              "and inside the canvas, so the scissor is what must hide it")
+
+        def covered(q):
+            return [c for c in clips
+                    if c.x <= q.x and c.x + c.w >= q.x + q.w]
+
+        outside = [q for q in tell if not covered(q)]
+        inside = [q for q in tell if covered(q)]
+        check(len(outside) == 1 and len(inside) == 1,
+              f"one outside every clip and one inside "
+              f"({len(outside)} out, {len(inside)} in)")
+        if len(outside) == 1 and len(inside) == 1:
+            t, twin = outside[0], inside[0]
+            check(t.x + t.w <= uib.canvas_w and t.y + t.h <= uib.canvas_h,
+                  f"the hidden one is inside the canvas, so the scissor "
+                  f"is what must hide it (x={t.x}..{t.x + t.w})")
+            check(twin.x + twin.w <= uib.canvas_w
+                  and twin.y + twin.h <= uib.canvas_h,
+                  "and the visible one is on screen, so its absence "
+                  "would mean the quad never drew")
+            check((t.w, t.h) == (twin.w, twin.h),
+                  f"both are the same size ({t.w}x{t.h}), so only "
+                  f"position distinguishes them")
 
     return report()
 

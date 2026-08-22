@@ -370,6 +370,32 @@ h1 {
  * otherwise delete it at build time, on exactly the correct reasoning
  * that a quad which cannot draw cannot change the image. Here that
  * property is the point rather than waste. */
+/* The twin, and the reason .tell alone is not a test.
+ *
+ * An invisible .tell means one of two things: the scissor suppressed
+ * it, or it never drew. Those are not the same result and the cell
+ * could not tell them apart. Not hypothetical either -- .tell bakes at
+ * alpha 0x80, and until the GS blend equation was asserted every quad
+ * at that alpha composited to background, so this cell would have read
+ * "scissor works" on a console where the scissor was doing nothing at
+ * all.
+ *
+ * Same quad, same size, same colour, same data-keep, placed INSIDE the
+ * clip where it must be visible. Now the pair discriminates:
+ *
+ *   twin visible, tell hidden  -> scissor works
+ *   both visible               -> scissor is not reaching the GS
+ *   both hidden                -> void; the quad never drew and this
+ *                                 cell says nothing about clipping
+ *
+ * "Both hidden" reading as void rather than as a pass is the whole
+ * point. A check with no reachable failing state is not a check. */
+.tell-twin {
+  width: 24px;
+  height: 24px;
+  background: #ff00ff;
+}
+
 .tell {
   width: 24px;
   height: 24px;
@@ -378,8 +404,15 @@ h1 {
    * the scissor is what must suppress it, and inside the canvas so
    * that the framebuffer bounds are not doing the job instead --
    * off-screen geometry would test nothing. check.py asserts both, so
-   * a layout change cannot quietly turn this into a no-op. */
-  margin-left: 60px;
+   * a layout change cannot quietly turn this into a no-op.
+   *
+   * It asserted exactly that when .tell-twin was added: the twin is
+   * 24px of flex row ahead of this quad, which pushed it to x=627..651
+   * and out past the canvas edge, where the framebuffer would have
+   * been doing the hiding. 36 puts it back to 603..627. The margin is
+   * not decoration -- it is the whole difference between this cell
+   * testing the scissor and testing nothing. */
+  margin-left: 36px;
   background: #ff00ff;
 }
 
