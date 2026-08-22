@@ -504,18 +504,61 @@ setup is applying a second scale — check TEXA/TEXFLUSH state and that
 ## 6. Texel and pixel centers (the test card)
 
 **Do:** build and run the alignment card:
-`python3 tools/make_testcard.py testcard.uib --preview expected.png`
-(it writes the .uib directly through the baker API — no HTML involved).
-It draws a 1px-cell checkerboard texture at 1:1 in five positions and
-1px rules hugging the canvas edges.
-**Expect:** a crisp black-and-white checker (no gray mush), all four
-edge rules visible.
-**If checker is blurry/gray:** half-texel offset — sprite UVs need the
-classic `+0.5` texel bias on this path; apply it in `ps2ui_render`'s UV
-conversion (one place), not per-command in the baker, and re-run.
-**If edge rules are missing on one side:** half-pixel primitive offset
-or overscan — compare against gsKit's `OffsetX/OffsetY` handling before
+
+    python3 tools/make_testcard.py testcard.uib --preview expected.png
+
+The card carries **three** instruments, and they fail in different ways.
+
+**Expect (1) — the wedge.** Across the canvas centre: a flat grey
+patch, 1px, 2px and 4px checkers, then another flat patch. All three
+checkers crisp and obviously unlike the grey at either end.
+
+**Expect (2) — the edge rules.** Four 1px colour-coded rules hugging
+the canvas edges: **red top, green bottom, blue left, yellow right**.
+All four visible.
+
+**If a rule is missing on one side:** a half-pixel *primitive* offset,
+or overscan. That is a different fault from the wedge's half-texel *UV*
+offset — different code, different fix — which is why the colours name
+the side. Compare against gsKit's `OffsetX`/`OffsetY` handling before
 touching the linter's safe areas.
+
+**Expect (3) — the corner checkers.** The finest checker repeated at
+the four corners of the title-safe box. **Read these only once the
+wedge shows 1px crisp.** They have no coarser rung beside them, so on
+their own they carry exactly the fault-versus-limit ambiguity the wedge
+exists to remove — and they sit where CRT focus and convergence are
+worst and overscan crops first, so a mushy corner is more likely to be
+the panel than the centre ever was.
+
+**One checker cannot tell a fault from a limit.** A 1px checker
+photographed as grey means either the sampling is off by half a texel
+or the panel cannot resolve 1px from where the camera is standing, and
+those two look identical. That is why there are three:
+
+| 1px | 2px | 4px | reading |
+|---|---|---|---|
+| crisp | crisp | crisp | **pass** |
+| grey | crisp | crisp | real sampling fault |
+| grey | grey | crisp | the panel's resolution limit — the 1px result is **void** |
+| grey | grey | grey | void; read nothing from this cell |
+
+The flat patch is what a mushed checker looks like, sitting beside them
+so the comparison is side by side rather than remembered. Every checker
+averages the same 50% grey, which is exactly why a mushed one is
+indistinguishable from it — and exactly why it is worth drawing.
+
+**If wrong:** a half-texel UV offset. The baker emits texel-corner UVs
+and the GS samples at pixel centres; the `+0.5` convention has to match
+on both sides. Under bilinear a mismatch averages neighbouring texels
+into grey; under nearest it shifts the checker by one cell, which the
+corner copies make visible against the canvas edges.
+
+`make_testcard.py --self-test` fences the construction, and CI runs it.
+The property that matters most there is the 1:1 mapping: a wedge quad
+drawn at any size other than its UV span makes the GS resample, and a
+resampled checker mushes for reasons that have nothing to do with texel
+centres — a false fault reported confidently on correct hardware.
 
 ## 7. Scissor nesting
 

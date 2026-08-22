@@ -163,7 +163,8 @@ reports failure rather than only ever returning 0.
    exemption they needed
 3. ~~Step 3 swizzle tile~~ — done, once the baker preserved authored
    palettes
-4. Step 6 calibration card
+4. ~~Step 6 calibration card~~ — done, as a resolution wedge: one
+   checker could not separate a sampling fault from a panel limit
 5. Steps 8 and 9 — smallest, and independent of the rest
 
 Items 1 and 2 are one reviewable change: two probe cells, a lint
