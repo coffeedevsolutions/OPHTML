@@ -365,14 +365,31 @@ def _dead_commands(uib, sc) -> list:
         uib.records, sc["cmd_first"], sc["cmd_count"],
         uib.canvas_w, uib.canvas_h)
 
-def check_crt(uib, rep: Report, canvas, allow_dead: int = 0) -> None:
+def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,
+              allow_hairline: int = 0) -> None:
     """Advisory. Legal blobs that waste the GS or look wrong on a CRT."""
+    # `--allow-hairline N`, for the same reason as --allow-dead below: a
+    # 1px quad is usually an accident and sometimes the instrument. The
+    # test card's edge rules and its interlace pair ARE the shimmer being
+    # measured (bring-up step 8), and a blob cannot say so about itself.
+    # Declaring the count keeps this strict -- one more still warns --
+    # and turns the only remaining permanent warning in CI into a number
+    # somebody chose. A linter with standing false alarms is one people
+    # learn to skim.
     hairlines = [i for i, r in enumerate(uib.records)
                  if r.op == OP_QUAD and (r.w == 1 or r.h == 1)]
-    rep.warn(not hairlines,
-             f"{len(hairlines)} 1px quad(s) will shimmer on an interlaced CRT"
-             if hairlines else
-             "no 1px quads to shimmer on an interlaced CRT")
+    if allow_hairline and len(hairlines) <= allow_hairline:
+        rep.warn(True,
+                 f"{len(hairlines)} 1px quad(s), {allow_hairline} declared "
+                 f"deliberate (--allow-hairline)")
+    else:
+        surplus = len(hairlines) - allow_hairline
+        rep.warn(not hairlines,
+                 f"{surplus} 1px quad(s) will shimmer on an interlaced CRT"
+                 + (f"; {allow_hairline} declared deliberate"
+                    if allow_hairline else "")
+                 if hairlines else
+                 "no 1px quads to shimmer on an interlaced CRT")
 
     # `--allow-dead N` declares that N of these are deliberate. The flag
     # that produced them (`data-keep`) is build-time only and never
@@ -410,7 +427,8 @@ def check_vram(uib, rep: Report, budget=None) -> None:
     rep.error(ok, f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB")
 
 
-def check_blob(uib, budget=None, allow_dead: int = 0) -> Report:
+def check_blob(uib, budget=None, allow_dead: int = 0,
+               allow_hairline: int = 0) -> Report:
     """Every check, in dependency order. Returns the Report."""
     rep = Report()
     check_tables(uib, rep)
@@ -420,7 +438,8 @@ def check_blob(uib, budget=None, allow_dead: int = 0) -> Report:
     check_gs_domains(uib, rep)
     check_fonts(uib, rep)
     check_vram(uib, rep, budget)
-    check_crt(uib, rep, (uib.canvas_w, uib.canvas_h), allow_dead)
+    check_crt(uib, rep, (uib.canvas_w, uib.canvas_h), allow_dead,
+              allow_hairline)
     return rep
 
 
@@ -434,6 +453,9 @@ def main(argv=None) -> int:
     ap.add_argument("--allow-dead", type=int, default=0, metavar="N",
                     help="N draw commands outside their clip are deliberate "
                          "(data-keep instruments); more than N still warns")
+    ap.add_argument("--allow-hairline", type=int, default=0, metavar="N",
+                    help="N 1px quads are deliberate (the test card's edge "
+                         "rules and interlace pair); more than N still warns")
     ap.add_argument("--strict", action="store_true",
                     help="treat CRT warnings as failures")
     args = ap.parse_args(argv)
@@ -444,7 +466,8 @@ def main(argv=None) -> int:
         print(f"ps2ui-check: {exc}", file=sys.stderr)
         return 2
 
-    rep = check_blob(uib, args.vram_budget, args.allow_dead)
+    rep = check_blob(uib, args.vram_budget, args.allow_dead,
+                     args.allow_hairline)
     rep.emit()
 
     aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"

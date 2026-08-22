@@ -37,6 +37,20 @@ build.
 **One photo per step, straight on.** Every instrument here is built so
 a phone at arm's length can read it. Nothing needs a measurement.
 
+**A screen filled edge to edge with one flat colour is never a UI.**
+It is the ELF telling you something before it ever draws:
+
+| fill | means |
+|---|---|
+| steel blue | `minimal.elf` passed — this one is a **pass** |
+| dark red | the blob failed to load |
+| olive/dark yellow | the upload ran out of VRAM (that is step 9) |
+| magenta | the ELF asked for a screen this blob does not have |
+| **black, or no picture** | it did not boot. Nothing below applies |
+
+Magenta means the build is wrong, not the renderer. Report it and stop;
+nothing measured after it means anything.
+
 ---
 
 ## The three words that matter

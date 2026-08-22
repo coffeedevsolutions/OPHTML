@@ -56,12 +56,10 @@ jobs:
         run: |
           # Independent of the bakers that produced them: ps2ui-check
           # re-reads each file and asserts the invariants ps2ui.c relies
-          # on but cannot afford to verify at load time.
-          for blob in examples/memcard/build/ui.uib \
-                      examples/memcard/build/testcard.uib \
-                      examples/channel6/build/ui.uib; do
-            PYTHONPATH=packages/baker python3 -m ps2ui_bake.check "$blob"
-          done
+          # on but cannot afford to verify at load time. The rules live
+          # in the script so this workflow and ci.yml cannot disagree
+          # about what "valid" means for the same bytes.
+          ./tools/check-blobs.sh
           # conform.elf is built SCREEN=probe. That name lives in
           # probe.html and nothing else in the tree forces the two to
           # agree, so a rename would produce an ELF that holds solid

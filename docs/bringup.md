@@ -43,7 +43,25 @@ Reference material, in the order you will reach for it:
   sample walks focus but never switches screens, so without it the
   conformance grid — screen 1 of the channel-6 blob, and where steps 3,
   4, 5 and 7 are read — cannot be reached on a console at all. CI
-  builds that combination as `conform.elf`.
+  builds that combination as `conform.elf`. A name the blob does not
+  carry holds solid magenta rather than falling back to screen 0.
+
+### The flat-fill vocabulary
+
+A full-screen flat colour is always a status, never a UI. Four of them
+exist and an operator reads them across ELFs, so they are listed
+together — picking a fifth means picking one distinct from all of these
+in hue and well clear of black:
+
+| fill | luma | means |
+|---|---:|---|
+| steel blue `#4080c0` | 116 | `minimal.elf` passed (step 1) |
+| dark red `#800000` | 38 | `ps2ui_load` failed |
+| olive `#808000` | 113 | `ps2ui_upload` failed (step 9) |
+| magenta `#ff00ff` | 105 | `SCREEN=` names no screen in this blob |
+
+Black is not in this table on purpose: black is *no picture*, which is
+a boot failure. That is why none of the four may be dark.
 - `tools/make_testcard.py` — the texel-alignment card, a narrower
   instrument for step 6 alone.
 - The previewer PNGs are ground truth throughout. They replay the same

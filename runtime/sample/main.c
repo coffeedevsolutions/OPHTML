@@ -529,13 +529,38 @@ int main(void)
      * was authored, previewed, checked in CI, and impossible to look
      * at on hardware.
      *
-     * Solid blue = no screen by that name in this blob, so a typo in
-     * SCREEN= is a colour rather than a silent fallback to screen 0 --
-     * which would look exactly like a working build of the wrong
-     * thing. */
+     * Solid MAGENTA = no screen by that name in this blob, so a typo
+     * in SCREEN= is a colour rather than a silent fallback to screen 0
+     * -- which would look exactly like a working build of the wrong
+     * thing.
+     *
+     * Magenta, not blue, and not any of the obvious alternatives. The
+     * sample's flat-fill vocabulary is small and an operator reads it
+     * across ELFs at a bench, so a new member has to differ from every
+     * existing one in hue AND stay well clear of black:
+     *
+     *   #4080c0 steel blue  minimal.elf passed        luma 116
+     *   #800000 dark red    load error                luma  38
+     *   #808000 olive       VRAM alloc failure        luma 113
+     *   #ff00ff magenta     no such screen (this)     luma 105
+     *
+     * Blue was the first choice and the wrong one twice over: it is
+     * already what minimal.elf holds to say it PASSED, and the navy it
+     * used (#000080) is luma 15 -- a full-screen dark fill that a CRT's
+     * black crush can render as no picture at all, which the bench
+     * runbook defines as a boot failure. The one state this colour
+     * exists to name is the state it most resembled.
+     *
+     * Orange and cyan are brighter but sit in the same hue family as
+     * olive and as the pass blue respectively. Magenta is the only
+     * choice distinct from both, and 7x brighter than the navy.
+     *
+     * It also happens to be the colour of the scissor tell you came to
+     * look for: if the screen is missing, the whole frame is the colour
+     * you were about to hunt a 24px square of. */
     if (!ps2ui_screen_set(&ui, PS2UI_SAMPLE_SCREEN)) {
         while (1) {
-            gsKit_clear(gs, GS_SETREG_RGBAQ(0x00, 0x00, 0x80, 0x80, 0x00));
+            gsKit_clear(gs, GS_SETREG_RGBAQ(0xff, 0x00, 0xff, 0x80, 0x00));
             gsKit_queue_exec(gs);
             gsKit_sync_flip(gs);
         }
