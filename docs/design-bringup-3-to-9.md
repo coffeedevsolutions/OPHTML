@@ -165,7 +165,10 @@ reports failure rather than only ever returning 0.
    palettes
 4. ~~Step 6 calibration card~~ — done, as a resolution wedge: one
    checker could not separate a sampling fault from a panel limit
-5. Steps 8 and 9 — smallest, and independent of the rest
+5. ~~Steps 8 and 9~~ — done. Both were unfalsifiable as written: step
+   8 asked for a stable image on a screen with nothing that could
+   shimmer, and step 9 expected a 0 that nothing proved could be
+   anything else
 
 Items 1 and 2 are one reviewable change: two probe cells, a lint
 exemption plumbed through the layout package, and the checks that fence

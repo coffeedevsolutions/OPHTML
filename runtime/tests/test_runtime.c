@@ -152,6 +152,32 @@ int main(int argc, char **argv)
     CHECK(ps2ui_upload(&ctx, &gs) == 0, "textures fit in 4 MB VRAM");
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
+    /* Bring-up step 9 asks the operator to check this return value and
+     * expect 0. That is worth nothing unless non-zero is reachable: a
+     * function that only ever returns 0 gives the same answer on a
+     * console with 4 MB free and on one with none, and the step reads
+     * as a pass either way.
+     *
+     * The stub models the real ceiling -- gsKit_vram_alloc refuses past
+     * 4 MB -- so pushing the pointer to the top makes the next texture
+     * fail for the same reason a crowded console would. Restore it
+     * afterwards; every later check draws through this same gs. */
+    {
+        GSGLOBAL starved = gs;
+        ps2ui_ctx sc;
+        int rc_full;
+        starved.CurrentPointer = 4u * 1024u * 1024u - 16u;
+        memset(&sc, 0, sizeof sc);
+        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
+            rc_full = ps2ui_upload(&sc, &starved);
+            CHECK(rc_full != 0,
+                  "upload reports failure when VRAM is exhausted, so "
+                  "step 9's expected 0 is a result and not a constant");
+        } else {
+            CHECK(0, "starved-upload fixture failed to load");
+        }
+    }
+
     /* ---- render: focus filtering ---- */
     {
         int base = render_and_count(&ctx, &gs);
