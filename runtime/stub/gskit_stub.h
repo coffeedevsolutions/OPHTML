@@ -55,7 +55,29 @@ typedef struct GSGLOBAL {
     /* Set by the sample during init. Declared so main.c type-checks on
      * the host; nothing here reads them. */
     int PSM, PSMZ, DoubleBuffering, ZBuffering, PrimAlphaEnable;
+    /* The blend state the probe now sets explicitly. Real gsKit has
+     * these; until the v3 probe nothing in this tree ever wrote them,
+     * which is precisely the bug they exist to rule out. */
+    u64 PrimAlpha;
+    unsigned char PABE;
 } GSGLOBAL;
+
+/* ALPHA register: Cv = (A - B) * C >> 7 + D. A/B/D select 0=Cs 1=Cd 2=0;
+ * C selects 0=As 1=Ad 2=FIX. Mirrors gsKit's packing, values unused by a
+ * syntax check but the arity has to match. */
+#define GS_SETREG_ALPHA(A, B, C, D, FIX) \
+    (((u64)(A) << 0) | ((u64)(B) << 2) | ((u64)(C) << 4) | \
+     ((u64)(D) << 6) | ((u64)(FIX) << 32))
+
+#define GS_ATEST_OFF 0x03
+#define GS_ATEST_ON  0x04
+void gsKit_set_test(GSGLOBAL *gs, unsigned char preset);
+/* Setting gs->PrimAlpha does NOT emit the register -- this call does.
+ * Probe v3 assigned the field, changed nothing, and that silence was
+ * the clue. */
+void gsKit_set_primalpha(GSGLOBAL *gs, u64 alpha_mode, unsigned char per_pixel);
+extern u64 stub_prim_alpha;
+extern unsigned char stub_prim_alpha_set;
 
 /* ---- stub bookkeeping the test asserts against ---- */
 

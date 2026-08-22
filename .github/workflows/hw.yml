@@ -92,6 +92,11 @@ jobs:
           # objclean, not clean: `clean` removes $(EE_BIN), which
           # defaults to the UI ELF, so cleaning here silently threw the
           # first build away and the emulator job booted nothing.
+          # Bring-up step 1 alone: clear, hold, exit. The smallest ELF
+          # that proves the boot and video path, so the first thing to
+          # touch a console is the smallest surface that can fail.
+          make -C runtime/sample objclean
+          make -C runtime/sample MINIMAL=1 EE_BIN=minimal.elf
           make -C runtime/sample objclean
           make -C runtime/sample PROBE=1 EE_BIN=probe.elf
           # The bench instrument: cycling UI plus the once-a-second
@@ -103,6 +108,7 @@ jobs:
           # failure rather than as a build error.
           test -f runtime/sample/ps2ui_sample.elf
           test -f runtime/sample/probe.elf
+          test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
       - uses: actions/upload-artifact@v7
         with:
@@ -111,6 +117,7 @@ jobs:
           path: |
             runtime/sample/ps2ui_sample.elf
             runtime/sample/probe.elf
+            runtime/sample/minimal.elf
             runtime/sample/telemetry.elf
 
   emulator:
@@ -185,14 +192,22 @@ jobs:
           SDL_AUDIODRIVER: dummy
           ALSOFT_DRIVERS: "null"
         run: |
-          # The X screen is the canvas size on purpose. `import -window
-          # root` grabs the whole root window, so at 1280x960 the capture
-          # was Play!'s title bar, menu bar and desktop background, which
-          # framediff then squashed into 640x448 and compared against a
-          # pure framebuffer render. Matching the screen to the canvas and
-          # running fullscreen makes the root window the frame itself, at
-          # 1:1, with no chrome and no resampling.
-          xvfb-run -s "-screen 0 640x448x24" sh -c '
+          # A 640x448 root does NOT give a 1:1 capture, which is what
+          # this step assumed for its whole life. Play! fullscreen scales
+          # 1.394x and anchors top-left, so on a root the size of the
+          # canvas the right third and bottom quarter of the frame fall
+          # off the screen entirely -- and this is the capture that gets
+          # pixel-diffed against the previewer, so the diff was defined
+          # by the distortion. The probe step found it; the probe step is
+          # also the one that could afford it, being read as a palette.
+          #
+          # Give Play! room, then trim the desktop border back off. Trim
+          # rather than a hardcoded crop because the scale factor is a
+          # property of a Play! build, not of anything here: `-trim`
+          # finds the rendered frame by looking for it. 5% fuzz is safe
+          # against the canvas ground (#0a0e1a sits ~12% off black), so
+          # it removes the desktop and stops at the frame edge.
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
             ./squashfs-root/AppRun --fullscreen --elf elf/ps2ui_sample.elf \
               >play.log 2>&1 &
             PLAY_PID=$!
@@ -227,7 +242,12 @@ jobs:
           # the question you actually need when the answer to the first
           # one is no. Its four colours appear in no example, so the
           # fingerprint alone identifies what survived.
-          xvfb-run -s "-screen 0 640x448x24" sh -c '
+          # Play! fullscreen does not present 1:1 -- it scales 1.394x and
+          # anchors top-left, so on a 640x448 root the capture loses the
+          # right third of the frame and took probe columns 5 and 6 with
+          # it. Give it room; the probe capture is read as a palette, not
+          # diffed pixel-for-pixel, so a larger root costs nothing here.
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
             ./squashfs-root/AppRun --fullscreen --elf elf/probe.elf \
               >probe.log 2>&1 &
             P=$!
@@ -245,6 +265,77 @@ jobs:
             # reads as a pass whatever the frame contains.
             python3 tools/framediff.py probe.png --stats-only || true
           fi
+      - name: Trim the capture back to the framebuffer
+        if: always()
+        run: |
+          if [ ! -f captured.png ]; then
+            echo "no capture to trim"; exit 0
+          fi
+          RAW=$(identify -format '%wx%h' captured.png)
+          RW=$(identify -format '%w' captured.png)
+          RH=$(identify -format '%h' captured.png)
+          echo "raw capture: $RAW"
+          # -trim takes its reference from the image's CORNER PIXEL.
+          # -bordercolor feeds -border/-frame, not -trim, so naming it
+          # here would only look like it was setting the reference. The
+          # Xvfb root is black and Play! letterboxes onto it, so the
+          # corner is the border; 5% fuzz is safe against the canvas
+          # ground, which sits ~12% off black.
+          convert captured.png -fuzz 5% -trim +repage trimmed.png
+          TW=$(identify -format '%w' trimmed.png)
+          TH=$(identify -format '%h' trimmed.png)
+          echo "trimmed to : ${TW}x${TH}"
+          # Three independent conditions, because shape alone cannot
+          # carry this. The root is deliberately sized to hold Play!'s
+          # 1.4x presentation, and any root that does is liable to be
+          # near the canvas aspect itself -- so "canvas-shaped" is
+          # satisfied by an untrimmed root, which is the single most
+          # likely bad capture. Size says the trim did something;
+          # area says it did not run away; aspect says what is left is
+          # the frame. Derived from the capture, never hardcoded, so a
+          # change of root cannot leave this checking a stale model.
+          awk -v rw="$RW" -v rh="$RH" -v tw="$TW" -v th="$TH" 'BEGIN {
+            r = tw / th
+            area = (tw * th) / (rw * rh)
+            printf "aspect     : %.3f (want 1.38..1.48)\n", r
+            printf "area       : %.1f%% of root (want 25..90)\n", area * 100
+            bad = 0
+            if (tw == rw && th == rh) {
+              print "FAIL: trim found nothing -- this is the whole root, not the frame."
+              bad = 1
+            }
+            if (area < 0.25 || area > 0.90) {
+              printf "FAIL: trimmed area %.1f%% of the root is not a presented frame.\n", area * 100
+              bad = 1
+            }
+            if (r < 1.38 || r > 1.48) {
+              printf "FAIL: aspect %.3f is not the 1.429 canvas.\n", r
+              bad = 1
+            }
+            if (bad) {
+              print "Refusing to diff a capture this step cannot vouch for."
+              exit 1
+            }
+          }'
+          convert trimmed.png -resize 640x448\! captured.png
+          echo "final      : $(identify -format '%wx%h' captured.png)"
+
+      - name: Resampling floor of the capture pipeline
+        if: always()
+        run: |
+          # Play! upscales ~1.4x and the trim step scales back down, so
+          # the diff below has a non-zero floor before the renderer is
+          # considered at all. Measure it on the previewer PNG alone,
+          # round-tripped through the same two resizes with no renderer
+          # involved, and print it next to the real number. Quoting an
+          # RMSE without its floor invites reading resampling noise as a
+          # rendering fault.
+          if [ -f baked/preview.png ]; then
+            convert baked/preview.png -resize 900x630\! -resize 640x448\! floor.png
+            python3 tools/framediff.py baked/preview.png floor.png \
+              --rmse 999 --tile-rmse 999 || true
+          fi
+
       - name: Diff against previewer ground truth
         run: |
           # --stats prints a colour fingerprint of both frames. An RMSE
