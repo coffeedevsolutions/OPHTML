@@ -152,32 +152,6 @@ int main(int argc, char **argv)
     CHECK(ps2ui_upload(&ctx, &gs) == 0, "textures fit in 4 MB VRAM");
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
-    /* Bring-up step 9 asks the operator to check this return value and
-     * expect 0. That is worth nothing unless non-zero is reachable: a
-     * function that only ever returns 0 gives the same answer on a
-     * console with 4 MB free and on one with none, and the step reads
-     * as a pass either way.
-     *
-     * The stub models the real ceiling -- gsKit_vram_alloc refuses past
-     * 4 MB -- so pushing the pointer to the top makes the next texture
-     * fail for the same reason a crowded console would. Restore it
-     * afterwards; every later check draws through this same gs. */
-    {
-        GSGLOBAL starved = gs;
-        ps2ui_ctx sc;
-        int rc_full;
-        starved.CurrentPointer = 4u * 1024u * 1024u - 16u;
-        memset(&sc, 0, sizeof sc);
-        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
-            rc_full = ps2ui_upload(&sc, &starved);
-            CHECK(rc_full != 0,
-                  "upload reports failure when VRAM is exhausted, so "
-                  "step 9's expected 0 is a result and not a constant");
-        } else {
-            CHECK(0, "starved-upload fixture failed to load");
-        }
-    }
-
     /* ---- render: focus filtering ---- */
     {
         int base = render_and_count(&ctx, &gs);
@@ -817,6 +791,84 @@ int main(int argc, char **argv)
     }
 
 report:
+    /* ---- bring-up step 9: is a non-zero return reachable? ----------
+     *
+     * Step 9 asks the operator to read ps2ui_upload's return value and
+     * expect 0. That is worth nothing unless non-zero is reachable: a
+     * function that only ever returns 0 gives the same answer on a
+     * console with 4 MB free and on one with none, and the step reads
+     * as a pass either way.
+     *
+     * LAST in the file, deliberately. clut_pool is file-scope, not
+     * per-context, and ps2ui_upload writes a permuted CLUT into it
+     * BEFORE the allocation that fails -- so a second live context
+     * silently borrows the first one's CLUT storage. Run here, nothing
+     * afterwards can read what these contexts leave behind. It was
+     * originally placed beside the first upload check, where it was
+     * safe only because both contexts loaded the identical blob, an
+     * invariant nobody had written down. Worth remembering against the
+     * v6 arena work, which moves exactly this storage per-context:
+     * this test is not a precedent that two live contexts are fine.
+     *
+     * The stub models the real ceiling -- gsKit_vram_alloc refuses past
+     * 4 MB -- so these fail for the reason a crowded console would.
+     * `starved` is a COPY of gs, not a mutation of it -- an earlier
+     * version of this comment said "restore it afterwards", describing
+     * a hazard the code already sidesteps and reading as an invitation
+     * to "fix" it by starving gs directly. Nothing is restored because
+     * nothing is disturbed. */
+    {
+        ps2ui_ctx sc;
+        GSGLOBAL starved;
+        char partway[128];
+
+        /* (a) nothing fits: the first allocation fails. */
+        starved = gs;
+        starved.CurrentPointer = 4u * 1024u * 1024u - 16u;
+        memset(&sc, 0, sizeof sc);
+        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
+            CHECK(ps2ui_upload(&sc, &starved) != 0,
+                  "upload reports failure when VRAM is exhausted, so "
+                  "step 9's expected 0 is a result and not a constant");
+            CHECK(sc.uploaded == 0,
+                  "and leaves the context not-uploaded, so a caller "
+                  "cannot render through a half-built texture table");
+        } else {
+            CHECK(0, "starved-upload fixture failed to load");
+        }
+
+        /* (b) exhaustion PARTWAY, which is the case a real console
+         * hits: earlier textures allocated and uploaded, a later one
+         * refused. Only the first-allocation path was covered, which
+         * is the easiest path through the function and the least like
+         * the failure anyone will actually meet. */
+        starved = gs;
+        starved.CurrentPointer = 4u * 1024u * 1024u - 256u * 1024u;
+        memset(&sc, 0, sizeof sc);
+        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
+            int rc;
+            int before = g_stub.n_uploads;
+            int got;
+            rc = ps2ui_upload(&sc, &starved);
+            got = g_stub.n_uploads - before;
+            CHECK(rc != 0, "upload reports failure when VRAM runs out "
+                           "partway through the texture table");
+            /* Without this the case above is indistinguishable from
+             * (a): both return non-zero, and a budget that happened to
+             * fail on texture 0 would look like partway coverage while
+             * exercising the same three lines. */
+            snprintf(partway, sizeof partway,
+                     "having uploaded some but not all of them "
+                     "(%d of %u), which is the case a console meets",
+                     got, (unsigned)sc.hdr->n_tex);
+            CHECK(got > 0 && got < (int)sc.hdr->n_tex, partway);
+            CHECK(sc.uploaded == 0,
+                  "and still leaves it not-uploaded, however far it got");
+        } else {
+            CHECK(0, "partway-starved fixture failed to load");
+        }
+    }
+
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
     free(blob);
