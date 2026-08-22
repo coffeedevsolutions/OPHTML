@@ -5,6 +5,11 @@ the first run on a console or emulator. Work the steps in order — each
 one isolates a single subsystem, and later steps are meaningless while
 an earlier one fails.
 
+**At a bench, read `docs/bench-runbook.md` instead.** It is one page:
+which ELF to boot for which step, what the cell should look like, and
+the verdict table for what you see. This document is the reasoning
+behind those verdicts and where to go when one of them reads FAIL.
+
 ## Hardware log
 
 What has actually run on silicon, as opposed to what is expected to.
@@ -33,6 +38,12 @@ Reference material, in the order you will reach for it:
   instead: a timed capture then always lands on the frame `--preview`
   rendered, which is the only way an automated diff means anything. CI
   uses `STATIC=1` for exactly that reason.
+
+  `SCREEN=probe` opens on a named screen rather than screen 0. The
+  sample walks focus but never switches screens, so without it the
+  conformance grid — screen 1 of the channel-6 blob, and where steps 3,
+  4, 5 and 7 are read — cannot be reached on a console at all. CI
+  builds that combination as `conform.elf`.
 - `tools/make_testcard.py` — the texel-alignment card, a narrower
   instrument for step 6 alone.
 - The previewer PNGs are ground truth throughout. They replay the same
@@ -637,8 +648,10 @@ Nothing here is in the baked data; the blob is field-agnostic.
 
 ## 9. VRAM pressure
 
-**Do:** run the sample and read `ps2ui_upload`'s return value.
-`make -C runtime/sample TELEMETRY=1` prints it.
+**Do:** run the sample. You do not need a wire to read this: an upload
+that fails holds the screen **solid yellow** and never draws anything
+else, so the result is a colour. `TELEMETRY=1` adds a stats line on
+stdout, but frame timing is what that line carries — not this.
 
 **Expect:** 0. The baker enforces a budget at bake time
 (`--vram-budget`, breakdown printed on every bake), so a failure here
@@ -654,7 +667,7 @@ the `return -1` in `ps2ui_upload` fails that check.
 
 Both shapes are covered: nothing fitting at all, and — the case a real
 console actually meets — running out **partway**, with earlier textures
-already allocated and uploaded (measured at 18 of 19).
+already allocated and uploaded (measured at 7 of 19).
 
 **What a non-zero leaves behind:** `ctx->uploaded` stays 0 however far
 the upload got, so a caller cannot render through a half-built texture
