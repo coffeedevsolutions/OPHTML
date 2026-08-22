@@ -658,8 +658,14 @@ already allocated and uploaded (measured at 18 of 19).
 
 **What a non-zero leaves behind:** `ctx->uploaded` stays 0 however far
 the upload got, so a caller cannot render through a half-built texture
-table. Asserted for both shapes. The VRAM already handed out is gsKit's
-to reclaim; ps2ui does not free it.
+table. Asserted for both shapes.
+
+**Retrying:** call `gsKit_vram_clear()` first. gsKit's `USERBUFFER`
+allocator is a bump pointer with no per-allocation free, so the
+handles the failed attempt already took are stranded — and
+`ps2ui_upload` restarts from texture 0 and re-allocates every one of
+them. A second attempt without the clear consumes the footprint twice
+and is likelier to fail than the first.
 
 **Fix:** re-bake with `--vram-budget` set to what your app actually
 leaves free, and treat the printed per-texture breakdown as the

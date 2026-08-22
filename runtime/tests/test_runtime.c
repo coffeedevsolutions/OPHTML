@@ -102,6 +102,8 @@ int main(int argc, char **argv)
     CHECK(sizeof(ps2ui_cmd) == 32, "cmd struct is 32 bytes");
     CHECK(sizeof(ps2ui_focus_node) == 24, "focus node struct is 24 bytes");
 
+    u32 vram_before, vram_used;
+
     /* ---- loader ---- */
     CHECK(ps2ui_load(&ctx, blob, len) == PS2UI_OK, "load real blob");
     CHECK(ctx.hdr->canvas_w == 640 && ctx.hdr->canvas_h == 448, "canvas is 640x448");
@@ -149,7 +151,14 @@ int main(int argc, char **argv)
     CHECK(i == 256, "csm1 is an involution over 0..255");
 
     /* ---- upload ---- */
+    vram_before = gs.CurrentPointer;
     CHECK(ps2ui_upload(&ctx, &gs) == 0, "textures fit in 4 MB VRAM");
+    /* What the blob's textures actually cost. Step 9's starved cases at
+     * the end of this file size themselves from this rather than from a
+     * hardcoded budget: a constant tuned to today's example is a check
+     * that goes red when someone shrinks an asset by six percent, for a
+     * reason that has nothing to do with what they changed. */
+    vram_used = gs.CurrentPointer - vram_before;
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
     /* ---- render: focus filtering ---- */
@@ -790,7 +799,6 @@ int main(int argc, char **argv)
         free(lblob);
     }
 
-report:
     /* ---- bring-up step 9: is a non-zero return reachable? ----------
      *
      * Step 9 asks the operator to read ps2ui_upload's return value and
@@ -799,7 +807,13 @@ report:
      * console with 4 MB free and on one with none, and the step reads
      * as a pass either way.
      *
-     * LAST in the file, deliberately. clut_pool is file-scope, not
+     * Last among the CHECKS and immediately before `report:`, which is
+     * the property that matters -- not last in the file. It sat after
+     * the label, so the one `goto report` fell into it and the bail-out
+     * path, whose whole job is to run nothing, ran two loads and two
+     * uploads on the way out.
+     *
+     * clut_pool is file-scope, not
      * per-context, and ps2ui_upload writes a permuted CLUT into it
      * BEFORE the allocation that fails -- so a second live context
      * silently borrows the first one's CLUT storage. Run here, nothing
@@ -841,9 +855,21 @@ report:
          * hits: earlier textures allocated and uploaded, a later one
          * refused. Only the first-allocation path was covered, which
          * is the easiest path through the function and the least like
-         * the failure anyone will actually meet. */
+         * the failure anyone will actually meet.
+         *
+         * The two cases turn out to cover different code, not just
+         * different budgets. ps2ui_upload has two ways to refuse -- the
+         * texture allocation and, for PSMT8, the CLUT allocation right
+         * after it. Case (a) trips the first; (b) at this budget trips
+         * the second. Neutralising only one of them leaves the other
+         * case green, which is how the pair was measured. */
         starved = gs;
-        starved.CurrentPointer = 4u * 1024u * 1024u - 256u * 1024u;
+        /* Half of what the blob really needs, so this lands in the
+         * middle of the table wherever the example's art goes next.
+         * The hardcoded 256 KiB it replaces gave 18 of 19 -- the
+         * narrowest partway available, failing on the LAST texture,
+         * with about 16 KiB between it and "everything fits". */
+        starved.CurrentPointer = 4u * 1024u * 1024u - vram_used / 2u;
         memset(&sc, 0, sizeof sc);
         if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
             int rc;
@@ -869,6 +895,7 @@ report:
         }
     }
 
+report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
     free(blob);
