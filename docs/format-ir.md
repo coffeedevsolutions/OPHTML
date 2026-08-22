@@ -64,6 +64,14 @@ The layout stage guarantees `radius <= min(w, h) / 2` and that a
 border-color without width (or a fully transparent paint) is normalized
 away, so identical unfocused/focused paints always merge to `always`.
 
+An optional `"keep": true` may appear on a rect, from `data-keep` on the
+element. It exempts that geometry from the baker's dead-geometry trim,
+which otherwise drops any record that provably cannot draw. The one
+thing that wants it is deliberate observability: bring-up step 7 needs
+a quad that *provably cannot draw*, so that seeing it on a television
+means the scissor is not being applied. Trimming it would delete the
+test. Absent means false.
+
 ### `text`
 
 One command per laid-out line. `x`/`y` is the top-left of the glyph box
@@ -115,14 +123,6 @@ indexed PSMT8 with a per-image CLUT — 4× less VRAM per texel, ≤256
 colors; the whole bake can be forced with `ps2ui-bake
 --palettize-images`. Images have no focus variants: `state` is always
 `"always"`.
-
-An optional `"keep": true` may appear on a rect, from `data-keep` on the
-element. It exempts that geometry from the baker's dead-geometry trim,
-which otherwise drops any record that provably cannot draw. The one
-thing that wants it is deliberate observability: bring-up step 7 needs
-a quad that *provably cannot draw*, so that seeing it on a television
-means the scissor is not being applied. Trimming it would delete the
-test. Absent means false.
 
 ### `scissor_push` / `scissor_pop`
 
