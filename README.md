@@ -292,7 +292,8 @@ It prints one line per elapsed second on stdout — measured frame rate, missed 
 | `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow only. |
 | `runtime`         | `.uib` loader, gsKit replay, D-pad nav. C99, no allocation. |
 | `fonts`           | metrics JSON (the layout/baker seam) and `ps2ui-fontgen`. |
-| `docs`            | [architecture](docs/architecture.md) / [IR format](docs/format-ir.md) / [.uib format](docs/format-uib.md) |
+| `docs`            | [plan](docs/PLAN.md) / [architecture](docs/architecture.md) / [IR format](docs/format-ir.md) / [.uib format](docs/format-uib.md) / [v6 design](docs/design-v6-resource-model.md) |
+| `fixtures`        | measurement fixtures — not shipped examples; see [opl-scope](fixtures/opl-scope/README.md) |
 | `examples/memcard`| the two-screen memory card browser from the screenshots. |
 | `examples/channel6`| a [game browser for a PSxMemCard GEN2 channel](examples/channel6/README.md), plus a feature probe screen for console bring-up. |
 

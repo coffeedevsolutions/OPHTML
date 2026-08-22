@@ -187,7 +187,10 @@ PR #15 review). Record findings; fixes land with regression tests.
 
 ### Phase 1 — One resource model
 
-The §4 rework, shipped as **one deliberate format move (v6)**:
+The §4 rework, shipped as **one deliberate format move (v6)**. Designed
+in full in [design-v6-resource-model.md](design-v6-resource-model.md),
+written before implementation so the argument can be attacked cheaply;
+that document also records what would falsify it.
 
 1. **Blob-declared working set.** The blob states its table sizes;
    `ps2ui_arena_size(blob)` tells the app what to hand `ps2ui_load`; the
