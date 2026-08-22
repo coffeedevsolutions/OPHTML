@@ -484,7 +484,7 @@ int main(void)
      * Bounded, not `while (1)`. A frozen console and a working one look
      * identical on a static screen, so an unbounded loop makes the
      * operator guess -- and guessing wrong costs a bench session. After
-     * PROBE_SECONDS it returns to the browser, which turns "did it
+     * PROBE_FRAMES it returns to the browser, which turns "did it
      * work?" into an observation:
      *
      *   picture, then back at the FMCB menu  -> ran to completion
@@ -528,8 +528,24 @@ int main(void)
 #endif
 
     while (1) {
-        /* Canvas background: #0a0e1a in flat-shaded full-range RGB. */
+        /* Canvas background: #0a0e1a in flat-shaded full-range RGB.
+         *
+         * Blending OFF across the clear, and that is load-bearing. This
+         * loop clears BEFORE ps2ui_render, so with ABE on the clear
+         * composites through whatever ALPHA is current -- which on the
+         * very first frame is still gsKit's inverted default, where an
+         * alpha of 0x80 resolves to the destination and paints the
+         * previous framebuffer instead of the canvas colour. From frame
+         * two it would come out right, inheriting the equation
+         * ps2ui_render asserted the frame before, which is a worse kind
+         * of correct: right only because something else ran first.
+         *
+         * A background clear has nothing to blend against, so the fix
+         * is to stop asking it to. probe_frame does the same thing for
+         * the same reason. */
+        gs->PrimAlphaEnable = GS_SETTING_OFF;
         gsKit_clear(gs, GS_SETREG_RGBAQ(0x0a, 0x0e, 0x1a, 0x80, 0x00));
+        gs->PrimAlphaEnable = GS_SETTING_ON;
 #ifdef PS2UI_SAMPLE_TELEMETRY
         {
             u32 t0 = cop0_count(), dt;
