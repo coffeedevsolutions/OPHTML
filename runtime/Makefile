@@ -28,6 +28,14 @@ syntax-check:
 			-Istub -I. sample/main.c || exit 1; \
 		echo "ok - sample compiles: $$v"; \
 	done
+# Separately, because the quoting a stringised screen name needs does
+# not survive `for v in $(SAMPLE_VARIANTS)`: the shell strips one layer
+# at expansion and the compiler would be handed a bare identifier.
+# Paired with STATIC, which is how CI builds conform.elf.
+	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+		-DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_SCREEN='"probe"' \
+		-Istub -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_SAMPLE_SCREEN"
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds

@@ -33,6 +33,14 @@ endif
 ifdef PROBE
 EE_CFLAGS += -DPS2UI_SAMPLE_PROBE
 endif
+# `make SCREEN=probe` opens on the named screen rather than screen 0.
+# The sample walks focus but never switches screens, so without this a
+# blob's later screens cannot be reached on a console at all -- see the
+# PS2UI_SAMPLE_SCREEN block in main.c. A name absent from the blob
+# holds solid blue rather than falling back to screen 0.
+ifdef SCREEN
+EE_CFLAGS += -DPS2UI_SAMPLE_SCREEN='"$(SCREEN)"'
+endif
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib

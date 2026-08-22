@@ -518,6 +518,29 @@ int main(void)
             gsKit_sync_flip(gs);
         }
     }
+#ifdef PS2UI_SAMPLE_SCREEN
+    /* `make SCREEN=probe` opens on that screen instead of screen 0.
+     *
+     * This sample never switches screens at runtime -- it only walks
+     * focus, and the D-pad graph links within one screen by design --
+     * so every screen after the first was unreachable on a console.
+     * Bring-up steps 3, 4, 5 and 7 all read cells on the channel-6
+     * `probe` screen, which is screen 1: the whole conformance grid
+     * was authored, previewed, checked in CI, and impossible to look
+     * at on hardware.
+     *
+     * Solid blue = no screen by that name in this blob, so a typo in
+     * SCREEN= is a colour rather than a silent fallback to screen 0 --
+     * which would look exactly like a working build of the wrong
+     * thing. */
+    if (!ps2ui_screen_set(&ui, PS2UI_SAMPLE_SCREEN)) {
+        while (1) {
+            gsKit_clear(gs, GS_SETREG_RGBAQ(0x00, 0x00, 0x80, 0x80, 0x00));
+            gsKit_queue_exec(gs);
+            gsKit_sync_flip(gs);
+        }
+    }
+#endif
 
 #ifdef PS2UI_SAMPLE_TELEMETRY
     u32 t_min = 0xFFFFFFFFu, t_max = 0, t_sum = 0;
@@ -607,7 +630,11 @@ int main(void)
         frame++;
         if (PS2UI_SAMPLE_CYCLE && frame % FRAMES_PER_STATE == 0) {
             if (!ps2ui_move(&ui, PS2UI_RIGHT) && !ps2ui_move(&ui, PS2UI_DOWN))
-                ui.focus = ui.hdr->initial_focus;
+                /* This screen's initial focus, not the header's. The
+                 * header names screen 0's, so on any other screen the
+                 * dead-end reset used to jump focus out of the screen
+                 * being displayed. */
+                ui.focus = ui.screen_table[ui.screen].initial_focus;
         }
     }
     return 0;
