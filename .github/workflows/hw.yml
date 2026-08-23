@@ -125,13 +125,33 @@ jobs:
           # a per-texture TFX, the comment in ps2ui.c goes stale and the
           # tinting question reopens -- and the log is where that shows
           # up first. Reports, never gates.
-          cat > /tmp/probe_fn.c <<'EOF'
+          #
+          # It ships with a control arm because the first version of it
+          # did not, and was void: it omitted -D_EE, so every compile
+          # died in tamtypes.h before the struct was ever parsed, and it
+          # printed "absent, as expected" on a test that had not run.
+          # The control assigns a field gsKit certainly has. If the
+          # control does not build, this step knows nothing and says so
+          # rather than reporting the failure it was hoping for.
+          GCC="mips64r5900el-ps2-elf-gcc -c -std=c99 -D_EE \
+               -I$PS2DEV/gsKit/include -I$PS2SDK/ee/include \
+               -I$PS2SDK/common/include"
+          cat > /tmp/ctl.c <<'EOF'
+          #include <gsKit.h>
+          int main(void) { GSTEXTURE t; t.Filter = 0; return (int)t.Filter; }
+          EOF
+          cat > /tmp/fn.c <<'EOF'
           #include <gsKit.h>
           int main(void) { GSTEXTURE t; t.Function = 0; return (int)t.Function; }
           EOF
-          if mips64r5900el-ps2-elf-gcc -c -std=c99 \
-               -I$PS2DEV/gsKit/include -I$PS2SDK/ee/include \
-               -I$PS2SDK/common/include /tmp/probe_fn.c -o /tmp/probe_fn.o 2>/tmp/fn.err; then
+          if ! $GCC /tmp/ctl.c -o /tmp/ctl.o 2>/tmp/ctl.err; then
+            echo "RESULT: VOID -- the control arm does not build either, so a"
+            echo "        failure on ::Function would mean nothing. Fix this step."
+            sed -n '1,10p' /tmp/ctl.err
+            exit 0
+          fi
+          echo "control ok: GSTEXTURE::Filter compiles, so the struct is being parsed"
+          if $GCC /tmp/fn.c -o /tmp/fn.o 2>/tmp/fn.err; then
             echo "RESULT: GSTEXTURE::Function EXISTS in this gsKit -- this is new."
             echo "        Re-read docs/bringup.md step 4; the finding it records has changed."
           else
@@ -140,7 +160,6 @@ jobs:
           fi
           grep -rn "define GS_TFX_" $PS2DEV/gsKit/include/*.h 2>/dev/null | head -5 \
             || echo "        (no GS_TFX_* macros in the gsKit headers either)"
-
       - name: Build sample ELF with the PS2SDK toolchain
         run: |
           apk add --no-cache make

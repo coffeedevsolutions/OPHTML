@@ -548,7 +548,7 @@ That sentence was false, and two independent checks say so:
 
 | question | answer | how |
 |---|---|---|
-| does `GSTEXTURE` have a `Function` field? | **no** | gsKit at `43122eb` declares none; a compile probe in the ps2dev container fails on `t.Function` (`elf` job, "gsKit still has no per-texture TFX field") |
+| does `GSTEXTURE` have a `Function` field? | **no** | gsKit at `43122eb` declares none, and the `MODULATE=1` build failed in the ps2dev container with `'GSTEXTURE' has no member named 'Function'` — a real compile of the real runtime, not a probe |
 | what `TFX` does gsKit write, then? | **0 = MODULATE**, always | all 30 `GS_SETREG_TEX0` sites pass a hardcoded `0` in the `tfx` position, with no branch and no reference to any texture field |
 
 So the mode ps2ui wanted was the mode it was already getting. There was
@@ -560,8 +560,16 @@ The switch, the pragma, the forced-`Function` build variant and the
 stub's `Function` member are all gone — a stub that models a field the
 console does not have is how a host suite certifies the wrong struct.
 `ps2ui.c` now carries the finding as a comment where the texture is set
-up, and the `elf` job keeps the probe so a future gsKit that *does* add
-per-texture TFX shows up in a log rather than in a symptom.
+up, and the `elf` job keeps a compile probe so a future gsKit that *does*
+add per-texture TFX shows up in a log rather than in a symptom.
+
+**That probe was void on its first run** and is worth recording as such.
+It omitted `-D_EE`, so the compile died in `tamtypes.h` before the
+struct was ever parsed, and it printed *"absent, as expected"* on a test
+that had not run — the exact shape this project keeps finding. It now
+compiles a control arm first (`t.Filter`, a field gsKit certainly has)
+and reports **VOID** if the control does not build. The finding above
+never rested on it; it rests on the `MODULATE=1` build failing.
 
 **Bench consequence:** nothing to run. Rule this out and move on. The
 open question from the same hardcoded argument run is `TEX0.TCC`, which
