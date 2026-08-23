@@ -955,6 +955,13 @@ int main(void)
 #endif
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
+        /* Age the texture manager's use counts once per frame, the way
+         * Open-PS2-Loader's frame loop does. With ps2ui's static UI it
+         * changes nothing today -- every texture is re-bound every
+         * frame, so nothing ever looks evictable -- but a host that
+         * streams its own textures through the same manager needs the
+         * counters honest, and the sample is the reference for hosts. */
+        gsKit_TexManager_nextFrame(gs);
 #ifdef PS2UI_SAMPLE_TELEMETRY
         {
             /* Wall time of the whole loop, vsync included: more than

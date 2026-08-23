@@ -271,6 +271,35 @@ static uint8_t clut_pool[PS2UI_MAX_TEXTURES][256 * 4] __attribute__((aligned(16)
 int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
 {
     uint32_t i;
+    uint64_t need = 0;
+
+    /* Budget preflight, and it is load-bearing rather than polite.
+     * gsKit_TexManager_bind allocates from a block list and CANNOT
+     * report exhaustion: _blockAlloc loops evicting ever-hotter
+     * textures until something fits, and when nothing ever can, that
+     * loop never exits -- an over-budget blob is a console hang, not
+     * an error code. This check keeps ps2ui's contract from the
+     * vram_alloc era: refuse up front, report -1, leave the context
+     * not-uploaded, and let step 9's olive screen mean what it says.
+     *
+     * The sum mirrors the manager's own appetite exactly -- tsize
+     * (+csize for indexed) per texture, gsKit_texture_size both times
+     * -- and a freshly initialised manager owns one contiguous block
+     * from CurrentPointer to 4 MB, so fit-by-sum is fit-in-fact: the
+     * first-fit allocator packs sequentially and never fragments a
+     * virgin region. All-or-nothing on purpose; the old path could
+     * fail seven textures in, and a half-uploaded context is a worse
+     * state than a refused one. */
+    for (i = 0; i < ctx->hdr->n_tex; i++) {
+        const ps2ui_tex_entry *t = &ctx->tex[i];
+        need += gsKit_texture_size(t->width, t->height,
+                    t->format == PS2UI_TEXFMT_PSMCT32 ? GS_PSM_CT32 : GS_PSM_T8);
+        if (t->format == PS2UI_TEXFMT_PSMT8)
+            need += gsKit_texture_size(16, 16, GS_PSM_CT32);
+    }
+    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)
+        return -1;
+
     for (i = 0; i < ctx->hdr->n_tex; i++) {
         const ps2ui_tex_entry *t = &ctx->tex[i];
         GSTEXTURE *g = &ctx->gs_tex[i];
@@ -298,43 +327,19 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
             permute_clut(ctx->blob + c->data_off, c->ncolors, clut_pool[i]);
             g->Clut = (u32 *)(void *)clut_pool[i];
         }
-        g->Vram = gsKit_vram_alloc(gs, gsKit_texture_size(g->Width, g->Height, g->PSM),
-                                   GSKIT_ALLOC_USERBUFFER);
-        if (g->Vram == GSKIT_ALLOC_ERROR)
-            return -1;
-        if (t->format == PS2UI_TEXFMT_PSMT8) {
-            g->VramClut = gsKit_vram_alloc(gs, gsKit_texture_size(16, 16, GS_PSM_CT32),
-                                           GSKIT_ALLOC_USERBUFFER);
-            if (g->VramClut == GSKIT_ALLOC_ERROR)
-                return -1;
-        }
-        /* Write these buffers' cache lines back before the GS reads
-         * main memory over DMA. The EE has a write-back data cache and
-         * the GIF transfer does not go through it; permute_clut() has
-         * just built this palette with ordinary stores.
+        /* Vram stays 0: that is the manager's "not resident" state,
+         * and the bind below sees it and transfers. No gsKit_vram_alloc
+         * anywhere in this path any more -- beyond being the API
+         * gsKit's own source deprecates in favour of the manager, every
+         * vram_alloc call RESETS the manager's block list
+         * (gsCore.c calls gsKit_TexManager_init), so mixing the two
+         * silently frees every resident texture.
          *
-         * This is hardening, not a bug fix, and the distinction is
-         * load-bearing: gsKit already writes the WHOLE data cache back
-         * inside gsKit_texture_send (FlushCache(0), gsTexture.c:266,
-         * unconditional, before the chain is kicked), so no cache
-         * fault has ever actually occurred on this path. These calls
-         * scope the writeback to the buffers ps2ui owns and stop
-         * depending on that implementation detail -- which is also
-         * what gsKit_TexManager_bind does with SyncDCache
-         * (gsTexManager.c:270,279), the API gsKit's own source
-         * recommends over this one and the one Open-PS2-Loader uses.
-         * When ps2ui migrates to it, these lines become its
-         * responsibility.
-         *
-         * No #ifdef around the calls: the stub declares SyncDCache too,
-         * so the host suite executes this exact line and can assert it
-         * ran. A writeback guarded by PS2UI_HOST_TEST would be a
-         * console-only code path, which is the shape of every bug this
-         * file has shipped. */
-        SyncDCache(g->Mem, (uint8_t *)(void *)g->Mem + t->data_len);
-        if (g->Clut)
-            SyncDCache(g->Clut, (uint8_t *)(void *)g->Clut + 256 * 4);
-        gsKit_texture_upload(gs, g);
+         * The bind does the cache writeback itself, per buffer
+         * (SyncDCache at gsTexManager.c:270 and :279) -- the flush this
+         * runtime used to do by hand now belongs to the API that owns
+         * it, which is where review said it should end up. */
+        gsKit_TexManager_bind(gs, g);
     }
     ctx->uploaded = 1;
     return 0;
@@ -509,6 +514,14 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
                 (float)(c->x + c->w), (float)(c->y + c->h),
                 0, GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
         } else { /* PS2UI_OP_TEXQUAD */
+            /* Re-bind per draw, the way Open-PS2-Loader does. Resident
+             * is a no-op (list walk, no transfer); evicted or
+             * invalidated re-uploads on the spot. This is what makes
+             * ps2ui survive a host that also uses the TexManager, or
+             * that calls gsKit_vram_alloc after our upload and thereby
+             * resets the block list: the next draw heals it instead of
+             * sampling freed VRAM. */
+            gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);
             gsKit_prim_sprite_texture(gs, &ctx->gs_tex[c->tex],
                 (float)c->x, (float)c->y, (float)c->u0, (float)c->v0,
                 (float)(c->x + c->w), (float)(c->y + c->h),
@@ -710,6 +723,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
+                gsKit_TexManager_bind(gs, &ctx->gs_tex[font->tex]);
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
                     (float)g->u, (float)g->v,
@@ -730,6 +744,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (g && g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
+                gsKit_TexManager_bind(gs, &ctx->gs_tex[font->tex]);
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
                     (float)g->u, (float)g->v,

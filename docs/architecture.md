@@ -43,7 +43,7 @@ ui/*.html,css ──▶ @ps2ui/layout ──▶ ui.json (IR) ──▶ ps2ui-bak
 
 Host toolchain verified end to end: layout tests, baker tests, and host runtime checks (the real `ps2ui.c` compiled `-Werror` against a stub gsKit and run over a real baked blob).
 
-The gsKit rendering path is **not hardware-verified**. The loader, focus graph, format handling and command walk are covered; the gsKit calls themselves are written against the documented API. Texture tinting is not a variable: gsKit has no per-texture TFX field and hardcodes `TEX0.TFX = 0` (MODULATE) at every `GS_SETREG_TEX0` site, so the modulate the glyph atlas needs is what it gets. The open texture-state bit is `TEX0.TCC`, which gsKit ties to `PrimAlphaEnable` — see docs/bringup.md step 4.
+The gsKit rendering path is **not hardware-verified**. The loader, focus graph, format handling and command walk are covered; the gsKit calls themselves are written against the documented API. Texture tinting is not a variable: gsKit has no per-texture TFX field and hardcodes `TEX0.TFX = 0` (MODULATE) at every `GS_SETREG_TEX0` site, so the modulate the glyph atlas needs is what it gets. The open texture-state bit is `TEX0.TCC`, which gsKit ties to `PrimAlphaEnable` — see docs/bringup.md step 4. Texture residency goes through `gsKit_TexManager_bind` — the API gsKit recommends and Open-PS2-Loader uses — bound per draw so residency heals after a host-side reset; `ps2ui_upload` preflights the VRAM budget itself because the manager's allocator hangs rather than fails on exhaustion.
 
 ## Next steps
 
