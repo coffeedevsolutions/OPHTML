@@ -36,6 +36,11 @@ syntax-check:
 		-DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_SCREEN='"probe"' \
 		-Istub -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_SCREEN"
+# The linear-CLUT arm of step 3's A/B lives in ps2ui.c, not main.c, so
+# it needs its own line: the loop above only ever compiles the sample.
+	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+		-DPS2UI_CLUT_PERMUTE=0 -Istub -I. ps2ui.c
+	@echo "ok - runtime compiles: -DPS2UI_CLUT_PERMUTE=0"
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds

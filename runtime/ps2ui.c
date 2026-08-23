@@ -212,6 +212,24 @@ uint32_t ps2ui_clut_csm1(uint32_t index)
     return (index & ~0x18u) | (b3 << 4) | (b4 << 3);
 }
 
+/* Build with -DPS2UI_CLUT_PERMUTE=0 to upload the CLUT linearly.
+ *
+ * This exists as a compile-time A/B because the permutation is an
+ * INVOLUTION, which makes its two failure modes indistinguishable from
+ * the inside: applying it once is correct if the GS un-permutes, and
+ * applying it zero or two times is identical to each other. If gsKit --
+ * or a particular gsKit version -- already permutes on upload, ps2ui
+ * doing it too lands the CLUT in VRAM linear, every index fetches the
+ * wrong palette entry in 8-entry bands, and glyph coverage turns to
+ * noise. No host test can tell those apart, because the host has no GS.
+ *
+ * bringup.md step 3 names the symptom and the test: "Toggle the
+ * permute_clut call and compare." This is that toggle, so the compare
+ * is two ELFs rather than a source edit at a bench. */
+#ifndef PS2UI_CLUT_PERMUTE
+#define PS2UI_CLUT_PERMUTE 1
+#endif
+
 /* CLUTs are stored linearly in the file (readable by any tool); the GS
  * wants CSM1 storage order on upload. Permute into `out` (256*4 bytes). */
 static void permute_clut(const uint8_t *linear, uint16_t ncolors, uint8_t *out)
@@ -219,7 +237,11 @@ static void permute_clut(const uint8_t *linear, uint16_t ncolors, uint8_t *out)
     uint32_t i;
     memset(out, 0, 256 * 4);
     for (i = 0; i < ncolors && i < 256; i++) {
+#if PS2UI_CLUT_PERMUTE
         uint32_t j = ps2ui_clut_csm1(i);
+#else
+        uint32_t j = i;
+#endif
         memcpy(out + j * 4, linear + i * 4, 4);
     }
 }

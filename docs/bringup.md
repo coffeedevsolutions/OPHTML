@@ -510,8 +510,29 @@ permutes on upload via `ps2ui_clut_csm1()` (bit-3/bit-4 swap). If your
 gsKit or GS path expects a linear CLUT (CSM2, or a gsKit that permutes
 internally), you are double-permuting — the involution means applying
 it twice is the identity, so symptoms are: correct = permuted once,
-garbled in 8-entry bands = zero or two times. Toggle the `permute_clut`
-call and compare.
+garbled in 8-entry bands = zero or two times.
+
+That toggle is now a build flag rather than a source edit:
+`make -C runtime/sample LINEAR_CLUT=1` sets `-DPS2UI_CLUT_PERMUTE=0`,
+and CI ships `sample-linear.elf` and `conform-linear.elf` beside the
+ordinary builds. The emulator job captures the linear-CLUT UI and diffs
+it against the same previewer ground truth as the permuted one, so the
+two RMSE numbers sit together in the log and the smaller names the
+correct convention.
+
+**An involution cannot be argued about from one side of it**, which is
+why this is two ELFs and not an opinion. No host test can separate the
+two cases either: the host has no GS, so `permute_clut` is correct by
+construction whichever way it runs.
+
+**HARDWARE, SCPH-50000:** the conformance grid renders its layout,
+borders and every untextured colour block correctly, and every text run
+as unreadable garble. The `IMAGE` cell's swizzle bar shows orange away
+from the right-hand calibration stripe, which is a step 3 FAIL. Both
+symptoms are what a wrong CLUT predicts, since all four font atlases
+are PSMT8 sharing one CLUT. The emulator shows a milder version of the
+same signature -- text differing while flat quads match -- so it is not
+a Play! artifact.
 
 ## 4. Text tinting and `GSTEXTURE::Function`
 

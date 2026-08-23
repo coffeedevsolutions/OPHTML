@@ -12,7 +12,7 @@ order of operations.
 ## Before you start
 
 **Get the ELFs.** From the latest green `hw` run on `main`, download the
-`ps2ui-sample-elf` artifact. It contains seven files:
+`ps2ui-sample-elf` artifact. It contains nine files:
 
 | file | what it is for |
 |---|---|
@@ -21,6 +21,8 @@ order of operations.
 | `conform.elf` | steps 3, 4, 5, 7 — the conformance grid |
 | `testcard.elf` | steps 6 and 8 — the alignment card |
 | `probe6.elf` | step 6b — which part of the texture path is at fault |
+| `conform-linear.elf` | step 3's A/B — the same grid with the CLUT unpermuted |
+| `sample-linear.elf` | the same A/B on the memcard UI |
 | `ps2ui_sample.elf` | step 9, and the only one that looks like a real UI |
 | `telemetry.elf` | frame timing, not a bring-up step |
 
@@ -92,6 +94,24 @@ against its right edge**.
 | an extra stripe at 3/6 across | **FAIL** — bit 4 |
 | stripes at 1/6, 3/6 and the right | **FAIL** — the permutation is not being applied at all |
 | **no stripe anywhere** | **VOID** — the rightmost stripe is the calibration and no permutation can remove it. If it is gone, this cell cannot show you a stripe and the rest of the row means nothing |
+
+**If this FAILS, run the A/B before anything else.** The permutation is
+an involution, so "never applied" and "applied twice" look identical
+and no amount of staring settles which one you have. Boot
+`conform-linear.elf` — the same grid with the CLUT uploaded unpermuted
+— and compare the two:
+
+| | verdict |
+|---|---|
+| `conform.elf` correct, `conform-linear.elf` wrong | the permutation is right; the fault is elsewhere |
+| **`conform-linear.elf` correct, `conform.elf` wrong** | **we are double-permuting.** gsKit is already doing it; ps2ui must stop |
+| both wrong, differently | neither convention fits — report both pictures |
+| both wrong, identically | the CLUT is not reaching VRAM at all |
+
+**Text is the fastest read here.** Glyph atlases are PSMT8 sharing one
+CLUT, so a wrong palette turns glyph coverage into noise. If one build
+renders legible text and the other renders garble, that is the answer
+and you can stop.
 
 ---
 
