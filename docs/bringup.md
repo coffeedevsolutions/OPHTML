@@ -604,6 +604,72 @@ what gsKit recommends and what OPL uses. That gets the writeback, the
 VRAM management and the re-upload-on-invalidate for free instead of
 hand-rolling each.
 
+### 3c. The blob section started 4 bytes off, and DMA cannot say so
+
+**Found by a hardening guard, not a bench.** Adding "refuse a blob whose
+texture bytes are not 16-aligned for DMA" to `ps2ui_load` made the host
+suite itself go red: the guard fired on every fixture. Reading the
+offsets:
+
+```
+memcard  ui.uib        off_blob mod 16 = 4
+channel6 ui.uib        off_blob mod 16 = 12
+testcard.uib           off_blob mod 16 = 4
+list.uib (test blob)   off_blob mod 16 = 4
+```
+
+The baker 16-aligns every texture *relative to the blob section*, and
+`bin2c` 16-aligns the whole file in memory — but the blob section's own
+offset in the file was never aligned. Three links in the chain, two of
+them right, and the absolute address is the sum of all three.
+
+**Why the failure is silent and shifted rather than loud:** a GIF
+source-chain REF tag has no low address bits — the address field starts
+at bit 4. A misaligned source cannot be expressed, so it is truncated
+and the transfer begins up to 15 bytes *early*. Every texture arrived in
+VRAM shifted by its file's remainder:
+
+| blob | shift | PSMCT32 (4 B/texel) | PSMT8 (1 B/texel) |
+|---|---|---|---|
+| memcard | 4 bytes | 1 texel | 4 texels |
+| channel6 | 12 bytes | 3 texels | **12 texels** |
+
+**This is the deterministic garble, and it explains every observation
+the cache theory could not:**
+
+- *Text unreadable:* a 4–12 texel shift within a 256-wide atlas makes
+  every glyph quad sample its neighbour's slice.
+- *"Right edge of every image butted against its left edge":* a 1–3
+  texel wrap on PSMCT32 card art. The operator described the mechanism
+  exactly and it was misread twice (as TBW, then as noise).
+- *The linear-CLUT A/B changed colours but not the garble:* the palette
+  is independent of the index shift. Both arms shift identically.
+- *Play! reproduces it:* the truncation is in the DMA tag format
+  itself, so any faithful emulator does it too. This is why the
+  emulator's diff failed at RMSE 22.9 through every build — including
+  bit-identically across the cache fix, which cannot change a
+  deterministic layout.
+- *`conform-noalpha.elf`'s blocks traced the text perfectly:* geometry
+  never reads texels.
+
+**The fix is in the baker** (`uib.py` pads the file so `off_blob` is a
+multiple of 16), **the refusal is in the runtime**
+(`PS2UI_ERR_ALIGN`), and **the property is asserted three times**: at
+bake time, by `ps2ui-check` over any blob, and at load on the console.
+An old blob now fails loudly with a dark-red screen instead of shifting
+every texture.
+
+**And this one is verifiable before a bench run.** Unlike 3b, the
+emulator sees it: the `hw` job's ground-truth diff should drop from
+RMSE ~22.9 toward the capture pipeline's resampling floor on the first
+aligned build. Read that number before booting anything.
+
+Relation to 3b: both are real. 3b (the missing cache writeback) is
+correct by reference against gsKit and OPL and guards a
+*nondeterministic* corruption that no emulator models; 3c is the
+*deterministic* one that emulators reproduce. The bench photographs
+almost certainly show 3c, possibly with 3b on top.
+
 ### 3b-1. What `TEX0.TBW` turned out to be: nothing
 
 Recorded because a session was spent on it.

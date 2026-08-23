@@ -124,6 +124,28 @@ and you can stop.
 
 ---
 
+## What changed since the last artifact you booted
+
+Two fixes, one of which the emulator has already voted on:
+
+1. **Every texture was DMA-shifted 4–12 bytes** because the blob
+   section started misaligned in the file and a DMA REF tag has no low
+   address bits to carry the remainder. Deterministic, reproduced by
+   Play!, and the cause of the garbled text, the wrapped image edges,
+   and the mispositioned swizzle stripe. Fixed in the baker; the
+   runtime now refuses a misaligned blob with a **dark red** screen.
+2. **The CPU's caches are now written back before every upload** — a
+   real hole (gsKit's upload does not flush; OPL's path does), fixed by
+   reference, invisible to emulators either way.
+
+**Consequence for stale files:** an ELF from an old artifact embeds an
+old-format blob and now boots to **dark red** (load refused). That is
+the guard working, not a regression — but it also means mixing old and
+new ELFs on one stick is even less forgiving than before. Fresh names,
+sizes checked on the drive.
+
+---
+
 ## Step 3b — nothing to run
 
 Settled by reading gsKit and Open-PS2-Loader. The upload never wrote the

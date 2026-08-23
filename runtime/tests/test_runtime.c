@@ -178,6 +178,28 @@ int main(int argc, char **argv)
     CHECK(g_stub.n_flushes > 0,
           "and flushes were actually recorded, so the check above had something to check");
 
+    /* ---- load: DMA alignment guard ---- */
+    /* The GIF DMA reads texture bytes in place and its source address
+     * must be qword aligned. The baker aligns everything relative to
+     * the file; the base address is the embedding host's to get wrong
+     * -- bin2c output, a heap buffer, a memcard read. +8 keeps every
+     * struct overlay legal (all fields are 4-aligned) while breaking
+     * the one property DMA needs, so the load must refuse for the
+     * right reason and not by accident of a torn header. */
+    {
+        ps2ui_ctx mis;
+        uint8_t *shifted = malloc(len + 32);   /* room for align pad (<=16) plus the +8 shift */
+        size_t pad = 16 - (((uintptr_t)shifted) & 15u);
+        uint8_t *base = shifted + pad;      /* 16-aligned */
+        memcpy(base + 8, blob, len);
+        CHECK(ps2ui_load(&mis, base + 8, len) == PS2UI_ERR_ALIGN,
+              "a blob at a non-16-aligned address is refused with PS2UI_ERR_ALIGN");
+        memcpy(base, blob, len);
+        CHECK(ps2ui_load(&mis, base, len) == PS2UI_OK,
+              "and the identical bytes load once the address is aligned, so it was the address");
+        free(shifted);
+    }
+
     /* ---- render: focus filtering ---- */
     {
         int base = render_and_count(&ctx, &gs);

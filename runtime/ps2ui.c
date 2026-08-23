@@ -115,12 +115,26 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
     ctx->screen_table = (const ps2ui_screen_entry *)(ctx->data + ctx->hdr->off_screen);
     ctx->blob        = ctx->data + ctx->hdr->off_blob;
 
+    /* The GIF DMA reads texture bytes straight out of this blob, and
+     * DMA source addresses must be qword (16-byte) aligned. The baker
+     * 16-aligns every section relative to the file, so this reduces to
+     * one question about the only thing the baker cannot control: the
+     * address the embedding host placed the file at. bin2c output, a
+     * heap buffer, a memory-card read -- any of them can hand us an
+     * address the DMA silently mis-reads from. Refusing to load turns
+     * that into a red screen with a name instead of a texture whose
+     * corruption depends on the linker. */
+    if (((uintptr_t)(const void *)ctx->blob) & 15u)
+        return PS2UI_ERR_ALIGN;
+
     /* Every cross-reference is checked once here so the render loop can
      * index without branching. */
     for (i = 0; i < ctx->hdr->n_tex; i++) {
         const ps2ui_tex_entry *t = &ctx->tex[i];
         if (!in_blob(ctx, t->data_off, t->data_len))
             return PS2UI_ERR_BOUNDS;
+        if (t->data_off & 15u)   /* DMA'd in place; see the blob check */
+            return PS2UI_ERR_ALIGN;
         if (t->clut != PS2UI_NONE && t->clut >= ctx->hdr->n_clut)
             return PS2UI_ERR_BOUNDS;
         if (t->format != PS2UI_TEXFMT_PSMT8 && t->format != PS2UI_TEXFMT_PSMCT32)

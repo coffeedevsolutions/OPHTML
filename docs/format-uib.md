@@ -20,6 +20,14 @@ header.off_blob     blob          header.blob_len bytes
 All `data_off`/`name_off` fields are relative to the **blob**, so tools
 can rewrite tables without re-basing data pointers.
 
+> **Alignment invariant.** The blob section's file offset and every
+> texture's `data_off` within it are multiples of 16, so that a file
+> placed 16-aligned in memory (as `bin2c` output is) yields
+> qword-aligned DMA source addresses. A GIF source-chain REF tag has no
+> low address bits; a violating address is truncated, not faulted, and
+> every texture arrives shifted. The runtime refuses such a file with
+> `PS2UI_ERR_ALIGN`; `ps2ui-check` asserts the same property offline.
+
 ## Header (76 bytes)
 
 | off | type | field         | notes                          |
