@@ -161,29 +161,22 @@ int main(int argc, char **argv)
     vram_used = gs.CurrentPointer - vram_before;
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
-    /* TEX0.TBW, the field the stub did not have and the runtime did not
-     * write. gsKit reads it for the upload's BITBLTBUF and the
-     * sampler's TEX0 and does not derive it from Width, so a zero here
-     * means the GS fetches every row of a wide texture from the wrong
-     * offset. It cost a bench session: the 256-wide glyph atlases and
-     * the 96-wide swizzle tile rendered wrong on hardware while the
-     * 64x48 card art beside them was perfect, which is precisely the
-     * split "correct only when width <= 64" produces.
+    /* The EE writes back lazily and the GIF reads main memory, so any
+     * buffer the CPU touched before an upload has to be flushed or the
+     * GS reads what was there before. permute_clut builds every CLUT
+     * with ordinary stores immediately before the transfer, which puts
+     * the whole palette in dirty cache lines -- and glyph coverage IS
+     * the palette's alpha, so a stale one turns text to noise while
+     * leaving geometry untouched.
      *
-     * Checked over the real blob, and the >1 assertion is the half that
-     * bites: TBW=1 is what a zeroed struct looks like on every texture
-     * narrow enough not to care, so a fixture without a wide texture
-     * would pass this while the bug was still live. */
-    {
-        uint32_t k, wide = 0, ok = 1;
-        for (k = 0; k < ctx.hdr->n_tex; k++) {
-            uint32_t want = (ctx.tex[k].width + 63) / 64;
-            if (ctx.gs_tex[k].TBW != want) ok = 0;
-            if (want > 1) wide++;
-        }
-        CHECK(ok, "every uploaded texture carries TEX0.TBW = ceil(width / 64)");
-        CHECK(wide > 0, "and the blob contains at least one texture wide enough for that to matter");
-    }
+     * gsKit_texture_upload does not flush. gsKit_TexManager_bind does,
+     * and Open-PS2-Loader uses that path for the same reason. A host
+     * cache is coherent, so this cannot be caught by rendering: the
+     * stub records the calls instead and the upload checks coverage. */
+    CHECK(g_stub.n_uploads_unflushed == 0,
+          "every upload is preceded by a writeback of its pixels and its CLUT");
+    CHECK(g_stub.n_flushes > 0,
+          "and flushes were actually recorded, so the check above had something to check");
 
     /* ---- render: focus filtering ---- */
     {

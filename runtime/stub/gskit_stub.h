@@ -55,6 +55,13 @@ typedef struct GSTEXTURE {
     u8   Delayed;
 } GSTEXTURE;
 
+/* ps2sdk's cache writeback, modelled because ps2ui must call it and a
+ * missing call is invisible on a host with a coherent cache. The EE
+ * has a write-back D-cache and the GS reads main memory over DMA, so
+ * CPU-written texture or CLUT bytes that are still in cache do not
+ * exist as far as the GS is concerned. */
+void SyncDCache(void *start, void *end);
+
 typedef struct GSGLOBAL {
     int Width, Height;
     u32 CurrentPointer; /* fake VRAM allocator cursor */
@@ -97,6 +104,15 @@ typedef struct stub_prim {
 
 #define STUB_MAX_PRIMS 4096
 
+#define STUB_MAX_FLUSHES 64
+
+/* One recorded SyncDCache range. The host has a coherent cache, so a
+ * missing writeback changes nothing here and everything on a console:
+ * recording the calls is the only way a host test can see them. */
+typedef struct stub_flush {
+    const void *start, *end;
+} stub_flush;
+
 typedef struct stub_state {
     stub_prim prims[STUB_MAX_PRIMS];
     int n_prims;
@@ -104,6 +120,11 @@ typedef struct stub_state {
     int n_scissor_sets;
     u64 last_scissor;
     u32 vram_allocated;
+    stub_flush flushes[STUB_MAX_FLUSHES];
+    int n_flushes;
+    /* Uploads whose pixel data or CLUT was not fully covered by a
+     * preceding writeback. Any value but zero is a console bug. */
+    int n_uploads_unflushed;
 } stub_state;
 
 extern stub_state g_stub;

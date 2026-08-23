@@ -26,6 +26,7 @@ extern "C" {
 #else
 #include <gsKit.h>
 #include <gsToolkit.h>
+#include <kernel.h>   /* SyncDCache */
 #endif
 
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */

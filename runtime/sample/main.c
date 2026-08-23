@@ -638,16 +638,9 @@ static void p6_fill(void)
 
 static int p6_upload(GSGLOBAL *gs)
 {
-    /* TBW on all three, because leaving it zero is the fault this
-     * probe was partly built to find and it had the fault itself.
-     * Every atlas here is 128 or 256 texels wide, so every column was
-     * being sampled at a stride the GS was never told -- including the
-     * leftmost, which is the calibration. A probe with the defect it
-     * is testing for reports on itself. */
     memset(&p6_tex32, 0, sizeof p6_tex32);
     p6_tex32.Width  = P6_ATLAS;
     p6_tex32.Height = P6_ATLAS;
-    p6_tex32.TBW    = (P6_ATLAS + 63) / 64;
     p6_tex32.PSM    = GS_PSM_CT32;
     /* NEAREST, matching ps2ui.c. Under bilinear a boundary UV averages
      * its neighbours into mush; under nearest it rounds, and rounding
@@ -665,7 +658,6 @@ static int p6_upload(GSGLOBAL *gs)
     memset(&p6_tex8, 0, sizeof p6_tex8);
     p6_tex8.Width   = P6_ATLAS;
     p6_tex8.Height  = P6_ATLAS;
-    p6_tex8.TBW     = (P6_ATLAS + 63) / 64;
     p6_tex8.PSM     = GS_PSM_T8;
     p6_tex8.ClutPSM = GS_PSM_CT32;
     p6_tex8.Filter  = GS_FILTER_NEAREST;
@@ -685,7 +677,6 @@ static int p6_upload(GSGLOBAL *gs)
     memset(&p6_tex8w, 0, sizeof p6_tex8w);
     p6_tex8w.Width   = P6_WIDE_W;
     p6_tex8w.Height  = P6_WIDE_H;
-    p6_tex8w.TBW     = (P6_WIDE_W + 63) / 64;
     p6_tex8w.PSM     = GS_PSM_T8;
     p6_tex8w.ClutPSM = GS_PSM_CT32;
     p6_tex8w.Filter  = GS_FILTER_NEAREST;

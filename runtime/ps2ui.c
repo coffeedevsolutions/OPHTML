@@ -263,37 +263,6 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
         memset(g, 0, sizeof *g);
         g->Width  = t->width;
         g->Height = t->height;
-        /* TEX0.TBW: texture buffer width, in units of 64 texels. gsKit
-         * reads this field when it builds both the upload's BITBLTBUF
-         * and the sampler's TEX0, and it does not derive it from Width.
-         * Left at what memset gave it -- zero -- the GS is told every
-         * texture is 0 units wide, and the row stride it fetches with
-         * has nothing to do with the row stride the data was written
-         * at. Anything 64 texels or narrower is unaffected either way;
-         * anything wider is read from the wrong place on every row
-         * after the first.
-         *
-         * That is not a small set: the glyph atlases are 256 wide
-         * (TBW=4) and the swizzle tile is 96 (TBW=2), which is exactly
-         * the set of textures that has been rendering wrong on
-         * hardware, while the 64x48 card art beside them in the same
-         * cell rendered perfectly. See docs/bringup.md step 3b.
-         *
-         * The host stub had no TBW member at all, so no test in this
-         * tree could see the field was never written -- the same class
-         * of divergence as a stub that invents a member gsKit lacks,
-         * running the other way. */
-#ifdef PS2UI_TBW_FORCE
-        /* Bring-up step 3b's ladder. One literal value on every
-         * texture, so a bench can name the one that renders rather
-         * than argue about the formula. Deliberately ignores width:
-         * every glyph atlas is 256 wide, so a single forced value
-         * tests all four of them at once and the reading is "is the
-         * text legible". Not a shipping configuration. */
-        g->TBW    = PS2UI_TBW_FORCE;
-#else
-        g->TBW    = (t->width + 63) / 64;
-#endif
         g->Filter = GS_FILTER_NEAREST; /* baked at exact size; bilinear only blurs */
         /* Nothing sets TEX0.TFX here, and nothing can: gsKit has no
          * per-texture TFX field, and every one of its GS_SETREG_TEX0
@@ -325,6 +294,36 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (g->VramClut == GSKIT_ALLOC_ERROR)
                 return -1;
         }
+        /* Write the CPU's caches back before the GS reads main memory
+         * over DMA.
+         *
+         * The EE has a write-back data cache and the GIF transfer does
+         * not go through it. permute_clut() has just built this
+         * palette with ordinary stores, so on a console it exists only
+         * in dirty cache lines: the DMA reads whatever main memory
+         * held before, which for a static array is zeros or the
+         * previous texture's palette. Glyph coverage is entirely CLUT
+         * alpha, so a stale palette turns text into noise while
+         * leaving the geometry perfect -- and which lines happen to
+         * have been evicted depends on unrelated memory traffic, so
+         * the corruption moves when anything else about the build
+         * moves.
+         *
+         * gsKit_texture_upload does NOT do this for you. Its own
+         * source recommends gsKit_TexManager_bind instead, which does
+         * (gsTexManager.c:270,279), and Open-PS2-Loader -- the same
+         * job on the same library -- goes through that path for
+         * exactly this reason. Until ps2ui follows suit, the writeback
+         * belongs here.
+         *
+         * No #ifdef around the calls: the stub declares SyncDCache too,
+         * so the host suite executes this exact line and can assert it
+         * ran. A writeback guarded by PS2UI_HOST_TEST would be a
+         * console-only code path, which is the shape of every bug this
+         * file has shipped. */
+        SyncDCache(g->Mem, (uint8_t *)(void *)g->Mem + t->data_len);
+        if (g->Clut)
+            SyncDCache(g->Clut, (uint8_t *)(void *)g->Clut + 256 * 4);
         gsKit_texture_upload(gs, g);
     }
     ctx->uploaded = 1;

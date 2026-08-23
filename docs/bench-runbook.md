@@ -124,32 +124,18 @@ and you can stop.
 
 ---
 
-## Step 3b — the TBW ladder
+## Step 3b — nothing to run
 
-`TEX0.TBW` is texture buffer width in units of 64 texels, and nothing in
-this project ever set it. It has been zero on every texture ever
-uploaded. Changing it changes the render, so the field is live. The
-right value is not known: `ceil(width / 64)` was tried and came back
-worse than the zero it replaced.
+Settled by reading gsKit and Open-PS2-Loader. The upload never wrote the
+CPU's data cache back before handing the GS a palette the CPU had just
+built, so the GS read stale memory. `gsKit_texture_upload` does not
+flush; `gsKit_TexManager_bind` does, and OPL uses that path.
 
-**Run** `conform-tbw1.elf`, `conform-tbw2.elf`, `conform-tbw3.elf`,
-`conform-tbw5.elf`, `conform-tbw6.elf`. Same grid each time, one
-literal `TBW` on every texture.
+There is no ELF and no cell to read. The next `conform.elf` either shows
+legible text or it does not, and that is step 3's reading, not a new
+one.
 
-**The reading is the simplest on this page: which one has legible
-text.** Not "better", not "closer". Legible.
-
-| what you see | verdict |
-|---|---|
-| exactly one build legible | **that number is the answer.** Stop, report it |
-| more than one legible | report all of them, the narrow textures will separate them |
-| none legible | report which one is *least* like the others, and stop. The value is not in this range and guessing further is not the next step |
-
-`TBW = 0` (the shipped builds up to now) and `TBW = 4` are already read.
-Both wrong. Do not re-run those.
-
-**Boot each one fresh and under its own name.** Five ELFs that differ by
-one integer is the exact situation the fresh-names rule exists for.
+Details in `docs/bringup.md` step 3b.
 
 ---
 

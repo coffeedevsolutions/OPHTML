@@ -534,97 +534,105 @@ are PSMT8 sharing one CLUT. The emulator shows a milder version of the
 same signature -- text differing while flat quads match -- so it is not
 a Play! artifact.
 
-### 3b. `TEX0.TBW`, which nothing ever set
+### 3b. The upload never wrote the CPU's caches back
 
-**HARDWARE FINDING, and it explains the split every other step kept
-running into.**
+**HARDWARE FINDING, from reading gsKit and Open-PS2-Loader rather than
+from a bench.**
 
-`TEX0.TBW` is texture buffer width in units of 64 texels. gsKit reads
-`GSTEXTURE::TBW` for both the upload's `BITBLTBUF` and the sampler's
-`TEX0`, and does **not** derive it from `Width`.
+The EE has a **write-back** data cache. The GIF reads main memory over
+DMA and does not go through it. So any buffer the CPU writes shortly
+before a transfer exists only in dirty cache lines, and the GS reads
+whatever main memory held before.
 
-`ps2ui_upload` began with `memset(g, 0, sizeof *g)` and never wrote
-`TBW`. So every texture this project has ever uploaded declared itself
-zero units wide.
+`ps2ui_upload` builds every CLUT with `permute_clut()` — ordinary
+stores into a `static` array — and then hands the pointer straight to
+`gsKit_texture_upload`. **`gsKit_texture_upload` does not flush.**
 
-**Why it hid.** A texture 64 texels or narrower needs `TBW = 1`, and
-a zeroed struct is close enough to that not to show. Anything wider is
-fetched with a row stride that has nothing to do with the stride its
-data was written at, so every row after the first comes from the wrong
-place. On the channel-6 probe screen:
+```c
+void gsKit_texture_upload(GSGLOBAL *gsGlobal, GSTEXTURE *Texture)
+{
+	gsKit_setup_tbw(Texture);
+	gsKit_texture_send(Texture->Mem,  ... );
+	gsKit_texture_send(Texture->Clut, ... );   /* no writeback anywhere */
+}
+```
 
-| texture | width | `TBW` needed | on hardware |
-|---|---|---|---|
-| glyph atlases (4 of them) | 256 | 4 | **garbled** |
-| swizzle tile | 96 | 2 | **orange stripe in the wrong place** |
-| card art, PSMCT32 | 64 | 1 | fine |
-| card art, PSMT8 | 64 | 1 | fine |
-| icons and nine-patch parts | 9..29 | 1 | fine |
+`SyncDCache` appears in exactly two places in gsKit's texture path, and
+both are in the *other* API:
 
-Every texture that renders wrong needs `TBW > 1`. Every texture that
-renders right needs `TBW = 1`. Nothing else in the tree splits the
-grid that way.
+```c
+/* gsTexManager.c, gsKit_TexManager_bind */
+SyncDCache(tex->Mem,  (u8 *)(tex->Mem)  + tsize);   /* :270 */
+SyncDCache(tex->Clut, (u8 *)(tex->Clut) + csize);   /* :279 */
+```
 
-It also dissolves the standing mystery from step 3: the operator kept
-reporting that card art in the same cell as the garbled text rendered
-perfectly, which no CLUT fault explains, because both share the atlas
-path. A width threshold explains it exactly.
+And gsKit's own source says which API to use, in a comment inside
+`gsKit_vram_alloc`:
 
-**Why no test caught it.** `runtime/stub/gskit_stub.h` declared no
-`TBW` member. The stub is the only model of gsKit anything here can
-test against, so a field missing from it is a field no test can notice
-going unwritten. This is the same class of divergence as a stub that
-*invents* a member gsKit lacks (step 4), running the other way, and it
-is the more dangerous direction: an invented member fails loudly in the
-container, a missing one fails nowhere at all.
+> `NOTE: this is here for compatibility, it's better not to use`
+> `gsKit_vram_alloc, and use gsKit_TexManager_bind instead.`
 
-The stub now mirrors `struct gsTexture` member for member. The runtime
-test asserts `TBW == ceil(width / 64)` over the real blob, and asserts
-separately that the blob contains at least one texture wide enough for
-that to mean something — without which the check passes on a fixture of
-narrow textures while the bug is live.
+**Open-PS2-Loader does exactly that.** It writes glyph pixels into an
+atlas with `memcpy` (`src/atlas.c`), invalidates with `Vram = 0`, and
+binds through `gsKit_TexManager_bind` before drawing
+(`src/renderman.c:333`). Same library, same job, on real hardware. It
+is the reference and ps2ui was on the other path.
 
-**`probe6.elf` had the same defect.** Its three atlases are 128 and 256
-wide and it set no `TBW` either, so every column including the leftmost
-calibration was sampled at an unannounced stride. A probe carrying the
-fault it is testing for reports on itself, which is why its six columns
-came back uniform. Fixed in the same commit; its earlier readings are
-void.
+**Why this matches the symptom exactly:**
 
-**The value is NOT settled, and `ceil(width / 64)` is not it.**
-
-Setting it to `ceil(width / 64)` — which is what the GS manual's "units
-of 64 texels" says — was tried on hardware and came back **more**
-illegible than the zero it replaced. `TBW` was the only console-visible
-thing that changed between the two builds.
-
-So the finding splits in two, and only the first half is established:
-
-| | |
+| observation | what a stale CLUT predicts |
 |---|---|
-| **`TBW` is live, and was zero on every texture this project ever uploaded** | **established.** Changing it changes the render, so gsKit reads it. Nothing in this tree could see that, because the stub had no such member |
-| `ceil(width / 64)` is the right value | **false.** Worse on hardware than zero |
+| glyph geometry perfect, glyph content noise | coverage is entirely CLUT alpha; the indices and quads are untouched |
+| card art fine in the same cell | its palette is 3–5 flat colours and its lines may well have been evicted |
+| untextured quads perfect | no DMA of CPU-written data at all |
+| **the picture changed when a no-op code change was made** | which lines are still dirty depends on unrelated memory traffic, so any change in layout moves the corruption |
 
-Which leaves an open question rather than a fix. Candidates, none of
-them worth arguing about from here:
+That last row is the one that closes it. A change that provably could
+not alter behaviour altered the picture. Only a memory-state bug does
+that.
 
-- gsKit may use the same field for the upload's `BITBLTBUF` destination
-  width and for the sampler's `TEX0`, in which case a value correct for
-  one is wrong for the other and no single number works.
-- PSMT8 data is four texels per 32-bit word, so an upload that
-  transfers it as PSMCT32 wants a width four times smaller than the
-  sampler does.
+**The fix:** `SyncDCache` on the pixel bytes and the palette before
+every upload, with no `#ifdef` around it — the host stub declares
+`SyncDCache` too, so the host suite runs the same line and asserts it
+ran. A host cache is coherent, so this can never be caught by
+rendering; the stub records the calls and the upload checks that each
+one covers the whole buffer. Falsified two ways: dropping the CLUT
+flush goes red, and flushing only half the pixels goes red.
 
-**The ladder settles it instead.** `conform-tbw1.elf` through
-`conform-tbw6.elf` are the same grid with `TEX0.TBW` forced to one
-literal value on every texture, `PS2UI_TBW_FORCE`. Every glyph atlas is
-256 wide, so a single forced value exercises all four at once and the
-reading is the easiest one on this page: **which build has legible
-text.** 0 and 4 are already read and both are wrong.
+**Longer term, ps2ui should move to `gsKit_TexManager_bind`**, which is
+what gsKit recommends and what OPL uses. That gets the writeback, the
+VRAM management and the re-upload-on-invalidate for free instead of
+hand-rolling each.
 
-Whichever value wins, the formula that produces it goes back into
-`ps2ui_upload` and the runtime test asserts it. Until then this section
-records a live field nobody was setting, not a fix.
+### 3b-1. What `TEX0.TBW` turned out to be: nothing
+
+Recorded because a session was spent on it.
+
+`TBW` is texture buffer width in units of 64 texels, and `ps2ui_upload`
+never set it — which looked like the whole answer. It is not, because
+`gsKit_texture_upload`'s first statement is `gsKit_setup_tbw(Texture)`,
+which **overwrites whatever the caller put there**. Setting it is dead
+code. gsKit has been computing it correctly all along:
+
+```c
+/* gsMisc.c — note the alignment is 128 for indexed, not 64 */
+if (PSM == T8 || T4) TBW = align(Width, 128) / 64;
+else                 TBW = align(Width,  64) / 64;
+```
+
+So `ceil(width / 64)` is not even gsKit's formula for an indexed
+texture, and a "ladder" of forced `TBW` values could not have varied
+anything. Both were built and neither could answer. The stub now
+mirrors `gsKit_setup_tbw` so nothing in this tree can make that mistake
+again.
+
+The lasting lesson is not about `TBW`. It is that four bench-blocking
+questions in a row — `GSTEXTURE::Function`, `TEX0.TFX`, `TEX0.TCC`,
+`TEX0.TBW` — were all answerable by reading gsKit's source, and were
+instead attacked with ELF A/Bs on a console. **Read the library
+first.** It is at `github.com/ps2dev/gsKit`, and Open-PS2-Loader at
+`github.com/ps2homebrew/Open-PS2-Loader` is a working implementation of
+this exact application class on the same API.
 
 ## 4. Text tinting and `TEX0.TFX`
 
