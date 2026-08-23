@@ -534,6 +534,67 @@ are PSMT8 sharing one CLUT. The emulator shows a milder version of the
 same signature -- text differing while flat quads match -- so it is not
 a Play! artifact.
 
+### 3b. `TEX0.TBW`, which nothing ever set
+
+**HARDWARE FINDING, and it explains the split every other step kept
+running into.**
+
+`TEX0.TBW` is texture buffer width in units of 64 texels. gsKit reads
+`GSTEXTURE::TBW` for both the upload's `BITBLTBUF` and the sampler's
+`TEX0`, and does **not** derive it from `Width`.
+
+`ps2ui_upload` began with `memset(g, 0, sizeof *g)` and never wrote
+`TBW`. So every texture this project has ever uploaded declared itself
+zero units wide.
+
+**Why it hid.** A texture 64 texels or narrower needs `TBW = 1`, and
+a zeroed struct is close enough to that not to show. Anything wider is
+fetched with a row stride that has nothing to do with the stride its
+data was written at, so every row after the first comes from the wrong
+place. On the channel-6 probe screen:
+
+| texture | width | `TBW` needed | on hardware |
+|---|---|---|---|
+| glyph atlases (4 of them) | 256 | 4 | **garbled** |
+| swizzle tile | 96 | 2 | **orange stripe in the wrong place** |
+| card art, PSMCT32 | 64 | 1 | fine |
+| card art, PSMT8 | 64 | 1 | fine |
+| icons and nine-patch parts | 9..29 | 1 | fine |
+
+Every texture that renders wrong needs `TBW > 1`. Every texture that
+renders right needs `TBW = 1`. Nothing else in the tree splits the
+grid that way.
+
+It also dissolves the standing mystery from step 3: the operator kept
+reporting that card art in the same cell as the garbled text rendered
+perfectly, which no CLUT fault explains, because both share the atlas
+path. A width threshold explains it exactly.
+
+**Why no test caught it.** `runtime/stub/gskit_stub.h` declared no
+`TBW` member. The stub is the only model of gsKit anything here can
+test against, so a field missing from it is a field no test can notice
+going unwritten. This is the same class of divergence as a stub that
+*invents* a member gsKit lacks (step 4), running the other way, and it
+is the more dangerous direction: an invented member fails loudly in the
+container, a missing one fails nowhere at all.
+
+The stub now mirrors `struct gsTexture` member for member. The runtime
+test asserts `TBW == ceil(width / 64)` over the real blob, and asserts
+separately that the blob contains at least one texture wide enough for
+that to mean something — without which the check passes on a fixture of
+narrow textures while the bug is live.
+
+**`probe6.elf` had the same defect.** Its three atlases are 128 and 256
+wide and it set no `TBW` either, so every column including the leftmost
+calibration was sampled at an unannounced stride. A probe carrying the
+fault it is testing for reports on itself, which is why its six columns
+came back uniform. Fixed in the same commit; its earlier readings are
+void.
+
+**Confirm it:** boot the new `conform.elf` and compare against the
+photograph of the old one. Text legible and the swizzle bar's stripe
+against the right edge is the fix landing.
+
 ## 4. Text tinting and `TEX0.TFX`
 
 **SETTLED BY SOURCE. No bench slot, no ELF, nothing to look at.**

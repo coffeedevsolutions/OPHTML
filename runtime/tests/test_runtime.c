@@ -161,6 +161,30 @@ int main(int argc, char **argv)
     vram_used = gs.CurrentPointer - vram_before;
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
+    /* TEX0.TBW, the field the stub did not have and the runtime did not
+     * write. gsKit reads it for the upload's BITBLTBUF and the
+     * sampler's TEX0 and does not derive it from Width, so a zero here
+     * means the GS fetches every row of a wide texture from the wrong
+     * offset. It cost a bench session: the 256-wide glyph atlases and
+     * the 96-wide swizzle tile rendered wrong on hardware while the
+     * 64x48 card art beside them was perfect, which is precisely the
+     * split "correct only when width <= 64" produces.
+     *
+     * Checked over the real blob, and the >1 assertion is the half that
+     * bites: TBW=1 is what a zeroed struct looks like on every texture
+     * narrow enough not to care, so a fixture without a wide texture
+     * would pass this while the bug was still live. */
+    {
+        uint32_t k, wide = 0, ok = 1;
+        for (k = 0; k < ctx.hdr->n_tex; k++) {
+            uint32_t want = (ctx.tex[k].width + 63) / 64;
+            if (ctx.gs_tex[k].TBW != want) ok = 0;
+            if (want > 1) wide++;
+        }
+        CHECK(ok, "every uploaded texture carries TEX0.TBW = ceil(width / 64)");
+        CHECK(wide > 0, "and the blob contains at least one texture wide enough for that to matter");
+    }
+
     /* ---- render: focus filtering ---- */
     {
         int base = render_and_count(&ctx, &gs);

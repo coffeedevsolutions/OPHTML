@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 
+typedef uint8_t  u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
@@ -37,13 +38,21 @@ typedef uint64_t u64;
 #define GS_SETREG_SCISSOR(x0, x1, y0, y1) \
     ((u64)(x0) | ((u64)(x1) << 16) | ((u64)(y0) << 32) | ((u64)(y1) << 48))
 
+/* Field for field with gsKit's struct gsTexture, in its order. The
+ * order does not matter to a host build, but the MEMBERSHIP does: this
+ * struct is the only model of gsKit anything in this tree can test
+ * against, so a member missing here is a member no test can notice
+ * going unwritten. TBW was missing, and it was never being set. */
 typedef struct GSTEXTURE {
     u32  Width, Height;
-    u32  PSM, ClutPSM;
+    u8   PSM, ClutPSM;
+    u32  TBW;
     u32 *Mem;
     u32 *Clut;
     u32  Vram, VramClut;
     u32  Filter;
+    u8   ClutStorageMode;
+    u8   Delayed;
 } GSTEXTURE;
 
 typedef struct GSGLOBAL {

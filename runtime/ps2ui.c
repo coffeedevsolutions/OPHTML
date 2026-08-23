@@ -263,6 +263,27 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
         memset(g, 0, sizeof *g);
         g->Width  = t->width;
         g->Height = t->height;
+        /* TEX0.TBW: texture buffer width, in units of 64 texels. gsKit
+         * reads this field when it builds both the upload's BITBLTBUF
+         * and the sampler's TEX0, and it does not derive it from Width.
+         * Left at what memset gave it -- zero -- the GS is told every
+         * texture is 0 units wide, and the row stride it fetches with
+         * has nothing to do with the row stride the data was written
+         * at. Anything 64 texels or narrower is unaffected either way;
+         * anything wider is read from the wrong place on every row
+         * after the first.
+         *
+         * That is not a small set: the glyph atlases are 256 wide
+         * (TBW=4) and the swizzle tile is 96 (TBW=2), which is exactly
+         * the set of textures that has been rendering wrong on
+         * hardware, while the 64x48 card art beside them in the same
+         * cell rendered perfectly. See docs/bringup.md step 3b.
+         *
+         * The host stub had no TBW member at all, so no test in this
+         * tree could see the field was never written -- the same class
+         * of divergence as a stub that invents a member gsKit lacks,
+         * running the other way. */
+        g->TBW    = (t->width + 63) / 64;
         g->Filter = GS_FILTER_NEAREST; /* baked at exact size; bilinear only blurs */
         /* Nothing sets TEX0.TFX here, and nothing can: gsKit has no
          * per-texture TFX field, and every one of its GS_SETREG_TEX0
