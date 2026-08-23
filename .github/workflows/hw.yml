@@ -112,6 +112,37 @@ jobs:
           test -f examples/memcard/build/ui.uib
           test -f examples/memcard/build/testcard.uib
           test -f examples/channel6/build/ui.uib
+      - name: Does GSTEXTURE actually lack ::Function, or just the macro?
+        continue-on-error: true
+        run: |
+          apk add --no-cache make
+          # ps2ui infers "the field is absent" from "GS_TFX_MODULATE is
+          # not defined". Those are two different facts, and the build
+          # log says the macro is missing in this toolchain -- so every
+          # ELF ever produced here took the untinted fallback. If the
+          # FIELD exists anyway, the detection is simply wrong and
+          # modulate is being skipped for no reason.
+          #
+          # Reports, never gates: the answer is the point, and a
+          # toolchain that genuinely lacks the field must still build.
+          cat > /tmp/probe_fn.c <<'EOF'
+          #include <gsKit.h>
+          int main(void) { GSTEXTURE t; t.Function = 0; return (int)t.Function; }
+          EOF
+          if mips64r5900el-ps2-elf-gcc -c -std=c99 \
+               -I$PS2DEV/gsKit/include -I$PS2SDK/ee/include \
+               -I$PS2SDK/common/include /tmp/probe_fn.c -o /tmp/probe_fn.o 2>/tmp/fn.err; then
+            echo "RESULT: GSTEXTURE::Function EXISTS in this gsKit."
+            echo "        The autoselect is wrong -- it keys off the macro, not the field."
+          else
+            echo "RESULT: GSTEXTURE::Function is genuinely absent."
+            sed -n '1,5p' /tmp/fn.err
+          fi
+          # And what TFX gsKit writes when ps2ui does not set the field.
+          grep -rn "GS_SETREG_TEX0" $PS2DEV/gsKit/include/*.h 2>/dev/null | head -3 || true
+          grep -rn "define GS_TFX_" $PS2DEV/gsKit/include/*.h 2>/dev/null | head -5 \
+            || echo "        (no GS_TFX_* macros in the gsKit headers)"
+
       - name: Build sample ELF with the PS2SDK toolchain
         run: |
           apk add --no-cache make
