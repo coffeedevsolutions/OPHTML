@@ -145,7 +145,15 @@ You are not scoring this pass or fail. One question only: **does it look
 like what your screen has been doing?**
 
 **Expect:** text replaced by **solid filled rectangles**, each in its own
-text colour. Blocks, not noise.
+text colour. Blocks, not noise. White text gives white blocks; the
+`#9aa3b5` body text gives `#9aa3b5` blocks. The colour does not change,
+only the shape.
+
+**Ignore the ALPHA cell on this build.** Its three swatches are the only
+cells here that were being drawn translucent, and this ELF turns
+blending off along with the texture alpha, so they go fully opaque.
+That is the arm working, not a second fault. Read the text and nothing
+else.
 
 | what you see | reading |
 |---|---|

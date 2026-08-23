@@ -619,6 +619,34 @@ atlas reads as opaque white, modulate multiplies it by the tint, and
 each glyph becomes a **solid filled rectangle of its own text colour**.
 Not noise. Not garble. Blocks.
 
+Every clause of that is read out of the baked blob rather than argued:
+
+| claim | from `examples/channel6/build/ui.uib` |
+|---|---|
+| the atlas reads opaque white | all four font atlases share clut 8: **1 distinct RGB triple, `(255,255,255)`**, alpha 0..128 across 129 distinct values. Coverage lives entirely in alpha |
+| the block is the text's own colour | `TCC` selects only where *alpha* comes from. RGB is `Cv = Ct · Cf >> 7` either way, and `Ct = 255`, so the block is exactly the colour the glyph's core pixels already have |
+| nothing clamps | **0 of 513** TEXQUADs on the probe screen carry a channel above `0x80`. `0x80 → 255` is exact, not a clamp |
+
+The middle row is the one worth being careful about, because the
+numbers invite a misreading. `Cv = 255 · Cf >> 7` is *twice the baked
+tint* — but the baked tint is already the stylesheet colour halved into
+the `0x80` domain, so doubling it is the modulate identity, not a
+brightening, and it is happening today on every correctly rendered
+glyph. Checked against `channel6.css`:
+
+| baked tint | on screen | stylesheet |
+|---|---|---|
+| `#4d525b` (×71) | `#99a3b5` | `#9aa3b5` |
+| `#464a54` (×37) | `#8b93a7` | `#8b94a7` |
+| `#406862` (×45) | `#7fcfc3` | `#7fd0c4` |
+| `#808080` (×205) | `#ffffff` | `#ffffff` |
+
+Within the one unit `Cv = Ct · Cf >> 7` quantisation produces. Nobody
+ever sees `#4d525b`; it is not a colour the UI contains. So "its own
+text colour" is what an operator will actually be holding a label
+against, and the `#808080` run is simply white text drawn as white
+blocks.
+
 | `conform-noalpha.elf` looks like | reading |
 |---|---|
 | solid coloured blocks, and it **does not** match the screen | `TCC` is ruled out. The prediction held and the symptom is something else |
@@ -629,6 +657,27 @@ That third row is the one that matters. If forcing the fault produces
 the *same* picture as not forcing it, the instrument is not wired to
 the thing it claims to control, and any conclusion drawn from it would
 be about nothing.
+
+**The side effect, named exactly.** `PrimAlphaEnable` is one field, so
+forcing it off also clears `PRIM.ABE` and this build loses blending. On
+the probe screen that touches **5 of 28** untextured quads: the other
+23 carry `As = 0x80`, where `(Cs − Cd) · As >> 7 + Cd` evaluates to
+`Cs` — blending is the identity for opaque geometry, so switching it
+off is invisible on them. The five that change:
+
+| quad | `As` | what it is |
+|---|---|---|
+| 640×448 at 0,0 `#060a14` | `0x4d` | canvas wash |
+| 26×26 at 44,109 `#6fa8dc` | `0x20` | **ALPHA ladder, 25%** |
+| 26×26 at 74,109 `#6fa8dc` | `0x40` | **ALPHA ladder, 50%** |
+| 26×26 at 104,109 `#6fa8dc` | `0x60` | **ALPHA ladder, 75%** |
+| 572×28 at 34,394 `#070c18` | `0x73` | footer strip |
+
+Three of those five are a cell an operator reads. **On
+`conform-noalpha.elf` the ALPHA cell is meaningless** — its three
+swatches go fully opaque and the ladder it exists to show is gone.
+That is a property of the arm, not a fault. Read the text on this
+build and nothing else.
 
 ## 5. The modulate color domain
 
