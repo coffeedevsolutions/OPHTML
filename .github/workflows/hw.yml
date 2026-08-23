@@ -19,6 +19,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A bench session cannot get a new instrument built without opening a
+  # pull request, which is friction in exactly the place where friction
+  # costs the most -- somebody is sitting in front of a console waiting.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -154,6 +158,20 @@ jobs:
           make -C runtime/sample objclean
           make -C runtime/sample STATIC=1 EE_BIN=testcard.elf \
             UIB=../../examples/memcard/build/testcard.uib
+          # Bring-up step 3's A/B. The CSM1 permutation is an involution,
+          # so "never applied" and "applied twice" produce the identical
+          # picture and no host test can separate them -- the host has
+          # no GS. These two ELFs differ in exactly one thing, so the
+          # comparison names which side of the involution this build is
+          # on. Hardware shows the memcard UI's text as garbled noise,
+          # which is the symptom bringup.md step 3 predicts for a
+          # double-permute, and the emulator reproduces it.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 LINEAR_CLUT=1 EE_BIN=sample-linear.elf
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 SCREEN=probe LINEAR_CLUT=1 \
+            EE_BIN=conform-linear.elf \
+            UIB=../../examples/channel6/build/ui.uib
           # The conformance grid: channel-6's `probe` screen, which is
           # screen 1 of that blob. SCREEN= is what makes it reachable;
           # STATIC=1 freezes the focus so the cells being read are not
@@ -171,6 +189,8 @@ jobs:
           test -f runtime/sample/telemetry.elf
           test -f runtime/sample/testcard.elf
           test -f runtime/sample/conform.elf
+          test -f runtime/sample/sample-linear.elf
+          test -f runtime/sample/conform-linear.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -183,6 +203,8 @@ jobs:
             runtime/sample/telemetry.elf
             runtime/sample/testcard.elf
             runtime/sample/conform.elf
+            runtime/sample/sample-linear.elf
+            runtime/sample/conform-linear.elf
 
   emulator:
     needs: [bake, elf]
@@ -486,6 +508,41 @@ jobs:
           # finding.
           python3 tools/read_testcard.py testcard.png --report-only
 
+      - name: Bring-up step 3 — is the CLUT permuted once, or twice?
+        if: always()
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
+        run: |
+          # The same UI with the CLUT uploaded linearly. Diffed against
+          # the same ground truth as the ordinary build, so the two RMSE
+          # numbers sit next to each other and the smaller one names the
+          # correct convention. An involution cannot be argued about
+          # from one side of it.
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf elf/sample-linear.elf \
+              >linear.log 2>&1 &
+            P=$!
+            sleep 25
+            if kill -0 $P 2>/dev/null; then
+              import -window root linear_raw.png
+            else
+              echo "linear-CLUT ELF exited early:"; cat linear.log
+            fi
+            kill -9 $P 2>/dev/null || true
+          ' || true
+          if [ ! -f linear_raw.png ]; then
+            echo "no linear-CLUT capture"; exit 0
+          fi
+          convert linear_raw.png -fuzz 5% -trim +repage \
+            -resize 640x448\! linear.png
+          echo "--- CLUT uploaded LINEARLY (permutation off) ---"
+          python3 tools/framediff.py "$PREVIEW" linear.png \
+            --out linear_diff.png --rmse 8 --tile-rmse 32 --stats || true
+          echo "--- compare with the permuted build's number below ---"
+
       - name: Diff against previewer ground truth
         run: |
           # --stats prints a colour fingerprint of both frames. An RMSE
@@ -504,3 +561,5 @@ jobs:
             probe.png
             probe6.png
             testcard.png
+            linear.png
+            linear_diff.png

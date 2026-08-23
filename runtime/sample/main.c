@@ -524,7 +524,7 @@ static void probe_frame(GSGLOBAL *gs)
 #define P6_WIDE_W   256
 #define P6_WIDE_H   64
 #define P6_W        72           /* drawn width, in pixels and texels */
-#define P6_H        56           /* one band's height */
+#define P6_H        48           /* one band's height */
 #define P6_CELL     8            /* checker cell, in texels */
 #define P6_OFF      3            /* the "not the corner" UV origin */
 #define P6_COLS     6
@@ -563,6 +563,27 @@ static void probe_frame(GSGLOBAL *gs)
 #endif
 #if (P6_W % P6_GLYPH_W) != 0 || (P6_H % P6_GLYPH_H) != 0
 #error "step 6 probe: glyph-sized quads must tile the band exactly"
+#endif
+/* The band must be an EVEN number of checker rows.
+ *
+ * The two bands are the same image stacked, so with an odd row count
+ * the last row of the upper band and the first row of the lower one
+ * land on the same phase and merge into one double-height row. That is
+ * a visible feature at every join, in every column, whether the column
+ * is faulty or not -- and the whole reading is "is there something at
+ * the join". It shipped at 56px (7 rows) and made the probe unreadable
+ * by eye at a bench; the CI measurement compares the two bands as
+ * images and never noticed. */
+#if ((P6_H / P6_CELL) % 2) != 0
+#error "step 6 probe: band height must be an even number of checker rows, or every join shows a false seam"
+#endif
+/* Not "H is a whole number of cells" -- that cannot fire while the
+ * glyph quad and the checker cell are the same size, so it would be a
+ * guard with no reachable failure. This is the invariant that makes the
+ * tiling guard above sufficient; break the equality and you get told
+ * rather than silently losing the coverage. */
+#if P6_CELL != P6_GLYPH_H || P6_CELL != P6_GLYPH_W
+#error "step 6 probe: cell and glyph-quad size have diverged, so the tiling guard no longer implies whole checker rows"
 #endif
 #define P6_SPAN (P6_COLS * P6_W + (P6_COLS - 1) * P6_GAP)
 #if P6_X0 < PROBE_SAFE_X0 || (P6_X0 + P6_SPAN) > PROBE_SAFE_X1

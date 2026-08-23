@@ -67,6 +67,18 @@
     <div class="cell" id="probe-image" focusable>
       <p class="cell-label">IMAGE</p>
       <img class="swz" src="assets/swizzle.png" palettize>
+      <!-- The ruler. The tile is six 16px regions with nothing marking
+           where one ends, so reading it meant estimating "which sixth
+           is orange" -- a measurement, which this project decided
+           operators cannot make. A bench session lost time to exactly
+           that. These are untextured quads, the one path not under
+           suspicion, so the ruler stays trustworthy even when the tile
+           it measures does not. -->
+      <div class="swz-ruler">
+        <div class="swz-tick"></div><div class="swz-tick"></div>
+        <div class="swz-tick"></div><div class="swz-tick"></div>
+        <div class="swz-tick"></div><div class="swz-tick"></div>
+      </div>
       <div class="img-row">
         <div class="img-col">
           <img class="img-sample" src="assets/card.png">

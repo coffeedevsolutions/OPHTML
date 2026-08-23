@@ -48,6 +48,13 @@ endif
 ifdef SCREEN
 EE_CFLAGS += -DPS2UI_SAMPLE_SCREEN='"$(SCREEN)"'
 endif
+# `make LINEAR_CLUT=1` uploads CLUTs unpermuted. The pair of ELFs is
+# bring-up step 3's A/B: the CSM1 permutation is an involution, so
+# "not applied" and "applied twice" are the same picture, and only a
+# side-by-side says which side of it this build is on.
+ifdef LINEAR_CLUT
+EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
+endif
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib

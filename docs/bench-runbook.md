@@ -12,15 +12,17 @@ order of operations.
 ## Before you start
 
 **Get the ELFs.** From the latest green `hw` run on `main`, download the
-`ps2ui-sample-elf` artifact. It contains seven files:
+`ps2ui-sample-elf` artifact. It contains nine files:
 
 | file | what it is for |
 |---|---|
-| `minimal.elf` | step 1 — already passed, keep it as a sanity check |
+| `minimal.elf` | step 1 — already passed, keep it as a sanity check. **Exits after ~30 s**, see below |
 | `probe.elf` | step 2 — already passed, keep it for the same reason |
 | `conform.elf` | steps 3, 4, 5, 7 — the conformance grid |
 | `testcard.elf` | steps 6 and 8 — the alignment card |
 | `probe6.elf` | step 6b — which part of the texture path is at fault |
+| `conform-linear.elf` | step 3's A/B — the same grid with the CLUT unpermuted |
+| `sample-linear.elf` | the same A/B on the memcard UI |
 | `ps2ui_sample.elf` | step 9, and the only one that looks like a real UI |
 | `telemetry.elf` | frame timing, not a bring-up step |
 
@@ -34,6 +36,14 @@ that drive before today.
 itself. A copy that reports success and has not flushed is the single
 most common way to spend an hour reading a photograph of the wrong
 build.
+
+**Two of these ELFs quit on a timer, by design.** `minimal.elf` holds
+for about 30 seconds and `probe.elf` and `probe6.elf` for about 90,
+then return to the browser — that is deliberate, because a frozen
+console and a working one look identical on a static screen, and
+returning is what tells them apart. It also means **a photo taken
+later is a photo of your launcher, not of the instrument.** If you are
+comparing two builds, boot each one fresh and shoot it promptly.
 
 **One photo per step, straight on.** Every instrument here is built so
 a phone at arm's length can read it. Nothing needs a measurement.
@@ -92,6 +102,24 @@ against its right edge**.
 | an extra stripe at 3/6 across | **FAIL** — bit 4 |
 | stripes at 1/6, 3/6 and the right | **FAIL** — the permutation is not being applied at all |
 | **no stripe anywhere** | **VOID** — the rightmost stripe is the calibration and no permutation can remove it. If it is gone, this cell cannot show you a stripe and the rest of the row means nothing |
+
+**If this FAILS, run the A/B before anything else.** The permutation is
+an involution, so "never applied" and "applied twice" look identical
+and no amount of staring settles which one you have. Boot
+`conform-linear.elf` — the same grid with the CLUT uploaded unpermuted
+— and compare the two:
+
+| | verdict |
+|---|---|
+| `conform.elf` correct, `conform-linear.elf` wrong | the permutation is right; the fault is elsewhere |
+| **`conform-linear.elf` correct, `conform.elf` wrong** | **we are double-permuting.** gsKit is already doing it; ps2ui must stop |
+| both wrong, differently | neither convention fits — report both pictures |
+| both wrong, identically | the CLUT is not reaching VRAM at all |
+
+**Text is the fastest read here.** Glyph atlases are PSMT8 sharing one
+CLUT, so a wrong palette turns glyph coverage into noise. If one build
+renders legible text and the other renders garble, that is the answer
+and you can stop.
 
 ---
 
