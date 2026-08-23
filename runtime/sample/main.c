@@ -919,7 +919,8 @@ int main(void)
     u32 sec_frames = 0, missed = 0, t_frame_prev = cop0_count();
     u32 elapsed = 0;
     /* Interval aggregates, not a last-frame sample. */
-    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0;
+    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0,
+        a_vramlost = 0;
 #endif
 
     while (1) {
@@ -980,6 +981,11 @@ int main(void)
             if (ui.stats.slot_glyphs > a_slotg) a_slotg = ui.stats.slot_glyphs;
             if (ui.stats.slots_hidden > a_slothid) a_slothid = ui.stats.slots_hidden;
             a_sciov += ui.stats.scissor_overflow;
+            /* OR, not the last frame's raw value: a second in which 59
+             * frames lost their textures and the 60th recovered must
+             * not print vramlost=0 -- the transient is exactly the
+             * case the log exists for. */
+            a_vramlost |= ui.stats.vram_lost;
 
             /* Report on elapsed time, so the line is a real second at
              * any frame rate rather than 60 frames however long those
@@ -996,11 +1002,11 @@ int main(void)
                        t_max / (EE_HZ / 1000000u),
                        a_prims, a_hidden, a_slotg, a_slothid, a_sciov,
                        /* uint32_t is long on the EE toolchain; %u is not */
-                       (unsigned)ui.stats.vram_lost);
+                       (unsigned)a_vramlost);
                 t_min = 0xFFFFFFFFu; t_max = 0; t_sum = 0;
                 sec_frames = 0; missed = 0; elapsed = 0;
                 a_prims = 0; a_hidden = 0; a_slotg = 0;
-                a_slothid = 0; a_sciov = 0;
+                a_slothid = 0; a_sciov = 0; a_vramlost = 0;
             }
         }
 #endif

@@ -300,7 +300,6 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
     if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)
         return -1;
     ctx->vram_need = (uint32_t)need;
-    ctx->vram_base = gs->CurrentPointer;
 
     for (i = 0; i < ctx->hdr->n_tex; i++) {
         const ps2ui_tex_entry *t = &ctx->tex[i];
@@ -390,9 +389,19 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
      * loop has no exit. A frame with no text is a bad frame; a bind
      * there is a dead console with no output. Two comparisons buy the
      * difference. When it no longer fits, every textured draw is
-     * skipped and stats.vram_lost says so. */
-    int tex_ok = ((uint64_t)gs->CurrentPointer + ctx->vram_need
-                  <= 4u * 1024u * 1024u);
+     * skipped and stats.vram_lost says so.
+     *
+     * The uploaded check is the guard's other half, from review: on
+     * the refusal path vram_need is still 0 from ps2ui_load's memset,
+     * so the fit test alone is vacuously true -- and a caller that
+     * ignored upload's -1 would bind zero-filled GSTEXTUREs (Mem
+     * NULL) straight into gsKit_texture_send. The guard exists for
+     * hosts that misbehave; this is the one misbehaviour where it
+     * would otherwise evaporate. vram_lost then honestly means "no
+     * textures to draw with", whichever way that came about. */
+    int tex_ok = ctx->uploaded
+                 && ((uint64_t)gs->CurrentPointer + ctx->vram_need
+                     <= 4u * 1024u * 1024u);
     /* Pushes refused for want of stack. Their pops must be refused too:
      * popping a push that never happened leaves the stack one level
      * shallow, and every clip for the rest of the frame is then wrong,

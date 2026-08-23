@@ -239,6 +239,39 @@ int main(int argc, char **argv)
         CHECK(ctx.stats.vram_lost == 0, "and the stat clears on a budget that fits");
     }
 
+    /* ---- render: an out-of-contract render after a refused upload ---- */
+    /* ps2ui_load memsets the context, so on the refusal path vram_need
+     * is 0 and the fit half of the guard is vacuously true. A caller
+     * that ignores upload's -1 and renders anyway must still hit the
+     * guard -- otherwise it binds zero-filled GSTEXTUREs (Mem NULL)
+     * into the transfer path, which is the exact misbehaving-host
+     * shape the guard exists for. Review probed this hole before the
+     * uploaded check existed: all three assertions failed. */
+    {
+        ps2ui_ctx rc2;
+        GSGLOBAL starved2 = gs;
+        int before_binds, k2, any_tex2 = 0, any_quad2 = 0;
+        starved2.CurrentPointer = 4u * 1024u * 1024u - 16u;
+        memset(&rc2, 0, sizeof rc2);
+        if (ps2ui_load(&rc2, blob, len) == PS2UI_OK
+            && ps2ui_upload(&rc2, &starved2) != 0) {
+            stub_reset_keep_tm();
+            before_binds = g_stub.n_binds;
+            ps2ui_render(&rc2, &starved2);
+            CHECK(rc2.stats.vram_lost == 1,
+                  "a render after a REFUSED upload reports vram_lost rather than binding");
+            CHECK(g_stub.n_binds == before_binds,
+                  "and binds nothing: the GSTEXTUREs were never filled in");
+            for (k2 = 0; k2 < g_stub.n_prims; k2++) {
+                if (g_stub.prims[k2].tex) any_tex2 = 1; else any_quad2 = 1;
+            }
+            CHECK(!any_tex2, "no textured primitive from an un-uploaded context");
+            CHECK(any_quad2, "while its untextured quads still draw");
+        } else {
+            CHECK(0, "refused-upload fixture failed to set up");
+        }
+    }
+
     /* ---- render: binds per draw, so residency heals ---- */
     /* The property is not "textures are resident after upload" -- that
      * passes trivially. It is "a texture that LOSES residency between
