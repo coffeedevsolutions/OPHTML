@@ -71,6 +71,11 @@ class BakedTexture:
     height: int
     clut: Optional[int]  # clut index or None
     data: bytes
+    # Offset of `data` within the blob section. Only the reader knows it
+    # (the writer computes offsets at serialization time), so it is None
+    # on a texture the Flattener built and set on one read_uib returned.
+    # ps2ui-check uses it to assert 16-alignment for in-place DMA.
+    data_off: Optional[int] = None
 
 
 class Flattener:

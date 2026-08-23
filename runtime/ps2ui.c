@@ -115,12 +115,26 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
     ctx->screen_table = (const ps2ui_screen_entry *)(ctx->data + ctx->hdr->off_screen);
     ctx->blob        = ctx->data + ctx->hdr->off_blob;
 
+    /* The GIF DMA reads texture bytes straight out of this blob, and
+     * DMA source addresses must be qword (16-byte) aligned. The baker
+     * 16-aligns every section relative to the file, so this reduces to
+     * one question about the only thing the baker cannot control: the
+     * address the embedding host placed the file at. bin2c output, a
+     * heap buffer, a memory-card read -- any of them can hand us an
+     * address the DMA silently mis-reads from. Refusing to load turns
+     * that into a red screen with a name instead of a texture whose
+     * corruption depends on the linker. */
+    if (((uintptr_t)(const void *)ctx->blob) & 15u)
+        return PS2UI_ERR_ALIGN;
+
     /* Every cross-reference is checked once here so the render loop can
      * index without branching. */
     for (i = 0; i < ctx->hdr->n_tex; i++) {
         const ps2ui_tex_entry *t = &ctx->tex[i];
         if (!in_blob(ctx, t->data_off, t->data_len))
             return PS2UI_ERR_BOUNDS;
+        if (t->data_off & 15u)   /* DMA'd in place; see the blob check */
+            return PS2UI_ERR_ALIGN;
         if (t->clut != PS2UI_NONE && t->clut >= ctx->hdr->n_clut)
             return PS2UI_ERR_BOUNDS;
         if (t->format != PS2UI_TEXFMT_PSMT8 && t->format != PS2UI_TEXFMT_PSMCT32)
@@ -294,6 +308,32 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (g->VramClut == GSKIT_ALLOC_ERROR)
                 return -1;
         }
+        /* Write these buffers' cache lines back before the GS reads
+         * main memory over DMA. The EE has a write-back data cache and
+         * the GIF transfer does not go through it; permute_clut() has
+         * just built this palette with ordinary stores.
+         *
+         * This is hardening, not a bug fix, and the distinction is
+         * load-bearing: gsKit already writes the WHOLE data cache back
+         * inside gsKit_texture_send (FlushCache(0), gsTexture.c:266,
+         * unconditional, before the chain is kicked), so no cache
+         * fault has ever actually occurred on this path. These calls
+         * scope the writeback to the buffers ps2ui owns and stop
+         * depending on that implementation detail -- which is also
+         * what gsKit_TexManager_bind does with SyncDCache
+         * (gsTexManager.c:270,279), the API gsKit's own source
+         * recommends over this one and the one Open-PS2-Loader uses.
+         * When ps2ui migrates to it, these lines become its
+         * responsibility.
+         *
+         * No #ifdef around the calls: the stub declares SyncDCache too,
+         * so the host suite executes this exact line and can assert it
+         * ran. A writeback guarded by PS2UI_HOST_TEST would be a
+         * console-only code path, which is the shape of every bug this
+         * file has shipped. */
+        SyncDCache(g->Mem, (uint8_t *)(void *)g->Mem + t->data_len);
+        if (g->Clut)
+            SyncDCache(g->Clut, (uint8_t *)(void *)g->Clut + 256 * 4);
         gsKit_texture_upload(gs, g);
     }
     ctx->uploaded = 1;

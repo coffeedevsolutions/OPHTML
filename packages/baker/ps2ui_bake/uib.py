@@ -202,6 +202,18 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     off += _SLOT.size * len(slot_entries)
     off_screen = off
     off += _SCREEN.size * len(screen_entries)
+    # The blob section must start on a 16-byte file offset. Texture
+    # data_offs are 16-aligned relative to the blob and bin2c places the
+    # whole file 16-aligned in memory, so this padding is the one link
+    # that makes the absolute address qword-aligned -- and a GIF
+    # source-chain REF tag has no low address bits to carry a remainder:
+    # a misaligned source is silently truncated and the transfer starts
+    # up to 15 bytes early. Every blob written before this padding
+    # existed shipped off_blob at +4 or +12, which shifted every texture
+    # by 1-3 texels (PSMCT32) or 4-12 texels (PSMT8) on console and
+    # emulator alike. The runtime refuses such a file (PS2UI_ERR_ALIGN).
+    blob_pad = (-off) % 16
+    off += blob_pad
     off_blob = off
 
     out = bytearray()
@@ -236,6 +248,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         out += _SLOT.pack(*e)
     for e in screen_entries:
         out += _SCREEN.pack(*e)
+    out += bytes(blob_pad)
+    assert len(out) == off_blob, "layout arithmetic and bytes written disagree"
     out += blob
 
     # CRC over the whole file with the crc field zeroed.
@@ -292,11 +306,13 @@ def read_uib(path) -> UibFile:
 
     out = UibFile(cw, ch, initial, feature_flags)
     out.display_aspect = (dar_num, dar_den)
+    out.off_blob = off_blob
     for i in range(n_tex):
         fmt, _pad, w, h, clut, doff, dlen = _TEX.unpack_from(data, off_tex + i * _TEX.size)
         out.textures.append(BakedTexture(
             fmt, w, h, None if clut == TEX_NONE else clut,
             bytes(blob[doff:doff + dlen]),
+            data_off=doff,
         ))
     for i in range(n_clut):
         ncolors, _pad, doff = _CLUT.unpack_from(data, off_clut + i * _CLUT.size)

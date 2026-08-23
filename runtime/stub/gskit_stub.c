@@ -28,9 +28,55 @@ u32 gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u32 type)
     return at;
 }
 
+void SyncDCache(void *start, void *end)
+{
+    if (g_stub.n_flushes < STUB_MAX_FLUSHES) {
+        g_stub.flushes[g_stub.n_flushes].start = start;
+        g_stub.flushes[g_stub.n_flushes].end   = end;
+        g_stub.n_flushes++;
+    }
+}
+
+/* Is [p, p+len) entirely inside one range already written back? A
+ * partial flush is not a flush: the GS reads the whole buffer. */
+static int stub_flushed(const void *p, size_t len)
+{
+    const unsigned char *a = (const unsigned char *)p;
+    int i;
+    for (i = 0; i < g_stub.n_flushes; i++) {
+        const unsigned char *s = (const unsigned char *)g_stub.flushes[i].start;
+        const unsigned char *e = (const unsigned char *)g_stub.flushes[i].end;
+        if (a >= s && a + len <= e)
+            return 1;
+    }
+    return 0;
+}
+
+/* gsKit_texture_upload's first act, mirrored from gsMisc.c. It
+ * OVERWRITES whatever the caller put in TBW, which is why ps2ui does
+ * not set it: doing so is dead code, and a stub that let a caller's
+ * value survive would make dead code look load-bearing. Note the T8
+ * alignment is 128, not 64 -- ceil(width/64) is not what gsKit
+ * computes for an indexed texture. */
+static void stub_setup_tbw(GSTEXTURE *tex)
+{
+    u32 align = (tex->PSM == GS_PSM_T8) ? 128u : 64u;
+    u32 w = (tex->Width + align - 1u) & ~(align - 1u);
+    tex->TBW = (w / 64u) ? (w / 64u) : 1u;
+}
+
 void gsKit_texture_upload(GSGLOBAL *gs, GSTEXTURE *tex)
 {
-    (void)gs; (void)tex;
+    stub_setup_tbw(tex);
+    /* Mirrors what gsKit's DMA actually reads: the pixel bytes, and
+     * for an indexed texture the 16x16 CT32 palette beside them. */
+    size_t texels = (size_t)tex->Width * tex->Height;
+    size_t bytes  = (tex->PSM == GS_PSM_T8) ? texels : texels * 4;
+    (void)gs;
+    if (!stub_flushed(tex->Mem, bytes))
+        g_stub.n_uploads_unflushed++;
+    else if (tex->Clut && !stub_flushed(tex->Clut, 16 * 16 * 4))
+        g_stub.n_uploads_unflushed++;
     g_stub.n_uploads++;
 }
 

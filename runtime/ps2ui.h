@@ -26,6 +26,7 @@ extern "C" {
 #else
 #include <gsKit.h>
 #include <gsToolkit.h>
+#include <kernel.h>   /* SyncDCache */
 #endif
 
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
@@ -257,6 +258,7 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_TOO_MANY   -5
 #define PS2UI_ERR_CRC        -6
 #define PS2UI_ERR_FEATURES   -7
+#define PS2UI_ERR_ALIGN      -8  /* texture bytes not 16-aligned for DMA */
 
 /* Validate a blob and point the context into it. The blob must stay
  * alive and unmoved for the context's lifetime; nothing is copied. */

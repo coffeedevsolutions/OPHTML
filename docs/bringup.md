@@ -23,6 +23,12 @@ Add a row per console; do not delete rows when a step later regresses.
 | SCPH-50000 | 2 probe v3 | **PASS, fix confirmed on hardware.** Upper ladder (gsKit default) seams at columns 1, 3, 4, 5, 6 with 4 and 5 dropping their test halves entirely; only column 2 is clean, `0x40` being the one rung where `128 - As` equals `As`. Lower ladder (fix applied) is solid through columns 1-5 with the calibration seam at 6. Exactly the predicted pattern, including which single column the bug leaves untouched |
 | Play! (CI, llvmpipe) | 2 probe v2 | geometry confirmed to the pixel — columns landed at exactly the predicted coordinates, ticks 1-4 legible, both bracket rings present — but Play! applies the **wrong per-sprite alpha** to blended sprites (columns read 0x60/0x40/0x20/0x00 where 0x20/0x40/0x60/0x7f were submitted, while every unblended reference is exact). Its blend is not a verdict on anything |
 | SCPH-50000 | 10 aspect | 4:3 pillarboxed into a 16:9 panel, which is correct behaviour and explains why step 1's fill does not reach the panel edges |
+| SCPH-50000 | 3/4/5/7 conform, pre-fix | **fault found** — text unreadable garble on every cell; swizzle stripe away from the right edge; operator reported every painted image wrapping, right edge butted against left. All one fault: see 3c |
+| SCPH-50000 | 3 A/B conform-linear | **read** — colours change between arms (permutation is live and correct), text garbles identically in both. Ruled the CLUT out as the garble's cause; consistent with 3c, where the index shift is palette-independent |
+| SCPH-50000 | 4b conform-noalpha | **read** — glyphs become solid blocks tracing the text, ascenders and descenders visible. Glyph geometry ruled correct; the fault was in the sampled texels, not the quads. TCC ruled out: the forced-fault picture did not match the garble |
+| SCPH-50000 | 6b probe6 | **VOID, twice** — first run carried the fault class it was probing (no immune column); second run's leftmost calibration column seamed. Needs the aperiodic rebuild before its readings mean anything |
+| SCPH-50000 | 3/3c/5/7 conform, aligned build | **PASS on all four** — text legible everywhere, swizzle stripe hard against the bar's right end, MODULATE top two rows blank with the third legible, exactly one magenta square in CLIP. First legible text in the project's hardware history |
+| Play! (CI, llvmpipe) | 3c ground-truth diff | **PASS, first ever** — global RMSE 22.89 → 4.79 (tol 8), worst tile 96.35 → 13.73 (tol 32) on the aligned build, having failed on every prior build of the workflow's life. The truncation is in the DMA tag format, so a faithful emulator reproduces both the fault and the fix |
 
 Reference material, in the order you will reach for it:
 
@@ -533,6 +539,136 @@ symptoms are what a wrong CLUT predicts, since all four font atlases
 are PSMT8 sharing one CLUT. The emulator shows a milder version of the
 same signature -- text differing while flat quads match -- so it is not
 a Play! artifact.
+
+### 3b. The cache writeback: hardening, not a fault
+
+**This section originally claimed a bug. Review disproved the premise,
+and the record keeps both halves because a phantom entry on the
+elimination list costs a future bench slot.**
+
+The reasoning that looked like a finding: the EE has a write-back data
+cache, the GIF reads main memory over DMA, `permute_clut()` builds
+every palette with ordinary stores immediately before upload, and
+`SyncDCache` appears nowhere in `gsKit_texture_upload`'s path — only in
+`gsKit_TexManager_bind` (`gsTexManager.c:270,279`).
+
+All of that is true, and the conclusion drawn from it was still false:
+**"no `SyncDCache`" is not "no flush."** `gsKit_texture_send` opens
+with an unconditional whole-data-cache writeback before the DMA chain
+is kicked:
+
+```c
+/* gsTexture.c:266, inside gsKit_texture_send, every path */
+FlushCache(0);
+```
+
+So every upload this project ever ran was preceded by a full cache
+writeback, no cache fault ever occurred, and the garble was entirely
+3c's alignment truncation. Do not spend a bench slot here.
+
+**The `SyncDCache` calls in `ps2ui_upload` stay**, reframed as what
+they are: hardening. They scope the writeback to the buffers ps2ui
+owns instead of leaning on a whole-cache flush that is a gsKit
+implementation detail, and they match what `gsKit_TexManager_bind`
+does — the API gsKit's own source recommends and Open-PS2-Loader
+uses, and where `ps2ui_upload` should eventually migrate. The host
+suite records the calls and asserts each covers its whole buffer,
+because a host cache is coherent and rendering can never catch a
+missing one.
+
+### 3c. The blob section started 4 bytes off, and DMA cannot say so
+
+**Found by a hardening guard, not a bench.** Adding "refuse a blob whose
+texture bytes are not 16-aligned for DMA" to `ps2ui_load` made the host
+suite itself go red: the guard fired on every fixture. Reading the
+offsets:
+
+```
+memcard  ui.uib        off_blob mod 16 = 4
+channel6 ui.uib        off_blob mod 16 = 12
+testcard.uib           off_blob mod 16 = 4
+list.uib (test blob)   off_blob mod 16 = 4
+```
+
+The baker 16-aligns every texture *relative to the blob section*, and
+`bin2c` 16-aligns the whole file in memory — but the blob section's own
+offset in the file was never aligned. Three links in the chain, two of
+them right, and the absolute address is the sum of all three.
+
+**Why the failure is silent and shifted rather than loud:** a GIF
+source-chain REF tag has no low address bits — the address field starts
+at bit 4. A misaligned source cannot be expressed, so it is truncated
+and the transfer begins up to 15 bytes *early*. Every texture arrived in
+VRAM shifted by its file's remainder:
+
+| blob | shift | PSMCT32 (4 B/texel) | PSMT8 (1 B/texel) |
+|---|---|---|---|
+| memcard | 4 bytes | 1 texel | 4 texels |
+| channel6 | 12 bytes | 3 texels | **12 texels** |
+
+**This is the deterministic garble, and it explains every observation
+the cache theory could not:**
+
+- *Text unreadable:* a 4–12 texel shift within a 256-wide atlas makes
+  every glyph quad sample its neighbour's slice.
+- *"Right edge of every image butted against its left edge":* a 1–3
+  texel wrap on PSMCT32 card art. The operator described the mechanism
+  exactly and it was misread twice (as TBW, then as noise).
+- *The linear-CLUT A/B changed colours but not the garble:* the palette
+  is independent of the index shift. Both arms shift identically.
+- *Play! reproduces it:* the truncation is in the DMA tag format
+  itself, so any faithful emulator does it too. This is why the
+  emulator's diff failed at RMSE 22.9 through every build — including
+  bit-identically across the cache fix, which cannot change a
+  deterministic layout.
+- *`conform-noalpha.elf`'s blocks traced the text perfectly:* geometry
+  never reads texels.
+
+**The fix is in the baker** (`uib.py` pads the file so `off_blob` is a
+multiple of 16), **the refusal is in the runtime**
+(`PS2UI_ERR_ALIGN`), and **the property is asserted three times**: at
+bake time, by `ps2ui-check` over any blob, and at load on the console.
+An old blob now fails loudly with a dark-red screen instead of shifting
+every texture.
+
+**And this one is verifiable before a bench run.** Unlike 3b, the
+emulator sees it: the `hw` job's ground-truth diff should drop from
+RMSE ~22.9 toward the capture pipeline's resampling floor on the first
+aligned build. Read that number before booting anything.
+
+Relation to 3b: 3c is the fault; 3b turned out to be hardening around
+a flush gsKit was already doing. The bench photographs show 3c and
+nothing else.
+
+### 3b-1. What `TEX0.TBW` turned out to be: nothing
+
+Recorded because a session was spent on it.
+
+`TBW` is texture buffer width in units of 64 texels, and `ps2ui_upload`
+never set it — which looked like the whole answer. It is not, because
+`gsKit_texture_upload`'s first statement is `gsKit_setup_tbw(Texture)`,
+which **overwrites whatever the caller put there**. Setting it is dead
+code. gsKit has been computing it correctly all along:
+
+```c
+/* gsMisc.c — note the alignment is 128 for indexed, not 64 */
+if (PSM == T8 || T4) TBW = align(Width, 128) / 64;
+else                 TBW = align(Width,  64) / 64;
+```
+
+So `ceil(width / 64)` is not even gsKit's formula for an indexed
+texture, and a "ladder" of forced `TBW` values could not have varied
+anything. Both were built and neither could answer. The stub now
+mirrors `gsKit_setup_tbw` so nothing in this tree can make that mistake
+again.
+
+The lasting lesson is not about `TBW`. It is that four bench-blocking
+questions in a row — `GSTEXTURE::Function`, `TEX0.TFX`, `TEX0.TCC`,
+`TEX0.TBW` — were all answerable by reading gsKit's source, and were
+instead attacked with ELF A/Bs on a console. **Read the library
+first.** It is at `github.com/ps2dev/gsKit`, and Open-PS2-Loader at
+`github.com/ps2homebrew/Open-PS2-Loader` is a working implementation of
+this exact application class on the same API.
 
 ## 4. Text tinting and `TEX0.TFX`
 

@@ -124,6 +124,44 @@ and you can stop.
 
 ---
 
+## What changed since the last artifact you booted
+
+Two fixes, one of which the emulator has already voted on:
+
+1. **Every texture was DMA-shifted 4–12 bytes** because the blob
+   section started misaligned in the file and a DMA REF tag has no low
+   address bits to carry the remainder. Deterministic, reproduced by
+   Play!, and the cause of the garbled text, the wrapped image edges,
+   and the mispositioned swizzle stripe. Fixed in the baker; the
+   runtime now refuses a misaligned blob with a **dark red** screen.
+2. **The CPU's caches are now written back per-buffer before every
+   upload.** Hardening, not a fault: gsKit already flushes the whole
+   data cache inside its transfer path, so no cache bug ever occurred —
+   the writeback just stops depending on that implementation detail.
+
+**Consequence for stale files:** an ELF from an old artifact embeds an
+old-format blob and now boots to **dark red** (load refused). That is
+the guard working, not a regression — but it also means mixing old and
+new ELFs on one stick is even less forgiving than before. Fresh names,
+sizes checked on the drive.
+
+---
+
+## Step 3b — nothing to run
+
+Settled by reading gsKit and Open-PS2-Loader. The upload never wrote the
+CPU's data cache back before handing the GS a palette the CPU had just
+built, so the GS read stale memory. `gsKit_texture_upload` does not
+flush; `gsKit_TexManager_bind` does, and OPL uses that path.
+
+There is no ELF and no cell to read. The next `conform.elf` either shows
+legible text or it does not, and that is step 3's reading, not a new
+one.
+
+Details in `docs/bringup.md` step 3b.
+
+---
+
 ## Step 4 — nothing to run
 
 Settled off the bench. gsKit has no per-texture TFX field and hardcodes

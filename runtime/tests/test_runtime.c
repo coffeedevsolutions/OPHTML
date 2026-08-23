@@ -161,6 +161,48 @@ int main(int argc, char **argv)
     vram_used = gs.CurrentPointer - vram_before;
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
+    /* The EE writes back lazily and the GIF reads main memory, so any
+     * buffer the CPU touched before an upload has to be flushed or the
+     * GS reads what was there before. permute_clut builds every CLUT
+     * with ordinary stores immediately before the transfer, which puts
+     * the whole palette in dirty cache lines -- and glyph coverage IS
+     * the palette's alpha, so a stale one turns text to noise while
+     * leaving geometry untouched.
+     *
+     * gsKit happens to cover this today with a whole-cache
+     * FlushCache(0) inside gsKit_texture_send, so these calls are
+     * hardening: they scope the writeback to the buffers ps2ui owns
+     * instead of leaning on that implementation detail, matching what
+     * gsKit_TexManager_bind does with SyncDCache. A host cache is
+     * coherent, so this cannot be caught by rendering: the stub
+     * records the calls instead and the upload checks coverage. */
+    CHECK(g_stub.n_uploads_unflushed == 0,
+          "every upload is preceded by a writeback of its pixels and its CLUT");
+    CHECK(g_stub.n_flushes > 0,
+          "and flushes were actually recorded, so the check above had something to check");
+
+    /* ---- load: DMA alignment guard ---- */
+    /* The GIF DMA reads texture bytes in place and its source address
+     * must be qword aligned. The baker aligns everything relative to
+     * the file; the base address is the embedding host's to get wrong
+     * -- bin2c output, a heap buffer, a memcard read. +8 keeps every
+     * struct overlay legal (all fields are 4-aligned) while breaking
+     * the one property DMA needs, so the load must refuse for the
+     * right reason and not by accident of a torn header. */
+    {
+        ps2ui_ctx mis;
+        uint8_t *shifted = malloc(len + 32);   /* room for align pad (<=16) plus the +8 shift */
+        size_t pad = 16 - (((uintptr_t)shifted) & 15u);
+        uint8_t *base = shifted + pad;      /* 16-aligned */
+        memcpy(base + 8, blob, len);
+        CHECK(ps2ui_load(&mis, base + 8, len) == PS2UI_ERR_ALIGN,
+              "a blob at a non-16-aligned address is refused with PS2UI_ERR_ALIGN");
+        memcpy(base, blob, len);
+        CHECK(ps2ui_load(&mis, base, len) == PS2UI_OK,
+              "and the identical bytes load once the address is aligned, so it was the address");
+        free(shifted);
+    }
+
     /* ---- render: focus filtering ---- */
     {
         int base = render_and_count(&ctx, &gs);

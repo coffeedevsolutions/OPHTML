@@ -124,6 +124,24 @@ def check_tables(uib, rep: Report) -> None:
     rep.error(not over,
               f"every slot capacity below PS2UI_SLOT_BUFSZ ({c['PS2UI_SLOT_BUFSZ']})"
               + (f"; over: {', '.join(over)}" if over else ""))
+    # The GIF DMA reads texture bytes in place, and DMA source addresses
+    # must be qword aligned. The runtime refuses a violating blob with
+    # PS2UI_ERR_ALIGN; this reads the same property at bake time, where
+    # a failure names the texture instead of a red screen.
+    # A GIF source-chain REF tag has no low address bits: a misaligned
+    # source is truncated and the transfer starts early. bin2c places
+    # the file 16-aligned, so alignment in the FILE is alignment in
+    # memory -- and it takes both halves, the blob section's own offset
+    # and each texture's offset within it. The first half was wrong in
+    # every blob baked before 2026-08-23, shifting every texture by 4-12
+    # bytes on console and emulator alike.
+    ob = getattr(uib, "off_blob", 0)
+    rep.error(ob % 16 == 0,
+              f"blob section starts 16-aligned in the file (off_blob={ob})")
+    misaligned = [i for i, t in enumerate(uib.textures) if t.data_off % 16]
+    rep.error(not misaligned,
+              "every texture's pixel bytes 16-aligned for in-place DMA"
+              + (f"; misaligned: {misaligned}" if misaligned else ""))
 
 
 def check_indices(uib, rep: Report) -> None:
