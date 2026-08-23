@@ -1,6 +1,6 @@
 # ps2ui Foundation Plan
 
-*rev 1 · 2026-08-19 · format v5 shipped, v6 planned · status: pre-hardware*
+*rev 1.1 · 2026-08-23 · format v5 shipped, v6 planned · status: core render path hardware-verified (bring-up steps 1–5, 7, 10 pass on SCPH-50000; 6, 8, 9 pending one bench sitting)*
 
 What has been built, what it proved, where it stopped being one product —
 and the plan that replaces score-driven feature selection with a sequenced
