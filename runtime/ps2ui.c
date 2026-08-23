@@ -308,27 +308,23 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (g->VramClut == GSKIT_ALLOC_ERROR)
                 return -1;
         }
-        /* Write the CPU's caches back before the GS reads main memory
-         * over DMA.
+        /* Write these buffers' cache lines back before the GS reads
+         * main memory over DMA. The EE has a write-back data cache and
+         * the GIF transfer does not go through it; permute_clut() has
+         * just built this palette with ordinary stores.
          *
-         * The EE has a write-back data cache and the GIF transfer does
-         * not go through it. permute_clut() has just built this
-         * palette with ordinary stores, so on a console it exists only
-         * in dirty cache lines: the DMA reads whatever main memory
-         * held before, which for a static array is zeros or the
-         * previous texture's palette. Glyph coverage is entirely CLUT
-         * alpha, so a stale palette turns text into noise while
-         * leaving the geometry perfect -- and which lines happen to
-         * have been evicted depends on unrelated memory traffic, so
-         * the corruption moves when anything else about the build
-         * moves.
-         *
-         * gsKit_texture_upload does NOT do this for you. Its own
-         * source recommends gsKit_TexManager_bind instead, which does
-         * (gsTexManager.c:270,279), and Open-PS2-Loader -- the same
-         * job on the same library -- goes through that path for
-         * exactly this reason. Until ps2ui follows suit, the writeback
-         * belongs here.
+         * This is hardening, not a bug fix, and the distinction is
+         * load-bearing: gsKit already writes the WHOLE data cache back
+         * inside gsKit_texture_send (FlushCache(0), gsTexture.c:266,
+         * unconditional, before the chain is kicked), so no cache
+         * fault has ever actually occurred on this path. These calls
+         * scope the writeback to the buffers ps2ui owns and stop
+         * depending on that implementation detail -- which is also
+         * what gsKit_TexManager_bind does with SyncDCache
+         * (gsTexManager.c:270,279), the API gsKit's own source
+         * recommends over this one and the one Open-PS2-Loader uses.
+         * When ps2ui migrates to it, these lines become its
+         * responsibility.
          *
          * No #ifdef around the calls: the stub declares SyncDCache too,
          * so the host suite executes this exact line and can assert it

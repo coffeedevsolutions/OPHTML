@@ -169,10 +169,13 @@ int main(int argc, char **argv)
      * the palette's alpha, so a stale one turns text to noise while
      * leaving geometry untouched.
      *
-     * gsKit_texture_upload does not flush. gsKit_TexManager_bind does,
-     * and Open-PS2-Loader uses that path for the same reason. A host
-     * cache is coherent, so this cannot be caught by rendering: the
-     * stub records the calls instead and the upload checks coverage. */
+     * gsKit happens to cover this today with a whole-cache
+     * FlushCache(0) inside gsKit_texture_send, so these calls are
+     * hardening: they scope the writeback to the buffers ps2ui owns
+     * instead of leaning on that implementation detail, matching what
+     * gsKit_TexManager_bind does with SyncDCache. A host cache is
+     * coherent, so this cannot be caught by rendering: the stub
+     * records the calls instead and the upload checks coverage. */
     CHECK(g_stub.n_uploads_unflushed == 0,
           "every upload is preceded by a writeback of its pixels and its CLUT");
     CHECK(g_stub.n_flushes > 0,

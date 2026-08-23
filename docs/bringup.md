@@ -534,75 +534,41 @@ are PSMT8 sharing one CLUT. The emulator shows a milder version of the
 same signature -- text differing while flat quads match -- so it is not
 a Play! artifact.
 
-### 3b. The upload never wrote the CPU's caches back
+### 3b. The cache writeback: hardening, not a fault
 
-**HARDWARE FINDING, from reading gsKit and Open-PS2-Loader rather than
-from a bench.**
+**This section originally claimed a bug. Review disproved the premise,
+and the record keeps both halves because a phantom entry on the
+elimination list costs a future bench slot.**
 
-The EE has a **write-back** data cache. The GIF reads main memory over
-DMA and does not go through it. So any buffer the CPU writes shortly
-before a transfer exists only in dirty cache lines, and the GS reads
-whatever main memory held before.
+The reasoning that looked like a finding: the EE has a write-back data
+cache, the GIF reads main memory over DMA, `permute_clut()` builds
+every palette with ordinary stores immediately before upload, and
+`SyncDCache` appears nowhere in `gsKit_texture_upload`'s path — only in
+`gsKit_TexManager_bind` (`gsTexManager.c:270,279`).
 
-`ps2ui_upload` builds every CLUT with `permute_clut()` — ordinary
-stores into a `static` array — and then hands the pointer straight to
-`gsKit_texture_upload`. **`gsKit_texture_upload` does not flush.**
-
-```c
-void gsKit_texture_upload(GSGLOBAL *gsGlobal, GSTEXTURE *Texture)
-{
-	gsKit_setup_tbw(Texture);
-	gsKit_texture_send(Texture->Mem,  ... );
-	gsKit_texture_send(Texture->Clut, ... );   /* no writeback anywhere */
-}
-```
-
-`SyncDCache` appears in exactly two places in gsKit's texture path, and
-both are in the *other* API:
+All of that is true, and the conclusion drawn from it was still false:
+**"no `SyncDCache`" is not "no flush."** `gsKit_texture_send` opens
+with an unconditional whole-data-cache writeback before the DMA chain
+is kicked:
 
 ```c
-/* gsTexManager.c, gsKit_TexManager_bind */
-SyncDCache(tex->Mem,  (u8 *)(tex->Mem)  + tsize);   /* :270 */
-SyncDCache(tex->Clut, (u8 *)(tex->Clut) + csize);   /* :279 */
+/* gsTexture.c:266, inside gsKit_texture_send, every path */
+FlushCache(0);
 ```
 
-And gsKit's own source says which API to use, in a comment inside
-`gsKit_vram_alloc`:
+So every upload this project ever ran was preceded by a full cache
+writeback, no cache fault ever occurred, and the garble was entirely
+3c's alignment truncation. Do not spend a bench slot here.
 
-> `NOTE: this is here for compatibility, it's better not to use`
-> `gsKit_vram_alloc, and use gsKit_TexManager_bind instead.`
-
-**Open-PS2-Loader does exactly that.** It writes glyph pixels into an
-atlas with `memcpy` (`src/atlas.c`), invalidates with `Vram = 0`, and
-binds through `gsKit_TexManager_bind` before drawing
-(`src/renderman.c:333`). Same library, same job, on real hardware. It
-is the reference and ps2ui was on the other path.
-
-**Why this matches the symptom exactly:**
-
-| observation | what a stale CLUT predicts |
-|---|---|
-| glyph geometry perfect, glyph content noise | coverage is entirely CLUT alpha; the indices and quads are untouched |
-| card art fine in the same cell | its palette is 3–5 flat colours and its lines may well have been evicted |
-| untextured quads perfect | no DMA of CPU-written data at all |
-| **the picture changed when a no-op code change was made** | which lines are still dirty depends on unrelated memory traffic, so any change in layout moves the corruption |
-
-That last row is the one that closes it. A change that provably could
-not alter behaviour altered the picture. Only a memory-state bug does
-that.
-
-**The fix:** `SyncDCache` on the pixel bytes and the palette before
-every upload, with no `#ifdef` around it — the host stub declares
-`SyncDCache` too, so the host suite runs the same line and asserts it
-ran. A host cache is coherent, so this can never be caught by
-rendering; the stub records the calls and the upload checks that each
-one covers the whole buffer. Falsified two ways: dropping the CLUT
-flush goes red, and flushing only half the pixels goes red.
-
-**Longer term, ps2ui should move to `gsKit_TexManager_bind`**, which is
-what gsKit recommends and what OPL uses. That gets the writeback, the
-VRAM management and the re-upload-on-invalidate for free instead of
-hand-rolling each.
+**The `SyncDCache` calls in `ps2ui_upload` stay**, reframed as what
+they are: hardening. They scope the writeback to the buffers ps2ui
+owns instead of leaning on a whole-cache flush that is a gsKit
+implementation detail, and they match what `gsKit_TexManager_bind`
+does — the API gsKit's own source recommends and Open-PS2-Loader
+uses, and where `ps2ui_upload` should eventually migrate. The host
+suite records the calls and asserts each covers its whole buffer,
+because a host cache is coherent and rendering can never catch a
+missing one.
 
 ### 3c. The blob section started 4 bytes off, and DMA cannot say so
 
@@ -664,11 +630,9 @@ emulator sees it: the `hw` job's ground-truth diff should drop from
 RMSE ~22.9 toward the capture pipeline's resampling floor on the first
 aligned build. Read that number before booting anything.
 
-Relation to 3b: both are real. 3b (the missing cache writeback) is
-correct by reference against gsKit and OPL and guards a
-*nondeterministic* corruption that no emulator models; 3c is the
-*deterministic* one that emulators reproduce. The bench photographs
-almost certainly show 3c, possibly with 3b on top.
+Relation to 3b: 3c is the fault; 3b turned out to be hardening around
+a flush gsKit was already doing. The bench photographs show 3c and
+nothing else.
 
 ### 3b-1. What `TEX0.TBW` turned out to be: nothing
 

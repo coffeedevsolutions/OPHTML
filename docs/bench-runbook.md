@@ -134,9 +134,10 @@ Two fixes, one of which the emulator has already voted on:
    Play!, and the cause of the garbled text, the wrapped image edges,
    and the mispositioned swizzle stripe. Fixed in the baker; the
    runtime now refuses a misaligned blob with a **dark red** screen.
-2. **The CPU's caches are now written back before every upload** — a
-   real hole (gsKit's upload does not flush; OPL's path does), fixed by
-   reference, invisible to emulators either way.
+2. **The CPU's caches are now written back per-buffer before every
+   upload.** Hardening, not a fault: gsKit already flushes the whole
+   data cache inside its transfer path, so no cache bug ever occurred —
+   the writeback just stops depending on that implementation detail.
 
 **Consequence for stale files:** an ELF from an old artifact embeds an
 old-format blob and now boots to **dark red** (load refused). That is
