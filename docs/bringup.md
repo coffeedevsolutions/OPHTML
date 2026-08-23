@@ -598,6 +598,76 @@ drawn at any size other than its UV span makes the GS resample, and a
 resampled checker mushes for reasons that have nothing to do with texel
 centres — a false fault reported confidently on correct hardware.
 
+`tools/read_testcard.py` grades a capture of the card, and the CI
+emulator job now boots `testcard.elf` and runs it. It reads variance
+per rung against the flat patches in the same frame rather than
+diffing pixels, because Play! presents at ~1.4x and a pixel diff of
+this card would measure the resampler. Its verdict is advisory: read
+the coarser rungs first, since through a scaled capture the 1px rung
+sits close to what survives at all.
+
+### The UV convention is settled: exact integer texels, no bias
+
+**Do not add a `+0.5` here.** `ps2ui.c` passes `u1 = u + w` — the exact
+texel edge — and `ps2ui.c:244` sets `GS_FILTER_NEAREST`. That pairing is
+correct for a 1:1 sprite, and the arithmetic says so:
+
+Pixel *i* of a sprite has its centre at `x0 + i + 0.5`, and UV
+interpolates linearly, so at 1:1 `u = u0 + i + 0.5`. Under nearest that
+floors to `u0 + i` — the texel asked for. Add a `+0.5` bias and it
+becomes `u0 + i + 1`: one texel past, on every pixel.
+
+| i | u, no bias | texel | u, +0.5 | texel |
+|---|---|---|---|---|
+| 0 | 5.5 | **5** | 6.0 | 6 |
+| 1 | 6.5 | **6** | 7.0 | 7 |
+| 2 | 7.5 | **7** | 8.0 | 8 |
+
+The `+0.5` convention is a fix for **bilinear**, where a coordinate on a
+texel boundary averages two texels. ps2ui does not use bilinear. The
+previewer agrees independently: `preview.py:148` crops `[u0, u1)`.
+
+This is recorded as settled rather than merely undocumented because a
+capture from the emulator invites exactly the wrong conclusion, and did.
+
+### What the emulator saw, and what it is not
+
+The first UI capture past the harness bugs came back with **every text
+run differing while flat quads matched**. At 4x, `Library` reads
+`Liibrarny`. That looks like glyphs sampling into their atlas
+neighbours, and it was read that way at first.
+
+**It cannot be that**, and the blob proves it. `atlas.py` shelf-packs
+with a one-texel gutter (`shelf_x += w + 1`), and on the shipped memcard
+blob every single glyph has a fully transparent column to its right and
+row below — **79 of 79**. A one-texel overreach samples empty gutter, so
+it can only make a glyph thinner, never borrow a neighbour. Producing a
+legible extra letter needs two texels or more, which no convention error
+gives you.
+
+Nor is it the capture pipeline, though that was the next candidate.
+Round-tripping the previewer through Play!'s presentation — 640x448 up
+to 900x630 and back — leaves the text soft but perfectly legible. So do
+a trim that starts 1, 2 or 3 pixels late, and so do all four
+combinations of nearest and bilinear on the way up and down. None of
+them reproduces the doubling.
+
+**So the cause is still unknown, and these are ruled out:** the UV
+convention, atlas neighbour bleed, the presentation scale, an off-by-N
+trim, and the choice of resampling filter. The alignment card, captured
+in the same run through the same `gsKit_prim_sprite_texture` path, reads
+crisp on all three rungs — so whatever it is does not affect textured
+sampling in general.
+
+The remaining honest description is that Play!'s rendered output differs
+structurally from the previewer's in the glyph path, before any scaling
+this repo applies. Play! has been wrong about the GS before — it applied
+the wrong per-sprite alpha to every blended sprite in the step 2 probe
+while getting the geometry exact to the pixel. A console reading the
+same screen is what separates "Play! renders text differently" from
+"ps2ui renders text wrongly", and until one has, this is not a defect
+against the renderer.
+
 ## 7. Scissor nesting
 
 **Do:** navigate so an ellipsized title redraws (tiles clip their text
