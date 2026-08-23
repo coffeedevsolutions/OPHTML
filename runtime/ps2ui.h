@@ -60,6 +60,22 @@ extern "C" {
 #endif
 #endif
 
+/* The autoselect above keys off the MACRO to decide whether the FIELD
+ * exists, and those are two different facts. A toolchain can ship the
+ * field without the GS_TFX_* names -- and the ps2dev container does not
+ * define GS_TFX_MODULATE at all, so every ELF this project has ever
+ * built took the fallback silently.
+ *
+ * Forcing PS2UI_GSKIT_HAS_FUNCTION=1 on such a toolchain used to fail
+ * to compile for want of a name, which made the two facts impossible to
+ * separate by experiment. The value is not a gsKit invention to look
+ * up: TEX0.TFX is a GS register field and 0 is MODULATE, straight from
+ * the hardware manual. Supplying it here decouples "can I set the
+ * field" from "is the macro spelled". */
+#if PS2UI_GSKIT_HAS_FUNCTION && !defined(GS_TFX_MODULATE)
+#define GS_TFX_MODULATE 0   /* TEX0.TFX: 0=MODULATE 1=DECAL 2=HIGHLIGHT */
+#endif
+
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */

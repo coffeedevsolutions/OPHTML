@@ -199,6 +199,23 @@ jobs:
           # double-permute, and the emulator reproduces it.
           make -C runtime/sample objclean
           make -C runtime/sample STATIC=1 LINEAR_CLUT=1 EE_BIN=sample-linear.elf
+          # Bring-up step 4's A/B. The same UI with GSTEXTURE::Function
+          # forced on. Every ELF this project has built took the
+          # untinted fallback, silently, because the autoselect keys off
+          # a macro the container does not define -- so "with modulate"
+          # has never once been on a console.
+          #
+          # `|| true`: if this gsKit genuinely lacks the field, this is
+          # the build that says so, and the rest of the artifact must
+          # still ship. The step above reports which case we are in.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 MODULATE=1 EE_BIN=sample-modulate.elf \
+            || echo "MODULATE build failed -- GSTEXTURE::Function is genuinely absent"
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 MODULATE=1 SCREEN=probe \
+            EE_BIN=conform-modulate.elf \
+            UIB=../../examples/channel6/build/ui.uib \
+            || echo "MODULATE conform build failed -- see above"
           make -C runtime/sample objclean
           make -C runtime/sample STATIC=1 SCREEN=probe LINEAR_CLUT=1 \
             EE_BIN=conform-linear.elf \
@@ -236,6 +253,8 @@ jobs:
             runtime/sample/conform.elf
             runtime/sample/sample-linear.elf
             runtime/sample/conform-linear.elf
+            runtime/sample/sample-modulate.elf
+            runtime/sample/conform-modulate.elf
 
   emulator:
     needs: [bake, elf]
@@ -574,6 +593,49 @@ jobs:
             --out linear_diff.png --rmse 8 --tile-rmse 32 --stats || true
           echo "--- compare with the permuted build's number below ---"
 
+      - name: Bring-up step 4 — does setting Function change anything?
+        if: always()
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
+        run: |
+          if [ ! -f elf/sample-modulate.elf ]; then
+            echo "no modulate ELF -- the field is absent, nothing to compare"
+            exit 0
+          fi
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf elf/sample-modulate.elf \
+              >modulate.log 2>&1 &
+            P=$!
+            sleep 25
+            if kill -0 $P 2>/dev/null; then
+              import -window root modulate_raw.png
+            else
+              echo "modulate ELF exited early:"; cat modulate.log
+            fi
+            kill -9 $P 2>/dev/null || true
+          ' || true
+          if [ ! -f modulate_raw.png ]; then
+            echo "no modulate capture"; exit 0
+          fi
+          convert modulate_raw.png -fuzz 5% -trim +repage \
+            -resize 640x448\! modulate.png
+          echo "--- Function FORCED ON (modulate) ---"
+          python3 tools/framediff.py "$PREVIEW" modulate.png \
+            --out modulate_diff.png --rmse 8 --tile-rmse 32 --stats || true
+          # Against the ordinary build too, not just ground truth: if
+          # the two arms are the same picture, the flag changes nothing
+          # here and the emulator cannot answer -- which is what the
+          # CLUT A/B turned out to be, and reading that as "no effect"
+          # would repeat the mistake.
+          if [ -f captured.png ]; then
+            echo "--- modulate vs the ordinary build ---"
+            python3 tools/framediff.py captured.png modulate.png \
+              --rmse 8 --tile-rmse 32 || true
+          fi
+
       - name: Diff against previewer ground truth
         run: |
           # --stats prints a colour fingerprint of both frames. An RMSE
@@ -594,3 +656,5 @@ jobs:
             testcard.png
             linear.png
             linear_diff.png
+            modulate.png
+            modulate_diff.png

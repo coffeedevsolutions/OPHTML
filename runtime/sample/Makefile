@@ -55,6 +55,13 @@ endif
 ifdef LINEAR_CLUT
 EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 endif
+# `make MODULATE=1` forces GSTEXTURE::Function to be set even where the
+# GS_TFX_* macros are missing -- bring-up step 4's A/B. The container's
+# gsKit lacks the macro, so ps2ui has been taking the untinted fallback
+# in every build; this is the other arm of that.
+ifdef MODULATE
+EE_CFLAGS += -DPS2UI_GSKIT_HAS_FUNCTION=1
+endif
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib

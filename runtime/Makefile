@@ -41,6 +41,13 @@ syntax-check:
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_CLUT_PERMUTE=0 -Istub -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_CLUT_PERMUTE=0"
+# Step 4's A/B arm. -UGS_TFX_MODULATE reproduces the container, where
+# the macro is missing: the header must then supply the register value
+# itself, or forcing the field on would not build and the two arms
+# could never be compared.
+	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+		-DPS2UI_GSKIT_HAS_FUNCTION=1 -UGS_TFX_MODULATE -Istub -I. ps2ui.c
+	@echo "ok - runtime compiles: forced Function without the GS_TFX_ macro"
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds

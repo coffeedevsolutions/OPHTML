@@ -12,7 +12,7 @@ order of operations.
 ## Before you start
 
 **Get the ELFs.** From the latest green `hw` run on `main`, download the
-`ps2ui-sample-elf` artifact. It contains nine files:
+`ps2ui-sample-elf` artifact. It contains eleven files:
 
 | file | what it is for |
 |---|---|
@@ -23,6 +23,8 @@ order of operations.
 | `probe6.elf` | step 6b — which part of the texture path is at fault |
 | `conform-linear.elf` | step 3's A/B — the same grid with the CLUT unpermuted |
 | `sample-linear.elf` | the same A/B on the memcard UI |
+| `conform-modulate.elf` | step 4's A/B — the same grid with `Function` forced on |
+| `sample-modulate.elf` | the same A/B on the memcard UI |
 | `ps2ui_sample.elf` | step 9, and the only one that looks like a real UI |
 | `telemetry.elf` | frame timing, not a bring-up step |
 
@@ -139,6 +141,25 @@ colour of the block behind it — and the third row plainly legible.
 | **row 3 not legible either** | **VOID** — this cell draws no readable text at all, so the blank rows above prove nothing |
 
 ---
+
+## Step 4b — does text tinting ever get switched on?
+
+Every ELF this project has built compiled out the line that enables
+texture modulation, because the toolchain does not define the macro the
+detection looks for. Nobody knew until the build log was made to say
+so. So this A/B has never been run.
+
+**Run** `conform.elf`, then `conform-modulate.elf`. Compare the text.
+
+| | verdict |
+|---|---|
+| identical | the flag changes nothing here; gsKit was already modulating |
+| **modulate legible, ordinary garbled** | **the fallback is the fault** |
+| modulate garbled differently | it matters, but is not the whole story |
+| `conform-modulate.elf` missing from the artifact | this gsKit genuinely lacks the field; nothing to run |
+
+Same rule as step 3's A/B: **record which one is legible and stop.**
+Do not let the table talk you into a cause.
 
 ## Step 7 — scissor nesting
 

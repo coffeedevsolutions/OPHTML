@@ -536,16 +536,52 @@ a Play! artifact.
 
 ## 4. Text tinting and `GSTEXTURE::Function`
 
-**Do:** look at text colors.
-**Expect:** metadata text in muted gray-blue, titles in near-white —
-matching the previewer.
-**If wrong (all text pure white):** your gsKit predates
-`GSTEXTURE::Function`; ps2ui.h autodetects this (via the `GS_TFX_*`
-macros) and falls back to DECAL (untinted). The ps2dev container's
-bundled gsKit is one of these — CI's ELF renders white text by design.
-Upgrade gsKit for tinting, or accept white text.
-**If text draws as solid rectangles:** modulate is on but the atlas
-CLUT alpha ramp is wrong — recheck step 3.
+**HARDWARE FINDING, and it was invisible for the whole project's life.**
+
+`ps2ui.h` decides whether to set `GSTEXTURE::Function` by testing
+`#ifdef GS_TFX_MODULATE`. The ps2dev container does not define that
+macro, so `PS2UI_GSKIT_HAS_FUNCTION` has been **0** in every ELF this
+project has ever produced — `g->Function = GS_TFX_MODULATE` compiled
+out, never executed, on every binary that ever reached a console. The
+autoselect was silent, so nothing said so. It says so now:
+
+    ps2ui: GSTEXTURE::Function ABSENT - text renders untinted (DECAL fallback)
+
+**Do:** read that line in the build log, then run the A/B —
+`sample-modulate.elf` and `conform-modulate.elf` are the same builds
+with the field forced on.
+
+**Expect:** unknown, deliberately. Two things are still open and they
+are separate:
+
+| question | how it is answered |
+|---|---|
+| does `GSTEXTURE` have the field, or only lack the macro? | the `elf` job compiles one TU that assigns it and reports |
+| does setting it change the render? | the A/B, on a console |
+
+The detection conflates those two. A toolchain can ship the field
+without the `GS_TFX_*` names, and if that is the case here then
+modulate has been skipped for no reason at all. Forcing the flag used
+to fail to compile for want of a name, which made the two facts
+impossible to separate; the header now supplies the value itself
+(`TEX0.TFX` is a GS register field, 0 is MODULATE, straight from the
+hardware manual) so both arms build.
+
+**It may also be harmless.** Review of gsKit's source reports its
+`GS_SETREG_TEX0` call passes a hardcoded `0` in the `tfx` position — 
+which is MODULATE — so modulate may happen whether or not ps2ui sets
+the field, and "renders untinted" may have been a caveat about nothing.
+That has not been verified against the container's actual gsKit, which
+is why this is an A/B and not a fix.
+
+**If the two arms differ:** the fallback is real, and the detection
+must key off the field rather than the macro.
+
+**If they are identical:** gsKit is writing MODULATE regardless, the
+caveat in this header is wrong, and the whole switch can go — but
+identical arms can also mean the emulator cannot see the difference,
+exactly as the step 3 CLUT A/B turned out. Read the console, not
+Play!.
 
 ## 5. The modulate color domain
 
