@@ -63,6 +63,13 @@ endif
 ifdef NO_ALPHA
 EE_CFLAGS += -DPS2UI_PRIMALPHA_OFF
 endif
+# `make TBW=n` forces TEX0.TBW to a literal n on every texture -- step
+# 3b's ladder. ceil(width/64) is what the GS manual's units say and it
+# renders worse on hardware than the zero it replaced, so the value is
+# an open question and this is how the console answers it.
+ifdef TBW
+EE_CFLAGS += -DPS2UI_TBW_FORCE=$(TBW)
+endif
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib

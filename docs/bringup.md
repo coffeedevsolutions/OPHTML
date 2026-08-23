@@ -591,9 +591,40 @@ fault it is testing for reports on itself, which is why its six columns
 came back uniform. Fixed in the same commit; its earlier readings are
 void.
 
-**Confirm it:** boot the new `conform.elf` and compare against the
-photograph of the old one. Text legible and the swizzle bar's stripe
-against the right edge is the fix landing.
+**The value is NOT settled, and `ceil(width / 64)` is not it.**
+
+Setting it to `ceil(width / 64)` — which is what the GS manual's "units
+of 64 texels" says — was tried on hardware and came back **more**
+illegible than the zero it replaced. `TBW` was the only console-visible
+thing that changed between the two builds.
+
+So the finding splits in two, and only the first half is established:
+
+| | |
+|---|---|
+| **`TBW` is live, and was zero on every texture this project ever uploaded** | **established.** Changing it changes the render, so gsKit reads it. Nothing in this tree could see that, because the stub had no such member |
+| `ceil(width / 64)` is the right value | **false.** Worse on hardware than zero |
+
+Which leaves an open question rather than a fix. Candidates, none of
+them worth arguing about from here:
+
+- gsKit may use the same field for the upload's `BITBLTBUF` destination
+  width and for the sampler's `TEX0`, in which case a value correct for
+  one is wrong for the other and no single number works.
+- PSMT8 data is four texels per 32-bit word, so an upload that
+  transfers it as PSMCT32 wants a width four times smaller than the
+  sampler does.
+
+**The ladder settles it instead.** `conform-tbw1.elf` through
+`conform-tbw6.elf` are the same grid with `TEX0.TBW` forced to one
+literal value on every texture, `PS2UI_TBW_FORCE`. Every glyph atlas is
+256 wide, so a single forced value exercises all four at once and the
+reading is the easiest one on this page: **which build has legible
+text.** 0 and 4 are already read and both are wrong.
+
+Whichever value wins, the formula that produces it goes back into
+`ps2ui_upload` and the runtime test asserts it. Until then this section
+records a live field nobody was setting, not a fix.
 
 ## 4. Text tinting and `TEX0.TFX`
 

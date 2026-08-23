@@ -45,6 +45,10 @@ syntax-check:
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_PRIMALPHA_OFF -Istub -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_PRIMALPHA_OFF"
+# Step 3b's ladder arm, likewise ps2ui.c only.
+	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+		-DPS2UI_TBW_FORCE=2 -Istub -I. ps2ui.c
+	@echo "ok - runtime compiles: -DPS2UI_TBW_FORCE"
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds

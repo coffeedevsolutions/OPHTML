@@ -283,7 +283,17 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
          * tree could see the field was never written -- the same class
          * of divergence as a stub that invents a member gsKit lacks,
          * running the other way. */
+#ifdef PS2UI_TBW_FORCE
+        /* Bring-up step 3b's ladder. One literal value on every
+         * texture, so a bench can name the one that renders rather
+         * than argue about the formula. Deliberately ignores width:
+         * every glyph atlas is 256 wide, so a single forced value
+         * tests all four of them at once and the reading is "is the
+         * text legible". Not a shipping configuration. */
+        g->TBW    = PS2UI_TBW_FORCE;
+#else
         g->TBW    = (t->width + 63) / 64;
+#endif
         g->Filter = GS_FILTER_NEAREST; /* baked at exact size; bilinear only blurs */
         /* Nothing sets TEX0.TFX here, and nothing can: gsKit has no
          * per-texture TFX field, and every one of its GS_SETREG_TEX0

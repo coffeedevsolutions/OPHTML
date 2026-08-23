@@ -237,6 +237,19 @@ jobs:
           make -C runtime/sample STATIC=1 SCREEN=probe NO_ALPHA=1 \
             EE_BIN=conform-noalpha.elf \
             UIB=../../examples/channel6/build/ui.uib
+          # Bring-up step 3b's ladder. TEX0.TBW is confirmed live --
+          # changing it changes the render -- but ceil(width/64), which
+          # is what the GS manual's units say, renders worse on hardware
+          # than the zero a memset left. Rather than guess a third time,
+          # ship the values and let the console name the one that works.
+          # 0 and 4 are already read (both wrong), so the ladder covers
+          # what is left either side of them.
+          for tbw in 1 2 3 5 6; do
+            make -C runtime/sample objclean
+            make -C runtime/sample STATIC=1 SCREEN=probe TBW=$tbw \
+              EE_BIN=conform-tbw$tbw.elf \
+              UIB=../../examples/channel6/build/ui.uib
+          done
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -250,6 +263,7 @@ jobs:
           test -f runtime/sample/sample-linear.elf
           test -f runtime/sample/conform-linear.elf
           test -f runtime/sample/conform-noalpha.elf
+          for tbw in 1 2 3 5 6; do test -f runtime/sample/conform-tbw$tbw.elf; done
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -265,6 +279,11 @@ jobs:
             runtime/sample/sample-linear.elf
             runtime/sample/conform-linear.elf
             runtime/sample/conform-noalpha.elf
+            runtime/sample/conform-tbw1.elf
+            runtime/sample/conform-tbw2.elf
+            runtime/sample/conform-tbw3.elf
+            runtime/sample/conform-tbw5.elf
+            runtime/sample/conform-tbw6.elf
 
   emulator:
     needs: [bake, elf]
