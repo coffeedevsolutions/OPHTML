@@ -263,8 +263,9 @@ def main(path: str) -> int:
     # particular the TRAP entries have to differ from the probe entries:
     # if linear[16] ever equalled linear[8], a bit-3 fault would render
     # identically to a correct upload and the probe could not fail.
-    swz = [t for t in uib.textures
-           if t.fmt == gs.PSMT8 and (t.width, t.height) == (96, 20)]
+    swz_ix = [i for i, t in enumerate(uib.textures)
+              if t.fmt == gs.PSMT8 and (t.width, t.height) == (96, 20)]
+    swz = [uib.textures[i] for i in swz_ix]
     check(len(swz) == 1, f"the swizzle tile baked as PSMT8 ({len(swz)} found)")
     if len(swz) == 1:
         tile = swz[0]
@@ -286,6 +287,37 @@ def main(path: str) -> int:
         order = [first[c * cell] for c in range(6)]
         check(order == [0, 8, 32, 48, 1, 2],
               f"in the order the reading table depends on ({order})")
+
+        # The ruler beneath has to have one segment per region and to
+        # span the same width, or it stops being a ruler and becomes a
+        # second thing to misread. Tied here rather than trusted,
+        # because the tile's region count lives in a Python generator
+        # and the ruler's lives in HTML -- two places that cannot see
+        # each other. Drawn as untextured quads on purpose: the tile is
+        # the thing under test, so its ruler must not share its path.
+        ticks = [r for r in uib.records
+                 if r.op == OP_QUAD and (r.w, r.h) == (14, 4)]
+        check(len(ticks) == 6,
+              f"the swizzle ruler has one segment per region "
+              f"({len(ticks)} found, 6 regions)")
+        if len(ticks) == 6:
+            xs = sorted(r.x for r in ticks)
+            # STRIDE, not total span. Six 14px segments with 2px gaps
+            # cover 94px under a 96px tile -- the trailing gap is not
+            # drawn -- so a span equality is simply false, and asserting
+            # it would have meant loosening the check until it passed.
+            # Stride is the property alignment actually depends on: one
+            # segment per region, starting where the region starts.
+            strides = {xs[i + 1] - xs[i] for i in range(5)}
+            check(strides == {cell},
+                  f"one ruler segment per {cell}px region "
+                  f"(strides {sorted(strides)})")
+            swzq = [r for r in uib.records
+                    if r.op == OP_TEXQUAD and r.tex == swz_ix[0]]
+            check(len(swzq) == 1 and xs[0] == swzq[0].x,
+                  f"and the ruler starts where the tile does "
+                  f"(ruler x={xs[0]}, tile x="
+                  f"{swzq[0].x if len(swzq) == 1 else '?'})")
         # And every pixel of a region has to match that region's
         # sample, not merely be uniform along its own row. The first
         # version of this check tested each region-row independently,

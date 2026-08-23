@@ -690,7 +690,7 @@ same screen is what separates "Play! renders text differently" from
 "ps2ui renders text wrongly", and until one has, this is not a defect
 against the renderer.
 
-### The step 6 probe — five columns, one variable each
+### The step 6 probe — six columns, one variable each
 
 `make -C runtime/sample PROBE6=1` builds `probe6.elf`; CI ships it in
 the artifact.
@@ -741,7 +741,7 @@ the cause lived there, A–E would all have come back clean and been read
 as *"not the format, not the origin, not the scale"* — an answer nobody
 can act on, and the same shape of mistake as this probe's v1.
 
-Every column draws the same 72×56 checker at 1:1, with an untextured
+Every column draws the same 72×48 checker at 1:1, with an untextured
 reference of that image directly beneath — phase-shifted by that
 column's own UV origin, so each reference is what *that* column should
 look like. One seam per column.

@@ -16,7 +16,7 @@ order of operations.
 
 | file | what it is for |
 |---|---|
-| `minimal.elf` | step 1 — already passed, keep it as a sanity check |
+| `minimal.elf` | step 1 — already passed, keep it as a sanity check. **Exits after ~30 s**, see below |
 | `probe.elf` | step 2 — already passed, keep it for the same reason |
 | `conform.elf` | steps 3, 4, 5, 7 — the conformance grid |
 | `testcard.elf` | steps 6 and 8 — the alignment card |
@@ -36,6 +36,14 @@ that drive before today.
 itself. A copy that reports success and has not flushed is the single
 most common way to spend an hour reading a photograph of the wrong
 build.
+
+**Two of these ELFs quit on a timer, by design.** `minimal.elf` holds
+for about 30 seconds and `probe.elf` and `probe6.elf` for about 90,
+then return to the browser — that is deliberate, because a frozen
+console and a working one look identical on a static screen, and
+returning is what tells them apart. It also means **a photo taken
+later is a photo of your launcher, not of the instrument.** If you are
+comparing two builds, boot each one fresh and shoot it promptly.
 
 **One photo per step, straight on.** Every instrument here is built so
 a phone at arm's length can read it. Nothing needs a measurement.

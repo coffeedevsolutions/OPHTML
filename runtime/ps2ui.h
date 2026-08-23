@@ -43,6 +43,23 @@ extern "C" {
 #endif
 #endif
 
+/* Say which arm was taken, in the build log.
+ *
+ * The autoselect above is silent, and its two outcomes differ in what
+ * reaches a screen: the fallback renders text and nine-patches DECAL,
+ * untinted, on a toolchain nobody inspected. A build that quietly chose
+ * it looks exactly like a build that chose MODULATE until a console is
+ * in front of you -- which is the shape of check this project keeps
+ * digging out of itself. Reporting costs one line and makes the ELF's
+ * provenance readable from CI. */
+#if !defined(PS2UI_HOST_TEST)
+#if PS2UI_GSKIT_HAS_FUNCTION
+#pragma message "ps2ui: GSTEXTURE::Function present - text uses GS_TFX_MODULATE"
+#else
+#pragma message "ps2ui: GSTEXTURE::Function ABSENT - text renders untinted (DECAL fallback)"
+#endif
+#endif
+
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */

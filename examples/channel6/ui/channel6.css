@@ -537,6 +537,24 @@ h1 {
   height: 20px;
 }
 
+/* Six segments, 16px each, exactly under the tile's six regions. The
+ * 2px gaps are what make the regions countable: an orange region can
+ * now be named by position instead of estimated as a fraction. Width
+ * and count are tied to the tile by check.py, so a tile that grows a
+ * seventh region cannot leave a six-segment ruler under it. */
+.swz-ruler {
+  flex-direction: row;
+  width: 96px;
+  height: 4px;
+  gap: 2px;
+  margin-top: 2px;
+}
+.swz-tick {
+  width: 14px;
+  height: 4px;
+  background: #8b94a7;
+}
+
 /* Images: identical source, PSMCT32 on the left, PSMT8+CLUT right. */
 .img-row { flex-direction: row; align-items: center; gap: 8px; }
 .img-col {
