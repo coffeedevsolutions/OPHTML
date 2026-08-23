@@ -534,18 +534,150 @@ are PSMT8 sharing one CLUT. The emulator shows a milder version of the
 same signature -- text differing while flat quads match -- so it is not
 a Play! artifact.
 
-## 4. Text tinting and `GSTEXTURE::Function`
+## 4. Text tinting and `TEX0.TFX`
 
-**Do:** look at text colors.
-**Expect:** metadata text in muted gray-blue, titles in near-white —
-matching the previewer.
-**If wrong (all text pure white):** your gsKit predates
-`GSTEXTURE::Function`; ps2ui.h autodetects this (via the `GS_TFX_*`
-macros) and falls back to DECAL (untinted). The ps2dev container's
-bundled gsKit is one of these — CI's ELF renders white text by design.
-Upgrade gsKit for tinting, or accept white text.
-**If text draws as solid rectangles:** modulate is on but the atlas
-CLUT alpha ramp is wrong — recheck step 3.
+**SETTLED BY SOURCE. No bench slot, no ELF, nothing to look at.**
+
+This step used to be a live suspect: `ps2ui.h` decided whether to set
+`GSTEXTURE::Function` by testing `#ifdef GS_TFX_MODULATE`, the ps2dev
+container does not define that macro, so the assignment compiled out of
+every ELF this project has ever produced. The header said so in the
+build log, in so many words: *text renders untinted (DECAL fallback)*.
+
+That sentence was false, and two independent checks say so:
+
+| question | answer | how |
+|---|---|---|
+| does `GSTEXTURE` have a `Function` field? | **no** | gsKit at `43122eb` declares none, and the `MODULATE=1` build failed in the ps2dev container with `'GSTEXTURE' has no member named 'Function'` — a real compile of the real runtime, not a probe |
+| what `TFX` does gsKit write, then? | **0 = MODULATE**, always | all 30 `GS_SETREG_TEX0` sites pass a hardcoded `0` in the `tfx` position, with no branch and no reference to any texture field |
+
+So the mode ps2ui wanted was the mode it was already getting. There was
+never a fallback to fall back to: gsKit has no DECAL path. Tinting has
+been on for every binary that has ever reached a console, including the
+ones showing garbled text.
+
+The switch, the pragma, the forced-`Function` build variant and the
+stub's `Function` member are all gone — a stub that models a field the
+console does not have is how a host suite certifies the wrong struct.
+`ps2ui.c` now carries the finding as a comment where the texture is set
+up, and the `elf` job keeps a compile probe so a future gsKit that *does*
+add per-texture TFX shows up in a log rather than in a symptom.
+
+**That probe was void on its first run** and is worth recording as such.
+It omitted `-D_EE`, so the compile died in `tamtypes.h` before the
+struct was ever parsed, and it printed *"absent, as expected"* on a test
+that had not run — the exact shape this project keeps finding. It now
+compiles a control arm first (`t.Filter`, a field gsKit certainly has)
+and reports **VOID** if the control does not build. The finding above
+never rested on it; it rests on the `MODULATE=1` build failing.
+
+**Bench consequence:** nothing to run. Rule this out and move on. The
+open question from the same hardcoded argument run is `TEX0.TCC`, which
+is step 4b.
+
+### 4b. `TEX0.TCC` and the alpha path
+
+**Settled by source too, and it produced a fix rather than an
+experiment.** Three questions, all answered against gsKit at `43122eb`:
+
+| question | answer |
+|---|---|
+| does `PrimAlphaEnable` reach `TEX0.TCC` on every path? | **yes.** All 30 `GS_SETREG_TEX0` sites, across 15 functions, pass `gsGlobal->PrimAlphaEnable` in the `tcc` position. No per-texture override exists. Untextured quads emit no `TEX0` at all, so they neither read nor reset it |
+| is it latched at init, or read per draw? | **per draw**, in all 65 reads. Each prim function builds its packet inline at call time; nothing caches it, and `gsKit_set_primalpha` does not touch it |
+| is `TEXA` in play? | **no.** Written once, in `gsKit_init_screen`, as `TA0=0x00 AEM=0 TA1=0x80`. It supplies alpha only for PSMCT24 and PSMCT16/16S; PSMCT32 uses its alpha byte directly, and `ps2ui_upload` sets `ClutPSM = GS_PSM_CT32` |
+
+So `PrimAlphaEnable` drives **two** register fields: `PRIM.ABE`, which
+is what the name says, and `TEX0.TCC`, which is not. `TCC` selects
+whether a texture has an alpha channel at all.
+
+Glyph coverage *is* the alpha channel. A host that leaves this field
+off does not merely skip blending — it tells the GS the glyph atlas is
+opaque RGB, and every glyph fills its whole quad. Untextured geometry
+is untouched. That produces "text is broken, boxes are fine", which is
+the shape of the symptom on the bench.
+
+**The fix, which is one line:** `ps2ui_render` now asserts
+`PrimAlphaEnable = GS_SETTING_ON` beside the blend equation it already
+asserts. Same lesson as the inverted-ALPHA bug — global GS state the
+format depends on has to be owned by the runtime, not inherited from
+whoever called it.
+
+**This is not the diagnosis of the garble.** `main.c` sets the field ON
+immediately before every `ps2ui_render`, so `conform.elf` has always run
+with `TCC = 1`. The fix closes a hole for embedding hosts; it does not
+explain a symptom that is already happening with the bit set correctly.
+
+### 4b's reference ELF: what a dead alpha channel looks like
+
+`conform-noalpha.elf` is the same grid built with
+`PS2UI_PRIMALPHA_OFF`, which forces the fault. It is **not testing a
+hypothesis, it is showing what the hypothesis predicts** — a picture to
+hold next to a photograph.
+
+The prediction is specific, and that is the point: with `TCC = 0` the
+atlas reads as opaque white, modulate multiplies it by the tint, and
+each glyph becomes a **solid filled rectangle of its own text colour**.
+Not noise. Not garble. Blocks.
+
+Every clause of that is read out of the baked blob rather than argued:
+
+| claim | from `examples/channel6/build/ui.uib` |
+|---|---|
+| the atlas reads opaque white | all four font atlases share clut 8: **1 distinct RGB triple, `(255,255,255)`**, alpha 0..128 across 129 distinct values. Coverage lives entirely in alpha |
+| the block is the text's own colour | `TCC` selects only where *alpha* comes from. RGB is `Cv = Ct · Cf >> 7` either way, and `Ct = 255`, so the block is exactly the colour the glyph's core pixels already have |
+| nothing clamps | **0 of 513** TEXQUADs on the probe screen carry a channel above `0x80`. `0x80 → 255` is exact, not a clamp |
+
+The middle row is the one worth being careful about, because the
+numbers invite a misreading. `Cv = 255 · Cf >> 7` is *twice the baked
+tint* — but the baked tint is already the stylesheet colour halved into
+the `0x80` domain, so doubling it is the modulate identity, not a
+brightening, and it is happening today on every correctly rendered
+glyph. Checked against `channel6.css`:
+
+| baked tint | on screen | stylesheet |
+|---|---|---|
+| `#4d525b` (×71) | `#99a3b5` | `#9aa3b5` |
+| `#464a54` (×37) | `#8b93a7` | `#8b94a7` |
+| `#406862` (×45) | `#7fcfc3` | `#7fd0c4` |
+| `#808080` (×205) | `#ffffff` | `#ffffff` |
+
+Within the one unit `Cv = Ct · Cf >> 7` quantisation produces. Nobody
+ever sees `#4d525b`; it is not a colour the UI contains. So "its own
+text colour" is what an operator will actually be holding a label
+against, and the `#808080` run is simply white text drawn as white
+blocks.
+
+| `conform-noalpha.elf` looks like | reading |
+|---|---|
+| solid coloured blocks, and it **does not** match the screen | `TCC` is ruled out. The prediction held and the symptom is something else |
+| it matches the screen | `TCC` is live after all, and something is clearing `PrimAlphaEnable` that this source read did not find |
+| garbled the same way `conform.elf` is | **VOID.** The arm did not change what it was supposed to change; do not read the comparison at all |
+
+That third row is the one that matters. If forcing the fault produces
+the *same* picture as not forcing it, the instrument is not wired to
+the thing it claims to control, and any conclusion drawn from it would
+be about nothing.
+
+**The side effect, named exactly.** `PrimAlphaEnable` is one field, so
+forcing it off also clears `PRIM.ABE` and this build loses blending. On
+the probe screen that touches **5 of 28** untextured quads: the other
+23 carry `As = 0x80`, where `(Cs − Cd) · As >> 7 + Cd` evaluates to
+`Cs` — blending is the identity for opaque geometry, so switching it
+off is invisible on them. The five that change:
+
+| quad | `As` | what it is |
+|---|---|---|
+| 640×448 at 0,0 `#060a14` | `0x4d` | canvas wash |
+| 26×26 at 44,109 `#6fa8dc` | `0x20` | **ALPHA ladder, 25%** |
+| 26×26 at 74,109 `#6fa8dc` | `0x40` | **ALPHA ladder, 50%** |
+| 26×26 at 104,109 `#6fa8dc` | `0x60` | **ALPHA ladder, 75%** |
+| 572×28 at 34,394 `#070c18` | `0x73` | footer strip |
+
+Three of those five are a cell an operator reads. **On
+`conform-noalpha.elf` the ALPHA cell is meaningless** — its three
+swatches go fully opaque and the ladder it exists to show is gone.
+That is a property of the arm, not a fault. Read the text on this
+build and nothing else.
 
 ## 5. The modulate color domain
 
@@ -557,8 +689,9 @@ TEXQUAD vertex colors must be in the 0x80-identity domain
 (`Cv = Ct·Cf >> 7`). The runtime test's "texquad colors in the 0x80
 modulate domain" check should have caught this before it reached
 hardware; if hardware disagrees with a passing test, the blend/TEX0
-setup is applying a second scale — check TEXA/TEXFLUSH state and that
-`Function` is MODULATE, not HIGHLIGHT.
+setup is applying a second scale — check TEXA/TEXFLUSH state. `TFX` is
+not a candidate: gsKit hardcodes it to 0 (MODULATE) and offers no way
+to change it (step 4).
 
 ## 6. Texel and pixel centers (the test card)
 

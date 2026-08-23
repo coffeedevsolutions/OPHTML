@@ -12,17 +12,18 @@ order of operations.
 ## Before you start
 
 **Get the ELFs.** From the latest green `hw` run on `main`, download the
-`ps2ui-sample-elf` artifact. It contains nine files:
+`ps2ui-sample-elf` artifact. It contains ten files:
 
 | file | what it is for |
 |---|---|
 | `minimal.elf` | step 1 — already passed, keep it as a sanity check. **Exits after ~30 s**, see below |
 | `probe.elf` | step 2 — already passed, keep it for the same reason |
-| `conform.elf` | steps 3, 4, 5, 7 — the conformance grid |
+| `conform.elf` | steps 3, 5, 7 — the conformance grid |
 | `testcard.elf` | steps 6 and 8 — the alignment card |
 | `probe6.elf` | step 6b — which part of the texture path is at fault |
 | `conform-linear.elf` | step 3's A/B — the same grid with the CLUT unpermuted |
 | `sample-linear.elf` | the same A/B on the memcard UI |
+| `conform-noalpha.elf` | step 4b's reference — what a dead texture-alpha channel looks like |
 | `ps2ui_sample.elf` | step 9, and the only one that looks like a real UI |
 | `telemetry.elf` | frame timing, not a bring-up step |
 
@@ -123,7 +124,50 @@ and you can stop.
 
 ---
 
-## Step 4 and 5 — tinting and the modulate domain
+## Step 4 — nothing to run
+
+Settled off the bench. gsKit has no per-texture TFX field and hardcodes
+`TEX0.TFX = 0`, which is MODULATE, at every one of its 30 `TEX0` sites.
+Tinting has been on the whole time, on every ELF that has ever booted
+here. There is no A/B, no ELF, and no cell to read.
+
+Details in `docs/bringup.md` step 4. Go to step 4b.
+
+---
+
+## Step 4b — a picture of a dead alpha channel
+
+**Run** `conform-noalpha.elf`, same screen as `conform.elf`. This one is
+built **broken on purpose**: `TEX0.TCC` forced to 0, which tells the GS
+the glyph atlas has no alpha channel.
+
+You are not scoring this pass or fail. One question only: **does it look
+like what your screen has been doing?**
+
+**Expect:** text replaced by **solid filled rectangles**, each in its own
+text colour. Blocks, not noise. White text gives white blocks; the
+`#9aa3b5` body text gives `#9aa3b5` blocks. The colour does not change,
+only the shape.
+
+**Ignore the ALPHA cell on this build.** Its three swatches are the only
+cells here that were being drawn translucent, and this ELF turns
+blending off along with the texture alpha, so they go fully opaque.
+That is the arm working, not a second fault. Read the text and nothing
+else.
+
+| what you see | reading |
+|---|---|
+| solid coloured blocks, clearly **unlike** the garble | `TCC` ruled out — this failure mode is not that failure mode |
+| it looks like the garble | `TCC` is live; say so, it changes the search |
+| **garbled the same way `conform.elf` is** | **VOID** — the arm did not change what it claims to change. Ignore the comparison entirely |
+
+That last row is the one to watch for. If the deliberately-broken build
+looks identical to the ordinary one, the instrument is not wired to the
+thing it controls and it can tell you nothing.
+
+---
+
+## Step 5 — the modulate domain
 
 **Run** `conform.elf`, same screen. Look at the **MODULATE** cell:
 three rows of `MMMM`.
@@ -133,9 +177,9 @@ colour of the block behind it — and the third row plainly legible.
 
 | what you see | verdict |
 |---|---|
-| rows 1 and 2 blank, row 3 legible | **PASS** for both steps |
-| letters visible in row 1 or 2, **brighter** than their block | **FAIL step 4** — the tint is not being applied; glyphs are rendering at raw atlas white |
-| letters visible but merely the **wrong shade** | **FAIL step 5** — the tint is applied in the wrong domain |
+| rows 1 and 2 blank, row 3 legible | **PASS** |
+| letters visible but merely the **wrong shade** | **FAIL** — the tint is applied in the wrong domain |
+| letters visible and **brighter** than their block | **FAIL** — glyphs are rendering at raw atlas white. Since TFX is MODULATE regardless (step 4), suspect the vertex colour reaching the GS, or `TEX0.TCC` discarding the atlas alpha |
 | **row 3 not legible either** | **VOID** — this cell draws no readable text at all, so the blank rows above prove nothing |
 
 ---

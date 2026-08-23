@@ -55,6 +55,14 @@ endif
 ifdef LINEAR_CLUT
 EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 endif
+# `make NO_ALPHA=1` makes ps2ui_render assert PrimAlphaEnable OFF
+# instead of ON -- bring-up step 4b's reference arm. gsKit feeds that
+# field to TEX0.TCC, so this is what the grid looks like when the GS is
+# told the glyph atlas has no alpha channel. It is a picture of the
+# fault, not a test of it: nothing in the shipped path sets this.
+ifdef NO_ALPHA
+EE_CFLAGS += -DPS2UI_PRIMALPHA_OFF
+endif
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 
 UIB = ../../examples/memcard/build/ui.uib

@@ -49,9 +49,6 @@ jobs:
       - name: Sample compiles in every build variant
         run: make -C runtime syntax-check
 
-      - name: Runtime compat build (old gsKit, no GSTEXTURE::Function)
-        run: make -C runtime UIB=../examples/memcard/build/ui.uib test-compat
-
       # The channel-6 game browser: two screens, palettized cover art,
       # slots and the feature probe grid. Its check.py asserts the blob's
       # contract, including the runtime table caps from ps2ui.h that

@@ -9,8 +9,7 @@
  *
  * Build-time switches:
  *   PS2UI_HOST_TEST           compile against runtime/stub/ instead of gsKit
- *   PS2UI_GSKIT_HAS_FUNCTION  0 for older gsKit without GSTEXTURE::Function;
- *                             text renders untinted (white) in that case
+ *   PS2UI_CLUT_PERMUTE        0 uploads CLUTs unpermuted (step 3's A/B arm)
  */
 #ifndef PS2UI_H
 #define PS2UI_H
@@ -27,37 +26,6 @@ extern "C" {
 #else
 #include <gsKit.h>
 #include <gsToolkit.h>
-#endif
-
-/* GSTEXTURE::Function (per-texture TFX) arrived in gsKit together with
- * the GS_TFX_* macros, so their presence is the detection signal: on an
- * older gsKit this autoselects the fallback, which renders text and
- * nine-patches untinted (DECAL) instead of failing the build. Define
- * PS2UI_GSKIT_HAS_FUNCTION yourself to override the detection either
- * way. First thing to eyeball on hardware — docs/bringup.md step 4. */
-#ifndef PS2UI_GSKIT_HAS_FUNCTION
-#ifdef GS_TFX_MODULATE
-#define PS2UI_GSKIT_HAS_FUNCTION 1
-#else
-#define PS2UI_GSKIT_HAS_FUNCTION 0
-#endif
-#endif
-
-/* Say which arm was taken, in the build log.
- *
- * The autoselect above is silent, and its two outcomes differ in what
- * reaches a screen: the fallback renders text and nine-patches DECAL,
- * untinted, on a toolchain nobody inspected. A build that quietly chose
- * it looks exactly like a build that chose MODULATE until a console is
- * in front of you -- which is the shape of check this project keeps
- * digging out of itself. Reporting costs one line and makes the ELF's
- * provenance readable from CI. */
-#if !defined(PS2UI_HOST_TEST)
-#if PS2UI_GSKIT_HAS_FUNCTION
-#pragma message "ps2ui: GSTEXTURE::Function present - text uses GS_TFX_MODULATE"
-#else
-#pragma message "ps2ui: GSTEXTURE::Function ABSENT - text renders untinted (DECAL fallback)"
-#endif
 #endif
 
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */

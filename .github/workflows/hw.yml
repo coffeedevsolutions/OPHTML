@@ -112,6 +112,54 @@ jobs:
           test -f examples/memcard/build/ui.uib
           test -f examples/memcard/build/testcard.uib
           test -f examples/channel6/build/ui.uib
+      - name: gsKit still has no per-texture TFX field
+        continue-on-error: true
+        run: |
+          apk add --no-cache make
+          # Settled, not open: gsKit declares no GSTEXTURE::Function and
+          # every one of its GS_SETREG_TEX0 sites passes a hardcoded 0
+          # in the tfx position, which is MODULATE. ps2ui therefore sets
+          # no TFX at all and gets the mode it wants anyway.
+          #
+          # This step exists so that stays true. If a future gsKit adds
+          # a per-texture TFX, the comment in ps2ui.c goes stale and the
+          # tinting question reopens -- and the log is where that shows
+          # up first. Reports, never gates.
+          #
+          # It ships with a control arm because the first version of it
+          # did not, and was void: it omitted -D_EE, so every compile
+          # died in tamtypes.h before the struct was ever parsed, and it
+          # printed "absent, as expected" on a test that had not run.
+          # The control assigns a field gsKit certainly has. If the
+          # control does not build, this step knows nothing and says so
+          # rather than reporting the failure it was hoping for.
+          GCC="mips64r5900el-ps2-elf-gcc -c -std=c99 -D_EE \
+               -I$PS2DEV/gsKit/include -I$PS2SDK/ee/include \
+               -I$PS2SDK/common/include"
+          cat > /tmp/ctl.c <<'EOF'
+          #include <gsKit.h>
+          int main(void) { GSTEXTURE t; t.Filter = 0; return (int)t.Filter; }
+          EOF
+          cat > /tmp/fn.c <<'EOF'
+          #include <gsKit.h>
+          int main(void) { GSTEXTURE t; t.Function = 0; return (int)t.Function; }
+          EOF
+          if ! $GCC /tmp/ctl.c -o /tmp/ctl.o 2>/tmp/ctl.err; then
+            echo "RESULT: VOID -- the control arm does not build either, so a"
+            echo "        failure on ::Function would mean nothing. Fix this step."
+            sed -n '1,10p' /tmp/ctl.err
+            exit 0
+          fi
+          echo "control ok: GSTEXTURE::Filter compiles, so the struct is being parsed"
+          if $GCC /tmp/fn.c -o /tmp/fn.o 2>/tmp/fn.err; then
+            echo "RESULT: GSTEXTURE::Function EXISTS in this gsKit -- this is new."
+            echo "        Re-read docs/bringup.md step 4; the finding it records has changed."
+          else
+            echo "RESULT: GSTEXTURE::Function absent, as expected."
+            sed -n '1,5p' /tmp/fn.err
+          fi
+          grep -rn "define GS_TFX_" $PS2DEV/gsKit/include/*.h 2>/dev/null | head -5 \
+            || echo "        (no GS_TFX_* macros in the gsKit headers either)"
       - name: Build sample ELF with the PS2SDK toolchain
         run: |
           apk add --no-cache make
@@ -179,6 +227,16 @@ jobs:
           make -C runtime/sample objclean
           make -C runtime/sample STATIC=1 SCREEN=probe EE_BIN=conform.elf \
             UIB=../../examples/channel6/build/ui.uib
+          # Bring-up step 4b's reference arm. gsKit passes
+          # gsGlobal->PrimAlphaEnable as TEX0.TCC at all 30 of its TEX0
+          # sites, so forcing it off tells the GS the glyph atlas has no
+          # alpha channel. This ELF is a picture of that fault, to hold
+          # next to a photograph of the real one -- it is not testing a
+          # hypothesis, it is showing what the hypothesis predicts.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 SCREEN=probe NO_ALPHA=1 \
+            EE_BIN=conform-noalpha.elf \
+            UIB=../../examples/channel6/build/ui.uib
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -191,6 +249,7 @@ jobs:
           test -f runtime/sample/conform.elf
           test -f runtime/sample/sample-linear.elf
           test -f runtime/sample/conform-linear.elf
+          test -f runtime/sample/conform-noalpha.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -205,6 +264,7 @@ jobs:
             runtime/sample/conform.elf
             runtime/sample/sample-linear.elf
             runtime/sample/conform-linear.elf
+            runtime/sample/conform-noalpha.elf
 
   emulator:
     needs: [bake, elf]
