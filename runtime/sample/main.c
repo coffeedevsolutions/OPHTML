@@ -994,7 +994,9 @@ int main(void)
                        t_min / (EE_HZ / 1000000u),
                        (t_sum / sec_frames) / (EE_HZ / 1000000u),
                        t_max / (EE_HZ / 1000000u),
-                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov, ui.stats.vram_lost);
+                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov,
+                       /* uint32_t is long on the EE toolchain; %u is not */
+                       (unsigned)ui.stats.vram_lost);
                 t_min = 0xFFFFFFFFu; t_max = 0; t_sum = 0;
                 sec_frames = 0; missed = 0; elapsed = 0;
                 a_prims = 0; a_hidden = 0; a_slotg = 0;
