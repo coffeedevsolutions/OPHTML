@@ -919,7 +919,8 @@ int main(void)
     u32 sec_frames = 0, missed = 0, t_frame_prev = cop0_count();
     u32 elapsed = 0;
     /* Interval aggregates, not a last-frame sample. */
-    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0;
+    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0,
+        a_vramlost = 0;
 #endif
 
     while (1) {
@@ -955,6 +956,13 @@ int main(void)
 #endif
         gsKit_queue_exec(gs);
         gsKit_sync_flip(gs);
+        /* Age the texture manager's use counts once per frame, the way
+         * Open-PS2-Loader's frame loop does. With ps2ui's static UI it
+         * changes nothing today -- every texture is re-bound every
+         * frame, so nothing ever looks evictable -- but a host that
+         * streams its own textures through the same manager needs the
+         * counters honest, and the sample is the reference for hosts. */
+        gsKit_TexManager_nextFrame(gs);
 #ifdef PS2UI_SAMPLE_TELEMETRY
         {
             /* Wall time of the whole loop, vsync included: more than
@@ -973,6 +981,11 @@ int main(void)
             if (ui.stats.slot_glyphs > a_slotg) a_slotg = ui.stats.slot_glyphs;
             if (ui.stats.slots_hidden > a_slothid) a_slothid = ui.stats.slots_hidden;
             a_sciov += ui.stats.scissor_overflow;
+            /* OR, not the last frame's raw value: a second in which 59
+             * frames lost their textures and the 60th recovered must
+             * not print vramlost=0 -- the transient is exactly the
+             * case the log exists for. */
+            a_vramlost |= ui.stats.vram_lost;
 
             /* Report on elapsed time, so the line is a real second at
              * any frame rate rather than 60 frames however long those
@@ -982,16 +995,18 @@ int main(void)
                                   / elapsed);
                 printf("ps2ui-telemetry frame=%u fps=%u.%u miss=%u "
                        "ee_us(min/avg/max)=%u/%u/%u "
-                       "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u\n",
+                       "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u vramlost=%u\n",
                        frame, fps10 / 10u, fps10 % 10u, missed,
                        t_min / (EE_HZ / 1000000u),
                        (t_sum / sec_frames) / (EE_HZ / 1000000u),
                        t_max / (EE_HZ / 1000000u),
-                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov);
+                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov,
+                       /* uint32_t is long on the EE toolchain; %u is not */
+                       (unsigned)a_vramlost);
                 t_min = 0xFFFFFFFFu; t_max = 0; t_sum = 0;
                 sec_frames = 0; missed = 0; elapsed = 0;
                 a_prims = 0; a_hidden = 0; a_slotg = 0;
-                a_slothid = 0; a_sciov = 0;
+                a_slothid = 0; a_sciov = 0; a_vramlost = 0;
             }
         }
 #endif

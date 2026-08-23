@@ -214,6 +214,10 @@ typedef struct ps2ui_stats {
                                 * stack; nonzero means a blob deeper
                                 * than PS2UI_MAX_SCISSOR_DEPTH slipped
                                 * past the baker somehow               */
+    uint32_t vram_lost;        /* 1 when this frame skipped every
+                                * textured draw because the host shrank
+                                * VRAM below the uploaded footprint --
+                                * see the guard in ps2ui_render        */
 } ps2ui_stats;
 
 typedef struct ps2ui_ctx {
@@ -245,6 +249,12 @@ typedef struct ps2ui_ctx {
      * ps2ui_load, so a blob that never calls the API behaves exactly as
      * before and pays 32 bytes of context. */
     uint32_t  hidden[(PS2UI_MAX_HIDEABLE + 31) / 32];
+    /* The budget ps2ui_upload preflighted. ps2ui_render re-checks the
+     * fit against it before any textured draw: gsKit_TexManager_bind
+     * cannot report exhaustion (its allocator spins forever), so a
+     * host that shrank VRAM after upload must be caught by arithmetic,
+     * not by binding. Meaningful only while `uploaded` is set. */
+    uint32_t  vram_need;
     /* Filled by ps2ui_render; see ps2ui_stats. */
     ps2ui_stats stats;
 } ps2ui_ctx;

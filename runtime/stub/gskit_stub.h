@@ -122,6 +122,14 @@ typedef struct stub_state {
     u32 vram_allocated;
     stub_flush flushes[STUB_MAX_FLUSHES];
     int n_flushes;
+    /* TexManager model state. bound[] parallels prims/uploads: which
+     * GSTEXTUREs the manager considers resident, and where. */
+    const GSTEXTURE *bound[64];
+    u32 bound_vram[64];
+    int n_bound;
+    u32 tm_cursor;      /* next free byte; 0 = not yet based on gs */
+    int n_binds;        /* every bind call, resident or not */
+    int n_transfers;    /* pixel transfers only; the "uploaded once" count */
     /* Uploads whose pixel data or CLUT was not fully covered by a
      * preceding writeback. Any value but zero is a console bug. */
     int n_uploads_unflushed;
@@ -130,8 +138,21 @@ typedef struct stub_state {
 extern stub_state g_stub;
 
 void stub_reset(void);
+void stub_reset_keep_tm(void);
 
 u32  gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u32 type);
+/* The texture manager slice ps2ui uses. The stub mirrors
+ * gsTexManager.c's observable behaviour: bind allocates residency for
+ * an unseen texture, transfers when Vram/VramClut are 0, does the
+ * per-buffer SyncDCache before each transfer (:270, :279), and never
+ * reports failure -- the real _blockAlloc spins forever on exhaustion,
+ * which is exactly why ps2ui_upload preflights the budget. Eviction is
+ * deliberately not modelled: the preflight makes it unreachable for
+ * ps2ui's own textures, and a stub that pretended to model gsKit's
+ * weight heuristic would certify guesses. */
+unsigned int gsKit_TexManager_bind(GSGLOBAL *gs, GSTEXTURE *tex);
+void gsKit_TexManager_invalidate(GSGLOBAL *gs, GSTEXTURE *tex);
+void gsKit_TexManager_nextFrame(GSGLOBAL *gs);
 u32  gsKit_texture_size(u32 width, u32 height, u32 psm);
 /* Used only by the sample; the runtime never inits or flips. */
 GSGLOBAL *gsKit_init_global(void);

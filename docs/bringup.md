@@ -1163,20 +1163,41 @@ the real 4 MB ceiling and asserts the upload reports failure, so the
 path is known reachable before anyone reads a 0 off a console. Deleting
 the `return -1` in `ps2ui_upload` fails that check.
 
-Both shapes are covered: nothing fitting at all, and — the case a real
-console actually meets — running out **partway**, with earlier textures
-already allocated and uploaded (measured at 7 of 19).
+The refusal is **all-or-nothing by design**: `ps2ui_upload` preflights
+the whole blob's footprint against `4 MB − CurrentPointer` before the
+first transfer, so a budget that cannot hold everything uploads
+nothing. That preflight is load-bearing, not polite — since the
+migration to `gsKit_TexManager_bind`, residency comes from the
+manager's block allocator, and that allocator **cannot report
+exhaustion**: `_blockAlloc` loops evicting ever-hotter textures until
+something fits, and when nothing ever can, the loop never exits. An
+over-budget blob without the preflight is a console hang inside gsKit,
+not an error code. Both starvation shapes in `test_runtime` assert the
+refusal and that zero transfers happened.
 
-**What a non-zero leaves behind:** `ctx->uploaded` stays 0 however far
-the upload got, so a caller cannot render through a half-built texture
-table. Asserted for both shapes.
+**What a non-zero leaves behind:** `ctx->uploaded` stays 0 and no
+texture was transferred, so there is no half-built table to render
+through and nothing stranded in VRAM.
 
-**Retrying:** call `gsKit_vram_clear()` first. gsKit's `USERBUFFER`
-allocator is a bump pointer with no per-allocation free, so the
-handles the failed attempt already took are stranded — and
-`ps2ui_upload` restarts from texture 0 and re-allocates every one of
-them. A second attempt without the clear consumes the footprint twice
-and is likelier to fail than the first.
+**The render-time half.** The preflight's promise is only as durable as
+the VRAM budget it measured, and a host can shrink that after upload —
+every `gsKit_vram_alloc` both advances `CurrentPointer` and resets the
+manager's region to what is left. `ps2ui_render` re-checks the fit each
+frame before any textured draw; when it fails, all textured draws are
+skipped and `stats.vram_lost` is set (the telemetry line prints it as
+`vramlost=`). A frame with no text is a bad frame; the alternative is a
+bind inside `_blockAlloc`'s no-exit eviction loop — a dead console with
+no output. Review of the migration found this second entry point; the
+guard and its fence came from that finding.
+
+**Retrying:** nothing to clear. The old `gsKit_vram_alloc` path
+stranded the failed attempt's allocations in a bump pointer;
+the preflight refuses before anything is allocated, so a retry after
+freeing VRAM (or re-baking smaller) starts clean. Do not mix
+`gsKit_vram_alloc` into a host that renders ps2ui: every call to it
+resets the TexManager's block list, and ps2ui's per-draw re-bind will
+then re-upload every texture on the next frame — self-healing, but a
+full re-transfer you did not ask for.
 
 **Fix:** re-bake with `--vram-budget` set to what your app actually
 leaves free, and treat the printed per-texture breakdown as the

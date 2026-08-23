@@ -152,13 +152,32 @@ int main(int argc, char **argv)
 
     /* ---- upload ---- */
     vram_before = gs.CurrentPointer;
+    /* The manager does not move CurrentPointer (its blocks live above
+     * it), so "what the blob costs" is computed the way the preflight
+     * computes it rather than read back from an allocator cursor. Kept
+     * in sync with ps2ui_upload by construction: same size function,
+     * same per-texture terms. */
+    {
+        uint32_t k;
+        vram_used = 0;
+        for (k = 0; k < ctx.hdr->n_tex; k++) {
+            const ps2ui_tex_entry *t = &ctx.tex[k];
+            vram_used += gsKit_texture_size(t->width, t->height,
+                t->format == PS2UI_TEXFMT_PSMCT32 ? GS_PSM_CT32 : GS_PSM_T8);
+            if (t->format == PS2UI_TEXFMT_PSMT8)
+                vram_used += gsKit_texture_size(16, 16, GS_PSM_CT32);
+        }
+        CHECK(vram_used > 0, "the blob costs a nonzero amount of VRAM to state a budget against");
+    }
     CHECK(ps2ui_upload(&ctx, &gs) == 0, "textures fit in 4 MB VRAM");
     /* What the blob's textures actually cost. Step 9's starved cases at
      * the end of this file size themselves from this rather than from a
      * hardcoded budget: a constant tuned to today's example is a check
      * that goes red when someone shrinks an asset by six percent, for a
      * reason that has nothing to do with what they changed. */
-    vram_used = gs.CurrentPointer - vram_before;
+    CHECK(gs.CurrentPointer == vram_before,
+          "upload no longer moves CurrentPointer: residency belongs to the manager, "
+          "and a vram_alloc here would reset its block list");
     CHECK(g_stub.n_uploads == (int)ctx.hdr->n_tex, "every texture uploaded once");
 
     /* The EE writes back lazily and the GIF reads main memory, so any
@@ -180,6 +199,110 @@ int main(int argc, char **argv)
           "every upload is preceded by a writeback of its pixels and its CLUT");
     CHECK(g_stub.n_flushes > 0,
           "and flushes were actually recorded, so the check above had something to check");
+
+    /* ---- render: the heal is bounded by the budget ---- */
+    /* Review of the migration found that the render-time re-bind is a
+     * second entry into _blockAlloc's no-exit eviction loop: a host
+     * gsKit_vram_alloc after our upload shrinks the manager's region
+     * AND drops residency, and if the footprint no longer fits, the
+     * "healing" bind at the next draw never returns -- a hang with no
+     * error path, at frame time. ps2ui_render therefore re-checks the
+     * fit before any textured draw and skips them all when it fails,
+     * reporting stats.vram_lost. This test IS that scenario: allocate
+     * the region out from under an uploaded context, render, and
+     * require zero binds, zero transfers, no textured prims, and the
+     * stat -- while untextured quads still draw, because a bad frame
+     * beats a dead console. */
+    {
+        GSGLOBAL shrunk = gs;
+        int before_transfers, before_binds, k, any_tex = 0, any_quad = 0;
+        u32 grab = 4u * 1024u * 1024u - shrunk.CurrentPointer - 256u;
+        CHECK(gsKit_vram_alloc(&shrunk, grab, GSKIT_ALLOC_USERBUFFER)
+                  != GSKIT_ALLOC_ERROR,
+              "a host allocation can legally take nearly all remaining VRAM");
+        before_transfers = g_stub.n_transfers;
+        before_binds = g_stub.n_binds;
+        stub_reset_keep_tm();
+        ps2ui_render(&ctx, &shrunk);
+        CHECK(ctx.stats.vram_lost == 1,
+              "render reports vram_lost when the uploaded footprint no longer fits");
+        CHECK(g_stub.n_binds == before_binds && g_stub.n_transfers == before_transfers,
+              "and calls bind zero times, because a bind that cannot fit never returns");
+        for (k = 0; k < g_stub.n_prims; k++) {
+            if (g_stub.prims[k].tex) any_tex = 1; else any_quad = 1;
+        }
+        CHECK(!any_tex, "no textured primitive was submitted this frame");
+        CHECK(any_quad, "while untextured quads still drew: a bad frame, not a dead console");
+        /* Back on the original gs the fit still holds and nothing sticks. */
+        stub_reset();
+        ps2ui_render(&ctx, &gs);
+        CHECK(ctx.stats.vram_lost == 0, "and the stat clears on a budget that fits");
+    }
+
+    /* ---- render: an out-of-contract render after a refused upload ---- */
+    /* ps2ui_load memsets the context, so on the refusal path vram_need
+     * is 0 and the fit half of the guard is vacuously true. A caller
+     * that ignores upload's -1 and renders anyway must still hit the
+     * guard -- otherwise it binds zero-filled GSTEXTUREs (Mem NULL)
+     * into the transfer path, which is the exact misbehaving-host
+     * shape the guard exists for. Review probed this hole before the
+     * uploaded check existed: all three assertions failed. */
+    {
+        ps2ui_ctx rc2;
+        GSGLOBAL starved2 = gs;
+        int before_binds, k2, any_tex2 = 0, any_quad2 = 0;
+        starved2.CurrentPointer = 4u * 1024u * 1024u - 16u;
+        memset(&rc2, 0, sizeof rc2);
+        if (ps2ui_load(&rc2, blob, len) == PS2UI_OK
+            && ps2ui_upload(&rc2, &starved2) != 0) {
+            stub_reset_keep_tm();
+            before_binds = g_stub.n_binds;
+            ps2ui_render(&rc2, &starved2);
+            CHECK(rc2.stats.vram_lost == 1,
+                  "a render after a REFUSED upload reports vram_lost rather than binding");
+            CHECK(g_stub.n_binds == before_binds,
+                  "and binds nothing: the GSTEXTUREs were never filled in");
+            for (k2 = 0; k2 < g_stub.n_prims; k2++) {
+                if (g_stub.prims[k2].tex) any_tex2 = 1; else any_quad2 = 1;
+            }
+            CHECK(!any_tex2, "no textured primitive from an un-uploaded context");
+            CHECK(any_quad2, "while its untextured quads still draw");
+        } else {
+            CHECK(0, "refused-upload fixture failed to set up");
+        }
+    }
+
+    /* ---- render: binds per draw, so residency heals ---- */
+    /* The property is not "textures are resident after upload" -- that
+     * passes trivially. It is "a texture that LOSES residency between
+     * frames gets it back at the next draw", which is what protects
+     * ps2ui inside a host that also uses the TexManager, or that calls
+     * gsKit_vram_alloc after our upload and thereby resets the block
+     * list. Invalidate everything the way that reset would, render,
+     * and require the frame's draws to have re-transferred. Rendering
+     * that never binds passes every other check in this file, which is
+     * exactly why this one exists -- it was added after measuring that
+     * deleting the render-time binds turned nothing red. */
+    {
+        uint32_t k;
+        int before;
+        for (k = 0; k < ctx.hdr->n_tex; k++)
+            gsKit_TexManager_invalidate(&gs, &ctx.gs_tex[k]);
+        before = g_stub.n_transfers;
+        ps2ui_render(&ctx, &gs);
+        CHECK(g_stub.n_transfers > before,
+              "a draw after invalidation re-transfers: render binds per draw rather "
+              "than trusting upload-time residency");
+        {
+            int all_drawn_resident = 1;
+            for (k = 0; k < (uint32_t)g_stub.n_prims; k = k + 1) {
+                const stub_prim *pr = &g_stub.prims[k];
+                if (pr->tex && pr->tex->Vram == 0) all_drawn_resident = 0;
+            }
+            CHECK(all_drawn_resident,
+                  "and no primitive this frame sampled a texture the manager considers absent");
+        }
+    }
 
     /* ---- load: DMA alignment guard ---- */
     /* The GIF DMA reads texture bytes in place and its source address
@@ -897,7 +1020,7 @@ int main(int argc, char **argv)
         GSGLOBAL starved;
         char partway[128];
 
-        /* (a) nothing fits: the first allocation fails. */
+        /* (a) nothing fits: the preflight refuses before any bind. */
         starved = gs;
         starved.CurrentPointer = 4u * 1024u * 1024u - 16u;
         memset(&sc, 0, sizeof sc);
@@ -912,45 +1035,34 @@ int main(int argc, char **argv)
             CHECK(0, "starved-upload fixture failed to load");
         }
 
-        /* (b) exhaustion PARTWAY, which is the case a real console
-         * hits: earlier textures allocated and uploaded, a later one
-         * refused. Only the first-allocation path was covered, which
-         * is the easiest path through the function and the least like
-         * the failure anyone will actually meet.
-         *
-         * The two cases turn out to cover different code, not just
-         * different budgets. ps2ui_upload has two ways to refuse -- the
-         * texture allocation and, for PSMT8, the CLUT allocation right
-         * after it. Case (a) trips the first; (b) at this budget trips
-         * the second. Neutralising only one of them leaves the other
-         * case green, which is how the pair was measured. */
+        /* (b) a budget that the OLD path would have exhausted PARTWAY
+         * -- enough for some textures, not all. Under the manager this
+         * case no longer exists as a runtime state, and that is the
+         * point: gsKit_TexManager_bind cannot report exhaustion (its
+         * allocator loops forever evicting when nothing can ever fit),
+         * so ps2ui_upload preflights the whole budget and refuses
+         * BEFORE the first transfer. The old test asserted "uploaded
+         * some but not all (7 of 19)"; the property worth keeping is
+         * stronger: a budget that cannot hold everything uploads
+         * NOTHING, so there is no half-built texture table for a
+         * caller to render through and no console hang inside gsKit
+         * for the operator to photograph. */
         starved = gs;
-        /* Half of what the blob really needs, so this lands in the
-         * middle of the table wherever the example's art goes next.
-         * The hardcoded 256 KiB it replaces gave 18 of 19 -- the
-         * narrowest partway available, failing on the LAST texture,
-         * with about 16 KiB between it and "everything fits". */
         starved.CurrentPointer = 4u * 1024u * 1024u - vram_used / 2u;
         memset(&sc, 0, sizeof sc);
         if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
             int rc;
             int before = g_stub.n_uploads;
-            int got;
             rc = ps2ui_upload(&sc, &starved);
-            got = g_stub.n_uploads - before;
-            CHECK(rc != 0, "upload reports failure when VRAM runs out "
-                           "partway through the texture table");
-            /* Without this the case above is indistinguishable from
-             * (a): both return non-zero, and a budget that happened to
-             * fail on texture 0 would look like partway coverage while
-             * exercising the same three lines. */
+            CHECK(rc != 0, "upload refuses a budget that holds some textures but "
+                           "not all of them");
             snprintf(partway, sizeof partway,
-                     "having uploaded some but not all of them "
-                     "(%d of %u), which is the case a console meets",
-                     got, (unsigned)sc.hdr->n_tex);
-            CHECK(got > 0 && got < (int)sc.hdr->n_tex, partway);
+                     "and transfers nothing at all (%d transfers) -- all-or-nothing, "
+                     "because bind cannot fail and a partial table cannot render",
+                     g_stub.n_uploads - before);
+            CHECK(g_stub.n_uploads == before, partway);
             CHECK(sc.uploaded == 0,
-                  "and still leaves it not-uploaded, however far it got");
+                  "and still leaves it not-uploaded");
         } else {
             CHECK(0, "partway-starved fixture failed to load");
         }

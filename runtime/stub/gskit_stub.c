@@ -9,6 +9,18 @@ void stub_reset(void)
     memset(&g_stub, 0, sizeof g_stub);
 }
 
+/* Clear the per-frame ledgers (prims, flushes) but keep the manager
+ * model and its counters: for tests that need "what happened during
+ * THIS render" against residency state that must survive from an
+ * earlier upload. A full stub_reset would forget which textures are
+ * bound and where, which is not something a frame boundary does. */
+void stub_reset_keep_tm(void)
+{
+    g_stub.n_prims = 0;
+    g_stub.n_flushes = 0;
+    g_stub.n_scissor_sets = 0;
+}
+
 u32 gsKit_texture_size(u32 width, u32 height, u32 psm)
 {
     /* Close enough for the fake allocator: bytes, page-rounded. */
@@ -25,6 +37,13 @@ u32 gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u32 type)
         return GSKIT_ALLOC_ERROR;
     gs->CurrentPointer += size;
     g_stub.vram_allocated = gs->CurrentPointer;
+    /* The real one re-initialises the TexManager here (gsCore.c:45),
+     * discarding every residency block while the textures keep their
+     * stale Vram values. Mirrored, because this reset is the exact
+     * hazard ps2ui_render's tex_ok check exists for -- a stub that
+     * skipped it would make that check untestable. */
+    g_stub.n_bound = 0;
+    g_stub.tm_cursor = gs->CurrentPointer;
     return at;
 }
 
@@ -78,6 +97,81 @@ void gsKit_texture_upload(GSGLOBAL *gs, GSTEXTURE *tex)
     else if (tex->Clut && !stub_flushed(tex->Clut, 16 * 16 * 4))
         g_stub.n_uploads_unflushed++;
     g_stub.n_uploads++;
+}
+
+/* The manager slice, mirrored from gsTexManager.c so the fences that
+ * used to watch gsKit_texture_upload watch this path instead:
+ *
+ *   - an unseen texture gets residency at the block cursor and its
+ *     Vram/VramClut zeroed, exactly like _blockAlloc + the reset in
+ *     bind (gsTexManager.c:249-257)
+ *   - Vram == 0 means transfer: setup_tbw, SyncDCache over the pixel
+ *     bytes, then the send -- the send is modelled as the flush ledger
+ *     coverage check plus n_transfers, which keeps the "uploaded once"
+ *     and "flushed before DMA" assertions alive
+ *   - VramClut == 0 on an indexed texture likewise for the palette
+ *     (:277-284)
+ *   - a resident re-bind transfers nothing, which is what makes
+ *     per-draw binding in ps2ui_render free to assert against
+ *
+ * Never fails, because the real one never fails -- it hangs, which is
+ * why ps2ui_upload preflights. Eviction unmodelled on purpose: the
+ * preflight makes it unreachable, and modelling gsKit's weight
+ * heuristic here would certify a guess. */
+unsigned int gsKit_TexManager_bind(GSGLOBAL *gs, GSTEXTURE *tex)
+{
+    size_t texels = (size_t)tex->Width * tex->Height;
+    size_t bytes  = (tex->PSM == GS_PSM_T8) ? texels : texels * 4;
+    u32 tsize = gsKit_texture_size(tex->Width, tex->Height, tex->PSM);
+    u32 csize = tex->Clut ? gsKit_texture_size(16, 16, GS_PSM_CT32) : 0;
+    unsigned int transferred = 0;
+    int i, seen = -1;
+
+    if (g_stub.tm_cursor == 0)
+        g_stub.tm_cursor = gs->CurrentPointer ? gs->CurrentPointer : 16;
+
+    g_stub.n_binds++;
+    for (i = 0; i < g_stub.n_bound; i++)
+        if (g_stub.bound[i] == tex) { seen = i; break; }
+    if (seen < 0 && g_stub.n_bound < 64) {
+        seen = g_stub.n_bound++;
+        g_stub.bound[seen] = tex;
+        g_stub.bound_vram[seen] = g_stub.tm_cursor;
+        g_stub.tm_cursor += tsize + csize;
+        tex->Vram = 0;
+        tex->VramClut = 0;
+    }
+
+    if (tex->Vram == 0) {
+        tex->Vram = g_stub.bound_vram[seen];
+        stub_setup_tbw(tex);
+        SyncDCache(tex->Mem, (u8 *)tex->Mem + tsize);
+        if (!stub_flushed(tex->Mem, bytes))
+            g_stub.n_uploads_unflushed++;
+        g_stub.n_transfers++;
+        g_stub.n_uploads++;   /* the "uploaded once" ledger, unchanged */
+        transferred = 1;
+    }
+    if (tex->Clut && tex->VramClut == 0) {
+        tex->VramClut = g_stub.bound_vram[seen] + tsize;
+        SyncDCache(tex->Clut, (u8 *)tex->Clut + csize);
+        if (!stub_flushed(tex->Clut, 16 * 16 * 4))
+            g_stub.n_uploads_unflushed++;
+        transferred = 1;
+    }
+    return transferred;
+}
+
+void gsKit_TexManager_invalidate(GSGLOBAL *gs, GSTEXTURE *tex)
+{
+    (void)gs;
+    tex->Vram = 0;
+    tex->VramClut = 0;
+}
+
+void gsKit_TexManager_nextFrame(GSGLOBAL *gs)
+{
+    (void)gs;
 }
 
 void gsKit_set_scissor(GSGLOBAL *gs, u64 scissor)
