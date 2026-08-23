@@ -131,6 +131,13 @@ jobs:
           make -C runtime/sample MINIMAL=1 EE_BIN=minimal.elf
           make -C runtime/sample objclean
           make -C runtime/sample PROBE=1 EE_BIN=probe.elf
+          # Bring-up step 6. One texture, two UV conventions, an
+          # untextured reference of the same pattern between them: the
+          # reading is which of the two seams vanished. No blob and no
+          # ps2ui -- it asks the GS directly, so its answer holds
+          # whatever else the renderer is doing.
+          make -C runtime/sample objclean
+          make -C runtime/sample PROBE6=1 EE_BIN=probe6.elf
           # The bench instrument: cycling UI plus the once-a-second
           # telemetry line on stdout (PCSX2's console log captures it).
           make -C runtime/sample objclean
@@ -159,6 +166,7 @@ jobs:
           # failure rather than as a build error.
           test -f runtime/sample/ps2ui_sample.elf
           test -f runtime/sample/probe.elf
+          test -f runtime/sample/probe6.elf
           test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
           test -f runtime/sample/testcard.elf
@@ -170,6 +178,7 @@ jobs:
           path: |
             runtime/sample/ps2ui_sample.elf
             runtime/sample/probe.elf
+            runtime/sample/probe6.elf
             runtime/sample/minimal.elf
             runtime/sample/telemetry.elf
             runtime/sample/testcard.elf
@@ -327,6 +336,34 @@ jobs:
             # reads as a pass whatever the frame contains.
             python3 tools/framediff.py probe.png --stats-only || true
           fi
+      - name: Bring-up step 6 — which UV convention does the GS want?
+        if: always()
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
+        run: |
+          # Captured, not graded. This frame is read as two seams by a
+          # person; there is no threshold that turns "is there a line
+          # here" into a number without inventing one. The artifact is
+          # the deliverable, and docs/bringup.md carries the table.
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf elf/probe6.elf \
+              >probe6.log 2>&1 &
+            P=$!
+            sleep 20
+            if kill -0 $P 2>/dev/null; then
+              import -window root probe6.png
+            else
+              echo "step 6 probe ELF exited early:"; cat probe6.log
+            fi
+            kill -9 $P 2>/dev/null || true
+          ' || true
+          if [ -f probe6.png ]; then
+            python3 tools/framediff.py probe6.png --stats-only || true
+          fi
+
       - name: Trim the capture back to the framebuffer
         if: always()
         run: |
@@ -465,4 +502,5 @@ jobs:
             captured.png
             framediff.png
             probe.png
+            probe6.png
             testcard.png

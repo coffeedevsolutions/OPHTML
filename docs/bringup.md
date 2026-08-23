@@ -586,11 +586,12 @@ so the comparison is side by side rather than remembered. Every checker
 averages the same 50% grey, which is exactly why a mushed one is
 indistinguishable from it — and exactly why it is worth drawing.
 
-**If wrong:** a half-texel UV offset. The baker emits texel-corner UVs
-and the GS samples at pixel centres; the `+0.5` convention has to match
-on both sides. Under bilinear a mismatch averages neighbouring texels
-into grey; under nearest it shifts the checker by one cell, which the
-corner copies make visible against the canvas edges.
+**If wrong:** not a missing `+0.5` — see "The UV convention is settled"
+below, which works the arithmetic and shows the bias would put every
+pixel one texel past the one it asked for. Under the nearest filtering
+ps2ui uses, texel-corner UVs at 1:1 are correct. Look instead at
+whether the quad is drawn at its UV span (anything else resamples), and
+at the texture's format and buffer width.
 
 `make_testcard.py --self-test` fences the construction, and CI runs it.
 The property that matters most there is the 1:1 mapping: a wedge quad
@@ -667,6 +668,100 @@ while getting the geometry exact to the pixel. A console reading the
 same screen is what separates "Play! renders text differently" from
 "ps2ui renders text wrongly", and until one has, this is not a defect
 against the renderer.
+
+### The step 6 probe — five columns, one variable each
+
+`make -C runtime/sample PROBE6=1` builds `probe6.elf`; CI ships it in
+the artifact.
+
+**Its first design was aimed at the wrong thing, and that is worth
+recording.** v1 drew one texture with and without a `+0.5` UV bias,
+because the glyph artifact looked like the classic half-texel question.
+Then the alignment card was captured from the same emulator and read
+**crisp on all three rungs** — through the identical
+`gsKit_prim_sprite_texture` path. Sampling is not uniformly broken, so
+v1 would have tested the configuration that already works: two clean
+seams at a bench, read as "nothing wrong here", operator sent
+elsewhere.
+
+What the card does not do is anything a glyph does:
+
+| | test card — crisp | glyph — wrong |
+|---|---|---|
+| format | PSMCT32 | **PSMT8 + CLUT** |
+| UV origin | `(0,0)` | `(1,1)`, `(11,1)`, … |
+| drawn | 64×64 | 9×9 |
+
+Three differences at once. So the question is no longer *which UV
+convention* but *which of these breaks it*, and the probe gives each
+one a column:
+
+| column | format | atlas | UV origin | quads | isolates |
+|---|---|---|---|---|---|
+| A | CT32 | 128×128 | `(0,0)` | one | **the calibration** — must be seamless |
+| B | CT32 | 128×128 | `(3,3)` | one | a UV origin that is not the corner |
+| C | T8+CLUT | 128×128 | `(0,0)` | one | the indexed path |
+| D | T8+CLUT | 128×128 | `(3,3)` | one | both |
+| E | T8+CLUT | 128×128 | `(3,3)` | 8×8 | and at glyph scale |
+| F | T8+CLUT | **256×64** | `(3,3)` | 8×8 | and the real atlas geometry |
+
+**Column F exists because texture geometry is a variable too**, and the
+first five columns held it constant at a value matching nothing:
+
+| | atlas | TBW |
+|---|---|---:|
+| test card — crisp | 64×64 CT32 | 1 |
+| columns A–E | 128×128 | 2 |
+| every shipped font atlas — the suspect | **256×64 PSMT8** | **4** |
+
+`TEX0.TBW` is texture buffer width in units of 64 texels, so a
+256-wide atlas addresses differently from a square 128-wide one. Had
+the cause lived there, A–E would all have come back clean and been read
+as *"not the format, not the origin, not the scale"* — an answer nobody
+can act on, and the same shape of mistake as this probe's v1.
+
+Every column draws the same 72×56 checker at 1:1, with an untextured
+reference of that image directly beneath — phase-shifted by that
+column's own UV origin, so each reference is what *that* column should
+look like. One seam per column.
+
+**Read it as: which seam is visible.** A solid sprite cannot address a
+texture wrongly, so the reference band is what correct looks like and
+the boundary either disappears or it does not.
+
+| what you see | verdict |
+|---|---|
+| every seam invisible | none of these reproduces the artifact — look further out |
+| A seamless, one of B–F visible | **that column names the cause** |
+| **A visible** | **VOID** — the probe is wrong, not the renderer |
+| several visible | read the leftmost; the columns are cumulative |
+
+The CLUT uses indices 0 and 1 only. The GS permutes bits 3 and 4 of a
+palette index for CLUT storage (CSM1), and 0 and 1 are fixed points of
+that permutation — so this probe cannot read a swizzle fault as an
+addressing one. Step 3 owns the swizzle; this is step 6.
+
+**The `+0.5` bias is not among the columns**, and by now not because
+testing a fix before reproducing the fault is backwards — though it is
+— but because the arithmetic above shows it is not a fix at all. It
+would move every pixel one texel past its target. Nothing here should
+grow a column for it.
+
+**No text anywhere**, deliberately: text is the thing under suspicion,
+and labelling the bands through the glyph path would be asking the
+suspect to testify. Position identifies them; this table says which is
+which.
+
+Everything is drawn at 1:1. A quad drawn at any size other than its UV
+span makes the GS resample, and a resampled pattern degrades for
+reasons unrelated to addressing. Six `#error` guards hold the geometry
+inside the title-safe box, keep the sub-rect inside both atlases, keep
+the wide atlas a whole number of TBW units, and keep the glyph-sized
+quads tiling the band exactly; each was verified to fire on the fault
+it names. Two needed separate cases from the ones that would otherwise
+mask them: the horizontal safe-box guard, and the wide atlas's height,
+which runs out before the square atlas's does and so is invisible to
+that check.
 
 ## 7. Scissor nesting
 
