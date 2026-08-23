@@ -19,6 +19,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A bench session cannot get a new instrument built without opening a
+  # pull request, which is friction in exactly the place where friction
+  # costs the most -- somebody is sitting in front of a console waiting.
+  workflow_dispatch:
 
 permissions:
   contents: read
