@@ -264,12 +264,15 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
         g->Width  = t->width;
         g->Height = t->height;
         g->Filter = GS_FILTER_NEAREST; /* baked at exact size; bilinear only blurs */
-#if PS2UI_GSKIT_HAS_FUNCTION
-        /* Modulate: texel x vertex color, so one white glyph atlas
-         * serves every text color. Older gsKit lacks the field; the
-         * fallback renders text untinted (see docs/architecture.md). */
-        g->Function = GS_TFX_MODULATE;
-#endif
+        /* Nothing sets TEX0.TFX here, and nothing can: gsKit has no
+         * per-texture TFX field, and every one of its GS_SETREG_TEX0
+         * call sites passes a hardcoded 0 in the tfx position. 0 is
+         * MODULATE -- texel x vertex color -- which is exactly what the
+         * white glyph atlas needs, so the mode this runtime wants is
+         * the mode it already gets. Verified two ways: gsKit source at
+         * 43122eb declares no such field, and a compile probe in the
+         * ps2dev container fails on `t.Function`. See docs/bringup.md
+         * step 4. */
         if (t->format == PS2UI_TEXFMT_PSMCT32) {
             g->PSM = GS_PSM_CT32;
             g->Mem = (u32 *)(const void *)(ctx->blob + t->data_off);

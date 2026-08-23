@@ -534,54 +534,55 @@ are PSMT8 sharing one CLUT. The emulator shows a milder version of the
 same signature -- text differing while flat quads match -- so it is not
 a Play! artifact.
 
-## 4. Text tinting and `GSTEXTURE::Function`
+## 4. Text tinting and `TEX0.TFX`
 
-**HARDWARE FINDING, and it was invisible for the whole project's life.**
+**SETTLED BY SOURCE. No bench slot, no ELF, nothing to look at.**
 
-`ps2ui.h` decides whether to set `GSTEXTURE::Function` by testing
-`#ifdef GS_TFX_MODULATE`. The ps2dev container does not define that
-macro, so `PS2UI_GSKIT_HAS_FUNCTION` has been **0** in every ELF this
-project has ever produced — `g->Function = GS_TFX_MODULATE` compiled
-out, never executed, on every binary that ever reached a console. The
-autoselect was silent, so nothing said so. It says so now:
+This step used to be a live suspect: `ps2ui.h` decided whether to set
+`GSTEXTURE::Function` by testing `#ifdef GS_TFX_MODULATE`, the ps2dev
+container does not define that macro, so the assignment compiled out of
+every ELF this project has ever produced. The header said so in the
+build log, in so many words: *text renders untinted (DECAL fallback)*.
 
-    ps2ui: GSTEXTURE::Function ABSENT - text renders untinted (DECAL fallback)
+That sentence was false, and two independent checks say so:
 
-**Do:** read that line in the build log, then run the A/B —
-`sample-modulate.elf` and `conform-modulate.elf` are the same builds
-with the field forced on.
+| question | answer | how |
+|---|---|---|
+| does `GSTEXTURE` have a `Function` field? | **no** | gsKit at `43122eb` declares none; a compile probe in the ps2dev container fails on `t.Function` (`elf` job, "gsKit still has no per-texture TFX field") |
+| what `TFX` does gsKit write, then? | **0 = MODULATE**, always | all 30 `GS_SETREG_TEX0` sites pass a hardcoded `0` in the `tfx` position, with no branch and no reference to any texture field |
 
-**Expect:** unknown, deliberately. Two things are still open and they
-are separate:
+So the mode ps2ui wanted was the mode it was already getting. There was
+never a fallback to fall back to: gsKit has no DECAL path. Tinting has
+been on for every binary that has ever reached a console, including the
+ones showing garbled text.
 
-| question | how it is answered |
-|---|---|
-| does `GSTEXTURE` have the field, or only lack the macro? | the `elf` job compiles one TU that assigns it and reports |
-| does setting it change the render? | the A/B, on a console |
+The switch, the pragma, the forced-`Function` build variant and the
+stub's `Function` member are all gone — a stub that models a field the
+console does not have is how a host suite certifies the wrong struct.
+`ps2ui.c` now carries the finding as a comment where the texture is set
+up, and the `elf` job keeps the probe so a future gsKit that *does* add
+per-texture TFX shows up in a log rather than in a symptom.
 
-The detection conflates those two. A toolchain can ship the field
-without the `GS_TFX_*` names, and if that is the case here then
-modulate has been skipped for no reason at all. Forcing the flag used
-to fail to compile for want of a name, which made the two facts
-impossible to separate; the header now supplies the value itself
-(`TEX0.TFX` is a GS register field, 0 is MODULATE, straight from the
-hardware manual) so both arms build.
+**Bench consequence:** nothing to run. Rule this out and move on. The
+open question from the same hardcoded argument run is `TEX0.TCC`, which
+is step 4b.
 
-**It may also be harmless.** Review of gsKit's source reports its
-`GS_SETREG_TEX0` call passes a hardcoded `0` in the `tfx` position — 
-which is MODULATE — so modulate may happen whether or not ps2ui sets
-the field, and "renders untinted" may have been a caveat about nothing.
-That has not been verified against the container's actual gsKit, which
-is why this is an A/B and not a fix.
+### 4b. `TEX0.TCC` and the alpha path
 
-**If the two arms differ:** the fallback is real, and the detection
-must key off the field rather than the macro.
+In that same run gsKit passes `tcc = gsGlobal->PrimAlphaEnable`. It is
+the one texture-state bit gsKit varies, and `TCC` selects whether the
+texture's alpha is used at all (0 = RGB, 1 = RGBA). Glyph coverage *is*
+alpha: the atlases are PSMT8 into a CLUT whose alpha channel carries
+the antialiasing.
 
-**If they are identical:** gsKit is writing MODULATE regardless, the
-caveat in this header is wrong, and the whole switch can go — but
-identical arms can also mean the emulator cannot see the difference,
-exactly as the step 3 CLUT A/B turned out. Read the console, not
-Play!.
+That makes it the only remaining path by which a texture's alpha can be
+silently discarded while untextured geometry renders perfectly — which
+is the exact shape of the symptom on the bench.
+
+It is a per-frame global in ps2ui's usage rather than per-texture, and
+the sample sets `PrimAlphaEnable = GS_SETTING_ON` once before the loop,
+so it *should* be 1 throughout. "Should" is what this project keeps
+finding to be un-failable. The A/B is still to be built.
 
 ## 5. The modulate color domain
 
@@ -593,8 +594,9 @@ TEXQUAD vertex colors must be in the 0x80-identity domain
 (`Cv = Ct·Cf >> 7`). The runtime test's "texquad colors in the 0x80
 modulate domain" check should have caught this before it reached
 hardware; if hardware disagrees with a passing test, the blend/TEX0
-setup is applying a second scale — check TEXA/TEXFLUSH state and that
-`Function` is MODULATE, not HIGHLIGHT.
+setup is applying a second scale — check TEXA/TEXFLUSH state. `TFX` is
+not a candidate: gsKit hardcodes it to 0 (MODULATE) and offers no way
+to change it (step 4).
 
 ## 6. Texel and pixel centers (the test card)
 

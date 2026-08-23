@@ -5,9 +5,10 @@
  * visual verification. The stub exists so the real ps2ui.c compiles
  * -Werror against the same call signatures gsKit publishes, and so the
  * test can count and bound-check every primitive the runtime would
- * send. Signatures follow gsKit as of 2024 (GSTEXTURE::Function
- * present; build with -DPS2UI_GSKIT_HAS_FUNCTION=0 to mimic older
- * releases). */
+ * send. GSTEXTURE mirrors gsKit's own struct field for field -- in
+ * particular it has no Function member, because gsKit has none, and a
+ * stub that invented one would let the host suite certify a struct
+ * shape the console does not have. */
 #ifndef GSKIT_STUB_H
 #define GSKIT_STUB_H
 
@@ -28,9 +29,6 @@ typedef uint64_t u64;
 #define GS_FILTER_NEAREST 0
 #define GS_FILTER_LINEAR  1
 
-#define GS_TFX_MODULATE 0
-#define GS_TFX_DECAL    1
-
 #define GSKIT_ALLOC_USERBUFFER 1
 #define GSKIT_ALLOC_ERROR      0xFFFFFFFFu
 
@@ -46,7 +44,6 @@ typedef struct GSTEXTURE {
     u32 *Clut;
     u32  Vram, VramClut;
     u32  Filter;
-    u32  Function; /* recent gsKit only — the whole reason the stub tracks it */
 } GSTEXTURE;
 
 typedef struct GSGLOBAL {

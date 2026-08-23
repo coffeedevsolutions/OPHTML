@@ -9,8 +9,7 @@
  *
  * Build-time switches:
  *   PS2UI_HOST_TEST           compile against runtime/stub/ instead of gsKit
- *   PS2UI_GSKIT_HAS_FUNCTION  0 for older gsKit without GSTEXTURE::Function;
- *                             text renders untinted (white) in that case
+ *   PS2UI_CLUT_PERMUTE        0 uploads CLUTs unpermuted (step 3's A/B arm)
  */
 #ifndef PS2UI_H
 #define PS2UI_H
@@ -27,53 +26,6 @@ extern "C" {
 #else
 #include <gsKit.h>
 #include <gsToolkit.h>
-#endif
-
-/* GSTEXTURE::Function (per-texture TFX) arrived in gsKit together with
- * the GS_TFX_* macros, so their presence is the detection signal: on an
- * older gsKit this autoselects the fallback, which renders text and
- * nine-patches untinted (DECAL) instead of failing the build. Define
- * PS2UI_GSKIT_HAS_FUNCTION yourself to override the detection either
- * way. First thing to eyeball on hardware — docs/bringup.md step 4. */
-#ifndef PS2UI_GSKIT_HAS_FUNCTION
-#ifdef GS_TFX_MODULATE
-#define PS2UI_GSKIT_HAS_FUNCTION 1
-#else
-#define PS2UI_GSKIT_HAS_FUNCTION 0
-#endif
-#endif
-
-/* Say which arm was taken, in the build log.
- *
- * The autoselect above is silent, and its two outcomes differ in what
- * reaches a screen: the fallback renders text and nine-patches DECAL,
- * untinted, on a toolchain nobody inspected. A build that quietly chose
- * it looks exactly like a build that chose MODULATE until a console is
- * in front of you -- which is the shape of check this project keeps
- * digging out of itself. Reporting costs one line and makes the ELF's
- * provenance readable from CI. */
-#if !defined(PS2UI_HOST_TEST)
-#if PS2UI_GSKIT_HAS_FUNCTION
-#pragma message "ps2ui: GSTEXTURE::Function present - text uses GS_TFX_MODULATE"
-#else
-#pragma message "ps2ui: GSTEXTURE::Function ABSENT - text renders untinted (DECAL fallback)"
-#endif
-#endif
-
-/* The autoselect above keys off the MACRO to decide whether the FIELD
- * exists, and those are two different facts. A toolchain can ship the
- * field without the GS_TFX_* names -- and the ps2dev container does not
- * define GS_TFX_MODULATE at all, so every ELF this project has ever
- * built took the fallback silently.
- *
- * Forcing PS2UI_GSKIT_HAS_FUNCTION=1 on such a toolchain used to fail
- * to compile for want of a name, which made the two facts impossible to
- * separate by experiment. The value is not a gsKit invention to look
- * up: TEX0.TFX is a GS register field and 0 is MODULATE, straight from
- * the hardware manual. Supplying it here decouples "can I set the
- * field" from "is the macro spelled". */
-#if PS2UI_GSKIT_HAS_FUNCTION && !defined(GS_TFX_MODULATE)
-#define GS_TFX_MODULATE 0   /* TEX0.TFX: 0=MODULATE 1=DECAL 2=HIGHLIGHT */
 #endif
 
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */

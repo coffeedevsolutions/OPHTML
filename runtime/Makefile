@@ -41,13 +41,6 @@ syntax-check:
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_CLUT_PERMUTE=0 -Istub -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_CLUT_PERMUTE=0"
-# Step 4's A/B arm. -UGS_TFX_MODULATE reproduces the container, where
-# the macro is missing: the header must then supply the register value
-# itself, or forcing the field on would not build and the two arms
-# could never be compared.
-	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
-		-DPS2UI_GSKIT_HAS_FUNCTION=1 -UGS_TFX_MODULATE -Istub -I. ps2ui.c
-	@echo "ok - runtime compiles: forced Function without the GS_TFX_ macro"
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds
@@ -65,21 +58,11 @@ $(LIST_UIB): tests/fixture/list.html tests/fixture/list.css \
 		tests/fixture/list.html tests/fixture/list.css -o build/list.json
 	PYTHONPATH=../packages/baker python3 -m ps2ui_bake build/list.json -o $@
 
-# The same objects again with the old-gsKit fallback, proving the
-# -DPS2UI_GSKIT_HAS_FUNCTION=0 path also builds clean.
-test-compat: build/test_runtime_compat $(LIST_UIB)
-	./build/test_runtime_compat $(UIB) $(LIST_UIB)
-
 build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -DPS2UI_HOST_TEST -Istub ps2ui.c stub/gskit_stub.c tests/test_runtime.c -o $@
 
-build/test_runtime_compat: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h
-	@mkdir -p build
-	$(CC) $(CFLAGS) -DPS2UI_HOST_TEST -DPS2UI_GSKIT_HAS_FUNCTION=0 -Istub \
-		ps2ui.c stub/gskit_stub.c tests/test_runtime.c -o $@
-
 clean:
 	rm -rf build
 
-.PHONY: test test-compat syntax-check clean
+.PHONY: test syntax-check clean

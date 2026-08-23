@@ -80,10 +80,10 @@ colour immediately beside the textured element.
   `Cv = Ct·Cf >> 7`. Beside it, a flat quad of the raw texel colour.
   Seam ⇒ the 0x80-identity domain is wrong — a B1 regression, and the
   previewer normalises by 255 so it structurally cannot show this.
-- **Step 4 (tinting).** White texel tinted with a colour, against a
-  flat quad of that colour. Seam ⇒ `GSTEXTURE::Function` is not being
-  applied, i.e. the `PS2UI_GSKIT_HAS_FUNCTION=0` fallback is live when
-  it should not be.
+- **Step 4 (tinting).** ~~White texel tinted with a colour, against a
+  flat quad of that colour.~~ Dropped: gsKit has no per-texture TFX
+  field and hardcodes `TEX0.TFX = 0` (MODULATE) everywhere, so there is
+  nothing here that could be off. See `docs/bringup.md` step 4.
 - **Step 3 (CSM1 swizzle).** The interesting one, now worked out
   precisely — and it needs a baker change first.
 
