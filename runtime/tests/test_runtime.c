@@ -236,6 +236,25 @@ int main(int argc, char **argv)
         CHECK(stub_prim_alpha == want, "and sets it to (Cs - Cd) * As >> 7 + Cd");
     }
 
+    /* ---- render: PrimAlphaEnable, which is TEX0.TCC as well ---- */
+    /* gsKit passes gsGlobal->PrimAlphaEnable as TEX0.TCC at every one
+     * of its GS_SETREG_TEX0 sites, and reads it per draw. TCC=0 means
+     * "this texture has no alpha channel", and glyph coverage IS the
+     * alpha channel -- so a host that leaves the field off turns every
+     * glyph into a filled box while untextured quads, which emit no
+     * TEX0, keep rendering perfectly. Same class as the inverted blend
+     * above: global GS state the format depends on and the runtime did
+     * not own. Starting from OFF is what makes this test able to fail;
+     * the sample always sets it ON first, so a version that only
+     * checked the field after a default render would pass without the
+     * assignment existing. */
+    {
+        gs.PrimAlphaEnable = GS_SETTING_OFF;
+        ps2ui_render(&ctx, &gs);
+        CHECK(gs.PrimAlphaEnable == GS_SETTING_ON,
+              "render turns PrimAlphaEnable on, so TEX0.TCC keeps the atlas alpha a host left off");
+    }
+
     /* ---- render: geometry stays on canvas ---- */
     {
         int k, in_bounds = 1;

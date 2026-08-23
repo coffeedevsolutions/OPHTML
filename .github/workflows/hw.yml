@@ -227,6 +227,16 @@ jobs:
           make -C runtime/sample objclean
           make -C runtime/sample STATIC=1 SCREEN=probe EE_BIN=conform.elf \
             UIB=../../examples/channel6/build/ui.uib
+          # Bring-up step 4b's reference arm. gsKit passes
+          # gsGlobal->PrimAlphaEnable as TEX0.TCC at all 30 of its TEX0
+          # sites, so forcing it off tells the GS the glyph atlas has no
+          # alpha channel. This ELF is a picture of that fault, to hold
+          # next to a photograph of the real one -- it is not testing a
+          # hypothesis, it is showing what the hypothesis predicts.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 SCREEN=probe NO_ALPHA=1 \
+            EE_BIN=conform-noalpha.elf \
+            UIB=../../examples/channel6/build/ui.uib
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -239,6 +249,7 @@ jobs:
           test -f runtime/sample/conform.elf
           test -f runtime/sample/sample-linear.elf
           test -f runtime/sample/conform-linear.elf
+          test -f runtime/sample/conform-noalpha.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -253,6 +264,7 @@ jobs:
             runtime/sample/conform.elf
             runtime/sample/sample-linear.elf
             runtime/sample/conform-linear.elf
+            runtime/sample/conform-noalpha.elf
 
   emulator:
     needs: [bake, elf]

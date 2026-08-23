@@ -41,6 +41,10 @@ syntax-check:
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_CLUT_PERMUTE=0 -Istub -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_CLUT_PERMUTE=0"
+# Step 4b's reference arm, likewise in ps2ui.c rather than main.c.
+	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+		-DPS2UI_PRIMALPHA_OFF -Istub -I. ps2ui.c
+	@echo "ok - runtime compiles: -DPS2UI_PRIMALPHA_OFF"
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds

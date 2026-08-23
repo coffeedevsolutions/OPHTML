@@ -12,7 +12,7 @@ order of operations.
 ## Before you start
 
 **Get the ELFs.** From the latest green `hw` run on `main`, download the
-`ps2ui-sample-elf` artifact. It contains nine files:
+`ps2ui-sample-elf` artifact. It contains ten files:
 
 | file | what it is for |
 |---|---|
@@ -23,6 +23,7 @@ order of operations.
 | `probe6.elf` | step 6b — which part of the texture path is at fault |
 | `conform-linear.elf` | step 3's A/B — the same grid with the CLUT unpermuted |
 | `sample-linear.elf` | the same A/B on the memcard UI |
+| `conform-noalpha.elf` | step 4b's reference — what a dead texture-alpha channel looks like |
 | `ps2ui_sample.elf` | step 9, and the only one that looks like a real UI |
 | `telemetry.elf` | frame timing, not a bring-up step |
 
@@ -130,7 +131,31 @@ Settled off the bench. gsKit has no per-texture TFX field and hardcodes
 Tinting has been on the whole time, on every ELF that has ever booted
 here. There is no A/B, no ELF, and no cell to read.
 
-Details in `docs/bringup.md` step 4. Skip to step 5.
+Details in `docs/bringup.md` step 4. Go to step 4b.
+
+---
+
+## Step 4b — a picture of a dead alpha channel
+
+**Run** `conform-noalpha.elf`, same screen as `conform.elf`. This one is
+built **broken on purpose**: `TEX0.TCC` forced to 0, which tells the GS
+the glyph atlas has no alpha channel.
+
+You are not scoring this pass or fail. One question only: **does it look
+like what your screen has been doing?**
+
+**Expect:** text replaced by **solid filled rectangles**, each in its own
+text colour. Blocks, not noise.
+
+| what you see | reading |
+|---|---|
+| solid coloured blocks, clearly **unlike** the garble | `TCC` ruled out — this failure mode is not that failure mode |
+| it looks like the garble | `TCC` is live; say so, it changes the search |
+| **garbled the same way `conform.elf` is** | **VOID** — the arm did not change what it claims to change. Ignore the comparison entirely |
+
+That last row is the one to watch for. If the deliberately-broken build
+looks identical to the ordinary one, the instrument is not wired to the
+thing it controls and it can tell you nothing.
 
 ---
 

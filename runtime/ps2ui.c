@@ -381,6 +381,37 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
      */
     gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);
 
+    /* PrimAlphaEnable, for the same reason and one more.
+     *
+     * gsKit reads this field per draw, never latching it, and feeds it
+     * to TWO register fields: PRIM.ABE, which is what the name says,
+     * and TEX0.TCC, which is not. TCC selects whether a texture has an
+     * alpha channel at all (0 = RGB, 1 = RGBA), and it is passed as
+     * `gsGlobal->PrimAlphaEnable` at every one of gsKit's 30
+     * GS_SETREG_TEX0 sites, with no per-texture override.
+     *
+     * Glyph coverage IS alpha: the atlases are PSMT8 into a PSMCT32
+     * CLUT whose alpha channel carries the antialiasing. So a host that
+     * leaves this field OFF does not merely skip blending -- it tells
+     * the GS the glyph atlas has no alpha, and every glyph fills its
+     * whole quad. Untextured quads emit no TEX0 and are unaffected,
+     * which makes the failure look like "text is broken, boxes are
+     * fine" rather than like a global blend fault.
+     *
+     * The sample happens to set it ON before every ps2ui_render, so
+     * this changes nothing there. That is exactly the objection: it is
+     * right only because a caller remembered. Asserting it here is the
+     * same lesson as the equation above, on the field that decides
+     * whether the format's alpha exists. */
+#ifdef PS2UI_PRIMALPHA_OFF
+    /* Bring-up step 4b's reference arm. Not a fix and not a fallback:
+     * it forces the fault so the bench has a picture of what a dead
+     * texture-alpha channel looks like, to compare against a screen. */
+    gs->PrimAlphaEnable = GS_SETTING_OFF;
+#else
+    gs->PrimAlphaEnable = GS_SETTING_ON;
+#endif
+
     stack[0].x0 = 0;
     stack[0].y0 = 0;
     stack[0].x1 = ctx->hdr->canvas_w;

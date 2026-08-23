@@ -577,20 +577,58 @@ is step 4b.
 
 ### 4b. `TEX0.TCC` and the alpha path
 
-In that same run gsKit passes `tcc = gsGlobal->PrimAlphaEnable`. It is
-the one texture-state bit gsKit varies, and `TCC` selects whether the
-texture's alpha is used at all (0 = RGB, 1 = RGBA). Glyph coverage *is*
-alpha: the atlases are PSMT8 into a CLUT whose alpha channel carries
-the antialiasing.
+**Settled by source too, and it produced a fix rather than an
+experiment.** Three questions, all answered against gsKit at `43122eb`:
 
-That makes it the only remaining path by which a texture's alpha can be
-silently discarded while untextured geometry renders perfectly — which
-is the exact shape of the symptom on the bench.
+| question | answer |
+|---|---|
+| does `PrimAlphaEnable` reach `TEX0.TCC` on every path? | **yes.** All 30 `GS_SETREG_TEX0` sites, across 15 functions, pass `gsGlobal->PrimAlphaEnable` in the `tcc` position. No per-texture override exists. Untextured quads emit no `TEX0` at all, so they neither read nor reset it |
+| is it latched at init, or read per draw? | **per draw**, in all 65 reads. Each prim function builds its packet inline at call time; nothing caches it, and `gsKit_set_primalpha` does not touch it |
+| is `TEXA` in play? | **no.** Written once, in `gsKit_init_screen`, as `TA0=0x00 AEM=0 TA1=0x80`. It supplies alpha only for PSMCT24 and PSMCT16/16S; PSMCT32 uses its alpha byte directly, and `ps2ui_upload` sets `ClutPSM = GS_PSM_CT32` |
 
-It is a per-frame global in ps2ui's usage rather than per-texture, and
-the sample sets `PrimAlphaEnable = GS_SETTING_ON` once before the loop,
-so it *should* be 1 throughout. "Should" is what this project keeps
-finding to be un-failable. The A/B is still to be built.
+So `PrimAlphaEnable` drives **two** register fields: `PRIM.ABE`, which
+is what the name says, and `TEX0.TCC`, which is not. `TCC` selects
+whether a texture has an alpha channel at all.
+
+Glyph coverage *is* the alpha channel. A host that leaves this field
+off does not merely skip blending — it tells the GS the glyph atlas is
+opaque RGB, and every glyph fills its whole quad. Untextured geometry
+is untouched. That produces "text is broken, boxes are fine", which is
+the shape of the symptom on the bench.
+
+**The fix, which is one line:** `ps2ui_render` now asserts
+`PrimAlphaEnable = GS_SETTING_ON` beside the blend equation it already
+asserts. Same lesson as the inverted-ALPHA bug — global GS state the
+format depends on has to be owned by the runtime, not inherited from
+whoever called it.
+
+**This is not the diagnosis of the garble.** `main.c` sets the field ON
+immediately before every `ps2ui_render`, so `conform.elf` has always run
+with `TCC = 1`. The fix closes a hole for embedding hosts; it does not
+explain a symptom that is already happening with the bit set correctly.
+
+### 4b's reference ELF: what a dead alpha channel looks like
+
+`conform-noalpha.elf` is the same grid built with
+`PS2UI_PRIMALPHA_OFF`, which forces the fault. It is **not testing a
+hypothesis, it is showing what the hypothesis predicts** — a picture to
+hold next to a photograph.
+
+The prediction is specific, and that is the point: with `TCC = 0` the
+atlas reads as opaque white, modulate multiplies it by the tint, and
+each glyph becomes a **solid filled rectangle of its own text colour**.
+Not noise. Not garble. Blocks.
+
+| `conform-noalpha.elf` looks like | reading |
+|---|---|
+| solid coloured blocks, and it **does not** match the screen | `TCC` is ruled out. The prediction held and the symptom is something else |
+| it matches the screen | `TCC` is live after all, and something is clearing `PrimAlphaEnable` that this source read did not find |
+| garbled the same way `conform.elf` is | **VOID.** The arm did not change what it was supposed to change; do not read the comparison at all |
+
+That third row is the one that matters. If forcing the fault produces
+the *same* picture as not forcing it, the instrument is not wired to
+the thing it claims to control, and any conclusion drawn from it would
+be about nothing.
 
 ## 5. The modulate color domain
 
