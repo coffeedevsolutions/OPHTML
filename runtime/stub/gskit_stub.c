@@ -9,6 +9,18 @@ void stub_reset(void)
     memset(&g_stub, 0, sizeof g_stub);
 }
 
+/* Clear the per-frame ledgers (prims, flushes) but keep the manager
+ * model and its counters: for tests that need "what happened during
+ * THIS render" against residency state that must survive from an
+ * earlier upload. A full stub_reset would forget which textures are
+ * bound and where, which is not something a frame boundary does. */
+void stub_reset_keep_tm(void)
+{
+    g_stub.n_prims = 0;
+    g_stub.n_flushes = 0;
+    g_stub.n_scissor_sets = 0;
+}
+
 u32 gsKit_texture_size(u32 width, u32 height, u32 psm)
 {
     /* Close enough for the fake allocator: bytes, page-rounded. */
@@ -25,6 +37,13 @@ u32 gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u32 type)
         return GSKIT_ALLOC_ERROR;
     gs->CurrentPointer += size;
     g_stub.vram_allocated = gs->CurrentPointer;
+    /* The real one re-initialises the TexManager here (gsCore.c:45),
+     * discarding every residency block while the textures keep their
+     * stale Vram values. Mirrored, because this reset is the exact
+     * hazard ps2ui_render's tex_ok check exists for -- a stub that
+     * skipped it would make that check untestable. */
+    g_stub.n_bound = 0;
+    g_stub.tm_cursor = gs->CurrentPointer;
     return at;
 }
 

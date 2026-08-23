@@ -1179,6 +1179,17 @@ refusal and that zero transfers happened.
 texture was transferred, so there is no half-built table to render
 through and nothing stranded in VRAM.
 
+**The render-time half.** The preflight's promise is only as durable as
+the VRAM budget it measured, and a host can shrink that after upload —
+every `gsKit_vram_alloc` both advances `CurrentPointer` and resets the
+manager's region to what is left. `ps2ui_render` re-checks the fit each
+frame before any textured draw; when it fails, all textured draws are
+skipped and `stats.vram_lost` is set (the telemetry line prints it as
+`vramlost=`). A frame with no text is a bad frame; the alternative is a
+bind inside `_blockAlloc`'s no-exit eviction loop — a dead console with
+no output. Review of the migration found this second entry point; the
+guard and its fence came from that finding.
+
 **Retrying:** nothing to clear. The old `gsKit_vram_alloc` path
 stranded the failed attempt's allocations in a bump pointer;
 the preflight refuses before anything is allocated, so a retry after

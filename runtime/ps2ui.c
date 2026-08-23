@@ -5,7 +5,7 @@
 
 #include <string.h>
 
-static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs);
+static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok);
 static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name);
 
 /* ---------------------------------------------------------------- crc */
@@ -299,6 +299,8 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
     }
     if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)
         return -1;
+    ctx->vram_need = (uint32_t)need;
+    ctx->vram_base = gs->CurrentPointer;
 
     for (i = 0; i < ctx->hdr->n_tex; i++) {
         const ps2ui_tex_entry *t = &ctx->tex[i];
@@ -378,6 +380,19 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
 {
     scissor_rect stack[PS2UI_MAX_SCISSOR_DEPTH];
     int depth = 0;
+    /* Does the uploaded footprint still fit? The render-time re-binds
+     * below heal a manager reset by re-transferring -- but only while
+     * the healing fits. A host gsKit_vram_alloc after our upload both
+     * advances CurrentPointer and re-creates the manager's region as
+     * 4 MB minus the NEW pointer; if that is now smaller than what the
+     * preflight approved, the next bind walks into _blockAlloc's
+     * eviction loop with a request nothing can ever satisfy, and that
+     * loop has no exit. A frame with no text is a bad frame; a bind
+     * there is a dead console with no output. Two comparisons buy the
+     * difference. When it no longer fits, every textured draw is
+     * skipped and stats.vram_lost says so. */
+    int tex_ok = ((uint64_t)gs->CurrentPointer + ctx->vram_need
+                  <= 4u * 1024u * 1024u);
     /* Pushes refused for want of stack. Their pops must be refused too:
      * popping a push that never happened leaves the stack one level
      * shallow, and every clip for the rest of the frame is then wrong,
@@ -387,6 +402,7 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
     uint32_t i;
 
     memset(&ctx->stats, 0, sizeof ctx->stats);
+    ctx->stats.vram_lost = tex_ok ? 0u : 1u;
 
     /* Assert the blend this format's alpha domain assumes, every frame,
      * rather than inheriting whatever gsKit_init_screen left:
@@ -507,20 +523,22 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
             continue;
         }
 
-        ctx->stats.prims++;
         if (c->op == PS2UI_OP_QUAD) {
+            ctx->stats.prims++;
             gsKit_prim_sprite(gs,
                 (float)c->x, (float)c->y,
                 (float)(c->x + c->w), (float)(c->y + c->h),
                 0, GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
-        } else { /* PS2UI_OP_TEXQUAD */
+        } else if (tex_ok) { /* PS2UI_OP_TEXQUAD */
+            ctx->stats.prims++;
             /* Re-bind per draw, the way Open-PS2-Loader does. Resident
              * is a no-op (list walk, no transfer); evicted or
-             * invalidated re-uploads on the spot. This is what makes
-             * ps2ui survive a host that also uses the TexManager, or
-             * that calls gsKit_vram_alloc after our upload and thereby
-             * resets the block list: the next draw heals it instead of
-             * sampling freed VRAM. */
+             * invalidated re-uploads on the spot, so a host that also
+             * uses the TexManager, or that resets it via
+             * gsKit_vram_alloc, gets healed at the next draw -- WHILE
+             * THE FOOTPRINT STILL FITS. The heal is bounded by the
+             * tex_ok check at the top of this function, because a bind
+             * that no longer fits does not fail, it never returns. */
             gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);
             gsKit_prim_sprite_texture(gs, &ctx->gs_tex[c->tex],
                 (float)c->x, (float)c->y, (float)c->u0, (float)c->v0,
@@ -538,7 +556,7 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
      * panels that the command list painted, and their glyph quads are
      * composed here from the baked glyph tables. */
     if (ctx->hdr->n_slot > 0)
-        render_slots(ctx, gs);
+        render_slots(ctx, gs, tex_ok);
 }
 
 /* ------------------------------------------------------- dynamic text */
@@ -672,7 +690,7 @@ static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)
     return (const char *)(ctx->blob + ctx->slots[index].placeholder_off);
 }
 
-static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
+static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
 {
     const ps2ui_screen_entry *scr = &ctx->screen_table[ctx->screen];
     uint32_t i;
@@ -707,6 +725,17 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
         is_focused = (s->focus != PS2UI_NONE) && (s->focus == ctx->focus);
         col = is_focused ? s->color_focus : s->color_base;
 
+        /* One bind per slot, not per glyph: nothing between glyphs can
+         * evict, so residency established here covers the whole run,
+         * ellipsis included -- a 40-character label is one block-list
+         * walk instead of forty. Gated like every textured draw: when
+         * the uploaded footprint no longer fits (see tex_ok at the top
+         * of ps2ui_render), binding is the one thing this function must
+         * not do. */
+        if (!tex_ok)
+            continue;
+        gsKit_TexManager_bind(gs, &ctx->gs_tex[font->tex]);
+
         uint32_t prev = 0;
         int have_prev = 0;
         while (p < end) {
@@ -723,7 +752,6 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                gsKit_TexManager_bind(gs, &ctx->gs_tex[font->tex]);
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
                     (float)g->u, (float)g->v,
@@ -744,7 +772,6 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs)
             if (g && g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                gsKit_TexManager_bind(gs, &ctx->gs_tex[font->tex]);
                 gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
                     (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
                     (float)g->u, (float)g->v,

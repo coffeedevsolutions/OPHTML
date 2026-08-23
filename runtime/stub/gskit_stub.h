@@ -138,6 +138,7 @@ typedef struct stub_state {
 extern stub_state g_stub;
 
 void stub_reset(void);
+void stub_reset_keep_tm(void);
 
 u32  gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u32 type);
 /* The texture manager slice ps2ui uses. The stub mirrors

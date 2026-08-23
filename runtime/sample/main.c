@@ -989,12 +989,12 @@ int main(void)
                                   / elapsed);
                 printf("ps2ui-telemetry frame=%u fps=%u.%u miss=%u "
                        "ee_us(min/avg/max)=%u/%u/%u "
-                       "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u\n",
+                       "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u vramlost=%u\n",
                        frame, fps10 / 10u, fps10 % 10u, missed,
                        t_min / (EE_HZ / 1000000u),
                        (t_sum / sec_frames) / (EE_HZ / 1000000u),
                        t_max / (EE_HZ / 1000000u),
-                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov);
+                       a_prims, a_hidden, a_slotg, a_slothid, a_sciov, ui.stats.vram_lost);
                 t_min = 0xFFFFFFFFu; t_max = 0; t_sum = 0;
                 sec_frames = 0; missed = 0; elapsed = 0;
                 a_prims = 0; a_hidden = 0; a_slotg = 0;

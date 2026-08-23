@@ -200,6 +200,45 @@ int main(int argc, char **argv)
     CHECK(g_stub.n_flushes > 0,
           "and flushes were actually recorded, so the check above had something to check");
 
+    /* ---- render: the heal is bounded by the budget ---- */
+    /* Review of the migration found that the render-time re-bind is a
+     * second entry into _blockAlloc's no-exit eviction loop: a host
+     * gsKit_vram_alloc after our upload shrinks the manager's region
+     * AND drops residency, and if the footprint no longer fits, the
+     * "healing" bind at the next draw never returns -- a hang with no
+     * error path, at frame time. ps2ui_render therefore re-checks the
+     * fit before any textured draw and skips them all when it fails,
+     * reporting stats.vram_lost. This test IS that scenario: allocate
+     * the region out from under an uploaded context, render, and
+     * require zero binds, zero transfers, no textured prims, and the
+     * stat -- while untextured quads still draw, because a bad frame
+     * beats a dead console. */
+    {
+        GSGLOBAL shrunk = gs;
+        int before_transfers, before_binds, k, any_tex = 0, any_quad = 0;
+        u32 grab = 4u * 1024u * 1024u - shrunk.CurrentPointer - 256u;
+        CHECK(gsKit_vram_alloc(&shrunk, grab, GSKIT_ALLOC_USERBUFFER)
+                  != GSKIT_ALLOC_ERROR,
+              "a host allocation can legally take nearly all remaining VRAM");
+        before_transfers = g_stub.n_transfers;
+        before_binds = g_stub.n_binds;
+        stub_reset_keep_tm();
+        ps2ui_render(&ctx, &shrunk);
+        CHECK(ctx.stats.vram_lost == 1,
+              "render reports vram_lost when the uploaded footprint no longer fits");
+        CHECK(g_stub.n_binds == before_binds && g_stub.n_transfers == before_transfers,
+              "and calls bind zero times, because a bind that cannot fit never returns");
+        for (k = 0; k < g_stub.n_prims; k++) {
+            if (g_stub.prims[k].tex) any_tex = 1; else any_quad = 1;
+        }
+        CHECK(!any_tex, "no textured primitive was submitted this frame");
+        CHECK(any_quad, "while untextured quads still drew: a bad frame, not a dead console");
+        /* Back on the original gs the fit still holds and nothing sticks. */
+        stub_reset();
+        ps2ui_render(&ctx, &gs);
+        CHECK(ctx.stats.vram_lost == 0, "and the stat clears on a budget that fits");
+    }
+
     /* ---- render: binds per draw, so residency heals ---- */
     /* The property is not "textures are resident after upload" -- that
      * passes trivially. It is "a texture that LOSES residency between
