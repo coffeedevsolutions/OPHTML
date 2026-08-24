@@ -36,8 +36,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Pinned runner image, not ubuntu-latest (#43 follow-up). The emulator
+  # gate's calibration band (4.79-4.81 / 13.73) is a property of this
+  # workflow's WHOLE capture stack, and half of that stack -- Mesa's
+  # llvmpipe, ImageMagick, xvfb -- ships with the runner image, unpinned
+  # by "latest". The Play! binary is already pinned by SHA-256; a silent
+  # runner-image bump was the remaining way for every RMSE to move
+  # overnight with no diff to point at. When bumping this pin, re-read
+  # the calibration comment on the gated diff step and expect to
+  # re-measure the band. ghcr.io/ps2dev/ps2dev:latest stays deliberately
+  # UNpinned: the TFX compile probe exists to notice gsKit changing, and
+  # freezing the container would freeze the watch.
   bake:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -96,7 +107,7 @@ jobs:
 
   elf:
     needs: bake
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: ghcr.io/ps2dev/ps2dev:latest
     steps:
       - uses: actions/checkout@v7
@@ -283,7 +294,7 @@ jobs:
 
   emulator:
     needs: [bake, elf]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # No continue-on-error, deliberately. The probation this job shipped
     # with ("experimental until the first proven run") ended when the
     # ground-truth diff went green at #40 and stayed green through two

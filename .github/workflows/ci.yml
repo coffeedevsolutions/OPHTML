@@ -16,7 +16,11 @@ concurrency:
 
 jobs:
   toolchain:
-    runs-on: ubuntu-latest
+    # Same pin as hw.yml, same reason in miniature: the suites' toolchains
+    # (node, python) are version-pinned by actions, but the image's
+    # system pieces are not, and the two workflows should not drift
+    # apart on what "the CI machine" means.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
