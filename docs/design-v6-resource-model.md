@@ -1,7 +1,15 @@
 # Design: the v6 resource model
 
-*Draft · 2026-08-20 · rev 2 · 2026-08-24 · Phase 1 of `docs/PLAN.md` · not implemented*
+*Draft · 2026-08-20 · rev 2 · 2026-08-24 · Phase 1 of `docs/PLAN.md` · §2 and §3 implemented*
 
+> **Status.** §2 (the arena) and §3 (texture slots — the v6 format
+> move and the runtime path) have shipped; §3's authoring half, §4 and
+> §5 have not. Where implementation contradicted the design, the
+> document says so in place and marked **[implemented]** rather than
+> being quietly rewritten: the argument that lost is worth as much as
+> the one that won, and a design doc that only ever agrees with the
+> code is a changelog.
+>
 > **Rev 2** is the adversarial pass this document asked for, run after
 > Phase 0 closed — against the code as #40–#44 left it, which is not
 > the code this was drafted against. Three findings are folded in
@@ -14,7 +22,10 @@
 
 Phase 1 is one deliberate format move rather than a dribble of bumps
 (`PLAN.md` §6). This is what it contains and why, written before the
-first line of it exists so the argument can be attacked cheaply.
+first line of it existed so the argument could be attacked cheaply —
+which it then was, twice: once by rev 2's adversarial pass, and again
+by the implementation, which found three things neither draft
+predicted.
 
 It is designed against measurements, not principles. Everything
 numeric here comes from `fixtures/opl-scope/` and the two shipped
@@ -241,10 +252,29 @@ context. Streamed slots therefore ride the same path as baked ones:
 - the **load-time** preflight (#41) counts streamed reservations in
   `vram_need`, so residency is stable by the same argument that keeps
   baked textures from eviction thrash;
-- `ps2ui_tex_set` validates, copies into the slot's staging buffer,
-  `SyncDCache`s it, and calls `gsKit_TexManager_invalidate` — the next
-  render's bind performs the upload, exactly as it does after a VRAM
-  heal today. No new upload path exists to get wrong.
+- `ps2ui_tex_set` validates, points the slot at the caller's texels,
+  `SyncDCache`s them, and calls `gsKit_TexManager_invalidate` — the
+  next render's bind performs the upload, exactly as it does after a
+  VRAM heal today. No new upload path exists to get wrong.
+
+**[implemented] Nothing is copied, and the staging buffer is gone.**
+Rev 2 said "copies into the slot's staging buffer", and the
+implementation deliberately does not. Measured against the case the
+feature exists for — a library scrolling 128×128 covers — staging is
+**576 KiB of duplicate texels for nine visible rows** (64 KiB each in
+PSMCT32) on a 32 MB machine, duplicating bytes the caller already
+holds. It was also inconsistent: ps2ui already points
+`GSTEXTURE::Mem` straight into the caller's blob for every baked
+texture, so the project had one zero-copy lifetime rule and was about
+to grow a second, copying one.
+
+The slot borrows. The caller's buffer must stay alive, unmoved and
+16-aligned for as long as the slot can be drawn — the same sentence
+that already applied to the blob, and for the same reason: gsKit
+re-reads that pointer whenever the texture manager re-binds an evicted
+texture, which is **render time, not `tex_set` time**. It also makes a
+cover swap O(1) rather than a 64 KiB memcpy per scrolled row, which
+the Phase 2 field-rate gate has to pay for either way.
 
 **[rev 2] Two byte counts, not one.** The draft's "len must equal the
 reservation" conflated the page-rounded VRAM cost with the caller's
@@ -254,11 +284,18 @@ the page-rounded number vram.py computes. The bake records both; the
 mismatch error names which one the caller missed.
 
 ```c
-/* Upload texels into a streamed texture slot. `len` must equal the
- * reservation the bake made; a mismatch is an error rather than a
- * partial upload, because a half-written texture is worse than none.
- * No allocation: the VRAM was reserved at load. */
-int ps2ui_tex_set(ps2ui_ctx *ctx, const char *name,
+/* Point a streamed texture slot at the caller's texels. `len` must
+ * equal the entry's reservation exactly; a mismatch is an error
+ * rather than a partial upload, because a half-written texture is
+ * worse than none. Nothing is copied: `texels` becomes this slot's
+ * DMA source and must outlive every draw of it.
+ *
+ * [implemented] Takes `gs`, which rev 1 did not: invalidating
+ * residency needs the GSGLOBAL, and every other GS-touching entry
+ * point in this API already takes one. Keeping the shorter signature
+ * would have meant storing a GSGLOBAL* in the context — hidden state
+ * to avoid an argument. */
+int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
                   const void *texels, size_t len);
 ```
 
@@ -340,6 +377,14 @@ accumulating:
   and (for `get`) genuinely-hidden. With the ceiling gone one cause
   disappears; the rest want distinct returns.
 - **`ps2ui_arena_size`, `ps2ui_tex_set`** — new.
+
+**[implemented]** All three have shipped. `visible_get` returns
+`PS2UI_VISIBLE_UNKNOWN` (-1) for a name the current screen does not
+have, distinct from `0` for hidden — the typo is the failure a caller
+can actually fix. `visible_set` keeps a plain 0/1, because with the
+bits sized from `n_focus` its only remaining failure *is* the unknown
+name. Two error codes were added that this section did not anticipate,
+both for `tex_set`: `PS2UI_ERR_NOT_STREAMED` and `PS2UI_ERR_SIZE`.
 
 ---
 
