@@ -59,6 +59,8 @@ typedef struct stub_state {
     int n_bound;
     u32 tm_cursor;      /* next free byte; 0 = not yet based on gs */
     int n_binds;        /* every bind call, resident or not */
+    int n_invalidates;  /* residency dropped by hand -- what tex_set does
+                         * so a swapped buffer is actually re-read */
     int n_transfers;    /* pixel transfers only; the "uploaded once" count */
     /* Uploads whose pixel data or CLUT was not fully covered by a
      * preceding writeback. Any value but zero is a console bug. */

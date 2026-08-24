@@ -40,7 +40,8 @@ from .quads import (
     FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
     STATE_ALWAYS, STATE_FOCUSED, STATE_UNFOCUSED, TEX_NONE,
 )
-from .uib import FEAT_KERNING, FEAT_SLOT_SPACING, read_uib
+from .uib import (FEAT_KERNING, FEAT_SLOT_SPACING, FEAT_STREAMED_TEX,
+                  TEXKIND_STREAMED, read_uib)
 
 ERROR = "error"
 WARNING = "warning"
@@ -144,6 +145,28 @@ def check_tables(uib, rep: Report) -> None:
     rep.note(f"arena: {ee} bytes on the EE "
              f"({arena.arena_size(uib, arena.HOST64_PTR)} on a 64-bit host; "
              f"GSTEXTURE holds pointers, so the two differ)")
+    # v6 texture kinds. The runtime refuses each of these at load, so
+    # this reads the same properties at bake time, where a failure
+    # names the texture instead of producing a red screen.
+    streamed = [t for t in uib.textures if t.kind == TEXKIND_STREAMED]
+    rep.error(bool(streamed) == bool(uib.feature_flags & FEAT_STREAMED_TEX),
+              "the streamed-texture feature bit matches the texture table "
+              f"({len(streamed)} streamed)")
+    rep.error(all(t.name for t in streamed),
+              "every streamed texture is named, so something can fill it")
+    rep.error(all(t.reservation > 0 for t in streamed),
+              "every streamed texture states a nonzero reservation")
+    rep.error(all(not t.data for t in streamed),
+              "no streamed texture carries texels in the blob")
+    named = [t.name for t in uib.textures if t.name]
+    rep.error(len(named) == len(set(named)),
+              "texture names are unique, so a name identifies one slot")
+    # A font atlas is produced at bake time by definition, and the slot
+    # pen binds it without checking for texels.
+    rep.error(all(uib.textures[f["tex"]].kind != TEXKIND_STREAMED
+                  for f in uib.fonts),
+              "no font points at a streamed texture")
+
     # The GIF DMA reads texture bytes in place, and DMA source addresses
     # must be qword aligned. The runtime refuses a violating blob with
     # PS2UI_ERR_ALIGN; this reads the same property at bake time, where
@@ -158,9 +181,14 @@ def check_tables(uib, rep: Report) -> None:
     ob = getattr(uib, "off_blob", 0)
     rep.error(ob % 16 == 0,
               f"blob section starts 16-aligned in the file (off_blob={ob})")
-    misaligned = [i for i, t in enumerate(uib.textures) if t.data_off % 16]
+    # Streamed entries have no bytes in the file, so data_off addresses
+    # nothing and is None on read -- their DMA source is the caller's
+    # buffer, whose alignment ps2ui_tex_set checks at runtime because
+    # nothing at bake time can see it.
+    misaligned = [i for i, t in enumerate(uib.textures)
+                  if t.data_off is not None and t.data_off % 16]
     rep.error(not misaligned,
-              "every texture's pixel bytes 16-aligned for in-place DMA"
+              "every baked texture's pixel bytes 16-aligned for in-place DMA"
               + (f"; misaligned: {misaligned}" if misaligned else ""))
 
 
