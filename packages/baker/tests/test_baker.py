@@ -482,13 +482,285 @@ class TestCaps(unittest.TestCase):
         errors, _ = caps.check([], [], [], screens)
         self.assertTrue(any("screens" in e for e in errors))
 
-    def test_slot_capacity_must_fit_the_runtime_buffer(self):
+    def test_slot_capacity_is_no_longer_capped_by_a_runtime_buffer(self):
+        """The v6 resource model removed PS2UI_SLOT_BUFSZ.
+
+        A capacity that used to be rejected as unloadable is now merely
+        arena bytes, so the bake must accept it -- this test is the one
+        that would have caught the check being left behind after the
+        constant it read was deleted."""
         from ps2ui_bake import caps
-        bufsz = caps.FALLBACK["PS2UI_SLOT_BUFSZ"]
-        errors, _ = caps.check([], [], self.slots(1, capacity=bufsz - 1), [{}])
+        errors, c = caps.check([], [], self.slots(1, capacity=4096), [{}])
         self.assertEqual(errors, [])
-        errors, _ = caps.check([], [], self.slots(1, capacity=bufsz), [{}])
-        self.assertIn("PS2UI_SLOT_BUFSZ", errors[0])
+        self.assertNotIn("PS2UI_SLOT_BUFSZ", c)
+        # The format's own bound still applies.
+        errors, _ = caps.check([], [], self.slots(1, capacity=0x10000), [{}])
+        self.assertTrue(any("uint16" in e for e in errors))
+
+
+class TestSlotCapacity(unittest.TestCase):
+    """The blob records the capacity the author asked for.
+
+    Regression fence. The flattener used to clamp capacity to 95 --
+    PS2UI_SLOT_BUFSZ - 1, the runtime's old fixed per-slot buffer. When
+    the v6 resource model removed that buffer, the clamp survived: the
+    check that used to reject an over-capacity slot was replaced with a
+    uint16 bound the clamp made unreachable, so an author asking for
+    200 silently got 95, no warning at bake, truncated text at runtime.
+    Worse than the limit it replaced, because the old one said so.
+    """
+
+    def bake(self, capacity):
+        import subprocess
+        import tempfile
+        from ps2ui_bake.uib import read_uib
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.normpath(os.path.join(here, "..", "..", ".."))
+        html = ('<div style="display:flex"><span id="s" data-slot="s" '
+                f'data-slot-capacity="{capacity}">x</span></div>')
+        with tempfile.TemporaryDirectory() as td:
+            hp = os.path.join(td, "p.html")
+            cp = os.path.join(td, "p.css")
+            jp = os.path.join(td, "p.json")
+            up = os.path.join(td, "p.uib")
+            open(hp, "w").write(html)
+            open(cp, "w").write("body{display:flex}#s{font-size:16px;color:#fff}")
+            r = subprocess.run(
+                ["node", os.path.join(root, "packages", "layout", "bin",
+                                      "ps2ui-layout.js"), hp, cp, "-o", jp],
+                capture_output=True)
+            if r.returncode != 0:
+                self.skipTest("layout unavailable: " + r.stderr.decode()[:120])
+            env = dict(os.environ,
+                       PYTHONPATH=os.path.join(root, "packages", "baker"))
+            r = subprocess.run([sys.executable, "-m", "ps2ui_bake", jp,
+                                "-o", up], capture_output=True, env=env)
+            if r.returncode != 0:
+                return None, r.stderr.decode()
+            return read_uib(up), r.stderr.decode()
+
+    def test_capacity_survives_the_bake(self):
+        uib, _ = self.bake(200)
+        if uib is None:
+            self.skipTest("bake refused a capacity it should accept")
+        self.assertEqual([s["capacity"] for s in uib.slots], [200],
+                         "the blob must record what the author asked for")
+
+    def test_a_capacity_the_format_cannot_hold_is_refused(self):
+        """And the uint16 bound is reachable, which the clamp prevented."""
+        uib, err = self.bake(70000)
+        # Compare a number, not the object: assertIsNone on a UibFile
+        # prints the entire blob into the failure message, which buries
+        # the one fact the test is about.
+        got = None if uib is None else [s["capacity"] for s in uib.slots]
+        self.assertIsNone(got, f"a capacity past uint16 must fail the bake; "
+                               f"blob recorded {got}")
+        self.assertIn("uint16", err)
+
+
+class TestArena(unittest.TestCase):
+    """The host mirror of runtime/ps2ui.c's arena_compute.
+
+    Two implementations of the same layout, so a change to one that the
+    other does not follow is a failure rather than a silent divergence
+    -- the same reason the kerning pens have an agreement test. The C
+    side of the comparison is runtime/tests/test_runtime.c, which
+    asserts ps2ui_arena_size against an independent carve of the same
+    header; this side asserts the Python against the real blobs.
+    """
+
+    def blob(self, name):
+        import os
+        from ps2ui_bake.uib import read_uib
+        here = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.normpath(os.path.join(
+            here, "..", "..", "..", "examples", name, "build", "ui.uib"))
+        if not os.path.exists(path):
+            self.skipTest(f"{path} not baked")
+        return read_uib(path)
+
+    def write_fixture(self, path):
+        """A small blob covering every arena region, written with the
+        same writer the examples use so it tracks the format."""
+        from ps2ui_bake import gs
+        from ps2ui_bake.quads import DrawRecord, BakedTexture, OP_TEXQUAD
+        from ps2ui_bake.uib import write_uib
+        cluts = [bytes(256 * 4), bytes(256 * 4)]
+        textures = [
+            BakedTexture(gs.PSMT8, 16, 16, 0, bytes(16 * 16)),
+            BakedTexture(gs.PSMT8, 16, 16, 0, bytes(16 * 16)),  # shares CLUT 0
+            BakedTexture(gs.PSMT8, 8, 8, 1, bytes(8 * 8)),
+        ]
+        fonts = [{
+            "tex": 0, "size": 8, "weight": 400, "ascent": 6,
+            "line_height": 10,
+            "glyphs": [{"codepoint": ord("A"), "u": 0, "v": 0, "w": 4,
+                        "h": 6, "bearing_x": 0, "bearing_y": 0,
+                        "advance": 5}],
+        }]
+        slots = [
+            {"name": f"s{i}", "placeholder": "p", "x": 0, "text_y": 0,
+             "w": 40, "font": 0, "align": 0, "ellipsis": False,
+             "capacity": cap, "focus": 0xFFFF,
+             "color_base": (128, 128, 128, 128),
+             "color_focus": (128, 128, 128, 128)}
+            for i, cap in enumerate((7, 31, 64))
+        ]
+        focus = [
+            {"id": 0, "up": None, "down": 1, "left": None, "right": None,
+             "name": "a", "rect": (0, 0, 10, 10)},
+            {"id": 1, "up": 0, "down": None, "left": None, "right": None,
+             "name": "b", "rect": (0, 20, 10, 10)},
+        ]
+        recs = [DrawRecord(OP_TEXQUAD, 0, 0xFFFF, 0, 0, 16, 16,
+                           (128, 128, 128, 128), tex=0,
+                           u0=0, v0=0, u1=16, v1=16)]
+        write_uib(path, {"w": 640, "h": 448}, recs, textures, cluts,
+                  focus, 0, fonts=fonts, slots=slots)
+
+    def test_gstexture_size_differs_by_pointer_width(self):
+        from ps2ui_bake import arena
+        # The whole reason the report names a target: GSTEXTURE holds
+        # two pointers, so the same blob needs a different arena on the
+        # EE than in the host test suite.
+        self.assertEqual(arena.sizeof_gstexture(arena.EE_PTR), 40)
+        self.assertEqual(arena.sizeof_gstexture(arena.HOST64_PTR), 48)
+
+    def test_arena_size_sums_its_own_breakdown(self):
+        """On a blob this test writes, so it never depends on an
+        earlier step having baked one."""
+        import tempfile
+        from ps2ui_bake import arena
+        from ps2ui_bake.uib import read_uib
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "f.uib")
+            self.write_fixture(path)
+            u = read_uib(path)
+        for ptr in (arena.EE_PTR, arena.HOST64_PTR):
+            self.assertEqual(
+                sum(n for _, n in arena.breakdown(u, ptr)),
+                arena.arena_size(u, ptr),
+                "the printed breakdown must account for every byte")
+
+    def test_arena_matches_the_runtime(self):
+        """Compare against the C, compiled and run for this host.
+
+        Skipped rather than faked when the runtime cannot be built: a
+        cross-language test that silently degrades to comparing Python
+        with Python is worse than no test, because it reports agreement
+        it never checked."""
+        import os
+        import subprocess
+        import tempfile
+        from ps2ui_bake import arena
+
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.normpath(os.path.join(here, "..", "..", ".."))
+        rt = os.path.join(root, "runtime")
+        size_obj = os.path.join(rt, "build", "gsKit_texture_size.o")
+
+        # Build the one object this needs rather than depending on some
+        # earlier step having done it. Review found this test skipping
+        # on every CI run: its guard looked for an artifact that ci.yml
+        # builds AFTER the baker tests, so it printed
+        # "skipped 'runtime not built'" and the suite went green having
+        # checked nothing. It is the only test holding Python's
+        # hand-modelled GSTEXTURE layout against the real sizeof, and
+        # its sibling assertions cannot cover for it -- they compare
+        # Python with its own literals.
+        if not os.path.exists(size_obj):
+            subprocess.run(["make", "-C", rt, "build/gsKit_texture_size.o"],
+                           capture_output=True)
+
+        # And when the environment says this must run, a skip is a
+        # failure. Reordering ci.yml alone would fix today's symptom and
+        # invite being reordered back; this makes the silence itself the
+        # thing that breaks.
+        required = os.environ.get("PS2UI_REQUIRE_CROSSCHECK") == "1"
+
+        def unavailable(why):
+            if required:
+                self.fail(f"PS2UI_REQUIRE_CROSSCHECK=1 but {why}")
+            self.skipTest(why)
+
+        if not os.path.exists(size_obj):
+            unavailable("runtime not built (make -C runtime test)")
+
+        src = r"""
+        #include "ps2ui.h"
+        #include <stdio.h>
+        #include <stdlib.h>
+        int main(int c, char **v) {
+            for (int i = 1; i < c; i++) {
+                FILE *f = fopen(v[i], "rb");
+                long n; void *b;
+                if (!f) return 2;
+                fseek(f, 0, SEEK_END); n = ftell(f); fseek(f, 0, SEEK_SET);
+                b = malloc((size_t)n);
+                if (fread(b, 1, (size_t)n, f) != (size_t)n) return 2;
+                fclose(f);
+                printf("%zu\n", ps2ui_arena_size(b, (size_t)n));
+            }
+            return 0;
+        }
+        """
+        with tempfile.TemporaryDirectory() as td:
+            cs = os.path.join(td, "az.c")
+            exe = os.path.join(td, "az")
+            with open(cs, "w") as fh:
+                fh.write(src)
+            cc = subprocess.run(
+                ["cc", "-std=c99", "-O1",
+                 f"-I{rt}", f"-I{rt}/stub", f"-I{rt}/vendor/gsKit",
+                 f"-I{rt}/vendor/host-shim",
+                 cs, f"{rt}/ps2ui.c", f"{rt}/stub/gskit_stub.c", size_obj,
+                 "-o", exe],
+                capture_output=True)
+            if cc.returncode != 0:
+                unavailable(f"cannot build the runtime here: "
+                            f"{cc.stderr.decode()[:200]}")
+            # A blob this test builds itself, so the comparison never
+            # depends on some earlier step having baked one. That
+            # dependency is what the skip guard was hiding: with the
+            # guard on and no examples baked, CI failed with "no baked
+            # blobs to compare" -- correct behaviour, and a sign the
+            # test was reaching outside itself for its own input.
+            #
+            # write_uib is the same writer the examples use, so this
+            # blob tracks the format automatically: no version pin to
+            # forget, and the C reader on this branch reads exactly
+            # what this branch's writer produces.
+            #
+            # Its shape exercises every arena term at a different
+            # value, so a layout bug cannot hide behind a coincidence:
+            # 3 textures but 2 CLUTs (the per-palette region), 3 slots
+            # with three different capacities (the packed text
+            # region), 2 focus nodes and 1 screen.
+            fixture = os.path.join(td, "arena_fixture.uib")
+            self.write_fixture(fixture)
+            paths = [("self-built fixture", fixture)]
+
+            # Real examples too, when they happen to be baked: they
+            # carry realistic table sizes the fixture does not. Extra
+            # coverage, never a dependency.
+            for nm in ("memcard", "channel6"):
+                p = os.path.normpath(os.path.join(
+                    root, "examples", nm, "build", "ui.uib"))
+                if os.path.exists(p):
+                    paths.append((nm, p))
+            out = subprocess.run([exe] + [p for _, p in paths],
+                                 capture_output=True, check=True)
+            got = [int(x) for x in out.stdout.split()]
+            self.assertEqual(len(got), len(paths))
+            for (nm, p), c_value in zip(paths, got):
+                from ps2ui_bake.uib import read_uib
+                # The C ran on this host, so compare against the host
+                # pointer width -- comparing it to the EE number would
+                # be a test of nothing but the difference between them.
+                py = arena.arena_size(read_uib(p), arena.HOST64_PTR)
+                self.assertEqual(
+                    py, c_value,
+                    f"{nm}: python says {py}, ps2ui_arena_size says {c_value}")
 
 
 class TestVram(unittest.TestCase):

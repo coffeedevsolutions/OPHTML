@@ -119,9 +119,45 @@ The context keeps pointers rather than arrays. `slot_text[i]` becomes
 `ctx->slot_text + ctx->slot_off[i]`, which is one more indirection on
 a path that already does a name lookup.
 
+**[implemented] One CLUT buffer per palette, not per texture.** Rev 2
+sized this region per PSMT8 *texture*, which measurement immediately
+punished: the memcard blob has **8 indexed textures sharing a single
+palette**, so per-texture staging cost 8 KiB for 1 KiB of distinct
+data — on what had just become the arena's dominant term. Textures
+naming the same CLUT index now share one permuted buffer, which is
+sound because the permutation is a pure function of the palette and
+the buffer is read-only once uploaded. The memcard arena fell from
+9,302 to **2,134** bytes on that one change.
+
+**[implemented] The arena size is target-dependent, and any report of
+it has to say so.** The region holding `GSTEXTURE[]` is sized by a
+gsKit struct carrying two pointers, so `sizeof(GSTEXTURE)` is 40 bytes
+on the EE and 48 on a 64-bit host. The same blob therefore needs a
+different arena in the sample ELF than in the host test suite, and a
+tool printing one number without naming a target would be wrong about
+half the time. `ps2ui-bake` and `ps2ui-check` print the EE number,
+because that is where the static buffer lives, and `ps2ui-check` names
+both.
+
+Measured, against the ~36 KiB of fixed cost this replaces (a 3,328-byte
+context plus the 32 KiB CLUT pool):
+
+| UI | arena (EE) | + context | was | ratio |
+|---|---:|---:|---:|---:|
+| channel-6 | 10,544 | 10,736 | 36,096 | 3.4× |
+| memcard | 1,982 | 2,174 | 36,096 | 16.6× |
+| runtime list fixture | 1,190 | 1,382 | 36,096 | **26×** |
+| test card | 122 | 314 | 36,096 | **115×** |
+
 **`PS2UI_SLOT_BUFSZ` disappears as a storage constant.** It survives
 only as the baker's default `data-slot-capacity`, which is where the
-number always belonged.
+number always belonged. **[implemented]** Deleting it from `ps2ui.h`
+broke three things that had quietly depended on it — `caps.py`'s
+enforcement, `ps2ui-check`'s report, and the channel-6 example's own
+checker — each of which asserted a capacity ceiling that no longer
+exists. All three now report the arena requirement instead of
+asserting a limit, because there is no threshold left to fail against
+and inventing one would be a made-up number.
 
 ### The constants stay, as limits
 

@@ -136,7 +136,12 @@ runtime tables: 22/32 textures, 15/16 slots, 2/8 screens
 | `PS2UI_MAX_TEXTURES` | 32 | 22 |
 | `PS2UI_MAX_SLOTS` | 16 | 15 |
 | `PS2UI_MAX_SCREENS` | 8 | 2 |
-| `PS2UI_SLOT_BUFSZ` | 96 | 30 max |
+
+`PS2UI_SLOT_BUFSZ` used to sit in that table at 96, with this blob's
+longest slot at 30. It no longer exists: the v6 resource model sizes
+each slot's storage from the capacity the blob declares, so a capacity
+buys arena bytes rather than deciding whether the blob loads at all.
+The arena requirement is printed by `ps2ui-bake` and by `ps2ui-check`.
 
 Writing this example is what surfaced the gap: an earlier revision
 declared **seventeen** slots, and it laid out, baked, previewed and

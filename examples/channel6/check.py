@@ -10,12 +10,12 @@ Python side: it re-reads the .uib (CRC, version and feature bits are
 validated on the way in) and asserts what the console is entitled to
 assume.
 
-The first group covers the runtime's static table caps —
-PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS, PS2UI_MAX_SCREENS,
-PS2UI_SLOT_BUFSZ — which ps2ui_load() enforces with PS2UI_ERR_TOO_MANY,
+The first group covers the runtime's table limits —
+PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS, PS2UI_MAX_SCREENS — which
+ps2ui_load() enforces with PS2UI_ERR_TOO_MANY,
 and whose console symptom is the sample ELF's red screen with no
 diagnostic. Writing this example is what surfaced that gap; since B10
-the baker refuses to write an over-cap blob at all, so these four are
+the baker refuses to write an over-cap blob at all, so these three are
 now a second line of defence rather than the only one. They stay
 because they cost nothing and they assert the property from the far
 side of the file format: the baker checks what it is about to write,
@@ -72,7 +72,7 @@ def runtime_caps() -> dict:
         src = fh.read()
     caps = {}
     for name in ("PS2UI_MAX_TEXTURES", "PS2UI_MAX_SLOTS",
-                 "PS2UI_MAX_SCREENS", "PS2UI_SLOT_BUFSZ"):
+                 "PS2UI_MAX_SCREENS"):
         m = re.search(rf"^#define\s+{name}\s+(\d+)", src, re.M)
         if not m:
             raise SystemExit(f"error: {name} not found in {PS2UI_H}")
@@ -119,10 +119,10 @@ def main(path: str) -> int:
     check(len(uib.screens) <= caps["PS2UI_MAX_SCREENS"],
           f"{len(uib.screens)} screens within PS2UI_MAX_SCREENS "
           f"({caps['PS2UI_MAX_SCREENS']})")
-    over = [s["name"] for s in uib.slots
-            if s["capacity"] >= caps["PS2UI_SLOT_BUFSZ"]]
-    check(not over, f"every slot capacity below PS2UI_SLOT_BUFSZ "
-                    f"({caps['PS2UI_SLOT_BUFSZ']}): {over or 'ok'}")
+    # PS2UI_SLOT_BUFSZ is gone (v6 resource model): the runtime sizes
+    # each slot's storage from the capacity declared in the blob, so a
+    # large capacity costs arena bytes instead of making the blob
+    # unloadable. There is no cap left to assert from this side.
 
     check((uib.canvas_w, uib.canvas_h) == CANVAS,
           f"canvas is {CANVAS[0]}x{CANVAS[1]} NTSC")

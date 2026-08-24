@@ -918,9 +918,26 @@ int main(void)
     return 0;
 #endif
 
-    rc = ps2ui_load(&ui, ui_uib, size_ui_uib);
+    /* The v6 arena: one caller-provided block, sized from the blob.
+     * A static buffer rather than a malloc, because that is the shape
+     * a PS2 app actually wants and the shape most likely to be copied
+     * out of this file -- `ps2ui-bake` prints the number this must
+     * cover, so an integrator sizes it from the bake rather than by
+     * guessing. 16 KiB is comfortably above what either shipped
+     * example needs; the check below is what makes the number safe
+     * rather than assumed, and it is a load error like any other.
+     *
+     * It must outlive `ui`, which a file-scope static does trivially
+     * and a stack buffer in this function would too -- but only
+     * because main never returns while the UI is up. Written static so
+     * copying the pattern into a function that DOES return does not
+     * quietly hand the GS a dangling CLUT pointer. */
+    static uint8_t arena[16 * 1024] __attribute__((aligned(PS2UI_ARENA_ALIGN)));
+
+    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);
     if (rc != PS2UI_OK) {
-        /* Bring-up step 1 failure: solid red = load error. */
+        /* Bring-up step 1 failure: solid red = load error (including
+         * PS2UI_ERR_ARENA, a buffer smaller than ps2ui_arena_size). */
         while (1) {
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x80, 0x00, 0x00, 0x80, 0x00));
             gsKit_queue_exec(gs);

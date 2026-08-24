@@ -46,7 +46,13 @@ Console side: drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKi
 
 ```c
 ps2ui_ctx ui;
-ps2ui_load(&ui, uib_data, uib_len);   /* validates, points into the blob */
+
+/* One caller-provided block, sized by the blob rather than by
+ * compile-time ceilings. `ps2ui-bake` prints the number, so this is a
+ * constant you paste rather than one you guess; it must outlive `ui`. */
+static uint8_t arena[1982] __attribute__((aligned(PS2UI_ARENA_ALIGN)));
+
+ps2ui_load(&ui, uib_data, uib_len, arena, sizeof arena);
 ps2ui_upload(&ui, gsGlobal);          /* textures + CSM1-permuted CLUTs  */
 
 /* per frame */

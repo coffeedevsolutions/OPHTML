@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from . import arena
 from . import caps as caps_mod
 from . import clip as clip_mod
 from . import gs, vram
@@ -51,6 +52,7 @@ class Report:
 
     def __init__(self):
         self.results = []  # (ok, severity, label)
+        self.notes = []    # diagnostics: measured, never asserted
 
     def add(self, ok: bool, severity: str, label: str) -> bool:
         self.results.append((bool(ok), severity, label))
@@ -62,6 +64,14 @@ class Report:
     def warn(self, ok: bool, label: str) -> bool:
         return self.add(ok, WARNING, label)
 
+    def note(self, label: str) -> None:
+        """A measured number with no threshold to fail against.
+
+        Deliberately not `add(True, ...)`: a result that cannot fail is
+        not a check, and padding the count with them makes a passing
+        run look better tested than it is."""
+        self.notes.append(label)
+
     @property
     def errors(self) -> int:
         return sum(1 for ok, sev, _ in self.results if not ok and sev == ERROR)
@@ -71,6 +81,8 @@ class Report:
         return sum(1 for ok, sev, _ in self.results if not ok and sev == WARNING)
 
     def emit(self, out=sys.stdout) -> None:
+        for label in self.notes:
+            print(f"# {label}", file=out)
         for i, (ok, severity, label) in enumerate(self.results, 1):
             if ok:
                 print(f"ok {i} - {label}", file=out)
@@ -120,10 +132,18 @@ def check_tables(uib, rep: Report) -> None:
         (len(uib.screens), "PS2UI_MAX_SCREENS", "screens"),
     ):
         rep.error(count <= c[key], f"{count} {what} within {key} ({c[key]})")
-    over = [s["name"] for s in uib.slots if s["capacity"] >= c["PS2UI_SLOT_BUFSZ"]]
-    rep.error(not over,
-              f"every slot capacity below PS2UI_SLOT_BUFSZ ({c['PS2UI_SLOT_BUFSZ']})"
-              + (f"; over: {', '.join(over)}" if over else ""))
+    # Slot capacity used to be checked against the runtime's fixed
+    # per-slot buffer. That buffer is gone (v6 resource model): the
+    # runtime sizes each slot from the capacity declared here, so a
+    # large capacity buys arena bytes instead of an unloadable blob.
+    # What an integrator needs instead is the arena number itself,
+    # reported rather than asserted -- there is no threshold to fail
+    # against, and inventing one would be the kind of made-up limit
+    # this file exists to remove.
+    ee = arena.arena_size(uib, arena.EE_PTR)
+    rep.note(f"arena: {ee} bytes on the EE "
+             f"({arena.arena_size(uib, arena.HOST64_PTR)} on a 64-bit host; "
+             f"GSTEXTURE holds pointers, so the two differ)")
     # The GIF DMA reads texture bytes in place, and DMA source addresses
     # must be qword aligned. The runtime refuses a violating blob with
     # PS2UI_ERR_ALIGN; this reads the same property at bake time, where

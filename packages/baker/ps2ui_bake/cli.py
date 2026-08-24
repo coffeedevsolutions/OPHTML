@@ -12,6 +12,7 @@ import sys
 from .quads import Flattener
 from .uib import write_uib, read_uib
 from . import preview as preview_mod
+from . import arena
 from . import vram
 from . import caps as caps_mod
 
@@ -145,6 +146,17 @@ def main(argv=None) -> int:
         f"ps2ui-bake: {len(flat.screens)} screen(s), {len(flat.records)} records, "
         f"{len(flat.textures)} textures ({n_tex_bytes // 1024} KiB), "
         f"{len(flat.cluts)} CLUTs -> {args.out}",
+        file=sys.stderr,
+    )
+
+    # The arena an integrator has to declare. Printed unconditionally
+    # because ps2ui_load now takes it as an argument: without this
+    # number the next step after a successful bake is a guess, and the
+    # failure mode of guessing low is PS2UI_ERR_ARENA at boot.
+    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)
+    print(
+        f"ps2ui-bake: arena {ee} bytes "
+        f"(static uint8_t arena[{ee}] __attribute__((aligned(16))))",
         file=sys.stderr,
     )
 

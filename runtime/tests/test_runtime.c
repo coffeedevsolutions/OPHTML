@@ -27,6 +27,28 @@ static int checks = 0, failures = 0;
     else { failures++; printf("not ok %d - %s\n", checks, name); } \
 } while (0)
 
+/* Load with an arena sized for the blob (v6 resource model).
+ *
+ * Deliberately leaks: these are one-shot fixtures in a test binary,
+ * and the arena must outlive the context it backs -- freeing it at the
+ * end of a helper would hand the caller a context pointing into freed
+ * memory, which is the exact lifetime mistake the arena contract
+ * warns about, reproduced inside the test suite.
+ *
+ * Never passes NULL: a rejected blob reports arena_size() == 0, and
+ * the point of these calls is to prove the blob was refused for the
+ * reason named rather than for want of an arena. */
+static int load_arena(ps2ui_ctx *c, const void *blob, size_t len)
+{
+    size_t need = ps2ui_arena_size(blob, len);
+    void *a;
+    if (need < 64) need = 64;
+    a = malloc(need);          /* malloc is >= 16-aligned on every host
+                                * this suite runs on; the align check
+                                * below has its own dedicated fixture */
+    return ps2ui_load(c, blob, len, a, need);
+}
+
 /* Linear-scan lookups used to check the runtime's binary searches.
  * Deliberately a different algorithm over the same bytes: two
  * implementations that agree is evidence, one implementation compared
@@ -137,7 +159,7 @@ int main(int argc, char **argv)
     u32 vram_before, vram_used;
 
     /* ---- loader ---- */
-    CHECK(ps2ui_load(&ctx, blob, len) == PS2UI_OK, "load real blob");
+    CHECK(load_arena(&ctx, blob, len) == PS2UI_OK, "load real blob");
     CHECK(ctx.hdr->canvas_w == 640 && ctx.hdr->canvas_h == 448, "canvas is 640x448");
     CHECK(ctx.hdr->n_cmd > 0, "blob has commands");
     CHECK(ctx.hdr->n_screen == 2, "memcard example has 2 screens");
@@ -153,19 +175,19 @@ int main(int argc, char **argv)
         uint8_t *dup = malloc(len);
         memcpy(dup, blob, len);
         dup[0] ^= 0xFF;
-        CHECK(ps2ui_load(&bad, dup, len) == PS2UI_ERR_MAGIC, "bad magic rejected");
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_MAGIC, "bad magic rejected");
         memcpy(dup, blob, len);
-        CHECK(ps2ui_load(&bad, dup, 40) == PS2UI_ERR_TRUNCATED, "truncated header rejected");
-        CHECK(ps2ui_load(&bad, dup, len / 2) == PS2UI_ERR_TRUNCATED, "truncated body rejected");
+        CHECK(load_arena(&bad, dup, 40) == PS2UI_ERR_TRUNCATED, "truncated header rejected");
+        CHECK(load_arena(&bad, dup, len / 2) == PS2UI_ERR_TRUNCATED, "truncated body rejected");
         memcpy(dup, blob, len);
         ((ps2ui_header *)dup)->version = 99;
-        CHECK(ps2ui_load(&bad, dup, len) == PS2UI_ERR_VERSION, "wrong version rejected");
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_VERSION, "wrong version rejected");
         memcpy(dup, blob, len);
         dup[len / 2] ^= 0xFF; /* one flipped bit in the body */
-        CHECK(ps2ui_load(&bad, dup, len) == PS2UI_ERR_CRC, "corrupt body fails crc");
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_CRC, "corrupt body fails crc");
         memcpy(dup, blob, len);
         ((ps2ui_header *)dup)->feature_flags |= 0x8000;
-        CHECK(ps2ui_load(&bad, dup, len) == PS2UI_ERR_FEATURES,
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_FEATURES,
               "unknown feature bits rejected");
         free(dup);
     }
@@ -382,7 +404,7 @@ int main(int argc, char **argv)
         int before_binds, k2, any_tex2 = 0, any_quad2 = 0;
         starved2.CurrentPointer = 4u * 1024u * 1024u - 16u;
         memset(&rc2, 0, sizeof rc2);
-        if (ps2ui_load(&rc2, blob, len) == PS2UI_OK
+        if (load_arena(&rc2, blob, len) == PS2UI_OK
             && ps2ui_upload(&rc2, &starved2) != 0) {
             stub_reset_keep_tm();
             before_binds = g_stub.n_binds;
@@ -447,12 +469,150 @@ int main(int argc, char **argv)
         size_t pad = 16 - (((uintptr_t)shifted) & 15u);
         uint8_t *base = shifted + pad;      /* 16-aligned */
         memcpy(base + 8, blob, len);
-        CHECK(ps2ui_load(&mis, base + 8, len) == PS2UI_ERR_ALIGN,
+        CHECK(load_arena(&mis, base + 8, len) == PS2UI_ERR_ALIGN,
               "a blob at a non-16-aligned address is refused with PS2UI_ERR_ALIGN");
         memcpy(base, blob, len);
-        CHECK(ps2ui_load(&mis, base, len) == PS2UI_OK,
+        CHECK(load_arena(&mis, base, len) == PS2UI_OK,
               "and the identical bytes load once the address is aligned, so it was the address");
         free(shifted);
+    }
+
+    /* ---- the arena (v6 resource model) ----
+     *
+     * The context is sized by the blob now, so the numbers below are
+     * the contract: ps2ui_arena_size tells the caller what to hand
+     * over, and load must accept exactly that and refuse one byte
+     * less. A helper that over-allocates would make every one of these
+     * pass without the arithmetic being right, which is the whole
+     * failure mode this section exists to prevent. */
+    {
+        size_t need = ps2ui_arena_size(blob, len);
+        uint8_t *raw = malloc(need + 64);
+        /* 16-align by hand: the misalignment check below needs a base
+         * it can deliberately shift off, and malloc's own alignment is
+         * not something to assert against. */
+        uint8_t *a16 = raw + (16 - (((uintptr_t)raw) & 15u));
+        ps2ui_ctx ac;
+
+        CHECK(need > 0, "arena_size reports a requirement for a real blob");
+
+        /* Independently recomputed from the header, the way scan_glyph
+         * checks the binary search: two implementations that agree is
+         * evidence, one compared against itself is not. The first
+         * version of this section did exactly that -- it asserted
+         * load(need) passes and load(need-1) fails, both sides sourced
+         * from arena_size, so arena_size could over-report by any
+         * amount and the pair stayed green. Verified: adding 1 to
+         * L->total goes red here and nowhere else. */
+        {
+            const ps2ui_header *h = (const ps2ui_header *)blob;
+            const ps2ui_slot_entry *sl =
+                (const ps2ui_slot_entry *)((const uint8_t *)blob + h->off_slot);
+            size_t want = 0;
+            uint32_t q;
+            want += (size_t)h->n_clut * 256 * 4;          /* permuted CLUTs */
+            want += (size_t)h->n_tex * sizeof(GSTEXTURE); /* gs_tex         */
+            want += (size_t)h->n_slot * sizeof(uint32_t); /* slot_off       */
+            want += ((size_t)(h->n_focus + 31) / 32) * sizeof(uint32_t);
+            want += (size_t)h->n_screen * sizeof(uint16_t);
+            for (q = 0; q < h->n_slot; q++)
+                want += (size_t)sl[q].capacity + 1;       /* slot text      */
+            want += h->n_slot;                            /* slot_is_set    */
+            CHECK(need == want,
+                  "arena_size matches an independent carve of the same header");
+        }
+        CHECK(ps2ui_arena_size(blob, 8) == 0,
+              "arena_size refuses a blob too short to hold a header");
+        {
+            uint8_t junk[128];
+            memset(junk, 0xAB, sizeof junk);
+            CHECK(ps2ui_arena_size(junk, sizeof junk) == 0,
+                  "arena_size refuses a bad magic rather than sizing from garbage");
+        }
+
+        /* Exact fit accepted, one byte short refused. This pair is the
+         * fence: it fails if the layout drifts from the size function
+         * in EITHER direction, which a single generous allocation
+         * could never show. */
+        CHECK(ps2ui_load(&ac, blob, len, a16, need) == PS2UI_OK,
+              "load accepts an arena of exactly arena_size bytes");
+        CHECK(ps2ui_load(&ac, blob, len, a16, need - 1) == PS2UI_ERR_ARENA,
+              "load refuses an arena one byte short, so the size is exact");
+        CHECK(ps2ui_load(&ac, blob, len, NULL, need) == PS2UI_ERR_ARENA,
+              "load refuses a NULL arena");
+        CHECK(ps2ui_load(&ac, blob, len, a16 + 8, need) == PS2UI_ERR_ALIGN,
+              "load refuses a misaligned arena: the CLUT region is a DMA source");
+
+        /* A refused blob must not have written to the arena. The
+         * caller may reuse that buffer for the next attempt, and a
+         * half-carved arena behind a returned error is the kind of
+         * thing that only shows up as corruption three loads later. */
+        {
+            ps2ui_ctx bc;
+            uint8_t *dup = malloc(len);
+            size_t k;
+            int untouched = 1;
+            memcpy(dup, blob, len);
+            ((ps2ui_header *)dup)->version = 99;
+            memset(a16, 0xC7, need);
+            CHECK(ps2ui_load(&bc, dup, len, a16, need) == PS2UI_ERR_VERSION,
+                  "a stale-version blob is still refused with an arena in hand");
+            for (k = 0; k < need; k++)
+                if (a16[k] != 0xC7) { untouched = 0; break; }
+            CHECK(untouched,
+                  "a refused blob leaves the arena untouched, so it can be reused");
+            free(dup);
+        }
+        free(raw);
+    }
+
+    /* ---- the arena is per-context, which the static pool was not ----
+     *
+     * The CLUT staging buffers used to be one file-scope array shared
+     * by every context in the process. Two UIs loaded at once (a shell
+     * and a module, the case Phase 1 is built toward) would have
+     * silently overwritten each other's palettes -- gsKit keeps the
+     * Clut POINTER, so the damage lands at the next bind, arbitrarily
+     * far from the upload that caused it. Two contexts, two arenas,
+     * and the pointers must not collide. */
+    {
+        ps2ui_ctx c1, c2;
+        size_t need = ps2ui_arena_size(blob, len);
+        void *a1 = malloc(need), *a2 = malloc(need);
+        int ok1 = ps2ui_load(&c1, blob, len, a1, need);
+        int ok2 = ps2ui_load(&c2, blob, len, a2, need);
+        CHECK(ok1 == PS2UI_OK && ok2 == PS2UI_OK, "two contexts load side by side");
+        if (ok1 == PS2UI_OK && ok2 == PS2UI_OK) {
+            CHECK(c1.clut_pool != c2.clut_pool,
+                  "each context stages its CLUTs in its own arena, not a shared static");
+            CHECK(c1.slot_text != c2.slot_text && c1.gs_tex != c2.gs_tex,
+                  "and the same holds for slot text and the texture array");
+        }
+        /* a1/a2 deliberately leaked: the contexts point into them. */
+    }
+
+    /* ---- one permuted CLUT per palette, shared by its textures ----
+     *
+     * Measured on this blob: 8 PSMT8 textures, 1 CLUT. Per-texture
+     * buffers cost 8 KiB for 1 KiB of distinct palette, on the arena's
+     * dominant term. Textures naming the same CLUT must therefore land
+     * on the same staging buffer -- and textures naming different
+     * CLUTs must not. */
+    {
+        uint32_t t, first = PS2UI_NONE;
+        int shared_ok = 1, distinct_ok = 1;
+        for (t = 0; t < ctx.hdr->n_tex; t++) {
+            if (ctx.tex[t].format != PS2UI_TEXFMT_PSMT8) continue;
+            if (first == PS2UI_NONE) { first = t; continue; }
+            if (ctx.tex[t].clut == ctx.tex[first].clut) {
+                if (ctx.gs_tex[t].Clut != ctx.gs_tex[first].Clut) shared_ok = 0;
+            } else {
+                if (ctx.gs_tex[t].Clut == ctx.gs_tex[first].Clut) distinct_ok = 0;
+            }
+        }
+        CHECK(first != PS2UI_NONE, "the blob has an indexed texture to check");
+        CHECK(shared_ok, "textures sharing a CLUT index share one permuted buffer");
+        CHECK(distinct_ok, "textures with different CLUT indices do not");
     }
 
     /* ---- render: focus filtering ---- */
@@ -603,6 +763,51 @@ int main(int argc, char **argv)
         with_short = render_and_count(&ctx, &gs);
         CHECK(with_short < with_placeholder, "short text draws fewer glyphs");
         CHECK(ps2ui_slot_set(&ctx, "nope", "x") == 0, "slot_set rejects unknown names");
+
+        /* Per-slot buffers, not one BUFSZ-sized row each (v6 §2).
+         *
+         * The storage moved from slot_text[16][96] to capacity+1 bytes
+         * per slot, packed end to end in the arena. Truncation at the
+         * declared capacity is not the new risk -- the old code already
+         * did that -- the new risk is a neighbour: an off-by-one in
+         * slot_off, or a write of capacity+1 bytes, lands in the NEXT
+         * slot's text rather than in slack that used to absorb it.
+         *
+         * This blob's capacities differ (count=15, save-0=31), which is
+         * what makes the pair meaningful: a single global buffer size
+         * cannot produce two different truncation points. */
+        {
+            const char *long_a =
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+            uint32_t ia = find_slot(&ctx, "count");
+            uint32_t ib = find_slot(&ctx, "save-0");
+            CHECK(ia != PS2UI_NONE && ib != PS2UI_NONE
+                  && ctx.slots[ia].capacity != ctx.slots[ib].capacity,
+                  "the fixture has two slots with different capacities");
+            ps2ui_slot_set(&ctx, "count", long_a);
+            CHECK(strlen(ps2ui_slot_get(&ctx, "count")) == ctx.slots[ia].capacity,
+                  "a slot truncates at its own declared capacity");
+            ps2ui_slot_set(&ctx, "save-0", long_a);
+            CHECK(strlen(ps2ui_slot_get(&ctx, "save-0")) == ctx.slots[ib].capacity,
+                  "and a slot with a different capacity truncates at that one");
+            /* The neighbour check: filling one to the brim must not
+             * have moved the other's terminator or content. */
+            CHECK(strlen(ps2ui_slot_get(&ctx, "count")) == ctx.slots[ia].capacity,
+                  "filling one slot to capacity leaves its neighbour intact");
+            {
+                uint32_t q;
+                int packed_ok = 1;
+                size_t expect = 0;
+                for (q = 0; q < ctx.hdr->n_slot; q++) {
+                    if (ctx.slot_off[q] != expect) packed_ok = 0;
+                    expect += (size_t)ctx.slots[q].capacity + 1;
+                }
+                CHECK(packed_ok,
+                      "slot buffers are packed at capacity+1 with no gaps");
+            }
+            ps2ui_slot_set(&ctx, "count", NULL);
+            ps2ui_slot_set(&ctx, "save-0", NULL);
+        }
         ps2ui_slot_set(&ctx, "count", NULL);
         CHECK(strcmp(ps2ui_slot_get(&ctx, "count"), "6 titles") == 0,
               "NULL reverts to placeholder");
@@ -869,6 +1074,32 @@ int main(int argc, char **argv)
         CHECK(render_and_count(&ctx, &gs) == base_prims,
               "showing restores exactly the original frame");
 
+        /* The #16 review debt: unknown-name and hidden both returned 0,
+         * so an app could not tell a typo from a hidden node -- and the
+         * typo is the one the caller can fix. Now distinct. */
+        CHECK(ps2ui_visible_get(&ctx, "no-such-node") == PS2UI_VISIBLE_UNKNOWN,
+              "visible_get reports an unknown name distinctly from hidden");
+        CHECK(ps2ui_visible_get(&ctx, "no-such-node") != 0,
+              "and that value is not the one hidden uses");
+        /* Every focus node the blob declares can be hidden: the bits are
+         * sized from n_focus, so the old past-the-ceiling silent failure
+         * has no index left to happen at. */
+        {
+            uint16_t q;
+            int all_ok = 1;
+            for (q = 0; q < ctx.hdr->n_focus; q++) {
+                const char *nm =
+                    (const char *)(ctx.blob + ctx.focus_nodes[q].name_off);
+                /* Scoped to the current screen by design, so only this
+                 * screen's nodes are addressable by name here. */
+                if (ps2ui_visible_get(&ctx, nm) == PS2UI_VISIBLE_UNKNOWN)
+                    continue;
+                if (ps2ui_visible_set(&ctx, nm, 0) != 1) all_ok = 0;
+                if (ps2ui_visible_get(&ctx, nm) != 0) all_ok = 0;
+                ps2ui_visible_set(&ctx, nm, 1);
+            }
+            CHECK(all_ok, "every focus node on this screen can be hidden and shown");
+        }
         CHECK(ps2ui_visible_set(&ctx, "no-such-node", 0) == 0,
               "an unknown name is rejected rather than silently ignored");
 
@@ -960,7 +1191,7 @@ int main(int argc, char **argv)
          * reporting, and a crash names none of the checks that ran. A
          * fixture left stale by a format change is exactly how that
          * happens -- it happened while adding kerning. */
-        int loaded = ps2ui_load(&lc, lblob, llen);
+        int loaded = load_arena(&lc, lblob, llen);
         CHECK(loaded == PS2UI_OK, "list fixture loads");
         if (loaded != PS2UI_OK) {
             printf("# ps2ui_load returned %d; skipping the list checks\n",
@@ -1153,7 +1384,7 @@ int main(int argc, char **argv)
         starved = gs;
         starved.CurrentPointer = 4u * 1024u * 1024u - 16u;
         memset(&sc, 0, sizeof sc);
-        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
+        if (load_arena(&sc, blob, len) == PS2UI_OK) {
             CHECK(ps2ui_upload(&sc, &starved) != 0,
                   "upload reports failure when VRAM is exhausted, so "
                   "step 9's expected 0 is a result and not a constant");
@@ -1179,7 +1410,7 @@ int main(int argc, char **argv)
         starved = gs;
         starved.CurrentPointer = 4u * 1024u * 1024u - vram_used / 2u;
         memset(&sc, 0, sizeof sc);
-        if (ps2ui_load(&sc, blob, len) == PS2UI_OK) {
+        if (load_arena(&sc, blob, len) == PS2UI_OK) {
             int rc;
             int before = g_stub.n_uploads;
             rc = ps2ui_upload(&sc, &starved);
