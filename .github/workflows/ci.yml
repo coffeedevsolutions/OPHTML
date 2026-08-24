@@ -42,6 +42,16 @@ jobs:
 
       - name: Baker tests
         working-directory: packages/baker
+        # The arena's cross-language check compares Python's
+        # hand-modelled GSTEXTURE layout against the real sizeof by
+        # compiling the runtime. It used to skip on every CI run --
+        # its guard looked for an artifact a LATER step builds, so it
+        # printed "skipped" and the suite went green having checked
+        # nothing. It now builds what it needs, and this says a skip
+        # here is a failure: it is the only tripwire on the vendored
+        # gsKit header drifting from what the console compiles against.
+        env:
+          PS2UI_REQUIRE_CROSSCHECK: "1"
         run: python3 -m unittest discover -s tests -v
 
       - name: Example builds end to end (includes runtime tests)

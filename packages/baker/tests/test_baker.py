@@ -498,6 +498,66 @@ class TestCaps(unittest.TestCase):
         self.assertTrue(any("uint16" in e for e in errors))
 
 
+class TestSlotCapacity(unittest.TestCase):
+    """The blob records the capacity the author asked for.
+
+    Regression fence. The flattener used to clamp capacity to 95 --
+    PS2UI_SLOT_BUFSZ - 1, the runtime's old fixed per-slot buffer. When
+    the v6 resource model removed that buffer, the clamp survived: the
+    check that used to reject an over-capacity slot was replaced with a
+    uint16 bound the clamp made unreachable, so an author asking for
+    200 silently got 95, no warning at bake, truncated text at runtime.
+    Worse than the limit it replaced, because the old one said so.
+    """
+
+    def bake(self, capacity):
+        import subprocess
+        import tempfile
+        from ps2ui_bake.uib import read_uib
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.normpath(os.path.join(here, "..", "..", ".."))
+        html = ('<div style="display:flex"><span id="s" data-slot="s" '
+                f'data-slot-capacity="{capacity}">x</span></div>')
+        with tempfile.TemporaryDirectory() as td:
+            hp = os.path.join(td, "p.html")
+            cp = os.path.join(td, "p.css")
+            jp = os.path.join(td, "p.json")
+            up = os.path.join(td, "p.uib")
+            open(hp, "w").write(html)
+            open(cp, "w").write("body{display:flex}#s{font-size:16px;color:#fff}")
+            r = subprocess.run(
+                ["node", os.path.join(root, "packages", "layout", "bin",
+                                      "ps2ui-layout.js"), hp, cp, "-o", jp],
+                capture_output=True)
+            if r.returncode != 0:
+                self.skipTest("layout unavailable: " + r.stderr.decode()[:120])
+            env = dict(os.environ,
+                       PYTHONPATH=os.path.join(root, "packages", "baker"))
+            r = subprocess.run([sys.executable, "-m", "ps2ui_bake", jp,
+                                "-o", up], capture_output=True, env=env)
+            if r.returncode != 0:
+                return None, r.stderr.decode()
+            return read_uib(up), r.stderr.decode()
+
+    def test_capacity_survives_the_bake(self):
+        uib, _ = self.bake(200)
+        if uib is None:
+            self.skipTest("bake refused a capacity it should accept")
+        self.assertEqual([s["capacity"] for s in uib.slots], [200],
+                         "the blob must record what the author asked for")
+
+    def test_a_capacity_the_format_cannot_hold_is_refused(self):
+        """And the uint16 bound is reachable, which the clamp prevented."""
+        uib, err = self.bake(70000)
+        # Compare a number, not the object: assertIsNone on a UibFile
+        # prints the entire blob into the failure message, which buries
+        # the one fact the test is about.
+        got = None if uib is None else [s["capacity"] for s in uib.slots]
+        self.assertIsNone(got, f"a capacity past uint16 must fail the bake; "
+                               f"blob recorded {got}")
+        self.assertIn("uint16", err)
+
+
 class TestArena(unittest.TestCase):
     """The host mirror of runtime/ps2ui.c's arena_compute.
 
@@ -552,8 +612,33 @@ class TestArena(unittest.TestCase):
         root = os.path.normpath(os.path.join(here, "..", "..", ".."))
         rt = os.path.join(root, "runtime")
         size_obj = os.path.join(rt, "build", "gsKit_texture_size.o")
+
+        # Build the one object this needs rather than depending on some
+        # earlier step having done it. Review found this test skipping
+        # on every CI run: its guard looked for an artifact that ci.yml
+        # builds AFTER the baker tests, so it printed
+        # "skipped 'runtime not built'" and the suite went green having
+        # checked nothing. It is the only test holding Python's
+        # hand-modelled GSTEXTURE layout against the real sizeof, and
+        # its sibling assertions cannot cover for it -- they compare
+        # Python with its own literals.
         if not os.path.exists(size_obj):
-            self.skipTest("runtime not built (make -C runtime test)")
+            subprocess.run(["make", "-C", rt, "build/gsKit_texture_size.o"],
+                           capture_output=True)
+
+        # And when the environment says this must run, a skip is a
+        # failure. Reordering ci.yml alone would fix today's symptom and
+        # invite being reordered back; this makes the silence itself the
+        # thing that breaks.
+        required = os.environ.get("PS2UI_REQUIRE_CROSSCHECK") == "1"
+
+        def unavailable(why):
+            if required:
+                self.fail(f"PS2UI_REQUIRE_CROSSCHECK=1 but {why}")
+            self.skipTest(why)
+
+        if not os.path.exists(size_obj):
+            unavailable("runtime not built (make -C runtime test)")
 
         src = r"""
         #include "ps2ui.h"
@@ -586,8 +671,8 @@ class TestArena(unittest.TestCase):
                  "-o", exe],
                 capture_output=True)
             if cc.returncode != 0:
-                self.skipTest(f"cannot build the runtime here: "
-                              f"{cc.stderr.decode()[:200]}")
+                unavailable(f"cannot build the runtime here: "
+                            f"{cc.stderr.decode()[:200]}")
             names = ["memcard", "channel6"]
             paths = []
             for nm in names:
@@ -596,7 +681,7 @@ class TestArena(unittest.TestCase):
                 if os.path.exists(p):
                     paths.append((nm, p))
             if not paths:
-                self.skipTest("no baked blobs to compare")
+                unavailable("no baked blobs to compare")
             out = subprocess.run([exe] + [p for _, p in paths],
                                  capture_output=True, check=True)
             got = [int(x) for x in out.stdout.split()]

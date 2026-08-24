@@ -153,14 +153,12 @@ def main(argv=None) -> int:
     # because ps2ui_load now takes it as an argument: without this
     # number the next step after a successful bake is a guess, and the
     # failure mode of guessing low is PS2UI_ERR_ARENA at boot.
-    if True:
-        uib_for_arena = read_uib(args.out)
-        ee = arena.arena_size(uib_for_arena, arena.EE_PTR)
-        print(
-            f"ps2ui-bake: arena {ee} bytes "
-            f"(static uint8_t arena[{ee}] __attribute__((aligned(16))))",
-            file=sys.stderr,
-        )
+    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)
+    print(
+        f"ps2ui-bake: arena {ee} bytes "
+        f"(static uint8_t arena[{ee}] __attribute__((aligned(16))))",
+        file=sys.stderr,
+    )
 
     if args.preview or args.montage or args.preview_display:
         uib = read_uib(args.out)  # replay what we wrote, not what we meant

@@ -515,7 +515,15 @@ class Flattener:
                 "align": {"left": 0, "center": 1, "right": 2}.get(sl["align"], 0),
                 "letter_spacing": self._slot_spacing(sl),
                 "ellipsis": bool(sl["ellipsis"]),
-                "capacity": min(int(sl["capacity"]), 95),
+                # Not clamped. This was min(capacity, 95) -- 95 being
+                # PS2UI_SLOT_BUFSZ - 1, the runtime's old fixed per-slot
+                # buffer. That buffer is gone (v6 resource model): the
+                # runtime sizes each slot from the capacity recorded
+                # here, so clamping silently gave an author who asked
+                # for 200 a 95-byte slot, with no warning at bake and
+                # truncated text at runtime. The bound that remains is
+                # the format's own uint16, enforced in caps.check.
+                "capacity": int(sl["capacity"]),
                 "focus": self.focus_index.get(sl.get("focusId"), FOCUS_NONE)
                 if sl.get("focusId") is not None else FOCUS_NONE,
                 "color_base": self._gs_modulate_color(sl["colorBase"]),
