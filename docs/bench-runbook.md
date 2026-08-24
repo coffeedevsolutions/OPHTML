@@ -12,7 +12,7 @@ order of operations.
 ## Before you start
 
 **Get the ELFs.** From the latest green `hw` run on `main`, download the
-`ps2ui-sample-elf` artifact. It contains ten files:
+`ps2ui-sample-elf` artifact. It contains eleven files:
 
 | file | what it is for |
 |---|---|
@@ -250,6 +250,7 @@ obviously unlike the grey at either end.
 | 1px | 2px | 4px | verdict |
 |---|---|---|---|
 | crisp | crisp | crisp | **PASS** |
+| faint | crisp | crisp | **VOID on its own — PASS if it alternates.** Faint means visible but low-contrast: the capture chain (panel upscale, deinterlacer, camera) is at its limit. Watch the 1px regions: a real sampling mush is a *static* grey, so any shimmer or field alternation in them means the single-pixel detail survived sampling and the rung passes |
 | grey | crisp | crisp | **FAIL** — a real half-texel sampling offset |
 | grey | grey | crisp | **VOID** — this is the panel's resolution limit, not a fault. Move closer or use a different display |
 | grey | grey | grey | **VOID** — read nothing from this card |
@@ -296,8 +297,10 @@ means a half-pixel *primitive* offset or overscan, which is a different
 fault from the checkers above.
 
 The four corner checkers are single 1px checkers with no coarser rung
-beside them. **Read them only if the wedge showed 1px crisp** — on
-their own they carry the same ambiguity the wedge exists to remove.
+beside them. **Read them if the wedge showed 1px crisp, or if the 1px
+rung was faint and shown live by alternation** — in the faint case
+their own shimmer corroborates; on their own they carry the same
+ambiguity the wedge exists to remove.
 
 ---
 
