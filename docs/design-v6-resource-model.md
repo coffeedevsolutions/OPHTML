@@ -65,8 +65,11 @@ migration (#41) added `clut_pool[PS2UI_MAX_TEXTURES][256*4]` — 32,768
 bytes of 16-aligned static in `ps2ui.c` — because gsKit keeps the
 `Clut` pointer and re-reads it on any later bind, so permuted palettes
 must live as long as the context. Every blob pays for 32 CLUTs; the
-memcard blob uses 2. The fixed overhead this design removes is
-therefore ~46 KiB, not the 13 KiB the table above was arguing from.
+memcard blob has **one**, shared by its eight indexed textures. (Rev 2
+said "2" here, which was neither the CLUT count nor the indexed-texture
+count — corrected against the blob.) The fixed overhead this design
+removes is therefore ~36 KiB — the 32 KiB pool plus a 3.3 KiB context —
+not the 13 KiB the table above was arguing from.
 The pool moves into the arena (§2), which also inherits its two hard
 properties: the region must be 16-aligned (the #40 DMA-source
 invariant — a misaligned source truncates silently) and must outlive
@@ -132,7 +135,7 @@ needed between regions:
 
 | region | count | from |
 |---|---|---|
-| permuted CLUTs **[rev 2]** | `n_t8` × 1,024 B, 16-aligned, first | texture table |
+| permuted CLUTs **[rev 2]** | `n_clut` × 1,024 B, 16-aligned, first | CLUT table |
 | `GSTEXTURE[]` | `n_tex` | header |
 | slot text | Σ (`capacity` + 1) | slot table |
 | slot offsets | `n_slot` × `uint16_t` | header |
