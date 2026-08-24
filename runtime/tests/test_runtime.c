@@ -38,6 +38,20 @@ static int checks = 0, failures = 0;
  * Never passes NULL: a rejected blob reports arena_size() == 0, and
  * the point of these calls is to prove the blob was refused for the
  * reason named rather than for want of an arena. */
+/* Re-stamp the CRC of a deliberately mutated blob.
+ *
+ * Without this every "corrupt one field and load" check returns
+ * PS2UI_ERR_CRC instead of the error it was written to prove -- green
+ * for the wrong reason, and silent about the field it meant to test.
+ * The file's CRC is computed with the crc32 field read as zero, so
+ * zeroing it and hashing the whole file reproduces the same value. */
+static void recrc(void *blob, size_t len)
+{
+    ps2ui_header *h = (ps2ui_header *)blob;
+    h->crc32 = 0;
+    h->crc32 = ps2ui_crc32(blob, len);
+}
+
 static int load_arena(ps2ui_ctx *c, const void *blob, size_t len)
 {
     size_t need = ps2ui_arena_size(blob, len);
@@ -113,8 +127,9 @@ int main(int argc, char **argv)
     GSGLOBAL gs;
     int i;
 
-    if (argc < 2 || argc > 3) {
-        fprintf(stderr, "usage: %s <ui.uib> [list.uib]\n", argv[0]);
+    if (argc < 2 || argc > 4) {
+        fprintf(stderr, "usage: %s <ui.uib> [list.uib] [streamed.uib]\n",
+                argv[0]);
         return 2;
     }
     blob = slurp(argv[1], &len);
@@ -151,7 +166,7 @@ int main(int argc, char **argv)
     CHECK(sizeof(ps2ui_glyph) == 20, "glyph struct is 20 bytes");
     CHECK(sizeof(ps2ui_kern) == 12, "kern struct is 12 bytes");
     CHECK(sizeof(ps2ui_slot_entry) == 32, "slot entry struct is 32 bytes");
-    CHECK(sizeof(ps2ui_tex_entry) == 16, "tex entry struct is 16 bytes");
+    CHECK(sizeof(ps2ui_tex_entry) == 20, "tex entry struct is 20 bytes (v6: kind + name_off)");
     CHECK(sizeof(ps2ui_clut_entry) == 8, "clut entry struct is 8 bytes");
     CHECK(sizeof(ps2ui_cmd) == 32, "cmd struct is 32 bytes");
     CHECK(sizeof(ps2ui_focus_node) == 24, "focus node struct is 24 bytes");
@@ -1179,7 +1194,12 @@ int main(int argc, char **argv)
      * games, so a list prefix matches nothing and every assertion below
      * would pass vacuously. This fixture bakes row-0..row-3 with one
      * slot each. */
-    if (argc == 3) {
+    /* `> 2`, not `== 3`: an exact match silently skipped this whole
+     * section the moment a THIRD fixture was added to the command
+     * line, taking 18 checks with it and leaving the suite green and
+     * smaller. A guard on argument count must say "I have what I
+     * need", never "the caller passed exactly what I expected". */
+    if (argc > 2) {
         size_t llen;
         void *lblob = slurp(argv[2], &llen);
         ps2ui_ctx lc;
@@ -1426,6 +1446,182 @@ int main(int argc, char **argv)
         } else {
             CHECK(0, "partway-starved fixture failed to load");
         }
+    }
+
+    /* ---- streamed texture slots (v6 §3) ----
+     *
+     * The fixture carries a named baked texture, a named streamed one,
+     * and an anonymous baked one, so the name lookup has to tell the
+     * kinds apart rather than just find a string. */
+    if (argc > 3) {
+        size_t slen;
+        void *sblob = slurp(argv[3], &slen);
+        ps2ui_ctx sc;
+        size_t need = ps2ui_arena_size(sblob, slen);
+        void *sarena = malloc(need ? need : 64);
+        int rc = ps2ui_load(&sc, sblob, slen, sarena, need ? need : 64);
+        CHECK(rc == PS2UI_OK, "the streamed fixture loads");
+        if (rc == PS2UI_OK) {
+            /* 16-aligned because it is about to become a DMA source;
+             * the refusal of an unaligned one is checked below with a
+             * deliberately shifted pointer. */
+            static uint8_t cover[256] __attribute__((aligned(16)));
+            static uint8_t cover2[256] __attribute__((aligned(16)));
+            GSGLOBAL sgs = gs;
+            uint32_t ci = PS2UI_NONE, k;
+            int before, after;
+
+            for (k = 0; k < sc.hdr->n_tex; k++)
+                if (sc.tex[k].kind == PS2UI_TEXKIND_STREAMED) ci = k;
+            CHECK(ci != PS2UI_NONE, "the fixture declares a streamed texture");
+            CHECK((sc.hdr->feature_flags & PS2UI_FEAT_STREAMED_TEX) != 0,
+                  "and says so in the header, so a reader that cannot "
+                  "stream refuses the file");
+
+            /* The loader's own refusals for a malformed v6 blob. Each
+             * one is a property the runtime relies on later and cannot
+             * afford to re-check per frame. */
+            {
+                ps2ui_ctx bc;
+                uint8_t *dup = malloc(slen);
+                void *ba = malloc(need ? need : 64);
+                ps2ui_tex_entry *bt;
+                size_t tof = ((const ps2ui_header *)sblob)->off_tex
+                             + (size_t)ci * sizeof(ps2ui_tex_entry);
+
+                memcpy(dup, sblob, slen);
+                bt = (ps2ui_tex_entry *)(dup + tof);
+                bt->kind = 7;                       /* neither kind */
+                recrc(dup, slen);
+                CHECK(ps2ui_load(&bc, dup, slen, ba, need)
+                          == PS2UI_ERR_BOUNDS,
+                      "a texture with an unknown kind is refused");
+
+                memcpy(dup, sblob, slen);
+                bt = (ps2ui_tex_entry *)(dup + tof);
+                bt->data_len = 0;
+                recrc(dup, slen);
+                CHECK(ps2ui_load(&bc, dup, slen, ba, need)
+                          == PS2UI_ERR_BOUNDS,
+                      "a streamed texture reserving nothing is refused");
+
+                memcpy(dup, sblob, slen);
+                bt = (ps2ui_tex_entry *)(dup + tof);
+                bt->name_off = PS2UI_NAME_NONE;
+                recrc(dup, slen);
+                CHECK(ps2ui_load(&bc, dup, slen, ba, need)
+                          == PS2UI_ERR_BOUNDS,
+                      "an unnamed streamed texture is refused: nothing "
+                      "could ever fill it");
+
+                /* The fixture carries a font pointing at the baked
+                 * atlas, so this check has something to be wrong
+                 * about: the slot pen binds a font's texture without
+                 * checking for texels, which a streamed atlas would
+                 * not have. */
+                memcpy(dup, sblob, slen);
+                CHECK(sc.hdr->n_font > 0, "the fixture has a font to repoint");
+                {
+                    ps2ui_font_entry *bf = (ps2ui_font_entry *)
+                        (dup + ((const ps2ui_header *)sblob)->off_font);
+                    bf->tex = (uint16_t)ci;
+                    recrc(dup, slen);
+                    CHECK(ps2ui_load(&bc, dup, slen, ba, need)
+                              == PS2UI_ERR_BOUNDS,
+                          "a font pointing at a streamed texture is refused");
+                }
+
+                memcpy(dup, sblob, slen);
+                ((ps2ui_header *)dup)->feature_flags &= (uint16_t)~PS2UI_FEAT_STREAMED_TEX;
+                recrc(dup, slen);
+                CHECK(ps2ui_load(&bc, dup, slen, ba, need)
+                          == PS2UI_ERR_FEATURES,
+                      "a blob carrying a streamed texture without declaring "
+                      "the feature bit is refused, not quietly drawn empty");
+                free(dup);
+                free(ba);
+            }
+
+            /* Rejections first, while the slot is still empty. */
+            CHECK(ps2ui_tex_set(&sc, &sgs, "nope", cover, 256)
+                      == PS2UI_ERR_NOT_STREAMED,
+                  "tex_set rejects an unknown name");
+            CHECK(ps2ui_tex_set(&sc, &sgs, "logo", cover, 64)
+                      == PS2UI_ERR_NOT_STREAMED,
+                  "tex_set refuses a BAKED texture: its texels are the "
+                  "blob's, not the caller's to replace");
+            CHECK(ps2ui_tex_set(&sc, &sgs, "cover", cover, 255)
+                      == PS2UI_ERR_SIZE,
+                  "tex_set refuses a payload one byte short of the reservation");
+            CHECK(ps2ui_tex_set(&sc, &sgs, "cover", cover, 257)
+                      == PS2UI_ERR_SIZE,
+                  "and one byte long: a mismatch means the caller and the "
+                  "bake disagree about the geometry");
+            CHECK(ps2ui_tex_set(&sc, &sgs, "cover", cover + 8, 256)
+                      == PS2UI_ERR_ALIGN,
+                  "tex_set refuses a misaligned buffer: a DMA source "
+                  "truncates silently below 16 bytes");
+
+            /* An unfilled slot must draw nothing rather than DMA from a
+             * null source -- and must not take the rest of the frame
+             * with it. */
+            CHECK(ps2ui_upload(&sc, &sgs) == 0,
+                  "upload succeeds with a streamed slot still empty");
+            CHECK(sc.gs_tex[ci].Mem == NULL,
+                  "and leaves that slot with no source, rather than "
+                  "pointing it at the blob");
+            stub_reset_keep_tm();
+            ps2ui_render(&sc, &sgs);
+            before = g_stub.n_prims;
+            CHECK(sc.stats.tex_unfilled == 1,
+                  "an unfilled streamed slot is skipped and counted");
+            CHECK(before >= 1,
+                  "and the baked quad in the same frame still draws");
+
+            /* Now fill it. */
+            memset(cover, 0x5A, sizeof cover);
+            CHECK(ps2ui_tex_set(&sc, &sgs, "cover", cover, 256) == PS2UI_OK,
+                  "tex_set accepts the exact reservation");
+            CHECK(sc.gs_tex[ci].Mem == (u32 *)(void *)cover,
+                  "and points the slot at the caller's buffer -- nothing "
+                  "is copied, the same contract the blob already has");
+            {
+                int flushed = 0, q;
+                for (q = 0; q < g_stub.n_flushes; q++)
+                    if (g_stub.flushes[q].start == (const void *)cover
+                        && g_stub.flushes[q].end
+                           == (const void *)(cover + 256))
+                        flushed = 1;
+                CHECK(flushed,
+                      "tex_set writes the caller's texels back from cache: "
+                      "the CPU wrote them and the GIF does not see that cache");
+            }
+            stub_reset_keep_tm();
+            ps2ui_render(&sc, &sgs);
+            after = g_stub.n_prims;
+            CHECK(after == before + 1,
+                  "the filled slot draws, so the frame gains exactly one prim");
+            CHECK(sc.stats.tex_unfilled == 0,
+                  "and nothing is counted unfilled any more");
+
+            /* Swapping texels is what scrolling a list does. The
+             * manager may hold the slot resident from the last set, in
+             * which case a bind without invalidation would draw the OLD
+             * cover out of VRAM and never look at the new pointer. */
+            {
+                int inv_before = g_stub.n_invalidates;
+                memset(cover2, 0xA5, sizeof cover2);
+                CHECK(ps2ui_tex_set(&sc, &sgs, "cover", cover2, 256) == PS2UI_OK,
+                      "a second tex_set swaps the texels");
+                CHECK(sc.gs_tex[ci].Mem == (u32 *)(void *)cover2,
+                      "and repoints the slot");
+                CHECK(g_stub.n_invalidates > inv_before,
+                      "and invalidates residency, or the next bind would "
+                      "draw the previous cover out of VRAM");
+            }
+        }
+        free(sblob);
+        /* sarena deliberately leaked: sc points into it. */
     }
 
 report:

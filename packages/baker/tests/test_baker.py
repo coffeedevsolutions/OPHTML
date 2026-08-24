@@ -7,6 +7,7 @@ Run:  cd packages/baker && python3 -m unittest discover -s tests -v
 
 import io
 import json
+import copy
 import os
 import shutil
 import struct
@@ -556,6 +557,87 @@ class TestSlotCapacity(unittest.TestCase):
         self.assertIsNone(got, f"a capacity past uint16 must fail the bake; "
                                f"blob recorded {got}")
         self.assertIn("uint16", err)
+
+
+class TestStreamedTextures(unittest.TestCase):
+    """v6 §3: a texture the app fills at runtime.
+
+    The blob-level checks for these live in check.py and pass
+    vacuously on every shipped example, because no example authors a
+    streamed slot yet -- `all()` over an empty list is True. So they
+    are exercised here against blobs built to break each one, which is
+    the difference between a check and a decoration.
+    """
+
+    def build(self, tmp, **over):
+        from ps2ui_bake import gs
+        from ps2ui_bake.quads import DrawRecord, BakedTexture, OP_TEXQUAD
+        from ps2ui_bake.uib import TEXKIND_STREAMED, write_uib, read_uib
+        tex = BakedTexture(
+            gs.PSMCT32, over.pop("w", 8), over.pop("h", 8), None,
+            over.pop("data", b""),
+            kind=over.pop("kind", TEXKIND_STREAMED),
+            name=over.pop("name", "cover"),
+            reservation=over.pop("reservation", 8 * 8 * 4))
+        recs = [DrawRecord(OP_TEXQUAD, 0, 0xFFFF, 0, 0, 8, 8,
+                           (128, 128, 128, 128), tex=0, u0=0, v0=0, u1=8, v1=8)]
+        path = os.path.join(tmp, "s.uib")
+        write_uib(path, {"w": 640, "h": 448}, recs, [tex], [], [], None)
+        return read_uib(path)
+
+    def errors_for(self, uib):
+        from ps2ui_bake.check import check_blob
+        rep = check_blob(uib, None, True)
+        return [label for ok, sev, label in rep.results
+                if not ok and sev == "error"]
+
+    def test_a_well_formed_streamed_blob_passes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(self.errors_for(self.build(td)), [])
+
+    def test_the_feature_bit_is_set_by_the_table(self):
+        import tempfile
+        from ps2ui_bake.uib import FEAT_STREAMED_TEX
+        with tempfile.TemporaryDirectory() as td:
+            uib = self.build(td)
+            self.assertTrue(uib.feature_flags & FEAT_STREAMED_TEX)
+            # Clearing it must be caught: a reader that cannot stream
+            # would accept the file and draw a slot nothing can fill.
+            uib.feature_flags &= ~FEAT_STREAMED_TEX
+            self.assertTrue(any("feature bit" in e
+                                for e in self.errors_for(uib)))
+
+    def test_an_unnamed_streamed_texture_is_refused(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            uib = self.build(td)
+            uib.textures[0].name = None      # unaddressable
+            self.assertTrue(any("named" in e for e in self.errors_for(uib)))
+
+    def test_a_zero_reservation_is_refused(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            uib = self.build(td)
+            uib.textures[0].reservation = 0
+            self.assertTrue(any("reservation" in e
+                                for e in self.errors_for(uib)))
+
+    def test_texture_names_must_be_unique(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            uib = self.build(td)
+            dup = copy.copy(uib.textures[0])
+            uib.textures.append(dup)         # same name twice
+            self.assertTrue(any("unique" in e for e in self.errors_for(uib)))
+
+    def test_the_reservation_is_the_linear_texel_size(self):
+        """What ps2ui_tex_set will demand, byte for byte."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            uib = self.build(td, w=16, h=16, reservation=16 * 16 * 4)
+            self.assertEqual(uib.textures[0].reservation, 1024)
+            self.assertEqual(uib.textures[0].data, b"")
 
 
 class TestArena(unittest.TestCase):
@@ -1312,7 +1394,11 @@ class TestKernTable(unittest.TestCase):
         # what forces the version bump rather than a feature bit alone.
         self.assertEqual(_FONT.size, 24)
         self.assertEqual(_KERN.size, 12)
-        self.assertEqual(VERSION, 5)
+        # v6: the texture entry grew from 16 to 20 bytes for `kind` and
+        # `name_off`, so a v5 reader would walk the texture table at
+        # the wrong stride -- the same argument that made kerning a
+        # version bump rather than a feature bit alone.
+        self.assertEqual(VERSION, 6)
 
     def test_the_feature_bit_states_what_the_tables_hold(self):
         # Stated, not inferred: with the bit clear the runtime may skip

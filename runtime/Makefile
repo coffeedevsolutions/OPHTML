@@ -10,9 +10,13 @@ UIB     ?= ../examples/memcard/build/ui.uib
 # would assert nothing. Built here rather than committed so it tracks
 # the compiler it is testing.
 LIST_UIB = build/list.uib
+# The streamed-texture fixture (v6 §3). Built straight from write_uib
+# rather than through HTML: authoring a streamed slot from markup is a
+# separate change, and the runtime half needs a blob first.
+STREAM_UIB = build/streamed.uib
 
-test: syntax-check build/test_runtime $(LIST_UIB)
-	./build/test_runtime $(UIB) $(LIST_UIB)
+test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB)
+	./build/test_runtime $(UIB) $(LIST_UIB) $(STREAM_UIB)
 
 # The sample is the bring-up instrument -- the ELF that goes on a
 # memory card -- and until this target existed nothing but the ps2dev
@@ -68,6 +72,10 @@ $(LIST_UIB): tests/fixture/list.html tests/fixture/list.css \
 	node ../packages/layout/bin/ps2ui-layout.js \
 		tests/fixture/list.html tests/fixture/list.css -o build/list.json
 	PYTHONPATH=../packages/baker python3 -m ps2ui_bake build/list.json -o $@
+
+$(STREAM_UIB): tests/fixture/make_streamed.py $(BAKER_SRC)
+	@mkdir -p build
+	python3 tests/fixture/make_streamed.py $@
 
 # gsKit's real texture-size arithmetic, selectively compiled from the
 # vendored source: gsKit guards every function with a per-function F_*

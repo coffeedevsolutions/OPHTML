@@ -231,10 +231,30 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
      * index without branching. */
     for (i = 0; i < ctx->hdr->n_tex; i++) {
         const ps2ui_tex_entry *t = &ctx->tex[i];
-        if (!in_blob(ctx, t->data_off, t->data_len))
+        if (t->kind != PS2UI_TEXKIND_BAKED && t->kind != PS2UI_TEXKIND_STREAMED)
             return PS2UI_ERR_BOUNDS;
-        if (t->data_off & 15u)   /* DMA'd in place; see the blob check */
+        if (t->kind == PS2UI_TEXKIND_STREAMED) {
+            /* No texels in the file, so data_off addresses nothing and
+             * must not be range-checked into the blob. A blob that
+             * declares one without saying so in the header would draw
+             * an empty slot on a reader that ignores the kind, which
+             * is exactly what the feature bit exists to prevent. */
+            if (!(ctx->hdr->feature_flags & PS2UI_FEAT_STREAMED_TEX))
+                return PS2UI_ERR_FEATURES;
+            if (t->data_len == 0)
+                return PS2UI_ERR_BOUNDS;
+            if (t->name_off == PS2UI_NAME_NONE)
+                return PS2UI_ERR_BOUNDS;   /* unaddressable: nothing could fill it */
+        } else if (!in_blob(ctx, t->data_off, t->data_len)) {
+            return PS2UI_ERR_BOUNDS;
+        } else if (t->data_off & 15u) {  /* DMA'd in place; see the blob check */
             return PS2UI_ERR_ALIGN;
+        }
+        if (t->name_off != PS2UI_NAME_NONE
+            && (t->name_off >= ctx->hdr->blob_len
+                || !memchr(ctx->blob + t->name_off, 0,
+                           ctx->hdr->blob_len - t->name_off)))
+            return PS2UI_ERR_BOUNDS;
         if (t->clut != PS2UI_NONE && t->clut >= ctx->hdr->n_clut)
             return PS2UI_ERR_BOUNDS;
         if (t->format != PS2UI_TEXFMT_PSMT8 && t->format != PS2UI_TEXFMT_PSMCT32)
@@ -276,6 +296,12 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
     for (i = 0; i < ctx->hdr->n_font; i++) {
         const ps2ui_font_entry *f = &ctx->fonts[i];
         if (f->tex >= ctx->hdr->n_tex)
+            return PS2UI_ERR_BOUNDS;
+        /* A glyph atlas is produced at bake time by definition, and the
+         * slot pen binds it without checking for texels -- so a blob
+         * pointing a font at a streamed slot is refused here rather
+         * than reaching that bind with a null source. */
+        if (ctx->tex[f->tex].kind != PS2UI_TEXKIND_BAKED)
             return PS2UI_ERR_BOUNDS;
         if (!in_blob(ctx, f->glyphs_off,
                      (uint32_t)f->glyph_count * (uint32_t)sizeof(ps2ui_glyph)))
@@ -456,12 +482,14 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
          * step 4. */
         if (t->format == PS2UI_TEXFMT_PSMCT32) {
             g->PSM = GS_PSM_CT32;
-            g->Mem = (u32 *)(const void *)(ctx->blob + t->data_off);
+            if (t->kind != PS2UI_TEXKIND_STREAMED)
+                g->Mem = (u32 *)(const void *)(ctx->blob + t->data_off);
         } else { /* PSMT8 + CLUT */
             const ps2ui_clut_entry *c = &ctx->clut[t->clut];
             g->PSM     = GS_PSM_T8;
             g->ClutPSM = GS_PSM_CT32;
-            g->Mem     = (u32 *)(const void *)(ctx->blob + t->data_off);
+            if (t->kind != PS2UI_TEXKIND_STREAMED)
+                g->Mem = (u32 *)(const void *)(ctx->blob + t->data_off);
             /* Indexed by CLUT, so textures sharing a palette share the
              * permuted copy and permute it once each upload pass. */
             uint8_t *buf = ctx->clut_pool + (size_t)t->clut * 256 * 4;
@@ -480,10 +508,86 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
          * (SyncDCache at gsTexManager.c:270 and :279) -- the flush this
          * runtime used to do by hand now belongs to the API that owns
          * it, which is where review said it should end up. */
+        /* A streamed slot the app has not filled yet has no source to
+         * transfer from. Its VRAM is already counted in the preflight
+         * above -- the reservation is the point -- but binding it here
+         * would hand the GIF a null DMA source. ps2ui_tex_set performs
+         * the first bind instead, when there is something to send. */
+        if (g->Mem == NULL)
+            continue;
         gsKit_TexManager_bind(gs, g);
     }
     ctx->uploaded = 1;
     return 0;
+}
+
+/* Find a texture by name. Linear: n_tex is bounded by
+ * PS2UI_MAX_TEXTURES and this runs when a cover arrives, not per
+ * frame, so a sorted table would be machinery for nothing. */
+static uint32_t tex_index_by_name(const ps2ui_ctx *ctx, const char *name)
+{
+    uint32_t i;
+    if (!name)
+        return PS2UI_NONE;
+    for (i = 0; i < ctx->hdr->n_tex; i++) {
+        const ps2ui_tex_entry *t = &ctx->tex[i];
+        if (t->name_off == PS2UI_NAME_NONE)
+            continue;
+        if (strcmp((const char *)(ctx->blob + t->name_off), name) == 0)
+            return i;
+    }
+    return PS2UI_NONE;
+}
+
+int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
+                  const void *texels, size_t len)
+{
+    uint32_t i;
+    const ps2ui_tex_entry *t;
+    GSTEXTURE *g;
+
+    if (!ctx || !gs || !texels)
+        return PS2UI_ERR_NOT_STREAMED;
+    i = tex_index_by_name(ctx, name);
+    if (i == PS2UI_NONE)
+        return PS2UI_ERR_NOT_STREAMED;
+    t = &ctx->tex[i];
+    /* A baked slot's texels live in the blob and are the caller's to
+     * re-bake, not to overwrite at runtime. Same return as an unknown
+     * name: from the app's side both mean "this name is not a slot you
+     * can fill". */
+    if (t->kind != PS2UI_TEXKIND_STREAMED)
+        return PS2UI_ERR_NOT_STREAMED;
+    /* Exact, not "at least": a short buffer would DMA past its end and
+     * a long one means the caller and the bake disagree about the
+     * geometry, which is worth failing rather than silently cropping. */
+    if (len != (size_t)t->data_len)
+        return PS2UI_ERR_SIZE;
+    /* The GIF reads this address directly. A DMA source truncates
+     * silently below qword alignment -- the fault class bringup.md 3c
+     * records -- so an unaligned buffer is refused here rather than
+     * drawn shifted by a few texels. */
+    if (((uintptr_t)texels) & 15u)
+        return PS2UI_ERR_ALIGN;
+
+    g = &ctx->gs_tex[i];
+    /* Nothing is copied: this pointer becomes the slot's DMA source
+     * for as long as the slot can be drawn. Same contract the blob
+     * already has for every baked texture. */
+    g->Mem = (u32 *)texels;
+    /* The app just wrote these texels with the CPU, which on the EE
+     * leaves them in a write-back cache the GIF does not see. The
+     * manager flushes per buffer on the transfers it performs, but the
+     * decision to transfer is made from residency state that this call
+     * is about to change, so the writeback belongs here where the
+     * write happened. */
+    SyncDCache((void *)texels, (void *)((uint8_t *)(void *)(uintptr_t)texels + len));
+    /* Residency is stale by construction: the manager may hold this
+     * texture as resident from a previous set, in which case the next
+     * bind would draw the OLD cover from VRAM and never look at the
+     * new pointer. Invalidate says "resident, but wrong". */
+    gsKit_TexManager_invalidate(gs, g);
+    return PS2UI_OK;
 }
 
 /* ------------------------------------------------------------- render */
@@ -690,6 +794,15 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
              * THE FOOTPRINT STILL FITS. The heal is bounded by the
              * tex_ok check at the top of this function, because a bind
              * that no longer fits does not fail, it never returns. */
+            /* An unfilled streamed slot draws nothing rather than
+             * sampling a null source. Silent by design: the app fills
+             * covers as they arrive, so "not yet" is the ordinary
+             * state of a row that has just scrolled into view, not an
+             * error worth a counter. */
+            if (ctx->gs_tex[c->tex].Mem == NULL) {
+                ctx->stats.tex_unfilled++;
+                continue;
+            }
             gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);
             gsKit_prim_sprite_texture(gs, &ctx->gs_tex[c->tex],
                 (float)c->x, (float)c->y, (float)c->u0, (float)c->v0,

@@ -37,15 +37,24 @@ from .quads import (
 )
 
 MAGIC = 0x31424955  # "UIB1"
-VERSION = 5
+VERSION = 6
 
 FEAT_DYNAMIC_TEXT = 1 << 0
 FEAT_KERNING = 1 << 1
 FEAT_SLOT_SPACING = 1 << 2
-FEAT_KNOWN = FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING
+# The blob declares at least one streamed texture: a reader that cannot
+# fill one must refuse the file rather than draw an empty slot.
+FEAT_STREAMED_TEX = 1 << 3
+FEAT_KNOWN = (FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING
+              | FEAT_STREAMED_TEX)
+
+TEXKIND_BAKED = 0
+TEXKIND_STREAMED = 1
+# A texture with no name. Not 0: offset 0 is a legitimate blob offset.
+NAME_NONE = 0xFFFFFFFF
 
 _HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHIHH")  # 76 bytes
-_TEX = struct.Struct("<BBHHHII")               # 16 bytes
+_TEX = struct.Struct("<BBHHHIII")              # 20 bytes (v6: kind, name_off)
 _CLUT = struct.Struct("<HHI")                  # 8 bytes
 _CMD = struct.Struct("<BBHhhHHBBBBHHHHH6x")    # 32 bytes
 # Field order keeps every u32 4-aligned so the C runtime can overlay
@@ -62,7 +71,7 @@ _CRC_OFFSET = 48
 _GLYF = struct.Struct("<IHHHHhhH2x")           # 20 bytes, in blob
 _KERN = struct.Struct("<IIh2x")                # 12 bytes, in blob
 
-assert _HEADER.size == 76 and _TEX.size == 16 and _CLUT.size == 8
+assert _HEADER.size == 76 and _TEX.size == 20 and _CLUT.size == 8
 assert _SCREEN.size == 24
 assert _CMD.size == 32 and _FOCUS.size == 24
 assert _FONT.size == 24 and _SLOT.size == 32 and _GLYF.size == 20
@@ -96,12 +105,30 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
 
     tex_entries = []
     for t in textures:
+        if t.kind == TEXKIND_STREAMED:
+            # No texels in the file. data_off addresses nothing and the
+            # runtime does not range-check it; data_len is the exact
+            # payload ps2ui_tex_set will demand, so the app is told the
+            # number instead of deriving it and getting padding wrong.
+            name_off = len(blob)
+            blob += t.name.encode("utf-8") + b"\0"
+            _align16(blob)
+            tex_entries.append((t.fmt, TEXKIND_STREAMED, t.width, t.height,
+                                t.clut if t.clut is not None else TEX_NONE,
+                                0, t.reservation, name_off))
+            continue
         off = len(blob)
         blob += t.data
         _align16(blob)
-        tex_entries.append((t.fmt, 0, t.width, t.height,
+        if t.name:
+            name_off = len(blob)
+            blob += t.name.encode("utf-8") + b"\0"
+            _align16(blob)
+        else:
+            name_off = NAME_NONE
+        tex_entries.append((t.fmt, TEXKIND_BAKED, t.width, t.height,
                             t.clut if t.clut is not None else TEX_NONE,
-                            off, len(t.data)))
+                            off, len(t.data), name_off))
 
     clut_entries = []
     for c in cluts:
@@ -186,6 +213,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         feature_flags |= FEAT_KERNING
     if any(e[18] for e in slot_entries):
         feature_flags |= FEAT_SLOT_SPACING
+    if any(e[1] == TEXKIND_STREAMED for e in tex_entries):
+        feature_flags |= FEAT_STREAMED_TEX
 
     off = _HEADER.size
     off_tex = off
@@ -308,11 +337,16 @@ def read_uib(path) -> UibFile:
     out.display_aspect = (dar_num, dar_den)
     out.off_blob = off_blob
     for i in range(n_tex):
-        fmt, _pad, w, h, clut, doff, dlen = _TEX.unpack_from(data, off_tex + i * _TEX.size)
+        (fmt, kind, w, h, clut, doff, dlen,
+         noff) = _TEX.unpack_from(data, off_tex + i * _TEX.size)
+        streamed = kind == TEXKIND_STREAMED
         out.textures.append(BakedTexture(
             fmt, w, h, None if clut == TEX_NONE else clut,
-            bytes(blob[doff:doff + dlen]),
-            data_off=doff,
+            b"" if streamed else bytes(blob[doff:doff + dlen]),
+            data_off=None if streamed else doff,
+            kind=kind,
+            name=None if noff == NAME_NONE else cstr(noff),
+            reservation=dlen if streamed else 0,
         ))
     for i in range(n_clut):
         ncolors, _pad, doff = _CLUT.unpack_from(data, off_clut + i * _CLUT.size)
