@@ -20,7 +20,8 @@ order of operations.
 | `probe.elf` | step 2 — already passed, keep it for the same reason |
 | `conform.elf` | steps 3, 5, 7 — the conformance grid |
 | `testcard.elf` | steps 6 and 8 — the alignment card |
-| `probe6.elf` | step 6b — which part of the texture path is at fault |
+| `probe6.elf` | step 6b — which part of the texture path is at fault, and the CLUT-convention column |
+| `probe6-linear.elf` | step 6b's falsification arm — its rightmost column must show the wrong-convention picture |
 | `conform-linear.elf` | step 3's A/B — the same grid with the CLUT unpermuted |
 | `sample-linear.elf` | the same A/B on the memcard UI |
 | `conform-noalpha.elf` | step 4b's reference — what a dead texture-alpha channel looks like |
@@ -255,21 +256,38 @@ obviously unlike the grey at either end.
 
 ### Step 6b — which part of the texture path (run this one too)
 
-**Run** `probe6.elf`. Six columns, no text anywhere. Each column is a
-patterned patch with a reference patch directly beneath it. Ignore the
-pattern; look only at the horizontal boundary inside each column.
+**Run** `probe6.elf`. Seven columns, no text anywhere. Each column is
+vertical bars of irregular widths with a copy of itself directly
+beneath, plus one horizontal stripe per copy. The bars are aperiodic on
+purpose — the previous checker version was voided twice because a
+shifted checker can land back on itself and read as aligned; irregular
+bars cannot.
 
-**Expect:** every boundary invisible. A visible one names a fault.
+**Read three things, in order:**
+
+1. **Are the bars straight?** Bars that lean or staircase inside a
+   column mean a stride (TBW) fault in that column — no comparison
+   needed.
+2. **Do the bars run continuously across the horizontal join** between
+   each column's two halves? A kink or offset at the join names that
+   column. The stripe should sit at the same height in both halves; a
+   stripe at different heights is a vertical fault.
+3. **The rightmost column is orange and teal** where the others are
+   grey. It should be **mostly orange**, matching the copy beneath it.
+   Mostly teal = the CLUT convention is wrong — a different fault
+   class from the seams, and the one fault on this screen CI also
+   checks on every run.
 
 | what you see | verdict |
 |---|---|
-| all six seamless | **PASS** — none of these reproduces it |
-| leftmost seamless, another visible | **FAIL** — note which column, counting from the left |
-| **leftmost visible** | **VOID** — the leftmost is the calibration; if it seams the probe is wrong, not the console |
+| all straight, all continuous, G orange | **PASS** — none of these faults is present |
+| leftmost clean, another column kinked/leaning | **FAIL** — note which column, counting from the left |
+| **leftmost column faulty** | **VOID** — the leftmost is immune by construction (no CLUT, minimum-width atlas, corner origin, one quad); if it misbehaves the probe, panel, or camera is wrong, not the console |
+| rightmost mostly teal | **FAIL** — CLUT convention; compare with `probe6-linear.elf`, which must show exactly this on purpose |
 
 Count columns from the left and write the number down; that number is
 the whole result. This is a step where a photo genuinely helps, because
-a seam survives a camera. Shoot it straight on.
+a kinked bar survives a camera. Shoot it straight on.
 
 Also on this card, worth a glance: four **1px colour-coded rules**
 hugging the canvas edges — red top, green bottom, blue left, yellow

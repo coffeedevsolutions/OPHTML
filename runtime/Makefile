@@ -36,6 +36,13 @@ syntax-check:
 		-DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_SCREEN='"probe"' \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_SCREEN"
+# The step 6 probe's falsification arm pairs two defines the loop
+# above never combines: column G branches on PS2UI_CLUT_PERMUTE inside
+# the PROBE6 block, so this is the only line that compiles that branch.
+	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+		-DPS2UI_SAMPLE_PROBE6 -DPS2UI_CLUT_PERMUTE=0 \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_SAMPLE_PROBE6 -DPS2UI_CLUT_PERMUTE=0"
 # The linear-CLUT arm of step 3's A/B lives in ps2ui.c, not main.c, so
 # it needs its own line: the loop above only ever compiles the sample.
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
@@ -78,7 +85,7 @@ build/gsKit_texture_size.o: vendor/gsKit/src/gsTexture.c
 	$(CC) -std=c99 -O2 -c -DF_gsKit_texture_size \
 		-Ivendor/gsKit -Ivendor/host-shim $< -o $@
 
-build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h build/gsKit_texture_size.o
+build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h sample/probe6_pattern.h build/gsKit_texture_size.o
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c build/gsKit_texture_size.o -o $@
 
