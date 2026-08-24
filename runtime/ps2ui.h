@@ -180,21 +180,20 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
 
 /* ---------------------------------- context ---------------------------- */
 
+/* Validation limits, not storage (design-v6-resource-model.md §2).
+ * The context is sized by the blob through the caller's arena; these
+ * exist so a corrupt header is refused before anything sizes an
+ * allocation from it. An integrator raising them pays nothing until a
+ * blob actually uses the room. caps.py parses them, so the bake still
+ * refuses what the runtime would reject. */
 #define PS2UI_MAX_SCISSOR_DEPTH 8
 #define PS2UI_MAX_TEXTURES      32
 #define PS2UI_MAX_SLOTS         16
-#define PS2UI_SLOT_BUFSZ        96  /* bytes incl. NUL, per slot */
 #define PS2UI_MAX_SCREENS       8
 /* Longest row focus name a list can build: prefix + index + NUL. Only
  * a stack buffer in ps2ui_list_move, not a table bound, so it costs
  * nothing to a UI that never uses a list. */
 #define PS2UI_LIST_NAME_MAX     64
-/* Focus nodes whose visibility can be toggled at runtime (backlog F21),
- * one bit each. Not a load-time cap: a blob with more focusables loads
- * and renders fine, it just cannot hide the ones past this index, and
- * ps2ui_visible_set says so by returning 0. Sized to match the
- * data-repeat ceiling, since a long list is what needs this. */
-#define PS2UI_MAX_HIDEABLE      256
 
 /* Per-frame render telemetry, reset at the top of every ps2ui_render
  * and complete when it returns. Counters only: the runtime does no
@@ -238,19 +237,31 @@ typedef struct ps2ui_ctx {
 
     uint16_t  screen;                /* current screen index */
     uint16_t  focus;                 /* current focus index or PS2UI_NONE */
+
+    /* Everything below points into the caller's arena, carved by
+     * ps2ui_load in descending alignment order (see arena_layout in
+     * ps2ui.c). The arena must outlive the context: the CLUT region is
+     * a DMA source that gsKit re-reads whenever the TexManager re-binds
+     * an evicted texture, which is render time, not upload time. */
     /* Per-screen focus memory: switching back restores where you were. */
-    uint16_t  screen_focus[PS2UI_MAX_SCREENS];
-    GSTEXTURE gs_tex[PS2UI_MAX_TEXTURES];
+    uint16_t  *screen_focus;         /* n_screen */
+    GSTEXTURE *gs_tex;               /* n_tex */
+    /* Permuted CLUTs, 1 KiB per PSMT8-with-palette texture, 16-aligned
+     * (DMA source). Replaces the 32 KiB ceiling-sized static pool. */
+    uint8_t   *clut_pool;
     int       uploaded;
-    /* Runtime slot text. slot_is_set distinguishes "never set" (draw
-     * the baked placeholder) from "set to an empty string" (draw
-     * nothing). Caller-free storage keeps the no-allocation rule. */
-    char      slot_text[PS2UI_MAX_SLOTS][PS2UI_SLOT_BUFSZ];
-    uint8_t   slot_is_set[PS2UI_MAX_SLOTS];
-    /* Runtime visibility, one bit per focus node, 0 = shown. Zeroed by
-     * ps2ui_load, so a blob that never calls the API behaves exactly as
-     * before and pays 32 bytes of context. */
-    uint32_t  hidden[(PS2UI_MAX_HIDEABLE + 31) / 32];
+    /* Runtime slot text. Each slot owns capacity+1 bytes at
+     * slot_text + slot_off[i] -- the capacity the baker declared for
+     * it, not a global buffer size. slot_is_set distinguishes "never
+     * set" (draw the baked placeholder) from "set to an empty string"
+     * (draw nothing). Caller-free storage keeps the no-allocation rule. */
+    char      *slot_text;            /* sum of (capacity + 1) */
+    uint32_t  *slot_off;             /* n_slot */
+    uint8_t   *slot_is_set;          /* n_slot */
+    /* Runtime visibility, one bit per focus node, 0 = shown, sized from
+     * n_focus -- so "focusable past the hideable ceiling" is a case
+     * that no longer exists rather than one reported better. */
+    uint32_t  *hidden;               /* (n_focus + 31) / 32 words */
     /* The budget ps2ui_upload preflighted. ps2ui_render re-checks the
      * fit against it before any textured draw: gsKit_TexManager_bind
      * cannot report exhaustion (its allocator spins forever), so a
@@ -270,11 +281,29 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_TOO_MANY   -5
 #define PS2UI_ERR_CRC        -6
 #define PS2UI_ERR_FEATURES   -7
-#define PS2UI_ERR_ALIGN      -8  /* texture bytes not 16-aligned for DMA */
+#define PS2UI_ERR_ALIGN      -8  /* texture bytes or arena not 16-aligned */
+#define PS2UI_ERR_ARENA      -9  /* arena smaller than ps2ui_arena_size() */
+
+/* The arena's required alignment. The CLUT region at its start is a
+ * DMA source, and DMA source addresses truncate silently below qword
+ * alignment -- the exact fault class bringup.md 3c records. */
+#define PS2UI_ARENA_ALIGN    16
+
+/* Bytes of scratch this blob needs. Reads the header and table counts
+ * (and the slot/texture tables they locate) but does not validate the
+ * blob and does not touch the GS. Returns 0 if the header is
+ * unreadable or the tables do not fit in `size`, which is also the
+ * answer for "do not bother calling load". */
+size_t ps2ui_arena_size(const void *data, size_t size);
 
 /* Validate a blob and point the context into it. The blob must stay
- * alive and unmoved for the context's lifetime; nothing is copied. */
-int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size);
+ * alive and unmoved for the context's lifetime; nothing is copied.
+ * The arena must be at least ps2ui_arena_size() bytes and
+ * PS2UI_ARENA_ALIGN-aligned; the context points into it, so its
+ * lifetime is the caller's and must cover every render, not just this
+ * call. A blob that fails validation never touches the arena. */
+int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
+               void *arena, size_t arena_size);
 
 /* The CSM1 index permutation (swap bit 3 and bit 4). Exposed for tests;
  * mirrors clut_csm1_order in packages/baker/ps2ui_bake/gs.py. */
@@ -347,12 +376,20 @@ uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);
  * must not blank another screen's identically-named row.
  *
  * Returns 1 on success, 0 if the current screen has no node with that
- * name or its index is past PS2UI_MAX_HIDEABLE. Note the index is
- * global, so with several screens the later ones eat into the same
- * ceiling. */
+ * name. The old "index past the hideable ceiling" failure is gone: the
+ * visibility bits are sized from the blob's own n_focus, so every node
+ * a blob declares can be hidden. */
 int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible);
 
-/* 1 if shown (the default), 0 if hidden or unknown. */
+/* 1 if shown (the default), 0 if hidden, PS2UI_VISIBLE_UNKNOWN if the
+ * current screen has no node with that name.
+ *
+ * The three used to collapse into 0 (the #16 review's finding), so an
+ * app could not tell "hidden" from "you typed the name wrong" -- and
+ * the typo is the one a caller can fix. A third value rather than an
+ * out-parameter because every other query in this header returns its
+ * answer, and -1 cannot be confused with a visibility. */
+#define PS2UI_VISIBLE_UNKNOWN (-1)
 int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
 
 /* Show every node again. Cheap enough to call on a screen change. */

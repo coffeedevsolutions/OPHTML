@@ -482,13 +482,134 @@ class TestCaps(unittest.TestCase):
         errors, _ = caps.check([], [], [], screens)
         self.assertTrue(any("screens" in e for e in errors))
 
-    def test_slot_capacity_must_fit_the_runtime_buffer(self):
+    def test_slot_capacity_is_no_longer_capped_by_a_runtime_buffer(self):
+        """The v6 resource model removed PS2UI_SLOT_BUFSZ.
+
+        A capacity that used to be rejected as unloadable is now merely
+        arena bytes, so the bake must accept it -- this test is the one
+        that would have caught the check being left behind after the
+        constant it read was deleted."""
         from ps2ui_bake import caps
-        bufsz = caps.FALLBACK["PS2UI_SLOT_BUFSZ"]
-        errors, _ = caps.check([], [], self.slots(1, capacity=bufsz - 1), [{}])
+        errors, c = caps.check([], [], self.slots(1, capacity=4096), [{}])
         self.assertEqual(errors, [])
-        errors, _ = caps.check([], [], self.slots(1, capacity=bufsz), [{}])
-        self.assertIn("PS2UI_SLOT_BUFSZ", errors[0])
+        self.assertNotIn("PS2UI_SLOT_BUFSZ", c)
+        # The format's own bound still applies.
+        errors, _ = caps.check([], [], self.slots(1, capacity=0x10000), [{}])
+        self.assertTrue(any("uint16" in e for e in errors))
+
+
+class TestArena(unittest.TestCase):
+    """The host mirror of runtime/ps2ui.c's arena_compute.
+
+    Two implementations of the same layout, so a change to one that the
+    other does not follow is a failure rather than a silent divergence
+    -- the same reason the kerning pens have an agreement test. The C
+    side of the comparison is runtime/tests/test_runtime.c, which
+    asserts ps2ui_arena_size against an independent carve of the same
+    header; this side asserts the Python against the real blobs.
+    """
+
+    def blob(self, name):
+        import os
+        from ps2ui_bake.uib import read_uib
+        here = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.normpath(os.path.join(
+            here, "..", "..", "..", "examples", name, "build", "ui.uib"))
+        if not os.path.exists(path):
+            self.skipTest(f"{path} not baked")
+        return read_uib(path)
+
+    def test_gstexture_size_differs_by_pointer_width(self):
+        from ps2ui_bake import arena
+        # The whole reason the report names a target: GSTEXTURE holds
+        # two pointers, so the same blob needs a different arena on the
+        # EE than in the host test suite.
+        self.assertEqual(arena.sizeof_gstexture(arena.EE_PTR), 40)
+        self.assertEqual(arena.sizeof_gstexture(arena.HOST64_PTR), 48)
+
+    def test_arena_size_sums_its_own_breakdown(self):
+        from ps2ui_bake import arena
+        u = self.blob("memcard")
+        for ptr in (arena.EE_PTR, arena.HOST64_PTR):
+            self.assertEqual(
+                sum(n for _, n in arena.breakdown(u, ptr)),
+                arena.arena_size(u, ptr),
+                "the printed breakdown must account for every byte")
+
+    def test_arena_matches_the_runtime(self):
+        """Compare against the C, compiled and run for this host.
+
+        Skipped rather than faked when the runtime cannot be built: a
+        cross-language test that silently degrades to comparing Python
+        with Python is worse than no test, because it reports agreement
+        it never checked."""
+        import os
+        import subprocess
+        import tempfile
+        from ps2ui_bake import arena
+
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.normpath(os.path.join(here, "..", "..", ".."))
+        rt = os.path.join(root, "runtime")
+        size_obj = os.path.join(rt, "build", "gsKit_texture_size.o")
+        if not os.path.exists(size_obj):
+            self.skipTest("runtime not built (make -C runtime test)")
+
+        src = r"""
+        #include "ps2ui.h"
+        #include <stdio.h>
+        #include <stdlib.h>
+        int main(int c, char **v) {
+            for (int i = 1; i < c; i++) {
+                FILE *f = fopen(v[i], "rb");
+                long n; void *b;
+                if (!f) return 2;
+                fseek(f, 0, SEEK_END); n = ftell(f); fseek(f, 0, SEEK_SET);
+                b = malloc((size_t)n);
+                if (fread(b, 1, (size_t)n, f) != (size_t)n) return 2;
+                fclose(f);
+                printf("%zu\n", ps2ui_arena_size(b, (size_t)n));
+            }
+            return 0;
+        }
+        """
+        with tempfile.TemporaryDirectory() as td:
+            cs = os.path.join(td, "az.c")
+            exe = os.path.join(td, "az")
+            with open(cs, "w") as fh:
+                fh.write(src)
+            cc = subprocess.run(
+                ["cc", "-std=c99", "-O1",
+                 f"-I{rt}", f"-I{rt}/stub", f"-I{rt}/vendor/gsKit",
+                 f"-I{rt}/vendor/host-shim",
+                 cs, f"{rt}/ps2ui.c", f"{rt}/stub/gskit_stub.c", size_obj,
+                 "-o", exe],
+                capture_output=True)
+            if cc.returncode != 0:
+                self.skipTest(f"cannot build the runtime here: "
+                              f"{cc.stderr.decode()[:200]}")
+            names = ["memcard", "channel6"]
+            paths = []
+            for nm in names:
+                p = os.path.normpath(os.path.join(
+                    root, "examples", nm, "build", "ui.uib"))
+                if os.path.exists(p):
+                    paths.append((nm, p))
+            if not paths:
+                self.skipTest("no baked blobs to compare")
+            out = subprocess.run([exe] + [p for _, p in paths],
+                                 capture_output=True, check=True)
+            got = [int(x) for x in out.stdout.split()]
+            self.assertEqual(len(got), len(paths))
+            for (nm, p), c_value in zip(paths, got):
+                from ps2ui_bake.uib import read_uib
+                # The C ran on this host, so compare against the host
+                # pointer width -- comparing it to the EE number would
+                # be a test of nothing but the difference between them.
+                py = arena.arena_size(read_uib(p), arena.HOST64_PTR)
+                self.assertEqual(
+                    py, c_value,
+                    f"{nm}: python says {py}, ps2ui_arena_size says {c_value}")
 
 
 class TestVram(unittest.TestCase):

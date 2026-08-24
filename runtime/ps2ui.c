@@ -66,8 +66,108 @@ static int in_blob(const ps2ui_ctx *ctx, uint32_t off, uint32_t len)
     return off <= ctx->hdr->blob_len && len <= ctx->hdr->blob_len - off;
 }
 
-int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
+/* --------------------------------------------------------------- arena
+ *
+ * The context is sized by the blob, not by PS2UI_MAX_* ceilings
+ * (design-v6-resource-model.md §2). One caller-provided block, carved
+ * in descending alignment order so no padding is needed between
+ * regions:
+ *
+ *   permuted CLUTs   16-aligned, 1 KiB per CLUT ENTRY (shared by
+ *                    every texture that names it)
+ *   GSTEXTURE[]      8  (u64 members)
+ *   slot_off[]       4  (uint32_t; sum of capacities can pass 64 KiB)
+ *   hidden bits      4  (uint32_t words, sized from n_focus)
+ *   screen_focus[]   2
+ *   slot text        1  (sum of capacity + 1 per slot)
+ *   slot_is_set      1
+ *
+ * The CLUT region leads for two reasons: it carries the strictest
+ * alignment (it is a DMA source, and DMA source addresses truncate
+ * silently below qword alignment -- bringup.md 3c), and it must live
+ * as long as any render can happen, because the TexManager re-binds
+ * evicted textures from it at draw time. */
+
+typedef struct arena_layout {
+    size_t clut_off,  clut_sz;
+    size_t tex_off,   tex_sz;
+    size_t soff_off,  soff_sz;
+    size_t hid_off,   hid_sz;
+    size_t sfoc_off,  sfoc_sz;
+    size_t text_off,  text_sz;
+    size_t isset_off, isset_sz;
+    size_t total;
+} arena_layout;
+
+/* Compute the carve for a header whose tables fit inside `size`.
+ * Reads the texture and slot tables (they decide the CLUT count and
+ * the text bytes) but validates nothing else -- ps2ui_load owns
+ * validation, and runs it before any of these offsets are used. */
+static int arena_compute(const uint8_t *data, size_t size, arena_layout *L)
 {
+    const ps2ui_header *h = (const ps2ui_header *)data;
+    const ps2ui_tex_entry *tex;
+    const ps2ui_slot_entry *slots;
+    size_t off = 0, n_cluts = 0, text = 0;
+    uint32_t i;
+
+    if (size < sizeof(ps2ui_header))
+        return 0;
+    if (h->magic != PS2UI_MAGIC || h->version != PS2UI_VERSION)
+        return 0;
+    if ((uint64_t)h->off_tex + (uint64_t)h->n_tex * sizeof(ps2ui_tex_entry) > size
+        || (uint64_t)h->off_slot + (uint64_t)h->n_slot * sizeof(ps2ui_slot_entry) > size)
+        return 0;
+    /* The validation limits, applied before anything is sized from the
+     * header: a corrupt count must not decide an allocation. */
+    if (h->n_tex > PS2UI_MAX_TEXTURES || h->n_slot > PS2UI_MAX_SLOTS
+        || h->n_screen > PS2UI_MAX_SCREENS || h->n_screen == 0)
+        return 0;
+
+    tex   = (const ps2ui_tex_entry *)(data + h->off_tex);
+    slots = (const ps2ui_slot_entry *)(data + h->off_slot);
+    /* One permuted buffer per CLUT ENTRY, not per texture. Measured:
+     * the memcard blob has 8 PSMT8 textures sharing a single palette,
+     * so per-texture buffers cost 8 KiB where 1 KiB does the same job
+     * -- and the CLUT region is the arena's dominant term, so that was
+     * 88% of the block. Textures sharing a CLUT index share the
+     * permuted copy, which is sound because the permutation is a pure
+     * function of the palette and the buffer is read-only once
+     * uploaded. */
+    (void)tex;
+    n_cluts = h->n_clut;
+    for (i = 0; i < h->n_slot; i++)
+        text += (size_t)slots[i].capacity + 1;
+
+    L->clut_off  = off;  L->clut_sz  = n_cluts * 256 * 4; off += L->clut_sz;
+    L->tex_off   = off;  L->tex_sz   = h->n_tex * sizeof(GSTEXTURE); off += L->tex_sz;
+    L->soff_off  = off;  L->soff_sz  = h->n_slot * sizeof(uint32_t); off += L->soff_sz;
+    L->hid_off   = off;  L->hid_sz   = ((size_t)(h->n_focus + 31) / 32) * sizeof(uint32_t); off += L->hid_sz;
+    L->sfoc_off  = off;  L->sfoc_sz  = h->n_screen * sizeof(uint16_t); off += L->sfoc_sz;
+    L->text_off  = off;  L->text_sz  = text; off += L->text_sz;
+    L->isset_off = off;  L->isset_sz = h->n_slot; off += L->isset_sz;
+    L->total = off;
+    return 1;
+}
+
+size_t ps2ui_arena_size(const void *data, size_t size)
+{
+    arena_layout L;
+    if (!data || !arena_compute((const uint8_t *)data, size, &L))
+        return 0;
+    return L.total;
+}
+
+/* Each slot's text buffer: capacity + 1 bytes at its own offset. */
+static char *slot_buf(const ps2ui_ctx *ctx, uint32_t i)
+{
+    return ctx->slot_text + ctx->slot_off[i];
+}
+
+int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
+               void *arena, size_t arena_size)
+{
+    arena_layout L;
     uint32_t i;
     memset(ctx, 0, sizeof *ctx);
     if (size < sizeof(ps2ui_header))
@@ -139,6 +239,11 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
             return PS2UI_ERR_BOUNDS;
         if (t->format != PS2UI_TEXFMT_PSMT8 && t->format != PS2UI_TEXFMT_PSMCT32)
             return PS2UI_ERR_BOUNDS;
+        /* Upload dereferences the palette for every T8 texture, and the
+         * arena carved one CLUT buffer per T8 texture -- both of which
+         * were silent assumptions until this check made them a refusal. */
+        if (t->format == PS2UI_TEXFMT_PSMT8 && t->clut == PS2UI_NONE)
+            return PS2UI_ERR_BOUNDS;
     }
     for (i = 0; i < ctx->hdr->n_clut; i++) {
         if (!in_blob(ctx, ctx->clut[i].data_off, (uint32_t)ctx->clut[i].ncolors * 4u))
@@ -207,13 +312,43 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size)
             || !memchr(ctx->blob + sc->name_off, 0,
                        ctx->hdr->blob_len - sc->name_off))
             return PS2UI_ERR_BOUNDS;
-        ctx->screen_focus[i] = sc->initial_focus;
     }
 
     ctx->screen = 0;
     ctx->focus = ctx->screen_table[0].initial_focus;
     if (ctx->focus != PS2UI_NONE && ctx->focus >= ctx->hdr->n_focus)
         return PS2UI_ERR_BOUNDS;
+
+    /* Only now, with the blob fully validated, is the arena touched --
+     * so a rejected blob cannot leave a half-initialized arena behind,
+     * and every count the carve trusts has been checked above. */
+    if (!arena_compute(ctx->data, size, &L))
+        return PS2UI_ERR_BOUNDS;    /* unreachable after the checks above */
+    if (arena == NULL || arena_size < L.total)
+        return PS2UI_ERR_ARENA;
+    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))
+        return PS2UI_ERR_ALIGN;
+
+    {
+        uint8_t *a = (uint8_t *)arena;
+        ctx->clut_pool    = a + L.clut_off;
+        ctx->gs_tex       = (GSTEXTURE *)(void *)(a + L.tex_off);
+        ctx->slot_off     = (uint32_t *)(void *)(a + L.soff_off);
+        ctx->hidden       = (uint32_t *)(void *)(a + L.hid_off);
+        ctx->screen_focus = (uint16_t *)(void *)(a + L.sfoc_off);
+        ctx->slot_text    = (char *)(a + L.text_off);
+        ctx->slot_is_set  = a + L.isset_off;
+        memset(a, 0, L.total);
+    }
+    {
+        size_t off = 0;
+        for (i = 0; i < ctx->hdr->n_slot; i++) {
+            ctx->slot_off[i] = (uint32_t)off;
+            off += (size_t)ctx->slots[i].capacity + 1;
+        }
+    }
+    for (i = 0; i < ctx->hdr->n_screen; i++)
+        ctx->screen_focus[i] = ctx->screen_table[i].initial_focus;
     return PS2UI_OK;
 }
 
@@ -262,11 +397,13 @@ static void permute_clut(const uint8_t *linear, uint16_t ncolors, uint8_t *out)
 
 /* ------------------------------------------------------------- upload */
 
-/* One static CLUT staging buffer per context upload pass. gsKit keeps a
- * pointer to CLUT memory in GSTEXTURE::Clut, so the permuted copies
- * must live as long as the textures do; they go in a static pool sized
- * for the file limit rather than on the stack. */
-static uint8_t clut_pool[PS2UI_MAX_TEXTURES][256 * 4] __attribute__((aligned(16)));
+/* Permuted CLUTs stage in the arena's leading region (1 KiB per T8
+ * texture, 16-aligned): gsKit keeps the pointer in GSTEXTURE::Clut and
+ * the TexManager re-reads it whenever it re-binds an evicted texture,
+ * so the copies must live as long as the context -- which is exactly
+ * the arena's contract. This replaced a 32 KiB ceiling-sized static
+ * pool (the sixth ceiling; design doc §1 rev 2). Buffers are assigned
+ * in texture-table order, which load and upload walk identically. */
 
 int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
 {
@@ -325,8 +462,11 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
             g->PSM     = GS_PSM_T8;
             g->ClutPSM = GS_PSM_CT32;
             g->Mem     = (u32 *)(const void *)(ctx->blob + t->data_off);
-            permute_clut(ctx->blob + c->data_off, c->ncolors, clut_pool[i]);
-            g->Clut = (u32 *)(void *)clut_pool[i];
+            /* Indexed by CLUT, so textures sharing a palette share the
+             * permuted copy and permute it once each upload pass. */
+            uint8_t *buf = ctx->clut_pool + (size_t)t->clut * 256 * 4;
+            permute_clut(ctx->blob + c->data_off, c->ncolors, buf);
+            g->Clut = (u32 *)(void *)buf;
         }
         /* Vram stays 0: that is the manager's "not resident" state,
          * and the bind below sees it and transfers. No gsKit_vram_alloc
@@ -361,7 +501,9 @@ static void apply_scissor(GSGLOBAL *gs, const scissor_rect *r)
  * unfocused variant". */
 static int node_hidden(const ps2ui_ctx *ctx, uint16_t idx)
 {
-    if (idx == PS2UI_NONE || idx >= PS2UI_MAX_HIDEABLE)
+    /* The bits are sized from n_focus, so every validated index has a
+     * bit; the old "past the hideable ceiling" case no longer exists. */
+    if (idx == PS2UI_NONE || idx >= ctx->hdr->n_focus)
         return 0;
     return (ctx->hidden[idx >> 5] >> (idx & 31u)) & 1u;
 }
@@ -694,8 +836,8 @@ static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)
 {
     /* An explicitly set slot wins even when its text is empty, so an
      * app can blank a row it has no data for (backlog B12). */
-    if (index < PS2UI_MAX_SLOTS && ctx->slot_is_set[index])
-        return ctx->slot_text[index];
+    if (index < ctx->hdr->n_slot && ctx->slot_is_set[index])
+        return slot_buf(ctx, index);
     return (const char *)(ctx->blob + ctx->slots[index].placeholder_off);
 }
 
@@ -841,16 +983,16 @@ int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)
     if (text == NULL) {
         /* Revert to the baked placeholder. "" is a different request:
          * it blanks the slot (backlog B12). */
-        ctx->slot_text[i][0] = '\0';
+        slot_buf(ctx, i)[0] = '\0';
         ctx->slot_is_set[i] = 0;
         return 1;
     }
+    /* The slot's own buffer is capacity + 1 bytes; the capacity the
+     * baker declared is the truncation point, not a global BUFSZ. */
     cap = ctx->slots[i].capacity;
-    if (cap >= PS2UI_SLOT_BUFSZ)
-        cap = PS2UI_SLOT_BUFSZ - 1;
-    strncpy(ctx->slot_text[i], text, cap);
-    ctx->slot_text[i][cap] = '\0';
-    utf8_trim_partial(ctx->slot_text[i]);
+    strncpy(slot_buf(ctx, i), text, cap);
+    slot_buf(ctx, i)[cap] = '\0';
+    utf8_trim_partial(slot_buf(ctx, i));
     ctx->slot_is_set[i] = 1;
     return 1;
 }
@@ -976,7 +1118,7 @@ int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)
     if (!ctx)
         return 0;
     idx = focus_index_by_name(ctx, name);
-    if (idx == PS2UI_NONE || idx >= PS2UI_MAX_HIDEABLE)
+    if (idx == PS2UI_NONE)
         return 0;
     if (visible)
         ctx->hidden[idx >> 5] &= ~(1u << (idx & 31u));
@@ -989,17 +1131,18 @@ int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)
 {
     uint16_t idx;
     if (!ctx)
-        return 0;
+        return PS2UI_VISIBLE_UNKNOWN;
     idx = focus_index_by_name(ctx, name);
     if (idx == PS2UI_NONE)
-        return 0;
+        return PS2UI_VISIBLE_UNKNOWN;
     return node_hidden(ctx, idx) ? 0 : 1;
 }
 
 void ps2ui_visible_reset(ps2ui_ctx *ctx)
 {
     if (ctx)
-        memset(ctx->hidden, 0, sizeof ctx->hidden);
+        memset(ctx->hidden, 0,
+               ((size_t)(ctx->hdr->n_focus + 31) / 32) * sizeof(uint32_t));
 }
 
 const char *ps2ui_focus_name(const ps2ui_ctx *ctx)

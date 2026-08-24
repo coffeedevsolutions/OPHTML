@@ -1,7 +1,10 @@
 """Runtime table caps (backlog B10).
 
-ps2ui.h sizes four tables statically, and ps2ui_load() rejects any blob
-that exceeds them with PS2UI_ERR_TOO_MANY. Nothing on the host used to
+ps2ui.h bounds four table counts, and ps2ui_load() rejects any blob
+that exceeds them with PS2UI_ERR_TOO_MANY. They are validation limits
+rather than storage sizes since the v6 resource model -- the runtime
+sizes itself from the blob through a caller-provided arena -- but a
+blob over the limit is still refused, so the bake still checks. Nothing on the host used to
 know those numbers, so an over-sized blob would lay out, bake, preview
 and pass every host test while being unloadable on console. The symptom
 there is the sample ELF's solid red screen with no diagnostic.
@@ -19,7 +22,6 @@ FALLBACK = {
     "PS2UI_MAX_TEXTURES": 32,
     "PS2UI_MAX_SLOTS": 16,
     "PS2UI_MAX_SCREENS": 8,
-    "PS2UI_SLOT_BUFSZ": 96,
     # Not a table size like the others: it bounds how deep `overflow:
     # hidden` may nest before ps2ui_render runs out of scissor stack.
     # The regex already matched it; without the key here, caps.update
@@ -27,7 +29,7 @@ FALLBACK = {
     "PS2UI_MAX_SCISSOR_DEPTH": 8,
 }
 
-_DEFINE = re.compile(r"^#define\s+(PS2UI_MAX_\w+|PS2UI_SLOT_BUFSZ)\s+(\d+)", re.M)
+_DEFINE = re.compile(r"^#define\s+(PS2UI_MAX_\w+)\s+(\d+)", re.M)
 
 
 def header_path() -> str:
@@ -101,20 +103,25 @@ def check(textures, cluts, slots, screens, caps: dict = None, records=None):
     over("slots", len(slots), "PS2UI_MAX_SLOTS")
     over("screens", len(screens), "PS2UI_MAX_SCREENS")
 
-    # Capacity is the runtime's per-slot buffer, NUL included.
+    # Capacity used to be checked against PS2UI_SLOT_BUFSZ, the
+    # runtime's fixed per-slot buffer. There is no such buffer any more
+    # (v6 resource model): the runtime sizes each slot's storage from
+    # the capacity declared here, so a large capacity costs arena bytes
+    # rather than being unloadable. The remaining bound is the format's
+    # own -- capacity is a uint16 field.
     for sl in slots:
-        if sl["capacity"] >= caps["PS2UI_SLOT_BUFSZ"]:
+        if sl["capacity"] > 0xFFFF:
             errors.append(
                 f"slot {sl['name']!r}: capacity {sl['capacity']} does not fit "
-                f"PS2UI_SLOT_BUFSZ = {caps['PS2UI_SLOT_BUFSZ']} (NUL included). "
-                f"Use data-slot-capacity <= {caps['PS2UI_SLOT_BUFSZ'] - 1}."
+                f"the format's uint16 capacity field."
             )
 
     # CLUTs ride along with textures; flag the pressure before it bites.
     if len(cluts) > caps["PS2UI_MAX_TEXTURES"]:
         errors.append(
             f"cluts: {len(cluts)} exceeds PS2UI_MAX_TEXTURES = "
-            f"{caps['PS2UI_MAX_TEXTURES']} (one CLUT slot per texture)."
+            f"{caps['PS2UI_MAX_TEXTURES']}; the runtime bounds the "
+            f"texture table, and a blob cannot name more palettes than that."
         )
     return errors, caps
 
