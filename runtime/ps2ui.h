@@ -8,7 +8,6 @@
  * GSTEXTURE array.
  *
  * Build-time switches:
- *   PS2UI_HOST_TEST           compile against runtime/stub/ instead of gsKit
  *   PS2UI_CLUT_PERMUTE        0 uploads CLUTs unpermuted (step 3's A/B arm)
  */
 #ifndef PS2UI_H
@@ -21,13 +20,16 @@
 extern "C" {
 #endif
 
-#ifdef PS2UI_HOST_TEST
-#include "gskit_stub.h"
-#else
+/* One include block for both targets, deliberately: the console gets
+ * PS2SDK's real headers, the host test build gets the SAME gsKit
+ * headers vendored under runtime/vendor/ plus a two-file shim for the
+ * PS2SDK ones. There is no hand-written model of gsKit left to
+ * diverge -- the model that existed shipped an invented GSTEXTURE
+ * member and a missing one in a single day, with every host check
+ * green both times. A struct-shape or prototype divergence is now a
+ * compile error on the host, not a bench session. */
 #include <gsKit.h>
-#include <gsToolkit.h>
 #include <kernel.h>   /* SyncDCache */
-#endif
 
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 

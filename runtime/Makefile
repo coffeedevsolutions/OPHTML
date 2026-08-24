@@ -25,7 +25,7 @@ SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \
 		$(CC) -std=c99 -Wall -Werror -fsyntax-only $$v \
-			-Istub -I. sample/main.c || exit 1; \
+			-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c || exit 1; \
 		echo "ok - sample compiles: $$v"; \
 	done
 # Separately, because the quoting a stringised screen name needs does
@@ -34,16 +34,16 @@ syntax-check:
 # Paired with STATIC, which is how CI builds conform.elf.
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_SCREEN='"probe"' \
-		-Istub -I. sample/main.c
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_SCREEN"
 # The linear-CLUT arm of step 3's A/B lives in ps2ui.c, not main.c, so
 # it needs its own line: the loop above only ever compiles the sample.
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
-		-DPS2UI_CLUT_PERMUTE=0 -Istub -I. ps2ui.c
+		-DPS2UI_CLUT_PERMUTE=0 -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_CLUT_PERMUTE=0"
 # Step 4b's reference arm, likewise in ps2ui.c rather than main.c.
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
-		-DPS2UI_PRIMALPHA_OFF -Istub -I. ps2ui.c
+		-DPS2UI_PRIMALPHA_OFF -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_PRIMALPHA_OFF"
 
 # The fixture exists so the runtime tests track the compiler that
@@ -64,7 +64,7 @@ $(LIST_UIB): tests/fixture/list.html tests/fixture/list.css \
 
 build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h
 	@mkdir -p build
-	$(CC) $(CFLAGS) -DPS2UI_HOST_TEST -Istub ps2ui.c stub/gskit_stub.c tests/test_runtime.c -o $@
+	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c -o $@
 
 clean:
 	rm -rf build

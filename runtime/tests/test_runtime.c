@@ -5,6 +5,11 @@
  */
 
 #include "../ps2ui.h"
+/* The recording ledger the assertions read. Under the old stub this
+ * arrived implicitly through ps2ui.h's host branch; ps2ui.h now has a
+ * single include block for both targets, so the test names its own
+ * dependency. */
+#include "../stub/gskit_stub.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,6 +93,19 @@ int main(int argc, char **argv)
     }
     blob = slurp(argv[1], &len);
     memset(&gs, 0, sizeof gs);
+    /* Start VRAM where a real console starts it: past the display
+     * buffers, never at zero. This is not cosmetic. The REAL gsKit
+     * headers define GSKIT_ALLOC_ERROR as 0x00 -- so an allocation
+     * that lands at address 0 is indistinguishable from a failed one,
+     * and a test GS with CurrentPointer 0 makes its own first
+     * successful alloc read as an error. The hand-written stub this
+     * suite used to compile against had invented 0xFFFFFFFF for the
+     * error value, which hid that landmine; the vendored headers
+     * surfaced it on their first build. Real programs never see it
+     * because gsKit_init_screen allocates the framebuffers first,
+     * which is exactly what this line stands in for: two 640x448 CT32
+     * display buffers plus a 16-bit Z buffer, page-rounded. */
+    gs.CurrentPointer = 2u * 640u * 448u * 4u + 640u * 448u * 2u;
     gs.Width = 640; gs.Height = 448;
 
     /* ---- struct layout matches the on-disk format ---- */
