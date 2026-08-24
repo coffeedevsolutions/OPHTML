@@ -250,12 +250,22 @@ int main(int argc, char **argv)
             {  24,  24, GS_PSM_CT32,    4096 },
             { 320,  32, GS_PSM_T8,     24576 },  /* the under-count case */
         };
-        int k3, all_sz = 1;
-        for (k3 = 0; k3 < 8; k3++)
-            if (gsKit_texture_size(sz[k3].w, sz[k3].h, sz[k3].psm) != sz[k3].want)
-                all_sz = 0;
-        CHECK(all_sz,
-              "gsKit_texture_size returns the console's block math for all eight pinned cases");
+        /* sizeof-derived bound and one CHECK per row, both from review:
+         * the first version hardcoded `< 8`, and a ninth row with an
+         * impossible expectation left the suite green -- the quietest
+         * possible failure, since adding a case is exactly the
+         * maintenance action this table invites. And a bare boolean
+         * over the table turns a red pin into a manual bisect; a named
+         * row is the bisect already done. */
+        size_t k3;
+        char szmsg[96];
+        for (k3 = 0; k3 < sizeof sz / sizeof *sz; k3++) {
+            u32 got = gsKit_texture_size(sz[k3].w, sz[k3].h, sz[k3].psm);
+            snprintf(szmsg, sizeof szmsg,
+                     "gsKit_texture_size(%dx%d psm%d) = %u, the console's block math (got %u)",
+                     sz[k3].w, sz[k3].h, sz[k3].psm, (unsigned)sz[k3].want, (unsigned)got);
+            CHECK(got == sz[k3].want, szmsg);
+        }
     }
 
     /* ---- render: the heal is bounded by the budget ---- */

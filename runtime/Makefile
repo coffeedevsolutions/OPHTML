@@ -64,10 +64,15 @@ $(LIST_UIB): tests/fixture/list.html tests/fixture/list.css \
 
 # gsKit's real texture-size arithmetic, selectively compiled from the
 # vendored source: gsKit guards every function with a per-function F_*
-# macro, so defining exactly one yields exactly one function. Softer
-# warning flags because the file is verbatim upstream and not ours to
-# edit; it is the one gsKit function whose VALUE (not just shape) the
-# runtime's preflight safety argument depends on.
+# macro, so defining exactly one yields exactly one function. It is the
+# one gsKit function whose VALUE (not just shape) the runtime's
+# preflight safety argument depends on.
+#
+# Compiled without -Wall -Wextra -Werror because the file is verbatim
+# upstream and not ours to edit. What that actually waives, measured
+# rather than left silent: two -Wsign-compare (u32 Width vs int in the
+# unused static gsKit_set_tw_th) and one -Wunused-parameter (in
+# gsInline.h's heap helper). Nothing in the compiled function itself.
 build/gsKit_texture_size.o: vendor/gsKit/src/gsTexture.c
 	@mkdir -p build
 	$(CC) -std=c99 -O2 -c -DF_gsKit_texture_size \
