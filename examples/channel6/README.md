@@ -83,7 +83,7 @@ Writes into `examples/channel6/build/`:
 
 | file | what |
 |------|------|
-| `ui.uib` | the console blob — both screens, 22 textures, 43% of the default VRAM budget |
+| `ui.uib` | the console blob — both screens, 23 textures, 47% of the default VRAM budget |
 | `preview.png` / `states.png` | the games screen, and every one of its 9 focus states on one sheet |
 | `probe.png` / `probe-states.png` | the same pair for the probe screen |
 | `in-game.png` | the browser composited over a synthetic game frame |
@@ -121,40 +121,48 @@ The cell still demonstrates clipping; the difference is that the
 console no longer submits geometry it cannot see. Any ps2ui-check
 output from this example is now news.
 
-### The runtime's table caps
+### What the runtime's tables cost
 
-`ps2ui.h` sizes the runtime context statically, and `ps2ui_load()`
-rejects anything past those bounds with `PS2UI_ERR_TOO_MANY`. Every bake
-prints where you stand:
+There are no table ceilings any more. Every bake prints the counts and
+the arena they add up to:
 
 ```
-runtime tables: 22/32 textures, 15/16 slots, 2/8 screens
+runtime tables: 23 textures, 9 CLUTs, 15 slots, 2 screens
+ps2ui-bake: arena 10544 bytes (static uint8_t arena[10544] ...)
 ```
 
-| cap | value | this blob |
-|-----|-------|-----------|
-| `PS2UI_MAX_TEXTURES` | 32 | 22 |
-| `PS2UI_MAX_SLOTS` | 16 | 15 |
-| `PS2UI_MAX_SCREENS` | 8 | 2 |
+That number, not a fraction, is what an integrator acts on: it is the
+buffer `ps2ui_load` is handed, and the build fails until it is right.
 
-`PS2UI_SLOT_BUFSZ` used to sit in that table at 96, with this blob's
-longest slot at 30. It no longer exists: the v6 resource model sizes
-each slot's storage from the capacity the blob declares, so a capacity
-buys arena bytes rather than deciding whether the blob loads at all.
-The arena requirement is printed by `ps2ui-bake` and by `ps2ui-check`.
+Four constants used to stand here — `PS2UI_MAX_TEXTURES` 32,
+`PS2UI_MAX_SLOTS` 16, `PS2UI_MAX_SCREENS` 8, `PS2UI_SLOT_BUFSZ` 96 —
+and this blob sat at 23, 15, 2 and 30 against them. All four are gone.
+The v6 resource model sizes the context from the blob through the
+caller's arena, and once it did, those numbers bounded nothing the
+blob's own size did not already bound. `PS2UI_MAX_SLOTS` in particular
+was a wall a real UI hit: the UC-3 scoping fixture measures 121 slots
+across an OPL-class environment, which used to be unbakeable and now
+asks for 8,285 bytes.
+
+What still refuses a blob is arithmetic rather than a chosen number:
+`arena_compute` will not carve an arena it cannot address, which
+`make -C runtime test-narrow` proves at the EE's 32-bit width.
 
 Writing this example is what surfaced the gap: an earlier revision
 declared **seventeen** slots, and it laid out, baked, previewed and
 passed every check while `ps2ui_load()` would have rejected it — the
 sample ELF's red screen with nothing to explain it. The VRAM budget did
 not catch it because that is a different limit; the blob sat at 43% of
-VRAM and was still unloadable. Since B10 the baker parses the caps out
-of `ps2ui.h` and refuses to write the file, naming the count and where
-to raise it. `check.py` still asserts all four from the far side of the
-format, which is cheap and independent.
+VRAM and was still unloadable. B10 fixed the blindness by parsing the caps out of `ps2ui.h`; PLAN
+§6.3 removed the caps. What `check.py` asserts today is the pair that
+outlived them: the format's own uint16 count fields, and — from the
+far side, because nothing else here reads the header — that those
+three `#define`s have not come back.
 
-The counts are why the stylesheet looks the way it does — see the
-[design notes](#deliberate-choices-worth-keeping) below.
+The counts are still why the stylesheet looks the way it does — see the
+[design notes](#deliberate-choices-worth-keeping) below. Not because a
+ceiling forces it, but because VRAM and frame time are real and a page
+built without a budget spends both.
 
 ## Getting it onto channel 6
 

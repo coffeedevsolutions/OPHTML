@@ -14,9 +14,14 @@ LIST_UIB = build/list.uib
 # rather than through HTML: authoring a streamed slot from markup is a
 # separate change, and the runtime half needs a blob first.
 STREAM_UIB = build/streamed.uib
+# Blobs past the table ceilings that used to exist (PLAN 6.3). wide is
+# a realistic OPL-class shape; huge is the largest arena a legal header
+# can demand, which is the one the arithmetic has to survive.
+WIDE_UIB = build/wide.uib
+HUGE_UIB = build/huge.uib
 
-test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB)
-	./build/test_runtime $(UIB) $(LIST_UIB) $(STREAM_UIB)
+test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test-narrow
+	./build/test_runtime $(UIB) $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) $(HUGE_UIB)
 
 # The sample is the bring-up instrument -- the ELF that goes on a
 # memory card -- and until this target existed nothing but the ps2dev
@@ -77,6 +82,30 @@ $(STREAM_UIB): tests/fixture/make_streamed.py $(BAKER_SRC)
 	@mkdir -p build
 	python3 tests/fixture/make_streamed.py $@
 
+# One recipe, two outputs: the generator writes both in a single pass
+# and huge.uib is ~3 MB, so nothing is gained by building it twice.
+$(WIDE_UIB) $(HUGE_UIB): tests/fixture/make_wide.py $(BAKER_SRC)
+	@mkdir -p build
+	python3 tests/fixture/make_wide.py $(WIDE_UIB) $(HUGE_UIB)
+
+# The EE is 32-bit MIPS; this suite runs on a 64-bit host and the CI
+# image has no 32-bit libc to link a -m32 build against. So the arena
+# guard -- which only fires when a blob's carve exceeds the target's
+# address width -- is unreachable in the ordinary build. This one
+# compiles ps2ui.c against a 32-bit limit and feeds it the same blobs:
+# huge.uib must be refused, and the ordinary blob must still load, or
+# the guard is refusing everything rather than the right thing.
+test-narrow: build/test_narrow $(HUGE_UIB) $(UIB)
+	./build/test_narrow $(UIB) $(HUGE_UIB)
+
+build/test_narrow: ps2ui.c tests/test_narrow.c ps2ui.h stub/gskit_stub.c \
+                   build/gsKit_texture_size.o
+	@mkdir -p build
+	$(CC) $(CFLAGS) -DPS2UI_ARENA_LIMIT=0xFFFFFFFFull \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim \
+		ps2ui.c stub/gskit_stub.c tests/test_narrow.c \
+		build/gsKit_texture_size.o -o $@
+
 # gsKit's real texture-size arithmetic, selectively compiled from the
 # vendored source: gsKit guards every function with a per-function F_*
 # macro, so defining exactly one yields exactly one function. It is the
@@ -100,4 +129,4 @@ build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/
 clean:
 	rm -rf build
 
-.PHONY: test syntax-check clean
+.PHONY: test test-narrow syntax-check clean

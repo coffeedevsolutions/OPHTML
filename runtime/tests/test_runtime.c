@@ -127,9 +127,13 @@ int main(int argc, char **argv)
     GSGLOBAL gs;
     int i;
 
-    if (argc < 2 || argc > 4) {
-        fprintf(stderr, "usage: %s <ui.uib> [list.uib] [streamed.uib]\n",
-                argv[0]);
+    /* "I have what I need", never "the caller passed exactly what I
+     * expected": an == here once skipped eighteen checks in silence
+     * when a fixture was added. */
+    if (argc < 2) {
+        fprintf(stderr,
+                "usage: %s <ui.uib> [list.uib] [streamed.uib] "
+                "[wide.uib] [huge.uib]\n", argv[0]);
         return 2;
     }
     blob = slurp(argv[1], &len);
@@ -1622,6 +1626,117 @@ int main(int argc, char **argv)
         }
         free(sblob);
         /* sarena deliberately leaked: sc points into it. */
+    }
+
+    /* ---- the table ceilings, and what replaced them (PLAN 6.3) ---- */
+    if (argc > 4) {
+        size_t wlen;
+        void *wblob = slurp(argv[4], &wlen);
+        const ps2ui_header *wh = (const ps2ui_header *)wblob;
+        ps2ui_ctx wc;
+        size_t need;
+        void *warena;
+        int wrc;
+
+        /* Past 16 slots, 32 textures and 8 screens -- the three numbers
+         * ps2ui.h used to reject a blob for. The counts are read from
+         * the fixture rather than hardcoded here, so a generator that
+         * quietly shrinks cannot leave this passing on a blob that no
+         * longer tests anything. */
+        CHECK(wh->n_slot > 16 && wh->n_tex > 32 && wh->n_screen > 8,
+              "the wide fixture is actually past all three old ceilings");
+
+        need = ps2ui_arena_size(wblob, wlen);
+        CHECK(need > 0, "and the arena for it can be computed");
+        warena = malloc(need);
+        wrc = ps2ui_load(&wc, wblob, wlen, warena, need);
+        CHECK(wrc == PS2UI_OK, "a blob past every old ceiling loads");
+
+        /* The checks below all dereference wc. Guarded so a regression
+         * reports the line above rather than dying here -- a segfault
+         * is a failure, but it is a failure that says nothing about
+         * which property broke. Not a silent skip: the guard's own
+         * condition is the check immediately preceding it, so if these
+         * do not run, something red says why. */
+        if (wrc == PS2UI_OK) {
+            /* Addressable, not merely counted. A ceiling removed from
+             * the header and left standing in the slot table would
+             * load and then fail here. */
+            char last[16], scr[16];
+            CHECK(ps2ui_slot_set(&wc, "s0", "first") == 1,
+                  "slot 0 is settable");
+            sprintf(last, "s%u", (unsigned)(wh->n_slot - 1));
+            CHECK(ps2ui_slot_set(&wc, last, "past the old ceiling") == 1,
+                  "and so is the last slot, well past 16");
+            CHECK(strcmp(ps2ui_slot_get(&wc, last), "past the old ceiling") == 0,
+                  "and it reads back what was written");
+            sprintf(scr, "screen%u", (unsigned)(wh->n_screen - 1));
+            CHECK(ps2ui_screen_set(&wc, scr) == 1,
+                  "the last screen is reachable, well past 8");
+            /* Every slot's text region is distinct. The carve hands
+             * each one its own offset; if two shared, writing the last
+             * would disturb the first, and a linear region is exactly
+             * where an off-by-one in the offset walk shows up. */
+            CHECK(strcmp(ps2ui_slot_get(&wc, "s0"), "first") == 0,
+                  "and writing the last slot did not disturb the first");
+        }
+        free(wblob);
+        /* warena deliberately leaked: wc points into it. */
+    }
+
+    if (argc > 5) {
+        size_t hlen;
+        void *hblob = slurp(argv[5], &hlen);
+        const ps2ui_header *hh = (const ps2ui_header *)hblob;
+        ps2ui_ctx hc;
+        uint64_t expect_text = 0;
+        uint32_t k;
+        size_t got;
+        {
+            const ps2ui_slot_entry *sl =
+                (const ps2ui_slot_entry *)((const uint8_t *)hblob + hh->off_slot);
+            for (k = 0; k < hh->n_slot; k++)
+                expect_text += (uint64_t)sl[k].capacity + 1;
+        }
+        CHECK(expect_text > 0xFFFFFFFFull - 0x10000ull,
+              "the huge fixture demands enough slot text to matter "
+              "(a smaller one would prove nothing about a 32-bit total)");
+
+        got = ps2ui_arena_size(hblob, hlen);
+        /* On this 64-bit host the total is representable, so the
+         * question is whether it was computed at full width or wrapped
+         * on the way. A wrapped answer is small; the true one is not.
+         * On the EE this same blob is refused -- see test-narrow, which
+         * is the only place that path is reachable here. */
+        if (sizeof(size_t) > 4) {
+            CHECK((uint64_t)got > expect_text,
+                  "arena_size reports the true multi-gigabyte total "
+                  "rather than a wrapped one");
+        } else {
+            CHECK(got == 0, "a 32-bit host refuses the carve outright");
+        }
+        {
+            /* Whatever the width, the runtime must not carve a small
+             * arena for it. This is the failure the ceilings used to
+             * prevent by accident. */
+            static uint8_t small[4096]
+                __attribute__((aligned(PS2UI_ARENA_ALIGN)));
+            int rc;
+            size_t j, dirty = 0;
+            memset(small, 0xCD, sizeof small);
+            rc = ps2ui_load(&hc, hblob, hlen, small, sizeof small);
+            CHECK(rc == PS2UI_ERR_ARENA || rc == PS2UI_ERR_TOO_MANY,
+                  "and refuses to load it into a 4 KiB arena");
+            /* Refused means untouched: the carve happens strictly
+             * after the size comparison, so a caller who passed too
+             * little still owns whatever was in that buffer. Moving
+             * the memset in ps2ui_load one block earlier breaks this
+             * and nothing else, which is the point of asserting it. */
+            for (j = 0; j < sizeof small; j++)
+                if (small[j] != 0xCD) dirty++;
+            CHECK(dirty == 0, "and writes nothing into the arena it refused");
+        }
+        free(hblob);
     }
 
 report:

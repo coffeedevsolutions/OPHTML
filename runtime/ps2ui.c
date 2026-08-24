@@ -99,16 +99,52 @@ typedef struct arena_layout {
     size_t total;
 } arena_layout;
 
+/* The address width the arena arithmetic has to survive.
+ *
+ * Every table count in the header is a uint16 and slot capacity is a
+ * uint16, so a well-formed-looking header can legally demand
+ * 65535 * 65536 bytes of slot text -- 0xFFFF0000, and the rest of the
+ * carve pushes the total past 4 GiB. That wraps a 32-bit size_t, which
+ * is what the EE has, and a wrapped total carves a small arena for a
+ * huge blob: every region overlaps and the first slot write corrupts
+ * the CLUT pool. The fixed ceilings used to make this unreachable as a
+ * side effect; with them gone the bound has to be stated.
+ *
+ * Overridable so the host suite can model a 32-bit target on a 64-bit
+ * machine. It is the only way to reach this guard here: the EE is
+ * 32-bit MIPS, the test host is 64-bit, and there is no 32-bit libc in
+ * the CI image to link a -m32 build against. See `make test-narrow`. */
+#ifndef PS2UI_ARENA_LIMIT
+#define PS2UI_ARENA_LIMIT ((uint64_t)(size_t)-1)
+#endif
+
+/* Add one region to a running arena offset, refusing rather than
+ * wrapping. Written as a subtraction against the room left, not as
+ * `off + n > limit`, because the latter is the overflow it is meant to
+ * detect. */
+static int arena_add(uint64_t *off, uint64_t n)
+{
+    if (n > PS2UI_ARENA_LIMIT - *off)
+        return 0;
+    *off += n;
+    return 1;
+}
+
 /* Compute the carve for a header whose tables fit inside `size`.
  * Reads the texture and slot tables (they decide the CLUT count and
  * the text bytes) but validates nothing else -- ps2ui_load owns
- * validation, and runs it before any of these offsets are used. */
+ * validation, and runs it before any of these offsets are used.
+ *
+ * Returns 0 for a header it cannot serve. Since the table ceilings
+ * were removed that is a reachable answer rather than a formality:
+ * a count this runtime will happily load may still demand an arena
+ * this machine cannot address. */
 static int arena_compute(const uint8_t *data, size_t size, arena_layout *L)
 {
     const ps2ui_header *h = (const ps2ui_header *)data;
     const ps2ui_tex_entry *tex;
     const ps2ui_slot_entry *slots;
-    size_t off = 0, n_cluts = 0, text = 0;
+    uint64_t off = 0, n_cluts = 0, text = 0;
     uint32_t i;
 
     if (size < sizeof(ps2ui_header))
@@ -118,11 +154,17 @@ static int arena_compute(const uint8_t *data, size_t size, arena_layout *L)
     if ((uint64_t)h->off_tex + (uint64_t)h->n_tex * sizeof(ps2ui_tex_entry) > size
         || (uint64_t)h->off_slot + (uint64_t)h->n_slot * sizeof(ps2ui_slot_entry) > size)
         return 0;
-    /* The validation limits, applied before anything is sized from the
-     * header: a corrupt count must not decide an allocation. */
-    if (h->n_tex > PS2UI_MAX_TEXTURES || h->n_slot > PS2UI_MAX_SLOTS
-        || h->n_screen > PS2UI_MAX_SCREENS || h->n_screen == 0)
-        return 0;
+    /* No count ceiling here any more. The table-fits-in-the-file checks
+     * above already bound every count by the blob's own size, which is
+     * the honest bound; PS2UI_MAX_SLOTS and its siblings were numbers
+     * the runtime had no need for once the context stopped being sized
+     * by them. A blob with 200 slots is now a blob with 200 slots.
+     *
+     * What a corrupt count must still not do is decide an allocation,
+     * and that guarantee moves to arena_add below: the arithmetic is
+     * refused rather than wrapped. */
+    if (h->n_screen == 0)
+        return 0;   /* not a count that is too large -- a UI with nothing to draw */
 
     tex   = (const ps2ui_tex_entry *)(data + h->off_tex);
     slots = (const ps2ui_slot_entry *)(data + h->off_slot);
@@ -136,17 +178,39 @@ static int arena_compute(const uint8_t *data, size_t size, arena_layout *L)
      * uploaded. */
     (void)tex;
     n_cluts = h->n_clut;
+    /* Both terms are uint16-bounded, so this sum cannot pass
+     * 65535 * 65536 = 0xFFFF0000 and needs no guard of its own -- but
+     * it is already three quarters of a 32-bit address space, which is
+     * why the carve below does. */
     for (i = 0; i < h->n_slot; i++)
-        text += (size_t)slots[i].capacity + 1;
+        text += (uint64_t)slots[i].capacity + 1;
 
-    L->clut_off  = off;  L->clut_sz  = n_cluts * 256 * 4; off += L->clut_sz;
-    L->tex_off   = off;  L->tex_sz   = h->n_tex * sizeof(GSTEXTURE); off += L->tex_sz;
-    L->soff_off  = off;  L->soff_sz  = h->n_slot * sizeof(uint32_t); off += L->soff_sz;
-    L->hid_off   = off;  L->hid_sz   = ((size_t)(h->n_focus + 31) / 32) * sizeof(uint32_t); off += L->hid_sz;
-    L->sfoc_off  = off;  L->sfoc_sz  = h->n_screen * sizeof(uint16_t); off += L->sfoc_sz;
-    L->text_off  = off;  L->text_sz  = text; off += L->text_sz;
-    L->isset_off = off;  L->isset_sz = h->n_slot; off += L->isset_sz;
-    L->total = off;
+    /* Descending alignment, so no region needs padding to reach its
+     * own. Each step refuses rather than wraps; the first refusal
+     * abandons the whole carve, because a partial layout is worse than
+     * none -- the caller would size a buffer from a total that stopped
+     * counting partway through. */
+    /* The macro returns. That is deliberate and the reason it is named
+     * for it: every region is the same three lines, and the narrowing
+     * to size_t is only sound on the far side of the guard. */
+#define ARENA_REGION_OR_REFUSE(offf, szf, bytes)       \
+    do {                                               \
+        uint64_t _n = (bytes), _o = off;               \
+        if (!arena_add(&off, _n)) return 0;            \
+        L->offf = (size_t)_o;                          \
+        L->szf  = (size_t)_n;                          \
+    } while (0)
+
+    ARENA_REGION_OR_REFUSE(clut_off,  clut_sz,  n_cluts * 256 * 4);
+    ARENA_REGION_OR_REFUSE(tex_off,   tex_sz,   (uint64_t)h->n_tex * sizeof(GSTEXTURE));
+    ARENA_REGION_OR_REFUSE(soff_off,  soff_sz,  (uint64_t)h->n_slot * sizeof(uint32_t));
+    ARENA_REGION_OR_REFUSE(hid_off,   hid_sz,   ((uint64_t)h->n_focus + 31) / 32 * sizeof(uint32_t));
+    ARENA_REGION_OR_REFUSE(sfoc_off,  sfoc_sz,  (uint64_t)h->n_screen * sizeof(uint16_t));
+    ARENA_REGION_OR_REFUSE(text_off,  text_sz,  text);
+    ARENA_REGION_OR_REFUSE(isset_off, isset_sz, h->n_slot);
+#undef ARENA_REGION_OR_REFUSE
+
+    L->total = (size_t)off;
     return 1;
 }
 
@@ -183,9 +247,12 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
         return PS2UI_ERR_VERSION;
     if (ctx->hdr->feature_flags & ~PS2UI_FEAT_KNOWN)
         return PS2UI_ERR_FEATURES;
-    if (ctx->hdr->n_tex > PS2UI_MAX_TEXTURES || ctx->hdr->n_slot > PS2UI_MAX_SLOTS
-        || ctx->hdr->n_screen > PS2UI_MAX_SCREENS || ctx->hdr->n_screen == 0)
-        return PS2UI_ERR_TOO_MANY;
+    /* A UI with no screens has nothing to draw and no initial focus to
+     * restore; every screen-indexed path below would read past the end
+     * of a zero-length table. The count ceilings that used to sit here
+     * are gone -- see arena_compute. */
+    if (ctx->hdr->n_screen == 0)
+        return PS2UI_ERR_BOUNDS;
 
     {
         const ps2ui_header *h = ctx->hdr;
@@ -348,8 +415,15 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
     /* Only now, with the blob fully validated, is the arena touched --
      * so a rejected blob cannot leave a half-initialized arena behind,
      * and every count the carve trusts has been checked above. */
+    /* Reachable, and the only thing it can mean here. Everything
+     * arena_compute rejects up front -- short file, magic, version,
+     * tables past the end, no screens -- has already been checked and
+     * returned its own code, so a refusal at this point is the carve
+     * itself: this blob's counts are legal but the arena they add up
+     * to does not fit the machine's address space. PS2UI_ERR_TOO_MANY
+     * keeps its name and loses its arbitrary numbers. */
     if (!arena_compute(ctx->data, size, &L))
-        return PS2UI_ERR_BOUNDS;    /* unreachable after the checks above */
+        return PS2UI_ERR_TOO_MANY;
     if (arena == NULL || arena_size < L.total)
         return PS2UI_ERR_ARENA;
     if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))

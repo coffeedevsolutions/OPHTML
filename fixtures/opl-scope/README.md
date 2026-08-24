@@ -4,10 +4,15 @@ A realistic OPL-class library screen, authored to answer one question
 for the Phase 1 resource model (`docs/PLAN.md` §6): **what does a real
 environment actually demand of the runtime's static tables?**
 
-It lives in `fixtures/`, not `examples/`, because it is the opposite of
-an example: it exceeds the current caps on purpose, and a blob cannot
-be baked from it without raising one. `examples/` means the shipped
-contract — warning-free, screenshots refreshed (invariant I6).
+It lives in `fixtures/`, not `examples/`, because it is an instrument
+rather than a demonstration: it exists to be measured and compared
+against later, and it carries none of what `examples/` promises —
+warning-free, screenshots refreshed, a shipped contract (invariant I6).
+
+It used to say something stronger here: that a blob *could not be
+baked from it without raising a cap*. That was true until PLAN §6.3.
+It now bakes with a stock checkout and loads on a stock runtime, which
+is the outcome the measurement was taken to justify.
 
 Re-measure, and check the numbers below are still true:
 
@@ -15,14 +20,9 @@ Re-measure, and check the numbers below are still true:
 ./fixtures/opl-scope/measure.sh
 ```
 
-That runs the layout stage only, so it needs no raised cap, and CI runs
-it on every push. The full bake, for the VRAM and blob figures, needs
-`PS2UI_MAX_SLOTS` raised past 43 first:
-
-```sh
-PYTHONPATH=packages/baker python3 -m ps2ui_bake build/opl.json \
-    -o build/opl.uib --preview build/opl.png
-```
+That runs layout on all five screens, bakes them into one blob, and
+checks the arena. CI runs it on every push. Nothing is edited to make
+it work.
 
 ## What it contains
 
@@ -58,10 +58,9 @@ Per screen, from the layout stage:
 | recent | 28 | 9 |
 | **environment** | **121** | **49** |
 
-And from the baked blob, with `PS2UI_MAX_SLOTS` temporarily raised so
-the bake could complete:
+And from the baked blob:
 
-| | measured | cap today |
+| | measured | cap when this was written |
 |---|---|---|
 | **slots** | **121** | **16** |
 | screens | 5 | 8 |
@@ -70,8 +69,11 @@ the bake could complete:
 | draw records | 1,232 | — |
 | VRAM | 248 KiB of a 736 KiB budget (33%) | 4 MB total |
 | blob | 210 KiB | — |
+| **arena** | **8,285 B** | — |
 
-Unmodified, the bake refuses, and correctly:
+**The environment needed 7.6× the entire blob-wide slot budget** — and
+the library screen alone needed 2.7×. That is what the bake said in
+2026-08, quoted here as the measurement that motivated the change:
 
 ```
 runtime tables: 15/32 textures, 121/16 slots, 5/8 screens
@@ -79,8 +81,19 @@ error: slots: 121 exceeds PS2UI_MAX_SLOTS = 16. ps2ui_load() would
 return PS2UI_ERR_TOO_MANY.
 ```
 
-**The environment needs 7.6× the entire blob-wide slot budget** — and
-the library screen alone needs 2.7×.
+What it says now:
+
+```
+runtime tables: 15 textures, 4 CLUTs, 121 slots, 5 screens
+ps2ui-bake: 5 screen(s), 1232 records, 15 textures (140 KiB baked), 4 CLUTs
+ps2ui-bake: arena 8285 bytes
+```
+
+8,285 bytes for the largest UI in this repository — against roughly
+36 KiB that the fixed-maxima context charged *every* blob, including a
+two-slot overlay. The environment that could not be loaded at all is
+now the one that fits, and it fits at the EE's 32-bit address width:
+`runtime/tests/test_narrow.c` loads this blob there.
 
 ### Estimating this failed, which is the point
 
@@ -104,12 +117,21 @@ rows and eyeballing does not. A resource model sized from estimates
 would have been undersized by a third, in the direction that fails on
 a television.
 
-### A second ceiling is already in view
+### A second ceiling was already in view
 
 `5 of 8 screens`. A shipping OPL environment would want settings,
-network configuration, and an about page — that is exactly 8. The slot
-cap is the one that blocks today; `PS2UI_MAX_SCREENS` is the one that
-blocks the version after.
+network configuration, and an about page — exactly 8. The slot cap was
+the one that blocked then; `PS2UI_MAX_SCREENS` was the one that would
+have blocked the version after.
+
+Both are gone, and so is `PS2UI_MAX_TEXTURES`. Removing one and
+leaving the others would have been the same argument answered once:
+they were a single check, and none of them bounded anything the blob's
+own size did not already bound once the context stopped being sized by
+them. What replaced them is not "nothing" — see `arena_compute` in
+`runtime/ps2ui.c`, which refuses a carve it cannot do rather than
+wrapping it, and `make -C runtime test-narrow`, which proves that at
+the EE's width.
 
 The interesting part is what that costs under each model. Slot text
 lives in the context as `slot_text[MAX_SLOTS][96]`:

@@ -464,24 +464,46 @@ class TestCaps(unittest.TestCase):
         from ps2ui_bake import caps
         self.assertEqual(caps.parse_header("/nonexistent/ps2ui.h"), caps.FALLBACK)
 
-    def test_too_many_slots_rejected(self):
-        from ps2ui_bake import caps
-        limit = caps.FALLBACK["PS2UI_MAX_SLOTS"]
-        errors, _ = caps.check([], [], self.slots(limit), [{}])
-        self.assertEqual(errors, [])
-        errors, _ = caps.check([], [], self.slots(limit + 1), [{}])
-        self.assertEqual(len(errors), 1)
-        self.assertIn("PS2UI_ERR_TOO_MANY", errors[0])
-        self.assertIn("PS2UI_MAX_SLOTS", errors[0])
+    def test_the_table_ceilings_are_gone(self):
+        """200 slots, 40 textures and 12 screens all used to be refused.
 
-    def test_too_many_textures_and_screens_rejected(self):
+        The numbers are past 16/32/8 on purpose -- each was a ceiling
+        ps2ui.h enforced, and 16 slots was the one blocking a real UI
+        (the UC-3 scoping fixture measures 28 on one screen). If any of
+        the three is quietly reinstated on either side, this is the
+        test that says so before a bake starts failing."""
         from ps2ui_bake import caps
-        tex = [None] * (caps.FALLBACK["PS2UI_MAX_TEXTURES"] + 1)
-        errors, _ = caps.check(tex, [], [], [{}])
-        self.assertTrue(any("textures" in e for e in errors))
-        screens = [{}] * (caps.FALLBACK["PS2UI_MAX_SCREENS"] + 1)
-        errors, _ = caps.check([], [], [], screens)
-        self.assertTrue(any("screens" in e for e in errors))
+        errors, c = caps.check([None] * 40, [], self.slots(200),
+                               [{} for _ in range(12)])
+        self.assertEqual(errors, [])
+        for gone in ("PS2UI_MAX_TEXTURES", "PS2UI_MAX_SLOTS",
+                     "PS2UI_MAX_SCREENS"):
+            self.assertNotIn(gone, c)
+
+    def test_the_formats_own_uint16_count_still_bounds_the_tables(self):
+        """What replaced them is not "nothing".
+
+        Every count in the header is a uint16, so a table past 65535
+        cannot be written at all -- checked here rather than discovered
+        as a struct.pack failure with no explanation attached."""
+        from ps2ui_bake import caps
+        errors, _ = caps.check([], [], self.slots(0x10000), [{}])
+        self.assertTrue(any("uint16" in e and "slots" in e for e in errors),
+                        errors)
+        errors, _ = caps.check([None] * 0x10000, [], [], [{}])
+        self.assertTrue(any("uint16" in e and "textures" in e for e in errors),
+                        errors)
+
+    def test_the_summary_stopped_printing_a_denominator(self):
+        """"15/16 slots" was useful while 16 was a wall. A fraction of
+        65535 is a number with a decorative second half, and the figure
+        that actually constrains a UI now is the arena, printed on its
+        own line."""
+        from ps2ui_bake import caps
+        line = caps.summary([None] * 3, [None], self.slots(200),
+                            [{}], caps.FALLBACK)
+        self.assertIn("200 slots", line)
+        self.assertNotIn("/", line)
 
     def test_slot_capacity_is_no_longer_capped_by_a_runtime_buffer(self):
         """The v6 resource model removed PS2UI_SLOT_BUFSZ.

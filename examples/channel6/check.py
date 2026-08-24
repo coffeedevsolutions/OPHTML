@@ -10,17 +10,18 @@ Python side: it re-reads the .uib (CRC, version and feature bits are
 validated on the way in) and asserts what the console is entitled to
 assume.
 
-The first group covers the runtime's table limits —
-PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS, PS2UI_MAX_SCREENS — which
-ps2ui_load() enforces with PS2UI_ERR_TOO_MANY,
-and whose console symptom is the sample ELF's red screen with no
-diagnostic. Writing this example is what surfaced that gap; since B10
-the baker refuses to write an over-cap blob at all, so these three are
-now a second line of defence rather than the only one. They stay
-because they cost nothing and they assert the property from the far
-side of the file format: the baker checks what it is about to write,
-this checks what a loader will actually find. Both read the numbers out
-of ps2ui.h rather than copying them.
+The first group used to cover three table ceilings —
+PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS, PS2UI_MAX_SCREENS. Writing this
+example is what surfaced that they existed and nothing on the host
+knew them. They are gone now: the v6 arena made the context size
+itself from the blob, and a number ps2ui.h picked then bounded nothing
+the blob's own size did not already bound.
+
+What is asserted in their place is what still constrains a loader —
+the format's own uint16 count fields, and the arena the blob demands,
+reported rather than compared against an invented threshold. The
+direction is the same as before: the baker checks what it is about to
+write, this checks what a loader will actually find.
 """
 
 import os
@@ -66,18 +67,18 @@ def check(ok: bool, label: str) -> bool:
     return bool(ok)
 
 
-def runtime_caps() -> dict:
-    """Read the caps out of ps2ui.h so this file cannot drift from it."""
+def ceilings_still_gone() -> list:
+    """Names ps2ui.h must NOT define any more.
+
+    Asserted from this side rather than assumed, because the failure it
+    guards against is silent: reinstating a ceiling in the header would
+    make this example unloadable the day it grows a seventeenth slot,
+    and nothing else here reads the header at all."""
     with open(PS2UI_H, encoding="utf-8") as fh:
         src = fh.read()
-    caps = {}
-    for name in ("PS2UI_MAX_TEXTURES", "PS2UI_MAX_SLOTS",
-                 "PS2UI_MAX_SCREENS"):
-        m = re.search(rf"^#define\s+{name}\s+(\d+)", src, re.M)
-        if not m:
-            raise SystemExit(f"error: {name} not found in {PS2UI_H}")
-        caps[name] = int(m.group(1))
-    return caps
+    return [name for name in ("PS2UI_MAX_TEXTURES", "PS2UI_MAX_SLOTS",
+                              "PS2UI_MAX_SCREENS")
+            if re.search(rf"^#define\s+{name}\s+(\d+)", src, re.M)]
 
 
 def screen_focus(uib, sc):
@@ -107,18 +108,17 @@ def reachable(uib, sc):
 
 def main(path: str) -> int:
     uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
-    caps = runtime_caps()
 
     # --- what ps2ui_load() will actually accept ----------------------
-    check(len(uib.textures) <= caps["PS2UI_MAX_TEXTURES"],
-          f"{len(uib.textures)} textures within PS2UI_MAX_TEXTURES "
-          f"({caps['PS2UI_MAX_TEXTURES']})")
-    check(len(uib.slots) <= caps["PS2UI_MAX_SLOTS"],
-          f"{len(uib.slots)} slots within PS2UI_MAX_SLOTS "
-          f"({caps['PS2UI_MAX_SLOTS']})")
-    check(len(uib.screens) <= caps["PS2UI_MAX_SCREENS"],
-          f"{len(uib.screens)} screens within PS2UI_MAX_SCREENS "
-          f"({caps['PS2UI_MAX_SCREENS']})")
+    back = ceilings_still_gone()
+    check(not back,
+          f"no table ceilings in ps2ui.h (found: {', '.join(back)})"
+          if back else "no table ceilings in ps2ui.h")
+    for count, what in ((len(uib.textures), "textures"),
+                        (len(uib.slots), "slots"),
+                        (len(uib.screens), "screens")):
+        check(count <= 0xFFFF,
+              f"{count} {what} fit the format's uint16 count field")
     # PS2UI_SLOT_BUFSZ is gone (v6 resource model): the runtime sizes
     # each slot's storage from the capacity declared in the blob, so a
     # large capacity costs arena bytes instead of making the blob

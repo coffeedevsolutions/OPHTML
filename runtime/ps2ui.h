@@ -208,16 +208,22 @@ typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_d
 
 /* ---------------------------------- context ---------------------------- */
 
-/* Validation limits, not storage (design-v6-resource-model.md §2).
- * The context is sized by the blob through the caller's arena; these
- * exist so a corrupt header is refused before anything sizes an
- * allocation from it. An integrator raising them pays nothing until a
- * blob actually uses the room. caps.py parses them, so the bake still
- * refuses what the runtime would reject. */
+/* Real storage, and the only remaining fixed-size thing in the
+ * runtime: ps2ui_render keeps a scissor stack of this depth, so a
+ * blob nesting `overflow: hidden` deeper than this draws the inner
+ * subtree under the outer clip. The bake refuses it rather than
+ * letting that arrive on a television. caps.py parses this value.
+ *
+ * PS2UI_MAX_TEXTURES, PS2UI_MAX_SLOTS and PS2UI_MAX_SCREENS used to
+ * sit here as "validation limits". They are gone. Once the context
+ * stopped being sized by them (v6, the arena) they bounded nothing
+ * the blob's own size did not already bound, and 16 slots was a real
+ * obstacle to a real UI -- the UC-3 scoping fixture measures 28 on one
+ * screen. What a corrupt count must not do is decide an allocation,
+ * and that guarantee now lives where the allocation is computed: see
+ * arena_compute in ps2ui.c, which refuses arithmetic it cannot do
+ * rather than wrapping it. */
 #define PS2UI_MAX_SCISSOR_DEPTH 8
-#define PS2UI_MAX_TEXTURES      32
-#define PS2UI_MAX_SLOTS         16
-#define PS2UI_MAX_SCREENS       8
 /* Longest row focus name a list can build: prefix + index + NUL. Only
  * a stack buffer in ps2ui_list_move, not a table bound, so it costs
  * nothing to a UI that never uses a list. */
@@ -310,6 +316,9 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_MAGIC      -2
 #define PS2UI_ERR_VERSION    -3
 #define PS2UI_ERR_BOUNDS     -4
+/* The blob's counts are legal but the arena they add up to does not
+ * fit this machine's address space. It stopped meaning "past a number
+ * ps2ui.h picked" when the table ceilings went away. */
 #define PS2UI_ERR_TOO_MANY   -5
 #define PS2UI_ERR_CRC        -6
 #define PS2UI_ERR_FEATURES   -7

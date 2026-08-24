@@ -118,21 +118,26 @@ def _reachable(uib, sc) -> set:
 
 
 def check_tables(uib, rep: Report) -> None:
-    """The four static caps ps2ui_load() enforces with PS2UI_ERR_TOO_MANY.
+    """What a loader will actually find in the tables.
 
-    Since B10 the baker refuses to write an over-cap blob, so for a blob
-    this toolchain produced these cannot fail. They are here because a
-    .uib is a documented format others can write, and because this reads
-    the property from the far side: the baker checks what it is about to
-    write, this checks what a loader will find.
+    This used to assert three count ceilings from ps2ui.h. They are
+    gone: the v6 arena made the context size itself from the blob, and
+    a number the header picked then bounded nothing the blob's own size
+    did not. What is left is the format's own limit -- every count is a
+    uint16 -- read from the far side, which is the job this file exists
+    to do. A .uib is a documented format others can write, so "the
+    writer could not have emitted this" is not an argument for not
+    checking it.
     """
-    c = caps_mod.parse_header()
-    for count, key, what in (
-        (len(uib.textures), "PS2UI_MAX_TEXTURES", "textures"),
-        (len(uib.slots), "PS2UI_MAX_SLOTS", "slots"),
-        (len(uib.screens), "PS2UI_MAX_SCREENS", "screens"),
-    ):
-        rep.error(count <= c[key], f"{count} {what} within {key} ({c[key]})")
+    for count, what in ((len(uib.textures), "textures"),
+                        (len(uib.cluts), "CLUTs"),
+                        (len(uib.slots), "slots"),
+                        (len(uib.screens), "screens")):
+        rep.error(count <= 0xFFFF,
+                  f"{count} {what} fit the format's uint16 count field")
+    rep.error(len(uib.screens) > 0,
+              "at least one screen -- a UI with none has nothing to draw "
+              "and ps2ui_load refuses it")
     # Slot capacity used to be checked against the runtime's fixed
     # per-slot buffer. That buffer is gone (v6 resource model): the
     # runtime sizes each slot from the capacity declared here, so a
