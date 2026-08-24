@@ -26,9 +26,13 @@ Add a row per console; do not delete rows when a step later regresses.
 | SCPH-50000 | 3/4/5/7 conform, pre-fix | **fault found** — text unreadable garble on every cell; swizzle stripe away from the right edge; operator reported every painted image wrapping, right edge butted against left. All one fault: see 3c |
 | SCPH-50000 | 3 A/B conform-linear | **read** — colours change between arms (permutation is live and correct), text garbles identically in both. Ruled the CLUT out as the garble's cause; consistent with 3c, where the index shift is palette-independent |
 | SCPH-50000 | 4b conform-noalpha | **read** — glyphs become solid blocks tracing the text, ascenders and descenders visible. Glyph geometry ruled correct; the fault was in the sampled texels, not the quads. TCC ruled out: the forced-fault picture did not match the garble |
-| SCPH-50000 | 6b probe6 | **VOID, twice** — first run carried the fault class it was probing (no immune column); second run's leftmost calibration column seamed. Needs the aperiodic rebuild before its readings mean anything (landed — see the step 6 probe section; v3 awaits its first bench read) |
+| SCPH-50000 | 6b probe6 | **VOID, twice** — first run carried the fault class it was probing (no immune column); second run's leftmost calibration column seamed. Needs the aperiodic rebuild before its readings mean anything (landed, and v3's first bench read is the PASS row below) |
 | SCPH-50000 | 3/3c/5/7 conform, aligned build | **PASS on all four** — text legible everywhere, swizzle stripe hard against the bar's right end, MODULATE top two rows blank with the third legible, exactly one magenta square in CLIP. First legible text in the project's hardware history |
 | Play! (CI, llvmpipe) | 3c ground-truth diff | **PASS, first ever** — global RMSE 22.89 → 4.79 (tol 8), worst tile 96.35 → 13.73 (tol 32) on the aligned build, having failed on every prior build of the workflow's life. The truncation is in the DMA tag format, so a faithful emulator reproduces both the fault and the fix |
+| SCPH-50000 | 6 testcard (run 190 build) | **PASS via the faint row** — 4px and 2px rungs crisp against the flat references; 1px rung faint, and every 1px-checker region (rung and corners) shimmered in vertical strips while nothing else did, which is the faint row's alternation qualifier met: a sampling mush is a static grey. This sitting is also what added the faint row — the table previously had no column for a visible-but-low-contrast rung and would have miscalled this capture a sampling fault. All four edge rules visible: primitives land exactly on the canvas edge, no half-pixel offset, no overscan loss |
+| SCPH-50000 | 8 interlace | **VOID, panel-limited** — both rules steady: the display's motion-adaptive deinterlacer weaves static fields, erasing the 30 Hz alternation the rules exist to show. Positive evidence anyway: every 1px-checker region (the 1px rung and all four corner checkers) shimmered in vertical strips while nothing else did — single-line alternation is the one pattern a deinterlacer visibly fights, so the console is outputting real 480i with correctly differing fields. The CRT hairline advice stays unverified until this card meets a CRT |
+| SCPH-50000 | 6b probe6 v3 | **PASS — the rebuilt instrument's first valid reading.** All seven columns straight bars, joins continuous, the immune calibration column clean. Column G orange-dominant (CLUT convention correct on hardware); probe6-linear's G flips toward teal, so the instrument demonstrably sees the fault class on this console — the same falsification CI runs. Probe ground photographed as maroon, which is the predicted camera lift of the near-black ground, not a fault |
+| SCPH-50000 | 9 VRAM / full UI | **PASS** — the memcard UI drew completely: legible kerned text at every size, ellipsized tile titles, card summary, button hints, no held yellow. The whole blob fits real VRAM through the TexManager path and the preflight never fired. First photograph of the real UI rendering correctly on hardware |
 
 Reference material, in the order you will reach for it:
 
@@ -852,8 +856,11 @@ the side. Compare against gsKit's `OffsetX`/`OffsetY` handling before
 touching the linter's safe areas.
 
 **Expect (3) — the corner checkers.** The finest checker repeated at
-the four corners of the title-safe box. **Read these only once the
-wedge shows 1px crisp.** They have no coarser rung beside them, so on
+the four corners of the title-safe box. **Read these once the wedge
+shows 1px crisp — or when the wedge's 1px rung is faint *and* shown
+live by field alternation (the faint row below), in which case the
+corner checkers' own shimmer is corroborating evidence rather than a
+fresh ambiguity.** They have no coarser rung beside them, so on
 their own they carry exactly the fault-versus-limit ambiguity the wedge
 exists to remove — and they sit where CRT focus and convergence are
 worst and overscan crops first, so a mushy corner is more likely to be
@@ -867,9 +874,19 @@ those two look identical. That is why there are three:
 | 1px | 2px | 4px | reading |
 |---|---|---|---|
 | crisp | crisp | crisp | **pass** |
+| faint | crisp | crisp | the capture chain's resolution limit — **void on its own**; **pass** if the 1px pattern is independently shown to alternate between fields, because a half-texel sampling mush is a *static* grey (both fields carry the same average, so a weaving deinterlacer holds it stock still) and alternation means single-line detail survived sampling |
 | grey | crisp | crisp | real sampling fault |
 | grey | grey | crisp | the panel's resolution limit — the 1px result is **void** |
 | grey | grey | grey | void; read nothing from this cell |
+
+"Faint" is a state the first version of this table had no column for,
+and a bench read it: visible, low-contrast, not indistinguishable from
+the flat reference. A rung that photographs faint has already said it
+is not fully averaged — the table's old fault row assumed any display
+that resolves 2px resolves 1px, which does not survive a phone
+photograph of an upscaled 480i signal on an LCD. The alternation
+qualifier is what keeps the faint row falsifiable rather than a free
+pass: a genuinely mushed rung cannot alternate.
 
 The flat patch is what a mushed checker looks like, sitting beside them
 so the comparison is side by side rather than remembered. Every checker

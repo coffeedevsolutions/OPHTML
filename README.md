@@ -335,7 +335,7 @@ The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit
 
 The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain, boots it in the Play! emulator and image-diffs the frame against the previewer's ground truth. That diff is a gating check: it first went green when the DMA-alignment fix landed (#40), has held through every texture-path change since, and a red there is a real rendering regression, not an advisory note. It is a floor, not a proof — at its calibrated tolerance it catches gross corruption, and a green diff does not by itself certify the texture path.
 
-**It has now run on a real PlayStation 2** — a SCPH-50000, NTSC, booted from USB under FreeMcBoot. Bring-up steps 1 and 2 pass; steps 3-9 are still ahead. See [docs/bringup.md](docs/bringup.md) for the hardware log.
+**The bring-up matrix is complete on a real PlayStation 2** — a SCPH-50000, NTSC, booted from USB under FreeMcBoot. Steps 1–7, 9 and 10 pass on hardware, including the full memcard UI rendering with legible text. The one caveat: step 8 (interlace field order) is void on the bench panel, whose deinterlacer weaves static fields — the 1px-checker shimmer proves the console outputs real 480i with differing fields, but the 30 Hz rule flicker itself needs a CRT nobody is holding the project for. See [docs/bringup.md](docs/bringup.md) for the hardware log.
 
 Step 2 found a real fault, of the kind only hardware could find:
 
@@ -357,7 +357,7 @@ See [docs/architecture.md](docs/architecture.md) for the decision log.
 
 Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 
-- [ ] Finish hardware bring-up: steps 3-9 ([docs/bringup.md](docs/bringup.md) is the procedure; 1, 2 and 10 are done)
+- [x] Hardware bring-up ([docs/bringup.md](docs/bringup.md) carries the log; step 8 stays open for a CRT, non-blocking)
 - [ ] Working emulator screenshot job in CI
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
 - [ ] `position: absolute` for overlays and dialogs

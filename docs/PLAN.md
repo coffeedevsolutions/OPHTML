@@ -1,6 +1,6 @@
 # ps2ui Foundation Plan
 
-*rev 1.1 · 2026-08-23 · format v5 shipped, v6 planned · status: core render path hardware-verified (bring-up steps 1–5, 7, 10 pass on SCPH-50000; 6, 8, 9 pending one bench sitting)*
+*rev 1.2 · 2026-08-24 · format v5 shipped, v6 planned · status: bring-up matrix complete — steps 1–7, 9, 10 pass on SCPH-50000; 8 void pending a CRT (panel deinterlacer, with positive field evidence logged)*
 
 What has been built, what it proved, where it stopped being one product —
 and the plan that replaces score-driven feature selection with a sequenced
@@ -204,8 +204,12 @@ the loop has been done once end to end.
 
 > **Exit gate:** all ten steps pass on at least one real PS2; hardware
 > confidence multipliers flip to verified; the "not hardware-verified"
-> caveat leaves the README. **Partially met** — 1, 2 and 10 are in, the
-> gate is not.
+> caveat leaves the README. **Met, with one recorded asterisk** — steps
+> 1–7, 9 and 10 pass on the SCPH-50000; step 8 is void on an LCD bench
+> panel whose deinterlacer erases the rule flicker while the 1px-checker
+> shimmer proves the fields differ. The step stays open for a CRT and
+> does not hold the phase: it verifies the CRT linter's hairline advice,
+> not the renderer.
 
 ### Phase 1 — One resource model
 
