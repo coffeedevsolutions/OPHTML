@@ -287,6 +287,13 @@ jobs:
       # previewer PNG from the old place in two steps, one of which
       # skipped silently when it was missing.
       PREVIEW: baked/memcard/build/preview.png
+      # The emulator is a pinned dependency, not a moving target -- see
+      # the install step. Bump all three together, then re-read the diff
+      # numbers: a new Play! may legitimately move the RMSE, and the
+      # thresholds below are calibrated against THIS build.
+      PLAY_VERSION: "0.72"
+      PLAY_ASSET: "Play!-8de4a71f-x86_64.AppImage"
+      PLAY_SHA256: "5523586c7d89f90e0e6eb9cbc70008d1d6ef3d38656fea809517d3f5fd3004d3"
     # An emulator that comes up but never draws would otherwise sit on a
     # runner until the 6-hour default. Everything here is bounded work:
     # install, download, boot, one screenshot.
@@ -316,24 +323,33 @@ jobs:
 
           # Play! is distributed from purei.org, not from GitHub releases
           # (jpd002/Play- publishes none), so no asset name under
-          # releases/latest/download could ever have resolved. Walk the
-          # stable tree instead: newest version directory, then its
-          # 64-bit AppImage. --fail on every request, so a moved tree is
-          # one clear error rather than an HTML page saved as an
-          # executable.
+          # releases/latest/download could ever have resolved. The stable
+          # tree is the supported path; we take one pinned build out of
+          # it rather than whatever is newest. --fail on every request,
+          # so a moved tree is one clear error rather than an HTML page
+          # saved as an executable.
           base=https://purei.org/downloads/play/stable
-          version=$(curl -sSfL "$base/" \
-            | python3 tools/play_appimage_url.py --latest-version)
-          asset=$(curl -sSfL "$base/$version/" \
-            | python3 tools/play_appimage_url.py --appimage)
-          echo "Play! $version: $asset"
+          # PINNED, because this job gates. An unpinned emulator means the
+          # next Play! release blocks every PR in the repo with no diff to
+          # point at -- and the pressure in that moment is to reach for the
+          # continue-on-error this job just gave up. The renderer under
+          # test is an input like any other: it moves when we move it.
+          echo "Play! $PLAY_VERSION (pinned): $PLAY_ASSET"
+          curl -sSfL -o Play.AppImage "$base/$PLAY_VERSION/$PLAY_ASSET"
 
-          curl -sSfL -o Play.AppImage "$base/$version/$asset"
-          # Record what we actually ran. Backlog S4 wants this pinned to a
-          # checksum; printing it is the step before that, and it makes a
-          # silently-swapped asset visible in the log.
-          sha256sum Play.AppImage
+          # Verify, do not merely print. A printed digest nobody reads is
+          # the same blindfold in a different colour.
+          echo "$PLAY_SHA256  Play.AppImage" | sha256sum -c -
           file Play.AppImage
+
+          # A pin with no staleness signal rots quietly. Report whether a
+          # newer stable exists -- never gate on it, and keep the
+          # discovery code (and its self-test) exercised in the process.
+          latest=$(curl -sSfL "$base/" \
+            | python3 tools/play_appimage_url.py --latest-version) || latest=""
+          if [ -n "$latest" ] && [ "$latest" != "$PLAY_VERSION" ]; then
+            echo "::notice::Play! $latest is available; this job is pinned to $PLAY_VERSION. Bump PLAY_VERSION/PLAY_ASSET/PLAY_SHA256 together, then re-read the diff numbers -- the thresholds are calibrated against the pinned build."
+          fi
 
           chmod +x Play.AppImage
           ./Play.AppImage --appimage-extract >/dev/null
@@ -510,29 +526,51 @@ jobs:
           }'
           convert trimmed.png -resize 640x448\! captured.png
           echo "final      : $(identify -format '%wx%h' captured.png)"
+          # Hand the REAL presented size to the reference step below.
+          # That step used to hardcode 900x630 -- true for Play! 0.72 and
+          # a stale model the moment a build presents at another scale,
+          # which is exactly when someone would be reading it.
+          echo "PRESENTED=${TW}x${TH}" >> "$GITHUB_ENV"
 
-      - name: Resampling floor of the capture pipeline
+      - name: Resampling reference for the capture pipeline
         if: always()
         run: |
           # Play! upscales ~1.4x and the trim step scales back down, so
-          # the diff below has a non-zero floor before the renderer is
-          # considered at all. Measure it on the previewer PNG alone,
-          # round-tripped through the same two resizes with no renderer
-          # involved, and print it next to the real number. Quoting an
-          # RMSE without its floor invites reading resampling noise as a
-          # rendering fault.
+          # some of the diff below is resampling rather than rendering.
+          # Measure that on the previewer PNG alone, round-tripped through
+          # the same two resizes with no renderer involved.
+          #
+          # NOT a floor, despite what this step used to be called: the
+          # real capture scores BELOW this number (4.8 against 6.4),
+          # because ImageMagick's `-resize !` round trip loses more than
+          # Play!'s upscale plus our downscale does. Read it as an
+          # order-of-magnitude sanity check on the resampler, never as a
+          # lower bound on the gate -- treating it as one would argue for
+          # loosening the tolerance to ~8, which is how the gate stops
+          # gating. The band that actually discriminates is printed
+          # beside it.
           # Not `if [ -f ]`: a missing ground truth used to skip this
           # step without a word, so the floor silently stopped being
           # measured and the diff below quoted an RMSE with nothing to
           # read it against. Say so instead.
           if [ ! -f "$PREVIEW" ]; then
-            echo "no ground truth at $PREVIEW -- floor not measured"
+            echo "no ground truth at $PREVIEW -- reference not measured"
             ls -R baked || true
             exit 1
           fi
-          convert "$PREVIEW" -resize 900x630\! -resize 640x448\! floor.png
+          # ${PRESENTED} comes from the trim step, which measured it.
+          # This step is if:always(), so it can run when that step failed
+          # and never exported one. Say so rather than feed `convert` an
+          # empty geometry and report whatever it makes of it.
+          if [ -z "${PRESENTED:-}" ]; then
+            echo "trim step exported no presented size -- nothing to reference"
+            exit 0
+          fi
+          convert "$PREVIEW" -resize "${PRESENTED}"\! -resize 640x448\! floor.png
+          echo "round-tripped through ${PRESENTED} (the size Play! actually presented)"
           python3 tools/framediff.py "$PREVIEW" floor.png \
             --rmse 999 --tile-rmse 999 || true
+          echo "healthy band for the gated diff: RMSE ~4.8, worst tile ~13.7"
 
       - name: Bring-up step 6 — do texels land on pixel centres?
         if: always()
@@ -619,16 +657,29 @@ jobs:
           # says they differ; the palette says how, which is the only
           # way to read this failure without opening the artifact.
           #
-          # Thresholds are calibrated, not guessed: five green runs
-          # since the alignment fix measured global RMSE 4.79-4.83 and
-          # worst tile 13.7-13.9, against the capture pipeline's own
-          # resampling floor printed by the step above. 6.5/24 leaves
-          # ~35%/70% headroom for Play! or llvmpipe version drift while
-          # still catching the historical failure signature at a
-          # distance -- the alignment bug sat at 22.9/96.4. If this
-          # fires without a texture change, read the floor step's
-          # number first, then the fingerprints, before touching the
-          # tolerance.
+          # Thresholds are calibrated, not guessed -- against THIS
+          # measurement and no other. Green runs of the gated (permuted)
+          # build since the alignment fix sit at global RMSE 4.79-4.81
+          # with the worst tile constant at 13.73. 6.5/24 is ~35%/75%
+          # above that, and catches the historical failure signature
+          # from a distance: the alignment bug sat at 22.9/96.4.
+          #
+          # The band excludes the linear-CLUT arm below (4.83/13.85).
+          # That is a DIFFERENT ELF this step does not grade, and an
+          # earlier version of this comment quoted its numbers as the
+          # top of the range -- a threshold's calibration set may only
+          # contain the quantity it thresholds.
+          #
+          # Note what this gate does NOT resolve: the linear-CLUT build
+          # scores 4.83 and would pass here with 1.6 to spare. Red means
+          # a real regression; green means no GROSS one. A wrong CLUT
+          # convention is invisible at this tolerance and always was.
+          #
+          # If this fires without a texture change: compare against the
+          # 4.8/13.7 band above, then the colour fingerprints, then
+          # check whether PLAY_VERSION moved. Do NOT read the reference
+          # step's number as a floor -- the healthy capture scores below
+          # it, so it will always look like the tolerance is too tight.
           python3 tools/framediff.py "$PREVIEW" captured.png \
             --out framediff.png --rmse 6.5 --tile-rmse 24 --stats
       - uses: actions/upload-artifact@v7
