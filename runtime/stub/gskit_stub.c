@@ -19,6 +19,23 @@ void stub_reset_keep_tm(void)
     g_stub.n_prims = 0;
     g_stub.n_flushes = 0;
     g_stub.n_scissor_sets = 0;
+    g_stub.n_clears = 0;
+    g_stub.n_frame_ticks = 0;
+}
+
+/* Counted, not modelled. Nothing in this suite draws a frame anyone
+ * looks at, so what a clear would paint does not matter; that it
+ * happened at all is the whole assertion. */
+void gsKit_clear(GSGLOBAL *gsGlobal, u64 Color)
+{
+    (void)gsGlobal; (void)Color;
+    g_stub.n_clears++;
+}
+
+void gsKit_vram_clear(GSGLOBAL *gsGlobal)
+{
+    (void)gsGlobal;
+    g_stub.n_clears++;
 }
 
 /* Mirrors gsCore.c:35-51 behaviourally, not just in shape -- the real
@@ -191,6 +208,10 @@ void gsKit_TexManager_invalidate(GSGLOBAL *gs, GSTEXTURE *tex)
 void gsKit_TexManager_nextFrame(GSGLOBAL *gs)
 {
     (void)gs;
+    /* Counted for the same reason gsKit_clear is: this call belongs to
+     * the caller's frame loop, and a render that took it over would
+     * break compositing invisibly -- as frame time, not as a picture. */
+    g_stub.n_frame_ticks++;
 }
 
 void gsKit_set_scissor(GSGLOBAL *gs, u64 scissor)

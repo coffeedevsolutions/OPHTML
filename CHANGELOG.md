@@ -59,6 +59,32 @@ release will not load.
   two-slot overlay.
 
 ### Added
+- **Compositing two screens in one frame is a contract**, not an
+  accident. `ps2ui_render` never clears — stated as a guarantee on the
+  function, in the README with a worked frame loop, and in
+  `format-uib.md` — so `screen_set` + `render` twice in a frame draws
+  the second over the first. That is the dialog and modal technique,
+  with no format flag and no new API: an overlay screen is an ordinary
+  screen with a translucent scrim.
+
+  Input follows the **last** `screen_set`, so an overlay drawn last
+  owns the D-pad and dismissing it is one call back, restoring the
+  focus the user left on the base. Visibility resolves in the current
+  screen, so an overlay cannot reach into the base by naming one of
+  its nodes.
+
+  Two traps, documented and fenced: `ctx->stats` describes one render
+  and is reset at the top of every call, so a composited frame ends
+  holding the overlay's counters; and `gsKit_TexManager_nextFrame`
+  belongs once per frame after the flip, not between the two renders,
+  or an open dialog re-uploads the base's atlases every frame. The
+  host stub now counts frame clears and residency ageing ticks, so a
+  render that takes over either fails by name rather than silently —
+  the primitive count notices neither.
+
+  There is deliberately no `ps2ui_overlay_push`. The one thing it
+  would buy is a dialog drawn over a base that still receives input,
+  and nothing has asked for that.
 - **Kerning** — `ps2ui-fontgen` measures pairs out of the face (with
   ligature substitution disabled, so a ligature's width is never
   mistaken for a kern) and every pen applies them: layout's

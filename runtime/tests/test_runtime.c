@@ -1193,6 +1193,230 @@ int main(int argc, char **argv)
         CHECK(ctx.stats.prims == k, "stats reset every frame");
     }
 
+    /* ---- composition: two screens in one frame (design v6 4) --------
+     *
+     * ps2ui_render never clears, so `screen_set + render` twice in one
+     * frame composites the second over the first. That is the dialog
+     * and modal technique an OPL-class environment needs, and until
+     * this block it worked by ACCIDENT: undocumented, untested, found
+     * by experiment. The first refactor that adds a clear to render
+     * deletes it silently, and the symptom is on a television.
+     *
+     * Everything here is asserted against the two screens' own solo
+     * counts rather than against literals, so the fences survive the
+     * example's markup changing. */
+    {
+        int solo_a, solo_b, composed, after_a;
+        const char *focus_a, *focus_b;
+        uint32_t stats_a, stats_b;
+
+        CHECK(ps2ui_screen_set(&ctx, "library") == 1, "composition: base screen exists");
+        solo_a = render_and_count(&ctx, &gs);
+        stats_a = ctx.stats.prims;
+        focus_a = ps2ui_focus_name(&ctx);
+
+        CHECK(ps2ui_screen_set(&ctx, "saves") == 1, "and the overlay screen exists");
+        solo_b = render_and_count(&ctx, &gs);
+        stats_b = ctx.stats.prims;
+        CHECK(solo_a > 0 && solo_b > 0,
+              "both screens draw something on their own, or the sum below is vacuous");
+
+        /* One frame: base, then overlay, with no reset between them --
+         * which is precisely what a caller does and what a clear would
+         * break. */
+        stub_reset();
+        ps2ui_screen_set(&ctx, "library");
+        ps2ui_render(&ctx, &gs);
+        ps2ui_screen_set(&ctx, "saves");
+        ps2ui_render(&ctx, &gs);
+        composed = g_stub.n_prims;
+        CHECK(composed == solo_a + solo_b,
+              "compositing two screens draws the sum: render adds to the frame, "
+              "it does not own it");
+        /* The guarantee itself, not a consequence of it. The sum above
+         * would survive a clear being added to render -- a clear costs
+         * no primitives -- and a clear is precisely the refactor the
+         * design doc names as the one that deletes this feature. So it
+         * is asserted directly: the stub counts gsKit_clear and
+         * gsKit_vram_clear, and render must call neither. */
+        CHECK(g_stub.n_clears == 0,
+              "and render issued no clear, which is the guarantee the sum "
+              "above only depends on");
+        /* The other half of the same idea, and the one review caught
+         * undefended. gsKit_TexManager_nextFrame is the residency
+         * ageing tick and it belongs to the CALLER's frame loop, once,
+         * after the flip. A render that took it over would make the
+         * overlay age the base's textures, so an open dialog
+         * re-uploads the base's atlases every frame -- and unlike a
+         * clear, which anyone sees the instant they look at a
+         * composited frame, that shows up only as frame time. The stub
+         * already had nextFrame as a bare no-op, so a render calling
+         * it linked fine and asserted nothing. */
+        CHECK(g_stub.n_frame_ticks == 0,
+              "and issued no residency ageing tick: nextFrame is the frame "
+              "loop's, once per frame, or the overlay ages the base");
+
+        /* The anti-leak half, and it took two attempts to make it real.
+         *
+         * The first version re-rendered the overlay alone and checked
+         * the count was unchanged. That cannot fail: the stub records
+         * every primitive regardless of scissor, so no clip state can
+         * move a prim count in this suite -- deleting render's
+         * end-of-frame scissor restore left it green. What the stub
+         * CAN see is the register, so that is what is asserted.
+         *
+         * Two things worth being straight about. It is delivered by
+         * two mechanisms, not one: a balanced blob's last POP already
+         * re-applies stack[0], so the explicit restore at the end of
+         * render is belt to those braces and deleting either alone
+         * leaves this green. It fires when both go.
+         *
+         * The redundancy is structurally untestable, not merely
+         * untested (review's point, and sharper than the first version
+         * of this comment): the baker refuses to write an unbalanced
+         * blob and render refuses the pops of pushes it refused, so no
+         * blob the loader accepts can distinguish the two mechanisms.
+         * That is a reason to keep both and say so, not a reason to
+         * hunt for a fixture that separates them.
+         *
+         * It also overlaps the single-render check further up, which
+         * asserts the same register after one replay -- kept anyway,
+         * because "the next drawer inherits the whole screen" is part
+         * of THIS contract and a reader of the composite block should
+         * not have to know the other check exists to find it stated.
+         *
+         * It matters for compositing specifically: an app drawing its
+         * own geometry after ps2ui_render -- which is the whole point
+         * of a runtime that composites -- must not inherit a scissor
+         * clipped to some panel deep inside the last screen. */
+        CHECK(g_stub.last_scissor
+                  == GS_SETREG_SCISSOR(0, ctx.hdr->canvas_w - 1,
+                                       0, ctx.hdr->canvas_h - 1),
+              "a composited frame leaves the scissor at full canvas, so the "
+              "next drawer inherits the whole screen and not the last clip");
+        CHECK(render_and_count(&ctx, &gs) == solo_b,
+              "and the overlay alone still costs what it did before: render "
+              "is idempotent, it does not consume the screen it drew");
+
+        /* Per render, not per frame. ps2ui_render memsets stats at the
+         * top of every call, so after a composite the counters describe
+         * the LAST render only -- not the frame. Asserted rather than
+         * left as a surprise: a caller summing frame cost has to read
+         * them between renders, and finding that out from a wrong
+         * number on a television is the expensive way. */
+        CHECK(ctx.stats.prims == stats_b && stats_b != (uint32_t)composed,
+              "stats describe one render, not the composited frame");
+        CHECK(stats_a == (uint32_t)solo_a, "and each render's own stats are its own");
+
+        /* Input goes to the last screen_set, which is the overlay if
+         * you drew it last -- so a modal owns the D-pad for free, and
+         * dismissing it is one screen_set back. */
+        focus_b = ps2ui_focus_name(&ctx);
+        CHECK(focus_b != NULL && focus_a != NULL && strcmp(focus_a, focus_b) != 0,
+              "the two screens focus different nodes, or the routing check "
+              "below cannot tell them apart");
+        /* focus_set is screen-scoped, so it doubles as the question
+         * "is this name addressable from where input currently is". */
+        CHECK(ps2ui_focus_set(&ctx, focus_b) == 1,
+              "after the composite, input resolves inside the overlay: the last "
+              "screen_set owns the D-pad");
+        CHECK(ps2ui_focus_set(&ctx, focus_a) == 0,
+              "and the base's focused node is not reachable from it, so the "
+              "overlay is not merely drawn on top -- it has input scope");
+        CHECK(ps2ui_screen_set(&ctx, "library") == 1
+              && strcmp(ps2ui_focus_name(&ctx), focus_a) == 0,
+              "and dismissing restores the base's focus where the user left it");
+        after_a = render_and_count(&ctx, &gs);
+        CHECK(after_a == solo_a, "and the base draws what it always did");
+
+        /* Residency is per FRAME, not per render. gsKit_TexManager_nextFrame
+         * is the ageing tick and the sample calls it once after
+         * sync_flip, so two composited renders share one residency
+         * generation: the second must not re-transfer what the first
+         * bound. If it did, an overlay would cost a full re-upload of
+         * the base's atlases every frame it was open. */
+        {
+            int t0, b0;
+            /* Frame 1 warms both screens. The first draft of this
+             * checked that the OVERLAY render transferred nothing the
+             * base had made resident, and it failed -- correctly. The
+             * overlay's own atlases had never been bound in that
+             * frame, so transferring them is first use, not eviction.
+             * The property worth pinning is steady state: a composited
+             * frame that runs again costs no pixels. */
+            stub_reset_keep_tm();
+            ps2ui_screen_set(&ctx, "library");
+            ps2ui_render(&ctx, &gs);
+            ps2ui_screen_set(&ctx, "saves");
+            ps2ui_render(&ctx, &gs);
+
+            /* Deltas, not absolutes: stub_reset_keep_tm zeroes the
+             * per-frame counters and deliberately leaves n_transfers
+             * and n_binds cumulative, because residency is the thing
+             * that survives a frame boundary. */
+            t0 = g_stub.n_transfers;
+            b0 = g_stub.n_binds;
+            stub_reset_keep_tm();          /* next frame, VRAM untouched */
+            ps2ui_screen_set(&ctx, "library");
+            ps2ui_render(&ctx, &gs);
+            ps2ui_screen_set(&ctx, "saves");
+            ps2ui_render(&ctx, &gs);
+            CHECK(g_stub.n_transfers == t0,
+                  "a composited frame in steady state transfers no pixels: two "
+                  "renders share one residency generation, so an open overlay "
+                  "does not re-upload the base's atlases every frame");
+            CHECK(g_stub.n_binds > b0,
+                  "while still binding, so the zero above is a residency hit "
+                  "and not an absence of textures");
+            /* WHAT THIS DOES NOT PROVE. The stub leaves gsKit's
+             * eviction heuristic unmodelled on purpose -- ps2ui_upload
+             * preflights the whole blob, so eviction is unreachable,
+             * and modelling the weight function here would certify a
+             * guess. So this fences "nothing on the composite path
+             * invalidates or resets residency", which is the half a
+             * refactor can break. Whether the real manager keeps both
+             * screens resident under pressure is a console question,
+             * and the Phase 1 bench sitting is where it gets asked. */
+        }
+        /* Visibility across a composite. The bits are indexed by
+         * GLOBAL focus index, but a name resolves through
+         * focus_index_by_name, which searches only the current
+         * screen's range -- so "hide this" is unambiguous even when
+         * two screens use the same name, and hiding on the overlay
+         * cannot reach into the base. The ordering rule that falls out
+         * of it is the one an app has to know: set visibility on the
+         * screen that owns the node, which is the screen you are about
+         * to render anyway. */
+        {
+            int base_hidden, base_shown;
+            ps2ui_screen_set(&ctx, "library");
+            base_shown = render_and_count(&ctx, &gs);
+            CHECK(ps2ui_visible_set(&ctx, focus_a, 0) == 1,
+                  "a node on the base can be hidden while the base is current");
+            base_hidden = render_and_count(&ctx, &gs);
+            CHECK(base_hidden < base_shown,
+                  "and hiding it costs the base primitives, or the check "
+                  "below cannot tell a scope failure from a no-op");
+
+            ps2ui_screen_set(&ctx, "saves");
+            CHECK(ps2ui_visible_set(&ctx, focus_a, 1) == 0,
+                  "that same name is not settable from the overlay: visibility "
+                  "resolves in the current screen, so an overlay cannot reach "
+                  "into the base by naming one of its nodes");
+            CHECK(render_and_count(&ctx, &gs) == solo_b,
+                  "and the overlay is unaffected by the base's hidden bit");
+
+            ps2ui_screen_set(&ctx, "library");
+            CHECK(render_and_count(&ctx, &gs) == base_hidden,
+                  "while the base kept it: visibility survives a screen "
+                  "round trip rather than being frame state");
+            CHECK(ps2ui_visible_set(&ctx, focus_a, 1) == 1
+                  && render_and_count(&ctx, &gs) == base_shown,
+                  "and restoring it restores the frame exactly");
+        }
+        ps2ui_screen_set(&ctx, "library");
+    }
+
     /* ---- lists and visibility against a real data-repeat blob ----
      * The memcard example cannot test this: its tiles are named after
      * games, so a list prefix matches nothing and every assertion below

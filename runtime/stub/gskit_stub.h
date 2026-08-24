@@ -65,6 +65,26 @@ typedef struct stub_state {
     /* Uploads whose pixel data or CLUT was not fully covered by a
      * preceding writeback. Any value but zero is a console bug. */
     int n_uploads_unflushed;
+    /* Frame clears. ps2ui_render must never issue one: two
+     * screen_set + render pairs in a frame composite, which is the
+     * dialog and modal technique, and a clear inside render deletes
+     * that silently (design v6 4). gsKit_clear was previously absent
+     * from this stub entirely, so a render that called it failed to
+     * LINK -- a fence, but an accidental one that says "undefined
+     * reference" rather than which guarantee broke. */
+    int n_clears;
+    /* Residency ageing ticks. gsKit_TexManager_nextFrame belongs once
+     * per FRAME, after the flip, and the caller owns it -- a render
+     * that ticks makes the second of two composited renders age the
+     * first's textures, so an open dialog re-uploads the base's
+     * atlases every frame. Same shape as n_clears one step further
+     * along: the stub already had nextFrame, as a bare no-op, so a
+     * render that called it linked fine and asserted nothing.
+     *
+     * Counted, not modelled -- the distinction the eviction heuristic
+     * is deliberately left out for. What ageing then DOES is a console
+     * question; that render does not do it is not. */
+    int n_frame_ticks;
 } stub_state;
 
 extern stub_state g_stub;

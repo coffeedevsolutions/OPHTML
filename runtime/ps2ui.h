@@ -395,7 +395,46 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs);
 int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
                   const void *texels, size_t len);
 
-/* Replay one frame's command list for the current focus state. */
+/* Replay the current screen's command list for the current focus state.
+ *
+ * NEVER CLEARS. This is a guarantee, not an implementation detail:
+ * ps2ui_render adds to whatever is already in the framebuffer and
+ * never takes ownership of it. Two consequences the runtime commits to:
+ *
+ *   - The caller decides the background. Clear yourself, or draw over
+ *     a game frame -- which is what the channel-6 example is, an
+ *     overlay with no ground of its own beyond a scrim.
+ *   - Two screens in one frame COMPOSITE, and that is the dialog and
+ *     modal technique:
+ *
+ *         ps2ui_screen_set(&ui, "library");  ps2ui_render(&ui, gs);
+ *         ps2ui_screen_set(&ui, "confirm");  ps2ui_render(&ui, gs);
+ *
+ *     Input follows the LAST screen_set, so the overlay drawn last
+ *     owns the D-pad with nothing extra to say. Dismissing it is one
+ *     screen_set back to the base, which restores the focus the user
+ *     left there -- screen_set remembers per screen.
+ *
+ * Two things about that idiom that are easy to get wrong:
+ *
+ *   - `ctx->stats` describes ONE render, not the frame. It is reset at
+ *     the top of every call, so a composited frame ends holding the
+ *     overlay's counters. Read them between renders to sum a frame.
+ *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once
+ *     after the flip, not between the two renders, or the second ages
+ *     the first's textures and an open dialog re-uploads the base's
+ *     atlases every frame.
+ *
+ * There is deliberately no ps2ui_overlay_push. The idiom above works
+ * today and costs nothing; an API would buy one thing the idiom cannot
+ * express -- keeping the input screen and the drawn screens distinct,
+ * so a dialog could draw over a base that still receives D-pad. Until
+ * a use case wants that, the API would be a guess. Phase 2's OPL
+ * skeleton is where it gets asked for or does not.
+ *
+ * The scissor is left at the full canvas when this returns, so a
+ * caller drawing its own geometry afterwards inherits the whole
+ * screen rather than the last clip inside the UI. */
 void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs);
 
 /* D-pad move. Returns 1 when focus changed. */
