@@ -354,10 +354,16 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs);
 
 /* Point a streamed texture slot at the caller's texels.
  *
- * `len` must equal the entry's reservation exactly (ps2ui-bake prints
- * it, and the mismatch error says which number was expected): a
- * partial upload is worse than none, because it draws convincingly
- * wrong instead of failing.
+ * `len` must equal the entry's reservation exactly: a partial upload
+ * is worse than none, because it draws convincingly wrong instead of
+ * failing. ps2ui-bake prints the number on the slot's VRAM row --
+ * `28000 B payload`, the smaller of the two figures there; the larger
+ * one is the page-rounded VRAM the allocator commits and passing it
+ * here is PS2UI_ERR_SIZE. This comment used to add "and the mismatch
+ * error says which number was expected", which it does not: the
+ * return is a bare code. An accessor that answers it from the blob is
+ * the right fix and belongs with the rest of the v6 API work, not
+ * here; until then the bake output is where the number lives.
  *
  * NOTHING IS COPIED, which is the same contract the blob already has.
  * `texels` becomes this slot's DMA source, so it must stay alive and

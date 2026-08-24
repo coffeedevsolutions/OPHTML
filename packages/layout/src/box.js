@@ -126,10 +126,21 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
     // geometry, a name and a reservation (uib format v6).
     const texSlot = el.attrs['data-tex-slot'];
     if (texSlot !== undefined) {
-      if (!texSlot) {
+      // Trimmed, not truthy. `""` was already caught; `"cover "` was
+      // not, and it bakes cleanly — then ps2ui_tex_set(ctx, gs,
+      // "cover", …) returns ERR_NOT_STREAMED, the same code as a name
+      // that does not exist at all, with nothing anywhere to suggest
+      // the blob holds a near-identical string. The runtime compares
+      // these bytes with strcmp, so a difference the author cannot see
+      // in their own markup has to fail here or not at all. Refused
+      // rather than trimmed: guessing which name was meant is the kind
+      // of ambiguity every other check on this element rejects.
+      if (texSlot.trim() !== texSlot || !texSlot) {
         throw new Error(
-          `layout: <img> on line ${el.line}: data-tex-slot needs a name — `
-          + 'it is how the app addresses the slot at runtime',
+          `layout: <img> on line ${el.line}: data-tex-slot needs a name `
+          + 'with no leading or trailing whitespace — it is how the app '
+          + 'addresses the slot at runtime, matched byte for byte, and '
+          + `${JSON.stringify(texSlot)} would not match what it reads here`,
         );
       }
       if (el.attrs.src) {

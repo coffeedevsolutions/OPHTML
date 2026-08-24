@@ -142,9 +142,20 @@ def main(argv=None) -> int:
     )
 
     n_tex_bytes = sum(len(t.data) for t in flat.textures)
+    # Streamed slots contribute no bytes to the file, so this total is
+    # honest about the blob and silent about the reservations -- which
+    # read as "1 textures (0 KiB)" for a UI holding a 27 KiB slot. Name
+    # them separately rather than folding them in: adding them would
+    # misreport the size of the file this line is announcing, and
+    # omitting them was the "reads as free" problem one line up.
+    n_reserved = sum(t.reservation for t in flat.textures
+                     if getattr(t, "kind", 0))
+    tex_note = f"{n_tex_bytes // 1024} KiB baked"
+    if n_reserved:
+        tex_note += f" + {n_reserved // 1024} KiB reserved by slots"
     print(
         f"ps2ui-bake: {len(flat.screens)} screen(s), {len(flat.records)} records, "
-        f"{len(flat.textures)} textures ({n_tex_bytes // 1024} KiB), "
+        f"{len(flat.textures)} textures ({tex_note}), "
         f"{len(flat.cluts)} CLUTs -> {args.out}",
         file=sys.stderr,
     )

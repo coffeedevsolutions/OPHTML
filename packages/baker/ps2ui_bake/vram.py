@@ -75,11 +75,21 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         # A streamed slot carries no texels, so "0 B raw" would read as
         # free when it is a full reservation -- the VRAM is spent
         # whether or not the app ever fills it. Say which it is.
-        raw = (f"{'streamed':>7s} " if getattr(t, "kind", 0) else
-               f"{len(t.data):7d} B raw")
+        #
+        # Both numbers, and labelled, because they are the two counts
+        # the v6 model deliberately separates and an integrator needs
+        # the SMALLER one: `payload` is exactly the `len` argument
+        # ps2ui_tex_set demands (it compares against data_len and
+        # returns PS2UI_ERR_SIZE on any other value), while `in pages`
+        # is what the allocator commits. Printing only the page figure
+        # put the wrong one of the two on the only line the bake says
+        # about a slot.
+        streamed = bool(getattr(t, "kind", 0))
+        payload = t.reservation if streamed else len(t.data)
         lines.append(
             f"  tex[{i:2d}] {fmt_name:8s} {t.width:4d}x{t.height:<4d} "
-            f"{raw} -> {size:7d} B in pages"
+            f"{'streamed' if streamed else 'baked':8s} "
+            f"{payload:8d} B payload -> {size:7d} B in pages"
         )
     for i, _c in enumerate(cluts):
         size = clut_size()

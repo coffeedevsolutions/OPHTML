@@ -750,6 +750,50 @@ class TestStreamedAuthoring(unittest.TestCase):
                         "the breakdown names it as a reservation, because "
                         "'0 B raw' would read as free")
 
+    def test_the_breakdown_prints_the_number_tex_set_demands(self):
+        """The two counts on a slot's row are different numbers and the
+        integrator needs the smaller one: ps2ui_tex_set compares `len`
+        against data_len, so a caller who passes the page-rounded VRAM
+        figure gets a bare PS2UI_ERR_SIZE. Printing only the page
+        figure put the wrong one of the two on the only line the bake
+        says about their slot."""
+        from ps2ui_bake import vram
+        # 100x70, not the class's 64x64: a CT32 page is 64x32 texels, so
+        # every power-of-two slot lands on an exact page boundary and
+        # payload == pages, which would let the wrong number pass. The
+        # first draft of this test did exactly that and its own guard
+        # below caught it.
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover"></div>',
+            self.CSS.replace("width:64px;height:64px",
+                             "width:100px;height:70px"))
+        self.assertIsNotNone(uib, err)
+        lines, _total, _budget, _ok = vram.report(
+            uib.textures, uib.cluts, 640, 448, None)
+        row = [ln for ln in lines if "streamed" in ln][0]
+        payload = 100 * 70 * 4                      # 28000, what tex_set wants
+        pages = vram.page_rounded_size(100, 70, gs.PSMCT32)   # 49152
+        self.assertNotEqual(payload, pages, "otherwise this proves nothing")
+        self.assertIn(f"{payload} B payload", row)
+        self.assertIn(f"{pages} B in pages", row)
+
+    def test_the_bake_summary_does_not_call_a_reservation_zero(self):
+        """The per-texture row stopped saying '0 B raw'; the total one
+        line beneath it summed len(t.data) and said '(0 KiB)' for the
+        same blob. Same 'reads as free' problem, same fix.
+
+        Kept separate from the reserved figure rather than added to it:
+        this line announces the size of the file it just wrote, and a
+        slot contributes nothing to that."""
+        # 128x128 CT32 reserves 65536 B, so the KiB figure cannot round
+        # to zero by accident and prove nothing.
+        uib, err = self.bake('<div id="r"><img data-tex-slot="cover"></div>',
+                             self.CSS.replace("64px", "128px"))
+        self.assertIsNotNone(uib, err)
+        summary = [ln for ln in err.splitlines() if "textures (" in ln][0]
+        self.assertIn("0 KiB baked", summary, "no texels travel in the file")
+        self.assertIn("64 KiB reserved by slots", summary)
+
 
 class TestArena(unittest.TestCase):
     """The host mirror of runtime/ps2ui.c's arena_compute.
@@ -2103,7 +2147,19 @@ class TestCheck(unittest.TestCase):
             rep = check_blob(read_uib(path))
             self.assertEqual(rep.errors, 0, f"{rel}: {self.failures(rep)}")
         if seen == 0:
-            self.skipTest("no example blobs built")
+            # Not the treatment the arena cross-check got. That one
+            # could build what it needed in a second; these blobs need
+            # node, the fonts and the asset pipeline, and the only
+            # order that would make them exist here runs the
+            # integration builds before the unit suite -- so a broken
+            # baker would be reported by a shell script instead of by
+            # this file. ci.yml's "Validate every blob against the
+            # runtime's assumptions" step covers these exact bytes with
+            # ps2ui-check by name, and DOES gate. Say that here so the
+            # skip reads as a division of labour rather than a hole.
+            self.skipTest("examples not built in this checkout; ci.yml "
+                          "gates these blobs with ps2ui-check after the "
+                          "example builds")
 
 
 class TestDeadGeometryTrim(unittest.TestCase):
