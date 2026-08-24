@@ -583,6 +583,71 @@ test('image: <img> measures intrinsically and emits an image command', () => {
   assert.equal(img.state, 'always');
 });
 
+test('streamed: data-tex-slot emits a named slot with no src', () => {
+  const ir = compile(
+    '<div><img data-tex-slot="cover"></div>',
+    'img { width: 64px; height: 64px }',
+    { fonts, assetDir: fixtureDir() },
+  );
+  const img = ir.commands.find((c) => c.op === 'image');
+  assert.ok(img, 'image command emitted');
+  assert.equal(img.streamed, true);
+  assert.equal(img.name, 'cover');
+  assert.equal(img.src, undefined, 'a streamed slot has no file');
+  assert.equal(img.w, 64);
+  assert.equal(img.h, 64);
+});
+
+test('streamed: needs an explicit width and height', () => {
+  // No file means no intrinsic size. Without this the box computes to
+  // 0x0 and the baker silently drops the quad -- a slot the app can
+  // fill and nobody can see.
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot="cover"></div>', 'img { width: 64px }',
+  ), /needs an explicit width and height/);
+});
+
+test('streamed: src and data-tex-slot are mutually exclusive', () => {
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot="cover" src="badge.png"></div>', 'img { }',
+  ), /mutually exclusive/);
+});
+
+test('streamed: the slot needs a name to be addressable', () => {
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot=""></div>', 'img { }',
+  ), /data-tex-slot needs a name/);
+});
+
+test('streamed: a padded name is refused, not silently trimmed', () => {
+  // The hazard is not a name of pure spaces, it is a trailing one:
+  // `data-tex-slot="cover "` bakes cleanly and then ps2ui_tex_set with
+  // "cover" returns ERR_NOT_STREAMED, indistinguishable from a name
+  // that was never baked at all.
+  for (const name of ['cover ', ' cover', '   ', '\t']) {
+    assert.throws(() => compileCss(
+      `<div><img data-tex-slot="${name}"></div>`, 'img { }',
+    ), /no leading or trailing whitespace/, `refuses ${JSON.stringify(name)}`);
+  }
+});
+
+test('streamed: an interior space is a visible name and is allowed', () => {
+  // The rule is about differences the author cannot see in their own
+  // markup, not about a charset. This one is visible in both places.
+  const ir = compile(
+    '<div><img data-tex-slot="box art" style="x"></div>',
+    'img { width: 8px; height: 8px }',
+    { fonts, assetDir: fixtureDir() },
+  );
+  assert.equal(ir.commands.find((c) => c.op === 'image').name, 'box art');
+});
+
+test('streamed: palettize is refused, the art does not exist yet', () => {
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot="cover" palettize></div>', 'img { }',
+  ), /palettize is not supported on a streamed slot/);
+});
+
 test('image: one specified axis keeps the intrinsic aspect ratio', () => {
   const ir = compile(
     '<div><img class="wide" src="badge.png"></div>',

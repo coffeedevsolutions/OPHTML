@@ -176,8 +176,9 @@ export function buildDisplayList(root) {
         y: box.y + box.style.padding[0] + b,
         w: box.width - box.style.padding[1] - box.style.padding[3] - 2 * b,
         h: box.height - box.style.padding[0] - box.style.padding[2] - 2 * b,
-        src: box.image.src,
-        palettize: box.image.palettize,
+        ...(box.image.streamed
+          ? { streamed: true, name: box.image.name }
+          : { src: box.image.src, palettize: box.image.palettize }),
         state: 'always',
         focusId: box.focusId,
       });

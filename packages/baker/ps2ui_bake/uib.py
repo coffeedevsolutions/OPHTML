@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from . import gs
 from .quads import (
     DrawRecord, BakedTexture, FOCUS_NONE, TEX_NONE,
+    TEXKIND_BAKED, TEXKIND_STREAMED,
     OP_QUAD, OP_TEXQUAD, OP_SCISSOR_PUSH, OP_SCISSOR_POP,
 )
 
@@ -48,8 +49,6 @@ FEAT_STREAMED_TEX = 1 << 3
 FEAT_KNOWN = (FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING
               | FEAT_STREAMED_TEX)
 
-TEXKIND_BAKED = 0
-TEXKIND_STREAMED = 1
 # A texture with no name. Not 0: offset 0 is a legitimate blob offset.
 NAME_NONE = 0xFFFFFFFF
 

@@ -64,6 +64,15 @@ class DrawRecord:
     keep: bool = False
 
 
+# How a texture's texels arrive (uib format v6). Defined here rather
+# than in uib.py because they are a property of BakedTexture, and
+# uib.py already imports from this module -- the other direction would
+# be a cycle. uib.py re-exports them, so `from .uib import
+# TEXKIND_STREAMED` keeps working.
+TEXKIND_BAKED = 0
+TEXKIND_STREAMED = 1
+
+
 @dataclass
 class BakedTexture:
     fmt: int          # gs.PSMT8 | gs.PSMCT32
@@ -80,7 +89,7 @@ class BakedTexture:
     # the app supplies it at runtime through ps2ui_tex_set -- so it
     # needs a name to be addressable and a reservation stating the
     # exact payload the runtime will demand.
-    kind: int = 0                      # TEXKIND_BAKED
+    kind: int = TEXKIND_BAKED
     name: Optional[str] = None
     reservation: int = 0
 
@@ -100,6 +109,7 @@ class Flattener:
         self._atlases = {}      # (weight_bucket, size) -> (AtlasBuilder, tex_index)
         self._patches = {}      # patch_key -> (NinePatch, tex_index)
         self._images = {}       # (src, w, h) -> tex_index
+        self._streamed = {}     # slot name -> tex_index
         self._coverage_clut = None
         self.fonts = []         # dynamic-text font tables (filled by run())
         self.slots = []         # dynamic-text slots (filled by run())
@@ -306,11 +316,49 @@ class Flattener:
             self._images[key] = len(self.textures) - 1
         return self._images[key]
 
+    def _streamed_texture(self, name: str, w: int, h: int) -> int:
+        """A slot the app fills at runtime: geometry, a name and a
+        reservation, no texels (uib v6 §3).
+
+        PSMCT32 only. A palettized streamed slot would have to name a
+        CLUT that exists at bake time, and nothing authors one yet --
+        deferring is better than inventing a syntax the runtime has
+        never been asked to read.
+
+        Two elements naming the same slot share one texture, which is
+        the point of a name. At different sizes they cannot: the
+        reservation is one number and the app is told one number, so
+        that is an authoring error rather than a silent pick."""
+        prev = self._streamed.get(name)
+        if prev is not None:
+            t = self.textures[prev]
+            if (t.width, t.height) != (w, h):
+                raise ValueError(
+                    f"image: streamed slot {name!r} is laid out at "
+                    f"{t.width}x{t.height} in one place and {w}x{h} in "
+                    f"another; a slot has one reservation, so give them "
+                    f"the same size or different names"
+                )
+            return prev
+        self.textures.append(BakedTexture(
+            gs.PSMCT32, w, h, None, b"",
+            kind=TEXKIND_STREAMED, name=name, reservation=w * h * 4,
+        ))
+        self._streamed[name] = len(self.textures) - 1
+        return self._streamed[name]
+
     def _flatten_image(self, cmd):
         state = _STATE_NAMES[cmd["state"]]
         focus = self._focus_of(cmd)
         x, y, w, h = cmd["x"], cmd["y"], cmd["w"], cmd["h"]
         if w <= 0 or h <= 0:
+            return
+        if cmd.get("streamed"):
+            tex = self._streamed_texture(cmd["name"], w, h)
+            self.records.append(DrawRecord(
+                OP_TEXQUAD, state, focus, x, y, w, h, (128, 128, 128, 128),
+                tex, 0, 0, w, h,
+            ))
             return
         # Both opt-ins reach the texture builder separately: only the
         # per-image attribute is a claim about indices, so only it
