@@ -246,7 +246,13 @@ that document also records what would falsify it.
    design-v6-resource-model.md, "Slot storage: copied, not borrowed".
 4. **Composition becomes a contract.** Document and test that render
    composites over the existing frame; define the overlay idiom, its focus
-   routing, and its interaction with visibility.
+   routing, and its interaction with visibility. **[shipped]** The
+   no-clear guarantee is stated on `ps2ui_render`, in the README with a
+   worked frame loop, and in `format-uib.md`; input follows the last
+   `screen_set`; 22 runtime checks fence it, including a direct
+   clear counter in the stub, because the primitive sum alone survives
+   a clear being added. No `ps2ui_overlay_push` — the idiom, as the
+   design leaned, with the absence recorded as a decision.
 
 API breaks ride along (e.g. the `visible_get/set` error conflation from the
 PR #16 review). One migration note; examples re-baked; v5 and earlier

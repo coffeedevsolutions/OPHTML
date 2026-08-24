@@ -19,6 +19,22 @@ void stub_reset_keep_tm(void)
     g_stub.n_prims = 0;
     g_stub.n_flushes = 0;
     g_stub.n_scissor_sets = 0;
+    g_stub.n_clears = 0;
+}
+
+/* Counted, not modelled. Nothing in this suite draws a frame anyone
+ * looks at, so what a clear would paint does not matter; that it
+ * happened at all is the whole assertion. */
+void gsKit_clear(GSGLOBAL *gsGlobal, u64 Color)
+{
+    (void)gsGlobal; (void)Color;
+    g_stub.n_clears++;
+}
+
+void gsKit_vram_clear(GSGLOBAL *gsGlobal)
+{
+    (void)gsGlobal;
+    g_stub.n_clears++;
 }
 
 /* Mirrors gsCore.c:35-51 behaviourally, not just in shape -- the real

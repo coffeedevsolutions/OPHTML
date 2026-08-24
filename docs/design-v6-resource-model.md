@@ -483,6 +483,57 @@ documenting the idiom in v6 and adding the API only when the Phase 2
 skeleton shows the idiom is awkward — the pull rule applied to our own
 design.
 
+**[implemented]** Idiom, as leaned. No `ps2ui_overlay_push`; the one
+thing it would buy that `screen_set` cannot express is a dialog drawn
+over a base that still receives the D-pad, and nothing has asked for
+that. Written down in `ps2ui.h` so the absence is a decision on the
+record rather than a gap.
+
+The contract is stated on `ps2ui_render` in the header, in the README
+with a worked frame loop, and in `format-uib.md` (an overlay screen is
+an ordinary screen with a scrim; the format needs no flag and has
+none). The focus question is answered: **input follows the last
+`screen_set`**, so an overlay drawn last owns the D-pad for free and
+dismissing it is one call back, restoring the base's remembered focus.
+
+Fenced by 22 checks. Three notes on what making them real took,
+because two of the first drafts asserted nothing:
+
+- **The primitive sum does not fence the guarantee.** `composed ==
+  solo_a + solo_b` survives a clear being added to `render` — a clear
+  costs no primitives — and a clear is precisely the refactor this
+  section names as the one that deletes the feature. `gsKit_clear` was
+  not in the host stub at all, so a render that called it failed to
+  *link*: a fence, but an accidental one saying "undefined reference"
+  rather than which guarantee broke. The stub now counts clears and
+  the contract asserts zero.
+- **"The overlay transfers nothing the base made resident" is false,
+  and correctly so.** The overlay's own atlases have not been bound
+  that frame, so transferring them is first use, not eviction. The
+  property worth pinning is steady state: a composited frame that runs
+  again costs no pixels. That is what rev 2's argument actually
+  predicts.
+- **Scissor state cannot move a prim count in this suite**, so the
+  anti-leak check reads the register instead. It is delivered by two
+  mechanisms — a balanced blob's last POP re-applies `stack[0]`, and
+  `render` restores it explicitly — so deleting either alone leaves it
+  green. It fires when both go.
+
+**What the host cannot answer.** The stub leaves gsKit's eviction
+heuristic unmodelled on purpose: `ps2ui_upload` preflights the whole
+blob, so eviction is unreachable, and modelling the weight function
+would certify a guess. The tests therefore fence "nothing on the
+composite path invalidates or resets residency" — the half a refactor
+can break. Whether the real manager keeps both screens resident under
+pressure is a console question, and it joins the streamed-cover demo
+at the Phase 1 bench sitting.
+
+**Also now stated, because it is a trap:** `ctx->stats` is reset at the
+top of every `ps2ui_render`, so a composited frame ends holding the
+*overlay's* counters, not the frame's. A caller summing frame cost has
+to read them between renders. Asserted rather than left to be
+discovered from a wrong number on a television.
+
 ---
 
 ## 5. API changes riding along

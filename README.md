@@ -226,6 +226,42 @@ ps2ui-bake library.json saves.json -o ui.uib
 
 The example ships two screens ([saves screen](examples/memcard/screenshots/saves.png)).
 
+### Dialogs and overlays: two screens in one frame
+
+`ps2ui_render` **never clears**. That is a guarantee, not an accident of
+the current implementation, and it is what makes modals work without a
+modal feature:
+
+```c
+ps2ui_screen_set(&ui, "library");  ps2ui_render(&ui, gs);   /* base    */
+ps2ui_screen_set(&ui, "confirm");  ps2ui_render(&ui, gs);   /* overlay */
+gsKit_TexManager_nextFrame(gs);                             /* once    */
+gsKit_queue_exec(gs);  gsKit_sync_flip(gs);
+```
+
+The second render composites over the first. Author the overlay screen
+with a translucent scrim and a panel; everything outside it keeps
+showing the base.
+
+- **Input follows the last `screen_set`.** Draw the overlay last and it
+  owns the D-pad with nothing extra to say. Dismissing it is one
+  `screen_set` back to the base, which restores the focus the user left
+  there.
+- **`ctx->stats` describes one render, not the frame.** It resets at the
+  top of every call, so a composited frame ends holding the overlay's
+  counters. Read them between renders to sum a frame.
+- **Call `gsKit_TexManager_nextFrame` once per frame, after the flip** —
+  not between the two renders. It is the residency ageing tick; running
+  it between them makes the overlay age the base's atlases, and an open
+  dialog then re-uploads them every frame.
+- **The scissor comes back at full canvas**, so your own geometry after
+  the last render inherits the whole screen.
+
+There is deliberately no `ps2ui_overlay_push`. The one thing it would
+buy that this cannot express is keeping the input screen and the drawn
+screens distinct — a dialog drawn over a base that still receives the
+D-pad. Nothing has asked for that yet.
+
 ## Focus and navigation
 
 - Mark elements `focusable`, one per screen `autofocus`

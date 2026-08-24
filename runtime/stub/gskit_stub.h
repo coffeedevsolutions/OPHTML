@@ -65,6 +65,14 @@ typedef struct stub_state {
     /* Uploads whose pixel data or CLUT was not fully covered by a
      * preceding writeback. Any value but zero is a console bug. */
     int n_uploads_unflushed;
+    /* Frame clears. ps2ui_render must never issue one: two
+     * screen_set + render pairs in a frame composite, which is the
+     * dialog and modal technique, and a clear inside render deletes
+     * that silently (design v6 4). gsKit_clear was previously absent
+     * from this stub entirely, so a render that called it failed to
+     * LINK -- a fence, but an accidental one that says "undefined
+     * reference" rather than which guarantee broke. */
+    int n_clears;
 } stub_state;
 
 extern stub_state g_stub;

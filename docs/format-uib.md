@@ -290,6 +290,14 @@ within its own range, so `ps2ui_screen_set` is: remember the current
 focus, switch ranges, restore the target's remembered focus (or its
 baked initial). The header's `initial_focus` duplicates screen 0's.
 
+Nothing in the format says a frame is one screen. `ps2ui_render` never
+clears, so a caller that does `screen_set` + `render` twice in one
+frame gets the second screen composited over the first — the dialog and
+overlay technique, with input following the last `screen_set`. A screen
+authored as an overlay is an ordinary screen whose background is a
+translucent scrim; the format needs no flag for it and has none. See
+the runtime contract on `ps2ui_render` in `runtime/ps2ui.h`.
+
 ## Versioning
 
 `version` bumps on any incompatible change. Readers must reject unknown
