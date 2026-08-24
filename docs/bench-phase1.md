@@ -1,0 +1,291 @@
+# Bench runbook — Phase 1, the streaming sitting
+
+One sitting. Read this page and nothing else; it assumes a PS2, a USB
+drive and a television, and no memory of Phase 0.
+
+Phase 1 rewrote the resource model: the context is sized from the blob
+through an arena you supply, texture slots became a first-class kind
+the app fills at runtime, the table ceilings are gone, and compositing
+two screens in one frame is a contract. **None of it has been on a
+console.** Every claim below was verified on a 64-bit host or under an
+emulator, and this page is where that stops being enough.
+
+The reason it stops being enough is specific. `ps2ui_tex_set` hands the
+GS a pointer to memory the EE just wrote through a **write-back cache
+the GIF cannot see**, then writes it back by hand. Cache and DMA are
+the one fault class emulators only partially model — it is what #40
+was, and #40 was the root cause of every garbled screen in this
+project's history.
+
+---
+
+## Before you start
+
+**Get the files.** From the latest green `hw` run on `main`, download
+two artifacts:
+
+| artifact | what you need from it |
+|---|---|
+| `ps2ui-sample-elf` | `covers.elf`, `covers-nosync.elf` |
+| `bench-stream` | `cover0.raw` .. `cover3.raw`, and the three `preview-*.png` |
+
+**Put the covers on the drive**, in a folder named exactly `ps2ui` at
+the root:
+
+```
+<drive>/ps2ui/cover0.raw
+<drive>/ps2ui/cover1.raw
+<drive>/ps2ui/cover2.raw
+<drive>/ps2ui/cover3.raw
+```
+
+Each is exactly **65,536 bytes**. Check that on the drive after
+copying, not before — a copy that reports success and has not flushed
+is the classic way to spend an hour reading a photograph of the wrong
+build.
+
+**To use your own art instead**, run the bake with it. This is the
+whole point of the feature, so it is worth doing:
+
+```sh
+./fixtures/bench-stream/build.sh ~/Art/one.png ~/Art/two.png \
+                                 ~/Art/three.png ~/Art/four.png
+```
+
+Anything Pillow opens works. Each image is cover-fitted and
+centre-cropped to 128×128 — the reservation is one fixed size the blob
+has already told the runtime, so the picture bends, not the geometry.
+Fewer than four images is fine; the rest are filled with the synthetic
+pattern. The script then rewrites `preview-filled.png` and
+`preview-composited.png` from your art, and **those are the references
+you compare the television against**, so re-download or re-copy them
+after baking.
+
+**Copy the ELFs under fresh names.** Every stale-file incident on this
+project came from an old copy sitting on the drive under the name you
+were about to boot.
+
+**There is no memory-card step.** The blob is compiled into the ELF;
+the covers are not. That split is the feature: the console reads art it
+was never baked with.
+
+---
+
+## The three words that matter
+
+| | |
+|---|---|
+| **PASS** | the property holds |
+| **FAIL** | the property does not hold — record it, keep going |
+| **VOID** | the instrument could not answer; the calibration says so |
+
+**Void is not a failure and it is not a pass.** Each step below names
+the calibration that detects its own void state. If you hit one, note
+it and move on.
+
+---
+
+## What a flat screen means
+
+Before anything below, if the television shows one flat colour edge to
+edge, that is the ELF talking, not the renderer. **Read it off the
+screen, not off a photo** — a phone renders saturated magenta as violet
+and lifts near-black to visible maroon.
+
+| fill | means |
+|---|---|
+| dark red | the blob failed to load — including an arena too small |
+| olive / dark yellow | the upload ran out of VRAM |
+| magenta (violet on a photo) | the ELF asked for a screen this blob does not have |
+| **black, or no picture** | it did not boot. Nothing below applies |
+
+---
+
+## How `covers.elf` behaves
+
+It loops through **four phases, five seconds each**, forever. Looping
+is deliberate: a photograph that misses its moment comes round again
+instead of costing a reboot.
+
+**You do not need to time anything.** The screen says which phase it is
+in, on the line labelled `state:`. A photo of this ELF labels itself.
+
+Two lines under the covers carry everything you need:
+
+```
+src:   mass:/ps2ui  (4 x 65536 B)        <- or SYNTHETIC, with the reason
+state: 2 SWAP: slot 0 now shows cover 3
+tex_set rc: 0 0 0 0                      <- 0 is PS2UI_OK
+```
+
+**Read `src:` first.** If it says `SYNTHETIC`, the drive was not
+readable and it names why — `open cover0: -X` means the launcher did
+not leave the USB driver resident, and a size mismatch means the art
+was converted at the wrong size. Everything below still runs on the
+generated pattern, so **the sitting is not wasted**; only step S6 needs
+the drive.
+
+---
+
+## Step S1 — an unfilled slot draws nothing
+
+**Boot `covers.elf`. Photograph the first five seconds**, while
+`state:` reads `0 EMPTY`.
+
+The four cover boxes must be **empty** — the page background, nothing
+in them. Compare against `preview-unfilled.png`.
+
+- **PASS** — four empty boxes, the title and captions drawn normally.
+- **FAIL, and this is the important one** — anything at all inside a
+  box. Garbage, noise, a piece of another texture, a flat block of
+  colour. Their VRAM is reserved and committed at upload; if the GS is
+  drawing *from* it before anything was sent, `render` is not skipping
+  unfilled slots and every one of them is a window onto stale VRAM.
+- **VOID** — if `state:` is not `0 EMPTY` in your photo you caught a
+  later phase. Wait twenty seconds and shoot again.
+
+---
+
+## Step S2 — `ps2ui_tex_set` puts the caller's texels on screen
+
+**Photograph while `state:` reads `1 FILL`.**
+
+Four covers, left to right, matching `preview-filled.png`.
+
+- **PASS** — four covers, each a coarse checker (or your art), each
+  with a crisp white border all the way round and a white block in its
+  top-left corner.
+- **FAIL** — boxes still empty while `tex_set rc:` reads `0 0 0 0`.
+  Accepted and not drawn is a renderer fault.
+- **FAIL, differently** — `tex_set rc:` shows a non-zero. `-10` is
+  `NOT_STREAMED` (wrong name or a baked slot), `-11` is `SIZE` (the
+  file is not the reservation), `-8` is `ALIGN`. That is the API
+  refusing, not the GS misdrawing, and the number says which.
+- **The reading that matters most** — covers present but **wrong**:
+  torn, striped, shifted by a few texels, or showing the right shapes
+  in wrong colours. That is the cache/DMA fault class. Go to S3 before
+  concluding anything.
+
+> **The white border is the instrument.** It is one texel wide on all
+> four sides. If any edge is missing or doubled, the texels are
+> arriving at an offset — that is a stride or alignment fault, not a
+> colour one, and the border is what makes it visible from arm's
+> length.
+
+---
+
+## Step S3 — what a live cache fault looks like
+
+**Only if S2 looked wrong.** Skip it otherwise; it takes two minutes
+and it is a picture, not a test.
+
+**Boot `covers-nosync.elf` and photograph phase `1 FILL`.**
+
+This is the same ELF with the cache writeback removed from
+`ps2ui_tex_set`. The EE wrote the texels through a write-back cache the
+GIF cannot see, so the GS DMAs whatever happened to be in RAM at that
+address.
+
+Hold the two photographs side by side:
+
+- **They look the same** → the writeback is not doing its job on this
+  console, and S2's failure is the cache fault. This is a real finding;
+  record both photos.
+- **They look different** → the writeback is working, and whatever S2
+  showed has another cause. Record both anyway; a picture of the fault
+  is worth having.
+
+This is the same role `conform-noalpha.elf` plays in Phase 0: showing
+what a hypothesis predicts, not testing it.
+
+---
+
+## Step S4 — the slot can be repointed mid-run
+
+**Photograph while `state:` reads `2 SWAP`.**
+
+Slot 0 has been pointed at cover 3's texels. The **leftmost** box must
+now show what the **rightmost** box shows. Both display cover 3.
+
+- **PASS** — first and last boxes identical, middle two unchanged.
+- **FAIL** — the leftmost box still shows cover 0. The texture manager
+  is holding it resident from the first `tex_set` and drawing the old
+  cover out of VRAM; the invalidate is not landing.
+- **VOID** — if your covers all look alike, this step cannot answer.
+  That happens if you supplied four near-identical images. Re-bake with
+  no arguments to get the synthetic set, which is built in six
+  distinguishable hues for exactly this reason.
+
+Phase `3 RESTORE` puts cover 0 back. That is the same assertion in the
+other direction and a free second reading.
+
+---
+
+## Step S5 — two screens composite in one frame
+
+**Photograph while `state:` reads `4 COMPOSITE`.** Compare against
+`preview-composited.png`.
+
+A translucent panel over the covers, with `OK` and `CANCEL`.
+
+- **PASS** — the covers are **still visible** around and behind the
+  scrim, dimmed but there. The panel is drawn over them.
+- **FAIL** — the covers are gone and the panel sits on a flat
+  background. Something cleared between the two renders, and the whole
+  dialog and modal technique goes with it.
+- **FAIL, differently** — the panel is drawn but the covers are
+  full-brightness with a hard-edged panel and no dimming. The scrim's
+  alpha is not compositing.
+
+> **This is the step with a live open question.** The host tests fence
+> "nothing on the composite path invalidates residency", but the stub
+> deliberately leaves gsKit's eviction heuristic unmodelled. If the
+> covers **flicker** or the panel's text drops in and out during this
+> phase, the two screens are evicting each other under real VRAM
+> pressure — which is precisely what the host could not answer. Note it
+> as an observation even if the still photograph passes; watch it for a
+> full five-second phase before moving on.
+
+---
+
+## Step S6 — the art path end to end
+
+**Only meaningful if `src:` named the drive.**
+
+Re-bake with your own art, re-copy `ps2ui/`, and boot `covers.elf`
+again. Photograph phase `1 FILL`.
+
+- **PASS** — your art, right way up, right colours, filling each box.
+- **FAIL: washed out or glowing** — the alpha domain. The GS treats
+  `0x80` as fully opaque; art written with `0xFF` asks for about twice
+  the coverage it has. `make_cover_raw.py` converts this, so seeing it
+  means something bypassed the tool.
+- **FAIL: colour channels swapped** — red and blue exchanged means the
+  source was BGRA where PSMCT32 wants RGBA.
+- **FAIL: squashed or stretched** — the cover-fit did not run; check
+  the file is exactly 65,536 bytes.
+
+---
+
+## When you are done
+
+Send, per step: **one photograph, the step number, and one of PASS /
+FAIL / VOID.** Nothing needs measuring and nothing needs describing in
+prose — the `state:` line in each photo says which step it is.
+
+If anything went VOID, say which and why; a void reading is a fact
+about the bench, not about the renderer, and it usually means the
+instrument needs fixing before the question can be asked again.
+
+**The three answers this sitting is worth having**, in order of how
+much rests on them:
+
+1. **S2** — does `ps2ui_tex_set` work on real silicon? Everything in
+   Phase 1's texture-slot work depends on it and nothing has tested it
+   outside a stub.
+2. **S5's flicker observation** — do two composited screens stay
+   resident under real VRAM pressure? The host is structurally unable
+   to answer this.
+3. **S1** — is an unfilled slot inert? The failure mode is a window
+   onto whatever else is in VRAM, and it would show up on the very
+   first frame of a real list before any cover has loaded.

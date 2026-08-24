@@ -1,0 +1,27 @@
+body { width: 640px; height: 448px; display: flex; flex-direction: column;
+       background: #0b1020; }
+
+.page  { display: flex; flex-direction: column; padding: 42px 64px; }
+.title { font-size: 17px; color: #dfe6ff; letter-spacing: 1px; height: 26px; }
+
+/* 4 x 128 = 512 wide inside a 64px inset, so the whole row sits in the
+   title-safe area a CRT keeps. The bench is read off a television. */
+.row   { display: flex; flex-direction: row; height: 156px; }
+.cell  { display: flex; flex-direction: column; width: 128px; }
+.cell img { width: 128px; height: 128px; }
+.cap   { font-size: 14px; color: #9fb0d8; height: 20px; }
+
+.status { font-size: 15px; color: #b9c6e8; height: 24px; }
+
+/* The overlay screen. An ordinary screen whose ground is a translucent
+   scrim -- the format has no flag for "overlay" and needs none. */
+.scrim  { width: 640px; height: 448px; display: flex; flex-direction: column;
+          background: rgba(4, 8, 20, 0.62); padding: 96px; }
+.panel  { display: flex; flex-direction: column; width: 448px; height: 210px;
+          background: #1b2440; border: 2px solid #4d6bb0; padding: 20px; }
+.ptitle { font-size: 20px; color: #eef3ff; height: 30px; }
+.ptext  { font-size: 15px; color: #b9c6e8; height: 46px; }
+.prow   { display: flex; flex-direction: row; height: 44px; }
+.btn    { width: 150px; height: 40px; font-size: 16px; padding: 10px;
+          background: #26325a; color: #dfe6ff; }
+.btn:focus { background: #4d6bb0; color: #ffffff; }

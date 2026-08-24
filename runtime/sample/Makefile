@@ -58,6 +58,25 @@ endif
 ifdef LINEAR_CLUT
 EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 endif
+# `make COVERS=1` builds the Phase 1 streaming bench: four 128x128
+# streamed slots filled at runtime from mass:/ps2ui/cover*.raw, a
+# four-phase loop (fill, swap, restore, composite) and an on-screen
+# state line so a photograph labels itself. Pair it with
+# UIB=../../fixtures/bench-stream/build/bench.uib -- the memcard blob
+# has no streamed slots and the ELF would have nothing to fill.
+ifdef COVERS
+EE_CFLAGS += -DPS2UI_SAMPLE_COVERS
+endif
+# `make NO_SYNC=1` removes the cache writeback from ps2ui_tex_set --
+# the bench's falsification arm, in the same spirit as NO_ALPHA and
+# LINEAR_CLUT. The EE writes texels through a write-back cache the GIF
+# cannot see, so without the writeback the GS DMAs whatever was in RAM
+# at that address. It is a picture of the fault, not a test of it, and
+# it exists so the bench knows what a live cache fault looks like
+# rather than guessing when a cover comes out wrong.
+ifdef NO_SYNC
+EE_CFLAGS += -DPS2UI_SKIP_SYNCDCACHE
+endif
 # `make NO_ALPHA=1` makes ps2ui_render assert PrimAlphaEnable OFF
 # instead of ON -- bring-up step 4b's reference arm. gsKit feeds that
 # field to TEX0.TCC, so this is what the grid looks like when the GS is

@@ -14,6 +14,7 @@
  * the instrument's verdicts rest on -- against the exact constant the
  * console draws, not a description of it. */
 #include "../sample/probe6_pattern.h"
+#include "../sample/cover_pattern.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1191,6 +1192,44 @@ int main(int argc, char **argv)
         k = ctx.stats.prims;
         render_and_count(&ctx, &gs);
         CHECK(ctx.stats.prims == k, "stats reset every frame");
+    }
+
+    /* ---- the streaming bench's fallback cover pattern ---------------
+     * The bench ELF generates this on the EE when no drive is present,
+     * and tools/make_cover_raw.py generates it on the host for the
+     * reference PNG. If they diverge, a sitting compares a console
+     * photo against a picture of something else. Pinned as a CRC in
+     * the header both sides include, and checked from both: this is
+     * the C half, packages/baker/tests the Python half. */
+    {
+        static unsigned char cov[64 * 64 * 4];
+        int flat = 0, k;
+        cover_fill(cov, 0, 64, 64);
+        CHECK(ps2ui_crc32(cov, sizeof cov) == COVER_PATTERN_CRC_0_64x64,
+              "the C cover pattern matches the CRC the header pins, which "
+              "the Python generator is checked against too");
+        /* A flat cover cannot tell "the texels arrived" from "a stale
+         * VRAM block is being drawn", which is the whole reading of
+         * bench step S1. The Python self-test asserts this too; it is
+         * the property, not the implementation. */
+        for (k = 4; k < (int)sizeof cov; k += 4)
+            if (cov[k] != cov[0] || cov[k + 1] != cov[1]) { flat = 1; break; }
+        CHECK(flat, "and is not a flat fill, or the bench could not tell "
+                    "arrived texels from a stale block");
+        CHECK(cov[3] == 0x80,
+              "and its alpha is in the GS domain: 0xFF would ask for about "
+              "twice the coverage it has");
+        {
+            /* At 2x2 every texel is border, so both indices come out
+             * identical and this said nothing -- I wrote it with a
+             * `|| 1` to make it pass, which is worse than not having
+             * it. At a real cover size the hues differ, and "which
+             * cover is on screen" is a question the bench asks. */
+            static unsigned char other[64 * 64 * 4];
+            cover_fill(other, 1, 64, 64);
+            CHECK(memcmp(cov, other, sizeof cov) != 0,
+                  "and two indices differ, so a swapped cover is visible");
+        }
     }
 
     /* ---- composition: two screens in one frame (design v6 4) --------

@@ -29,7 +29,7 @@ test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test
 # push-and-hope, and the telemetry build duly shipped `asm volatile`,
 # which -std=c99 rejects, with every local suite green. Same flags the
 # console build uses; -fsyntax-only because the host has no EE.
-SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY
+SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS
 
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \
@@ -61,6 +61,13 @@ syntax-check:
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_PRIMALPHA_OFF -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_PRIMALPHA_OFF"
+# The streaming bench's falsification arm, also in ps2ui.c: tex_set
+# without the cache writeback. Compiled here so the arm cannot rot --
+# it is the ELF that says what a live cache fault looks like, and an
+# arm that stopped building would be discovered at a bench.
+	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+		-DPS2UI_SKIP_SYNCDCACHE -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c
+	@echo "ok - runtime compiles: -DPS2UI_SKIP_SYNCDCACHE"
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds
@@ -122,7 +129,13 @@ build/gsKit_texture_size.o: vendor/gsKit/src/gsTexture.c
 	$(CC) -std=c99 -O2 -c -DF_gsKit_texture_size \
 		-Ivendor/gsKit -Ivendor/host-shim $< -o $@
 
-build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h sample/probe6_pattern.h build/gsKit_texture_size.o
+# Every header the test includes, or an edit to one of them does not
+# rebuild and the suite reports the PREVIOUS binary's result --
+# which is how a falsification pass first read as "the check does
+# not fire" when the check was fine and make had simply not run.
+build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h \
+                    stub/gskit_stub.h sample/probe6_pattern.h \
+                    sample/cover_pattern.h build/gsKit_texture_size.o
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c build/gsKit_texture_size.o -o $@
 

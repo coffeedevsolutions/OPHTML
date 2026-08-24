@@ -262,6 +262,25 @@ buy that this cannot express is keeping the input screen and the drawn
 screens distinct — a dialog drawn over a base that still receives the
 D-pad. Nothing has asked for that yet.
 
+### Streaming art onto a console
+
+`ps2ui_tex_set` takes **decoded** texels and copies nothing — the
+pointer becomes the slot's DMA source. There is no image decoder on the
+EE and ps2ui does not want one: the app owns device I/O and decoding,
+the same split dynamic text has. Convert art on the host:
+
+```sh
+python3 tools/make_cover_raw.py ~/Art/*.png --size 128x128 --count 4
+```
+
+That writes bare PSMCT32 of exactly `w × h × 4` bytes per file, with
+alpha in the GS domain (`0x80` is opaque, not `0xFF` — writing `0xFF`
+asks the GS for about twice the coverage it has). The console reads
+one into a 16-aligned buffer and hands that buffer over.
+
+`fixtures/bench-stream` is a worked example of the whole path, and
+`docs/bench-phase1.md` is the hardware sitting that reads it.
+
 ## Focus and navigation
 
 - Mark elements `focusable`, one per screen `autofocus`

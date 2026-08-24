@@ -817,6 +817,66 @@ class TestStreamedAuthoring(unittest.TestCase):
         self.assertIn("64 KiB reserved by slots", summary)
 
 
+class TestCoverPattern(unittest.TestCase):
+    """The bench's fallback cover exists in two languages.
+
+    tools/make_cover_raw.py generates it on the host for the reference
+    PNG; runtime/sample/cover_pattern.h generates it on the EE when the
+    bench has no drive attached. If they diverge, a sitting compares a
+    console photograph against a picture of something else -- and the
+    divergence is invisible, because both halves look like a plausible
+    cover.
+
+    Pinned as a CRC in the header both sides include. This is the
+    Python half; runtime/tests/test_runtime.c is the C half.
+    """
+
+    def header(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.normpath(os.path.join(
+            here, "..", "..", "..", "runtime", "sample", "cover_pattern.h"))
+        self.assertTrue(os.path.exists(path), path)
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+
+    def synthetic(self, *a):
+        here = os.path.dirname(os.path.abspath(__file__))
+        tools = os.path.normpath(os.path.join(here, "..", "..", "..", "tools"))
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_cover_raw import synthetic
+        return synthetic(*a)
+
+    def test_python_matches_the_crc_the_header_pins(self):
+        import re
+        import zlib
+        m = re.search(r"#define\s+COVER_PATTERN_CRC_0_64X64\s+0x([0-9a-fA-F]+)u",
+                      self.header(), re.I)
+        self.assertIsNotNone(m, "the header must pin the CRC")
+        pinned = int(m.group(1), 16)
+        got = zlib.crc32(self.synthetic(0, 64, 64)) & 0xFFFFFFFF
+        self.assertEqual(
+            got, pinned,
+            f"make_cover_raw.synthetic(0,64,64) hashes to 0x{got:08x}, the "
+            f"header pins 0x{pinned:08x}. One generator moved; the ELF's "
+            f"fallback and the reference PNG are no longer the same picture.")
+
+    def test_the_pattern_can_tell_arrived_from_stale(self):
+        """The property, asserted on this side too. A flat cover looks
+        identical whether the texels arrived or a stale VRAM block is
+        being drawn -- which is exactly what bench step S1 reads."""
+        raw = self.synthetic(0, 64, 64)
+        texels = {raw[i:i + 4] for i in range(0, len(raw), 4)}
+        self.assertGreater(len(texels), 2)
+        self.assertNotEqual(self.synthetic(0, 64, 64), self.synthetic(1, 64, 64))
+
+    def test_alpha_is_in_the_gs_domain(self):
+        raw = self.synthetic(0, 32, 32)
+        self.assertEqual(set(raw[3::4]), {0x80},
+                         "0xFF would ask the GS for about twice the coverage "
+                         "it has -- backlog B1 on a new path")
+
+
 class TestArena(unittest.TestCase):
     """The host mirror of runtime/ps2ui.c's arena_compute.
 

@@ -83,6 +83,15 @@ jobs:
       - name: Committed screenshots match the renderer
         run: git diff --exit-code examples/memcard/screenshots examples/channel6/screenshots
 
+      # The Phase 1 streaming bench. Built here as well as in hw.yml so
+      # a change to the layout compiler or the baker that breaks the
+      # only blob with streamed slots in it fails on every push, not
+      # when someone next sits down at a console with a camera.
+      - name: Streaming bench fixture still bakes
+        run: |
+          python3 tools/make_cover_raw.py --self-test
+          ./fixtures/bench-stream/build.sh
+
       - name: Test card still tests what its reading table claims
         run: |
           python3 tools/make_testcard.py --self-test
