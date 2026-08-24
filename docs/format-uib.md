@@ -34,7 +34,7 @@ can rewrite tables without re-basing data pointers.
 |-----|------|---------------|--------------------------------|
 | 0   | u32  | magic         | `0x31424955` — "UIB1"          |
 | 4   | u16  | version       | 5                              |
-| 6   | u16  | feature_flags | bit 0 = dynamic text, bit 1 = kerning, bit 2 = slot letter-spacing; a reader that sees a bit it does not know MUST reject the file |
+| 6   | u16  | feature_flags | bit 0 = dynamic text, bit 1 = kerning, bit 2 = slot letter-spacing, bit 3 = streamed textures; a reader that sees a bit it does not know MUST reject the file |
 | 8   | u16  | canvas_w      | 640 for NTSC                   |
 | 10  | u16  | canvas_h      | 448 (NTSC) / 512 (PAL)         |
 | 12  | u16  | n_tex         |                                |
@@ -64,17 +64,54 @@ regardless, so this field exists to keep the previewer honest and to
 let an app assert its video setup matches what the UI was authored
 for.
 
-## Texture entry (16 bytes)
+## Texture entry (20 bytes)
 
-| off | type | field    | notes                                  |
-|-----|------|----------|----------------------------------------|
-| 0   | u8   | format   | 0 = PSMT8 (indexed), 1 = PSMCT32       |
-| 1   | u8   | pad      |                                        |
-| 2   | u16  | width    | texels                                 |
-| 4   | u16  | height   |                                        |
-| 6   | u16  | clut     | CLUT index, `0xFFFF` = none            |
-| 8   | u32  | data_off | into blob                              |
-| 12  | u32  | data_len | bytes                                  |
+| off | type | field    | notes                                          |
+|-----|------|----------|------------------------------------------------|
+| 0   | u8   | format   | 0 = PSMT8 (indexed), 1 = PSMCT32               |
+| 1   | u8   | kind     | 0 = baked, 1 = streamed                        |
+| 2   | u16  | width    | texels                                         |
+| 4   | u16  | height   |                                                |
+| 6   | u16  | clut     | CLUT index, `0xFFFF` = none                    |
+| 8   | u32  | data_off | into blob; **unused when streamed**            |
+| 12  | u32  | data_len | bytes; **the reservation when streamed**       |
+| 16  | u32  | name_off | NUL-terminated name in blob, `0xFFFFFFFF` = none |
+
+### Baked and streamed
+
+A **baked** texture is every texture that existed before v6: its texels
+are in the blob and the GIF DMAs them in place out of the caller's
+file.
+
+A **streamed** texture is a slot the application fills at runtime —
+cover art off a disc, HDD or network, which cannot be baked because
+nothing at bake time knows what it is. The entry carries geometry, a
+name, and a reservation, and **no texel data**. `ps2ui_tex_set(ctx, gs,
+name, texels, len)` points it at the caller's buffer; `len` must equal
+`data_len` exactly.
+
+Nothing is copied. `texels` becomes that slot's DMA source, so it must
+stay alive, unmoved and 16-aligned for as long as the slot can be
+drawn — the same contract the blob itself already has, and for the same
+reason: gsKit re-reads the source whenever the texture manager re-binds
+an evicted texture, which is render time, not upload time.
+
+Rules a reader enforces, all of which the runtime refuses at load:
+
+- a `kind` outside `{0, 1}` is invalid;
+- a streamed entry requires **feature bit 3**, so a reader that cannot
+  stream rejects the file instead of drawing a slot nothing can fill;
+- a streamed entry needs a name (otherwise nothing could address it)
+  and a non-zero reservation;
+- `data_off` is **not** range-checked for a streamed entry — it
+  addresses nothing;
+- a font's atlas must be baked: the glyph pen binds it without
+  checking for texels;
+- texture names are unique.
+
+A streamed slot that has not been filled draws nothing and increments
+`stats.tex_unfilled`. That is the ordinary state of a row that has just
+scrolled into view, not an error.
 
 PSMCT32 texel = `r g b a` bytes with **alpha already in the GS 0–128
 domain** (0x80 = opaque). PSMT8 texels are CLUT indices; glyph atlases
@@ -251,6 +288,13 @@ baked initial). The header's `initial_focus` duplicates screen 0's.
 `version` bumps on any incompatible change. Readers must reject unknown
 versions (the runtime and the Python reader both do).
 
+- **v6** — texture kinds. The texture entry grew from 16 to 20 bytes
+  for `kind` and `name_off`, and feature bit 3 was assigned for
+  streamed textures. A v5 reader would have walked the texture table at
+  the wrong stride, so this is a version bump rather than a bit alone.
+  The `pad` byte at offset 1 became `kind`, and every writer before v6
+  wrote zero there — which is `PS2UI_TEXKIND_BAKED`, the meaning the
+  zeros already had.
 - **v5** — kerning. The font entry grew from 16 to 24 bytes for
   `kern_count`/`kerns_off`, and feature bit 1 was assigned. The struct
   changed size, so this is a version bump rather than a bit alone: a v4

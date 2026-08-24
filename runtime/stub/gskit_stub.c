@@ -168,9 +168,24 @@ unsigned int gsKit_TexManager_bind(GSGLOBAL *gs, GSTEXTURE *tex)
 
 void gsKit_TexManager_invalidate(GSGLOBAL *gs, GSTEXTURE *tex)
 {
+    int i;
     (void)gs;
     tex->Vram = 0;
     tex->VramClut = 0;
+    /* Drop it from the residency model too, not just from the texture.
+     * The first version cleared Vram and left the entry in bound[], so
+     * the model still called it resident and a following bind recorded
+     * no transfer -- which would have let a swapped streamed buffer
+     * pass a test asserting the opposite. */
+    for (i = 0; i < g_stub.n_bound; i++) {
+        if (g_stub.bound[i] == tex) {
+            g_stub.bound[i] = g_stub.bound[g_stub.n_bound - 1];
+            g_stub.bound_vram[i] = g_stub.bound_vram[g_stub.n_bound - 1];
+            g_stub.n_bound--;
+            break;
+        }
+    }
+    g_stub.n_invalidates++;
 }
 
 void gsKit_TexManager_nextFrame(GSGLOBAL *gs)

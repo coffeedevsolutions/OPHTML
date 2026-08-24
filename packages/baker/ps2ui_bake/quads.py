@@ -76,6 +76,13 @@ class BakedTexture:
     # on a texture the Flattener built and set on one read_uib returned.
     # ps2ui-check uses it to assert 16-alignment for in-place DMA.
     data_off: Optional[int] = None
+    # v6: how the texels arrive. A STREAMED texture carries no data --
+    # the app supplies it at runtime through ps2ui_tex_set -- so it
+    # needs a name to be addressable and a reservation stating the
+    # exact payload the runtime will demand.
+    kind: int = 0                      # TEXKIND_BAKED
+    name: Optional[str] = None
+    reservation: int = 0
 
 
 class Flattener:

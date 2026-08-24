@@ -34,7 +34,7 @@ extern "C" {
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */
-#define PS2UI_VERSION 5
+#define PS2UI_VERSION 6
 
 /* Feature bits. Unknown bits in a file are a load error — a blob that
  * needs a capability this runtime lacks must fail loudly, not render
@@ -42,7 +42,12 @@ extern "C" {
 #define PS2UI_FEAT_DYNAMIC_TEXT (1u << 0)
 #define PS2UI_FEAT_KERNING      (1u << 1)
 #define PS2UI_FEAT_SLOT_SPACING (1u << 2)
-#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING | PS2UI_FEAT_SLOT_SPACING)
+/* The blob declares at least one streamed texture, so a reader that
+ * cannot fill one must refuse the file rather than draw a slot that
+ * never receives texels. */
+#define PS2UI_FEAT_STREAMED_TEX (1u << 3)
+#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \
+                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX)
 
 #define PS2UI_OP_QUAD          0
 #define PS2UI_OP_TEXQUAD       1
@@ -91,12 +96,35 @@ typedef struct ps2ui_screen_entry {
     uint8_t  pad0[2];
 } ps2ui_screen_entry;
 
+/* How a texture's texels arrive.
+ *
+ * BAKED is every texture that has ever existed in this format: bytes in
+ * the blob, DMA'd in place from the caller's file. STREAMED is a slot
+ * the app fills at runtime -- cover art off a disc, HDD or network,
+ * which cannot be baked because nothing at bake time knows what it is.
+ * A streamed entry carries geometry and a reservation and NO texel
+ * data; ps2ui_tex_set points it at the caller's buffer. */
+#define PS2UI_TEXKIND_BAKED    0
+#define PS2UI_TEXKIND_STREAMED 1
+
 typedef struct ps2ui_tex_entry {
-    uint8_t  format, pad0;
+    uint8_t  format, kind;    /* kind: PS2UI_TEXKIND_*                  */
     uint16_t width, height;
-    uint16_t clut;            /* CLUT index or PS2UI_NONE */
-    uint32_t data_off, data_len; /* relative to blob */
+    uint16_t clut;            /* CLUT index or PS2UI_NONE               */
+    /* BAKED: where the texels are. STREAMED: data_off is unused and
+     * data_len is the exact payload ps2ui_tex_set will demand, so the
+     * app is told the number rather than deriving it and getting the
+     * padding wrong. */
+    uint32_t data_off, data_len;
+    /* NUL-terminated name in the blob, or PS2UI_NAME_NONE. Streamed
+     * slots need one to be addressable; baked textures are anonymous
+     * unless the author named them. */
+    uint32_t name_off;
 } ps2ui_tex_entry;
+
+/* A texture with no name. Not 0: offset 0 is a legitimate blob offset,
+ * and the first string written to a blob lands there. */
+#define PS2UI_NAME_NONE 0xFFFFFFFFu
 
 typedef struct ps2ui_clut_entry {
     uint16_t ncolors, pad0;
@@ -215,6 +243,10 @@ typedef struct ps2ui_stats {
                                 * stack; nonzero means a blob deeper
                                 * than PS2UI_MAX_SCISSOR_DEPTH slipped
                                 * past the baker somehow               */
+    uint32_t tex_unfilled;     /* textured draws skipped because their
+                                * streamed slot has no texels yet -- the
+                                * ordinary state of a row that just
+                                * scrolled in, not an error            */
     uint32_t vram_lost;        /* 1 when this frame skipped every
                                 * textured draw because the host shrank
                                 * VRAM below the uploaded footprint --
@@ -283,6 +315,8 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_FEATURES   -7
 #define PS2UI_ERR_ALIGN      -8  /* texture bytes or arena not 16-aligned */
 #define PS2UI_ERR_ARENA      -9  /* arena smaller than ps2ui_arena_size() */
+#define PS2UI_ERR_NOT_STREAMED -10 /* tex_set on a baked or unknown slot  */
+#define PS2UI_ERR_SIZE       -11 /* tex_set payload is not the reservation */
 
 /* The arena's required alignment. The CLUT region at its start is a
  * DMA source, and DMA source addresses truncate silently below qword
@@ -309,8 +343,42 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
  * mirrors clut_csm1_order in packages/baker/ps2ui_bake/gs.py. */
 uint32_t ps2ui_clut_csm1(uint32_t index);
 
-/* Allocate VRAM and upload every texture + permuted CLUT. */
+/* Allocate VRAM and upload every texture + permuted CLUT.
+ *
+ * Streamed slots are preflighted here like any other texture -- their
+ * VRAM is part of the budget from the start -- but nothing is
+ * transferred for them until ps2ui_tex_set names their texels. A
+ * streamed slot that is never set draws nothing rather than DMAing
+ * from a null source. */
 int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs);
+
+/* Point a streamed texture slot at the caller's texels.
+ *
+ * `len` must equal the entry's reservation exactly (ps2ui-bake prints
+ * it, and the mismatch error says which number was expected): a
+ * partial upload is worse than none, because it draws convincingly
+ * wrong instead of failing.
+ *
+ * NOTHING IS COPIED, which is the same contract the blob already has.
+ * `texels` becomes this slot's DMA source, so it must stay alive and
+ * unmoved for as long as the slot can be drawn -- gsKit re-reads it
+ * whenever the texture manager re-binds an evicted texture, which is
+ * render time, not this call. It must also be 16-aligned, because a
+ * DMA source address truncates silently below qword alignment.
+ *
+ * The design that preceded this had ps2ui stage a copy in the arena.
+ * Measured against the case it exists for -- a library scrolling
+ * 128x128 covers -- that is 576 KiB of duplicate texels for nine
+ * visible rows, and ps2ui already points GSTEXTURE::Mem straight into
+ * the caller's blob for every baked texture. One lifetime rule for
+ * both kinds beats two, and the app already owns the decoded bytes.
+ *
+ * Returns PS2UI_OK, PS2UI_ERR_NOT_STREAMED (no such name, or the name
+ * is a baked texture), PS2UI_ERR_SIZE, or PS2UI_ERR_ALIGN. Safe to
+ * call before ps2ui_upload; safe to call again to swap the texels,
+ * which is what scrolling a list does. */
+int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
+                  const void *texels, size_t len);
 
 /* Replay one frame's command list for the current focus state. */
 void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs);
