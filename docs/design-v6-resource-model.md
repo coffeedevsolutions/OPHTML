@@ -1,6 +1,16 @@
 # Design: the v6 resource model
 
-*Draft · 2026-08-20 · Phase 1 of `docs/PLAN.md` · not implemented*
+*Draft · 2026-08-20 · rev 2 · 2026-08-24 · Phase 1 of `docs/PLAN.md` · not implemented*
+
+> **Rev 2** is the adversarial pass this document asked for, run after
+> Phase 0 closed — against the code as #40–#44 left it, which is not
+> the code this was drafted against. Three findings are folded in
+> below, marked **[rev 2]**: a sixth ceiling the draft did not count
+> (`clut_pool`, born after drafting), a collision between §3's fixed
+> reservations and the TexManager migration, and a byte-count
+> conflation in `ps2ui_tex_set`. One open question (the streamed CLUT
+> convention) is settled rather than reopened, because Phase 0 built
+> the instrument that guards the answer.
 
 Phase 1 is one deliberate format move rather than a dribble of bumps
 (`PLAN.md` §6). This is what it contains and why, written before the
@@ -48,6 +58,20 @@ Sizing every ceiling for UC-3 and charging it to every blob:
 The waste scales with the ceiling and not with use, so raising the cap
 to fit the biggest UI makes every smaller one worse. That is the
 argument for a different shape rather than a bigger number.
+
+**[rev 2] There is a sixth ceiling, and it is bigger than the other
+five together.** The cache-writeback work (#40) and the TexManager
+migration (#41) added `clut_pool[PS2UI_MAX_TEXTURES][256*4]` — 32,768
+bytes of 16-aligned static in `ps2ui.c` — because gsKit keeps the
+`Clut` pointer and re-reads it on any later bind, so permuted palettes
+must live as long as the context. Every blob pays for 32 CLUTs; the
+memcard blob uses 2. The fixed overhead this design removes is
+therefore ~46 KiB, not the 13 KiB the table above was arguing from.
+The pool moves into the arena (§2), which also inherits its two hard
+properties: the region must be 16-aligned (the #40 DMA-source
+invariant — a misaligned source truncates silently) and must outlive
+every render, not just the upload, because the TexManager re-binds
+evicted textures from it at draw time.
 
 ### The blob already knows
 
@@ -108,6 +132,7 @@ needed between regions:
 
 | region | count | from |
 |---|---|---|
+| permuted CLUTs **[rev 2]** | `n_t8` × 1,024 B, 16-aligned, first | texture table |
 | `GSTEXTURE[]` | `n_tex` | header |
 | slot text | Σ (`capacity` + 1) | slot table |
 | slot offsets | `n_slot` × `uint16_t` | header |
@@ -194,11 +219,36 @@ streamed slot is a **fixed reservation**, decided at bake time when
 the size is already known:
 
 - layout sizes the element as it does any `<img>`
-- the baker reserves page-aligned VRAM for `w × h` in the chosen format
-  and records the reservation in the texture table, with **no texel
-  data in the blob**
+- the baker records the slot's page-rounded VRAM cost in the texture
+  table, with **no texel data in the blob**
 - at runtime the app hands over already-encoded texels; the runtime
-  uploads them into the reservation it already owns
+  stages them and the next bind uploads
+
+**[rev 2] "Reservation" means a budget line, not an address.** The
+draft said the baker "reserves page-aligned VRAM", which implied an
+address decided at bake — and that model died with #41: the runtime
+now binds every texture through `gsKit_TexManager_bind`, and
+`gsKit_vram_alloc` *resets the TexManager's block list* (gsCore.c:45),
+so explicit placement and managed binding cannot coexist in one
+context. Streamed slots therefore ride the same path as baked ones:
+
+- the **bake-time** reservation is vram.py's page math counting the
+  streamed slot as if its texels existed — the budget check fails the
+  build if the working set cannot fit;
+- the **load-time** preflight (#41) counts streamed reservations in
+  `vram_need`, so residency is stable by the same argument that keeps
+  baked textures from eviction thrash;
+- `ps2ui_tex_set` validates, copies into the slot's staging buffer,
+  `SyncDCache`s it, and calls `gsKit_TexManager_invalidate` — the next
+  render's bind performs the upload, exactly as it does after a VRAM
+  heal today. No new upload path exists to get wrong.
+
+**[rev 2] Two byte counts, not one.** The draft's "len must equal the
+reservation" conflated the page-rounded VRAM cost with the caller's
+payload. `len` is the *linear texel size* (`w × h × bpp`, plus 1,024
+for a PSMT8 palette when the slot carries its own); the reservation is
+the page-rounded number vram.py computes. The bake records both; the
+mismatch error names which one the caller missed.
 
 ```c
 /* Upload texels into a streamed texture slot. `len` must equal the
@@ -225,10 +275,15 @@ with 400 covers and 9 visible rows needs 9 reservations, not 400 —
 which the windowing model already implies. General unload stays parked
 until a shell-and-module use case pulls it (`PLAN.md` pull lane).
 
-**Open:** whether the app supplies a CLUT per streamed PSMT8 texture
-or shares one baked palette. Sharing is cheaper and is probably right
-for cover art, which is why it is worth deciding rather than
-defaulting.
+**[rev 2] Settled, was open:** a streamed PSMT8 slot's palette is
+supplied **linear** and the runtime permutes it, exactly as
+`permute_clut` does for baked palettes. Rev 1 could only have picked a
+convention; Phase 0 built the instrument that *guards* one — probe6's
+column G reads the composed convention on silicon and in CI on every
+run — so streamed palettes take the path that instrument watches
+rather than adding a second convention beside it. Whether a slot may
+alternatively share a baked palette stays open for Phase 2's skeleton
+to pull, but the supplied-palette case is decided.
 
 ---
 
@@ -251,6 +306,15 @@ Phase 1 makes it a contract:
   count is the sum, so the property cannot regress silently
 - the focus question answered explicitly: which screen receives D-pad
   input when two are drawn
+
+**[rev 2]** Composition survives the TexManager migration for a
+reason worth writing down: both renders bind from the same context,
+the preflight already counts the whole blob, and
+`gsKit_TexManager_nextFrame` runs once per *frame* (the sample calls
+it after `sync_flip`), not once per render — so two composited renders
+neither double-age nor evict each other's textures. The contract test
+should pin that: composite two screens, assert the primitive count is
+the sum *and* the transfer count is what a single residency implies.
 
 **Open:** whether that wants an API (`ps2ui_overlay_push`) or just a
 documented idiom over `screen_set`. The idiom works today and costs
@@ -320,6 +384,14 @@ Written down so the design can lose rather than be defended:
   not be. If decoding a cover costs more than a frame, the design needs
   an async story and this section is wrong about "no allocation" being
   the hard part.
+- **[rev 2] Streamed slots are not worth it if residency thrashes.**
+  The reservation-as-budget model holds only while everything the
+  preflight counts genuinely fits — if Phase 2's skeleton oversubscribes
+  VRAM, `_blockAlloc`'s evict-forever loop (the #41 hang class) returns
+  wearing a streaming hat, and the answer must stay "refuse at
+  preflight", never "evict smarter". If that refusal proves too coarse
+  for a real library screen, this section is wrong and the parked
+  general-unload work gets pulled early.
 - **The composition idiom may not survive contact.** If the Phase 2
   skeleton needs an overlay that keeps its own focus while a background
   screen keeps its own, `screen_set` + `render` cannot express it and
