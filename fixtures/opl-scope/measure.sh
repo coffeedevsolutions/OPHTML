@@ -5,8 +5,12 @@
 # The fixture's whole value is being comparable later: at the Phase 1
 # gate the question is "what does an OPL-class environment demand
 # now", and a fixture that quietly stopped compiling cannot answer it.
-# This runs the layout stage only -- no bake, so no raised cap needed
-# -- and fails if the demand moves.
+# It used to run the layout stage only, because the bake could not
+# complete without raising PS2UI_MAX_SLOTS by hand: 121 slots against a
+# ceiling of 16. That ceiling is gone (PLAN 6.3), so this now bakes the
+# whole environment and checks the arena it demands -- which is the
+# number the resource model was built to produce and the one Phase 2
+# will be compared against.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$here/../.."
@@ -42,6 +46,37 @@ if [ "$total_slots" = "121" ]; then
     echo "ok - environment total: $total_slots slots"
 else
     echo "not ok - environment total: $total_slots slots, README says 121"
+    fail=1
+fi
+
+# The full bake. Nothing is edited to make this work any more, which is
+# the whole point of the change that allowed it: an OPL-class
+# environment is now something the shipped runtime loads.
+bake=$(PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
+    "$out/landing.json" "$out/library.json" "$out/detail.json" \
+    "$out/filters.json" "$out/recent.json" -o "$out/opl.uib" 2>&1)
+echo "$bake" | tail -2 | sed 's/^/# /'
+
+slots=$(PYTHONPATH="$repo/packages/baker" python3 -c "
+from ps2ui_bake.uib import read_uib
+print(len(read_uib('$out/opl.uib').slots))")
+if [ "$slots" = "121" ]; then
+    echo "ok - the whole environment bakes into one blob: $slots slots, no raised cap"
+else
+    echo "not ok - baked blob has $slots slots, README says 121"
+    fail=1
+fi
+
+# The arena is the figure the resource model exists to produce. Asserted
+# as a ceiling rather than an equality: this fixture is meant to grow,
+# and a test that fails when a screen gains a label teaches people to
+# edit the number instead of reading it. What it must not do is quietly
+# climb back toward the 36 KiB the fixed model charged every blob.
+arena=$(echo "$bake" | sed -n 's/.*arena \([0-9]*\) bytes.*/\1/p')
+if [ -n "$arena" ] && [ "$arena" -lt 16384 ]; then
+    echo "ok - arena $arena bytes, under 16 KiB (fixed maxima charged ~36 KiB)"
+else
+    echo "not ok - arena ${arena:-unknown} bytes"
     fail=1
 fi
 

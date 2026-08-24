@@ -121,6 +121,10 @@ limits.
 the no-allocation rule "via caller-provided slot buffers." What shipped
 puts the storage inside the context, sized by the ceiling — channel6
 already uses 15 of 16. The specified model is correct; Phase 1 restores it.
+*[Phase 1: half restored, half re-argued. The ceiling is gone and each
+slot is sized from its declared capacity. Borrowing the caller's
+string is declined on the evidence — 3.4 KiB saved against a
+use-after-free rendered as glyphs.]*
 
 **4.3 No residency model.** `vram.py` budgets at bake; the runtime uploads
 once and has no concept of residency. Fine for a fixed overlay,
@@ -232,7 +236,14 @@ that document also records what would falsify it.
    until a shell-and-module use case pulls it.
 3. **Slot text joins the working set.** App-owned storage bound to the rows
    live in a list window — the model F2 specified. The 16-slot ceiling
-   stops existing as a concept.
+   stops existing as a concept. **[shipped, one half declined]**
+   `PS2UI_MAX_SLOTS`, `PS2UI_MAX_TEXTURES` and `PS2UI_MAX_SCREENS` are
+   deleted; a legal count is now bounded by the blob's own size and by
+   arena arithmetic that refuses rather than wraps. The UC-3 fixture
+   bakes and loads unmodified for the first time: 121 slots, 8,285
+   bytes of arena. Borrowing the caller's string rather than copying it
+   is declined with the numbers written down — see
+   design-v6-resource-model.md, "Slot storage: copied, not borrowed".
 4. **Composition becomes a contract.** Document and test that render
    composites over the existing frame; define the overlay idiom, its focus
    routing, and its interaction with visibility.

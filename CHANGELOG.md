@@ -29,6 +29,35 @@
 Two format moves have landed since 0.2.0, so a blob baked against that
 release will not load.
 
+### Breaking — runtime
+
+- **`PS2UI_MAX_TEXTURES`, `PS2UI_MAX_SLOTS` and `PS2UI_MAX_SCREENS` are
+  deleted.** A UI is no longer limited to 32 textures, 16 slots or 8
+  screens. The v6 arena already sizes the context from the blob, and
+  once it did those constants bounded nothing the blob's own size did
+  not already bound — every table is checked as
+  `off + n * sizeof(entry) <= size` on the way in.
+
+  **Migrating:** nothing to do unless you referenced the constants.
+  Code that read them (to size a buffer, or to assert a count) will no
+  longer compile, which is the intended outcome — the number it wanted
+  is the arena figure `ps2ui-bake` and `ps2ui-check` print.
+  `PS2UI_MAX_SCISSOR_DEPTH` stays; it is a real stack in
+  `ps2ui_render`, not a validation limit.
+
+  `PS2UI_ERR_TOO_MANY` keeps its number and changes meaning: it now
+  says the arena this blob demands does not fit the target's address
+  space, not that a count passed a threshold ps2ui.h picked. A blob
+  with zero screens returns `PS2UI_ERR_BOUNDS` rather than
+  `PS2UI_ERR_TOO_MANY`.
+
+  Why it matters: the UC-3 scoping fixture — a five-screen OPL-class
+  environment — measures 121 slots and could not be baked at all
+  without hand-editing a vendored header. It now bakes on a stock
+  checkout and asks for 8,285 bytes of arena, against roughly 36 KiB
+  that the fixed-maxima context charged every blob including a
+  two-slot overlay.
+
 ### Added
 - **Kerning** — `ps2ui-fontgen` measures pairs out of the face (with
   ligature substitution disabled, so a ligature's width is never
@@ -56,6 +85,19 @@ release will not load.
 - `fonts/regen.sh` regenerates the committed metrics in one command.
 
 ### Changed
+- `arena_compute` accumulates the carve in 64 bits and refuses it
+  before narrowing. Counts and slot capacity are all `uint16`, so a
+  well-formed header can legally demand 65535 x 65536 bytes of slot
+  text; that total wraps a 32-bit `size_t`, which is what the EE has,
+  and a wrapped total carves a small arena for a huge blob. The
+  ceilings used to make this unreachable as a side effect.
+  `make -C runtime test-narrow` compiles the runtime at a 32-bit
+  address width and proves both halves: the oversized blob is refused,
+  and an ordinary one still loads.
+- The bake's table line prints counts instead of fractions
+  (`15 slots`, not `15/16 slots`). A fraction of 65535 is a number
+  with a decorative second half; the figure that constrains a UI is
+  the arena, printed on its own line.
 - The baker drops draw records that cannot produce a pixel (geometry
   fully outside its clip), shrinking the command list on exactly the
   data-heavy screens where it matters.

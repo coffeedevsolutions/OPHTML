@@ -79,8 +79,22 @@ must live as long as the context. Every blob pays for 32 CLUTs; the
 memcard blob has **one**, shared by its eight indexed textures. (Rev 2
 said "2" here, which was neither the CLUT count nor the indexed-texture
 count — corrected against the blob.) The fixed overhead this design
-removes is therefore ~36 KiB — the 32 KiB pool plus a 3.3 KiB context —
-not the 13 KiB the table above was arguing from.
+removes is therefore ~36 KiB — the 32 KiB pool plus a 3.3 KiB context.
+
+That is a *different quantity* from the table above, which this
+sentence used to read as correcting. The table is a counterfactual:
+what the five original ceilings would cost if each were raised to fit
+UC-3 and charged to every blob. The ~36 KiB is what the shipped
+context actually cost, pool included. Both are true and neither
+supersedes the other; the table argues the shape is wrong, and this
+paragraph says how much the shape was costing before anyone raised
+anything.
+
+**[implemented]** Reconstructed from `2290a27^:runtime/ps2ui.h` and
+confirmed at review: `clut_pool[32][1024]` 32,768 + `gs_tex[32]` at EE
+pointer width 1,280 + `slot_text[16][96]` 1,536 + the small arrays 64
+= **35,648 B**. The UC-3 environment now asks for 8,285 bytes and a
+two-slot overlay for a few hundred.
 The pool moves into the arena (§2), which also inherits its two hard
 properties: the region must be 16-aligned (the #40 DMA-source
 invariant — a misaligned source truncates silently) and must outlive
@@ -209,6 +223,111 @@ not exist today.
 
 `caps.py` keeps parsing them from `ps2ui.h`, so the bake still refuses
 what the runtime would reject. That machinery does not change.
+
+**[revised — this section was wrong]** Three of them are deleted:
+`PS2UI_MAX_TEXTURES`, `PS2UI_MAX_SLOTS`, `PS2UI_MAX_SCREENS`. The
+argument above does not survive contact with the implementation.
+
+- *"the loader still refuses a blob claiming 100,000 slots"* — it
+  already did, and not because of these. Every table is bounds-checked
+  as `off_X + n_X * sizeof(entry) <= size`, so a count is bounded by
+  the file that carries it. A blob claiming 100,000 slots would need a
+  3.2 MB slot table to be claiming it truthfully, and is rejected as
+  truncated otherwise. The ceiling was a second, weaker statement of a
+  check that was already there.
+- *"a bad header should be rejected before anything sizes an
+  allocation from it"* — this half is real, and it is the only half.
+  What it needs is not a ceiling but arithmetic that refuses rather
+  than wraps: counts are `uint16` and capacity is `uint16`, so a legal
+  header can demand 65535 × 65536 bytes of slot text, and that total
+  wraps a 32-bit `size_t` — which is what the EE has. A wrapped total
+  carves a small arena for a huge blob and every region overlaps.
+  `arena_compute` now accumulates in 64 bits and refuses the carve
+  before narrowing, returning `PS2UI_ERR_TOO_MANY` — a name that keeps
+  its meaning and loses its arbitrary numbers.
+- *"an integrator raising them pays nothing"* — an integrator should
+  not have to edit a vendored header to ship a five-screen UI. The
+  UC-3 scoping fixture measures 121 slots and 5 screens; under the
+  ceilings it could not be baked at all. It now bakes on a stock
+  checkout and asks for **8,285 bytes** of arena, against roughly
+  36 KiB that the fixed context charged every blob including a
+  two-slot overlay.
+
+Removing one and keeping the others was not an option worth taking:
+they were a single three-line check and a single idea.
+
+`PS2UI_MAX_SCISSOR_DEPTH` stays, because it is the one that was never
+a validation limit — `ps2ui_render` keeps a real stack that deep, and
+the bake refuses deeper nesting rather than letting it fail soft on a
+television.
+
+The guard is testable at the width that matters. The host suite is
+64-bit and the CI image has no 32-bit libc, so `make -C runtime
+test-narrow` compiles `ps2ui.c` with `-DPS2UI_ARENA_LIMIT=0xFFFFFFFF`
+and feeds it both a blob that must be refused and one that must still
+load — the second because a guard that rejects everything passes the
+first.
+
+### Slot storage: copied, not borrowed
+
+**[decided]** PLAN §6.3 pairs the ceiling removal with *"app-owned
+storage bound to the rows live in a list window — the model F2
+specified"*, and §4.2 records that what shipped *"diverged from its own
+design"* by putting the storage in the context. Half of that critique
+is now answered: the storage is no longer sized by a ceiling, it is
+sized per slot from the capacity the blob declares.
+
+The other half — making `ps2ui_slot_set` borrow the caller's string
+the way `ps2ui_tex_set` borrows the caller's texels — is **declined**,
+and the reason is that the symmetry is superficial.
+
+What borrowing would save, measured on the largest UI in the
+repository (the UC-3 environment, 121 slots):
+
+| arena region | bytes |
+|---|---:|
+| permuted CLUTs | 4,096 |
+| **slot text** | **2,966** |
+| texture handles | 600 |
+| slot offsets | 484 |
+| everything else | 139 |
+| **total** | **8,285** |
+
+So about 3.4 KiB, on a machine with 32 MiB. The longest slot in that
+UI declares 80 bytes.
+
+What borrowing would cost is not symmetric with the texture case:
+
+- **A texture is one buffer the app already manages deliberately** —
+  it decoded a PNG into it and knows when the row scrolls away.
+  Strings are the opposite: they are the transient output of a
+  directory read, and "keep this alive and unmoved until the row stops
+  being drawn" is a much easier obligation to violate. The failure is
+  a use-after-free rendered as glyphs.
+- **Truncation would move to render time.** Today `slot_set` copies at
+  the declared capacity and trims a partial UTF-8 sequence in place.
+  Over a borrowed pointer the pen would have to re-derive both every
+  frame, for every slot, instead of once per change.
+- **The copy is not what was expensive.** §4.2's complaint was that
+  storage was `slot_text[16][96]` — a ceiling charged to every blob.
+  That is gone. What remains is 2,966 bytes that exist because 121
+  slots declared them.
+
+F2's note said "caller-provided slot buffers" when the alternative was
+a fixed array. Against per-slot arena storage the argument is thinner
+than the lifetime hazard it introduces, so the pull rule applies to it
+the way it applies to any other feature: it enters when a use case
+demands it. Phase 2's skeleton is the test — if the OPL environment
+finds 3.4 KiB or the copy cost material, this reverses on evidence.
+
+**Related, and not fixed here:** `slot_index_by_name` is a linear
+`strcmp` scan. With the ceiling at 16 that was free; at 121 a list
+refreshing 28 rows does roughly 1,700 short `strcmp`s per scroll step,
+which is well under a millisecond on a 294 MHz EE but is no longer
+nothing. Left alone deliberately — Phase 2 measures frame time on a
+real library, and that measurement should decide whether this wants
+the same sorted-table bsearch the focus lookup uses, rather than a
+guess made here.
 
 ### What this fixes beyond size
 

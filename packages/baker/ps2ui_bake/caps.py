@@ -1,16 +1,22 @@
-"""Runtime table caps (backlog B10).
+"""Runtime limits the bake has to know about (backlog B10).
 
-ps2ui.h bounds four table counts, and ps2ui_load() rejects any blob
-that exceeds them with PS2UI_ERR_TOO_MANY. They are validation limits
-rather than storage sizes since the v6 resource model -- the runtime
-sizes itself from the blob through a caller-provided arena -- but a
-blob over the limit is still refused, so the bake still checks. Nothing on the host used to
-know those numbers, so an over-sized blob would lay out, bake, preview
-and pass every host test while being unloadable on console. The symptom
-there is the sample ELF's solid red screen with no diagnostic.
+Originally four table-count ceilings that ps2ui_load() rejected with
+PS2UI_ERR_TOO_MANY. Three of them -- textures, slots, screens -- no
+longer exist: once the v6 arena made the context size itself from the
+blob, those numbers bounded nothing the blob's own size did not
+already bound, and 16 slots was a real obstacle to a real UI (the UC-3
+scoping fixture measures 28 on one OPL-class screen). The runtime now
+refuses on arithmetic it cannot do rather than on a number ps2ui.h
+picked; see arena_compute.
 
-The values are parsed out of runtime/ps2ui.h when it is reachable, so
-raising a cap in the header raises it here too. FALLBACK covers the
+What remains is PS2UI_MAX_SCISSOR_DEPTH, which is genuine fixed
+storage: ps2ui_render keeps a scissor stack that deep, and a blob
+nesting `overflow: hidden` past it draws the inner subtree under the
+outer clip. It fails soft, on a television, so the bake refuses it
+here instead.
+
+The value is parsed out of runtime/ps2ui.h when it is reachable, so
+raising it in the header raises it here too. FALLBACK covers the
 pip-installed case where the runtime source is absent;
 test_caps_match_header proves the two agree.
 """
@@ -19,13 +25,11 @@ import os
 import re
 
 FALLBACK = {
-    "PS2UI_MAX_TEXTURES": 32,
-    "PS2UI_MAX_SLOTS": 16,
-    "PS2UI_MAX_SCREENS": 8,
-    # Not a table size like the others: it bounds how deep `overflow:
-    # hidden` may nest before ps2ui_render runs out of scissor stack.
-    # The regex already matched it; without the key here, caps.update
-    # silently dropped it and nothing checked the depth at all.
+    # The last one. It bounds how deep `overflow: hidden` may nest
+    # before ps2ui_render runs out of scissor stack -- real storage,
+    # unlike the table counts that used to sit beside it. The regex
+    # already matched it; without the key here, caps.update silently
+    # dropped it and nothing checked the depth at all.
     "PS2UI_MAX_SCISSOR_DEPTH": 8,
 }
 
@@ -91,17 +95,20 @@ def check(textures, cluts, slots, screens, caps: dict = None, records=None):
                 f"PS2UI_MAX_SCISSOR_DEPTH in runtime/ps2ui.h."
             )
 
-    def over(what, count, key):
-        if count > caps[key]:
+    # Textures, slots and screens used to be checked against ceilings
+    # here. They are not bounded by a number any more -- only by the
+    # format's own uint16 count fields, which the writer below cannot
+    # exceed without failing to pack the header at all. What replaced
+    # the ceilings is an arena the runtime refuses to carve if it does
+    # not fit the target's address space, and the bake already reports
+    # that arena in bytes, which is the number an integrator can act on.
+    for what, count in (("textures", len(textures)), ("slots", len(slots)),
+                        ("screens", len(screens)), ("cluts", len(cluts))):
+        if count > 0xFFFF:
             errors.append(
-                f"{what}: {count} exceeds {key} = {caps[key]}. "
-                f"ps2ui_load() would return PS2UI_ERR_TOO_MANY. "
-                f"Reduce the UI or raise {key} in runtime/ps2ui.h."
+                f"{what}: {count} does not fit the format's uint16 count "
+                f"field. This is the format's own limit, not a runtime one."
             )
-
-    over("textures", len(textures), "PS2UI_MAX_TEXTURES")
-    over("slots", len(slots), "PS2UI_MAX_SLOTS")
-    over("screens", len(screens), "PS2UI_MAX_SCREENS")
 
     # Capacity used to be checked against PS2UI_SLOT_BUFSZ, the
     # runtime's fixed per-slot buffer. There is no such buffer any more
@@ -116,19 +123,17 @@ def check(textures, cluts, slots, screens, caps: dict = None, records=None):
                 f"the format's uint16 capacity field."
             )
 
-    # CLUTs ride along with textures; flag the pressure before it bites.
-    if len(cluts) > caps["PS2UI_MAX_TEXTURES"]:
-        errors.append(
-            f"cluts: {len(cluts)} exceeds PS2UI_MAX_TEXTURES = "
-            f"{caps['PS2UI_MAX_TEXTURES']}; the runtime bounds the "
-            f"texture table, and a blob cannot name more palettes than that."
-        )
     return errors, caps
 
 
 def summary(textures, cluts, slots, screens, caps: dict) -> str:
+    # Counts, not fractions. "15/16 slots" was a useful line while the
+    # denominator was a wall you could hit; printing a fraction of
+    # 65535 would just be a number with a decorative second half, and
+    # the figure that actually constrains a UI now -- the arena -- is
+    # printed on its own line by cli.py.
+    del caps
     return (
-        f"  runtime tables: {len(textures)}/{caps['PS2UI_MAX_TEXTURES']} textures, "
-        f"{len(slots)}/{caps['PS2UI_MAX_SLOTS']} slots, "
-        f"{len(screens)}/{caps['PS2UI_MAX_SCREENS']} screens"
+        f"  runtime tables: {len(textures)} textures, {len(cluts)} CLUTs, "
+        f"{len(slots)} slots, {len(screens)} screens"
     )
