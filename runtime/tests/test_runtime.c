@@ -5,6 +5,11 @@
  */
 
 #include "../ps2ui.h"
+/* The recording ledger the assertions read. Under the old stub this
+ * arrived implicitly through ps2ui.h's host branch; ps2ui.h now has a
+ * single include block for both targets, so the test names its own
+ * dependency. */
+#include "../stub/gskit_stub.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,6 +93,29 @@ int main(int argc, char **argv)
     }
     blob = slurp(argv[1], &len);
     memset(&gs, 0, sizeof gs);
+    /* Start VRAM where a real console starts it: past the display
+     * buffers, never at zero. This is not cosmetic. The REAL gsKit
+     * headers define GSKIT_ALLOC_ERROR as 0x00 -- so an allocation
+     * that lands at address 0 is indistinguishable from a failed one,
+     * and a test GS with CurrentPointer 0 makes its own first
+     * successful alloc read as an error. The hand-written stub this
+     * suite used to compile against had invented 0xFFFFFFFF for the
+     * error value, which hid that landmine; the vendored headers
+     * surfaced it on their first build. Real programs never see it
+     * because gsKit_init_screen allocates the framebuffers first.
+     *
+     * This stands in for what init_screen allocates FOR THE SAMPLE'S
+     * OWN SETTINGS, not a generic layout: main.c sets ZBuffering OFF
+     * (strict back-to-front paint order), and gsInit.c:347 allocates
+     * the Z buffer only when it is ON -- so the sample's console
+     * reserves exactly two CT32 display buffers and no Z. Review
+     * caught the first version of this line adding a phantom 16-bit Z,
+     * which made the test's free-VRAM number match neither the sample
+     * nor the baker's budget. The SYSBUFFER rounding is written out
+     * even though 640x448 CT32 lands on a page boundary anyway, so the
+     * expression stays true at a resolution where it does not. */
+    gs.CurrentPointer =
+        2u * ((640u * 448u * 4u + 8191u) & ~8191u);   /* = 2293760 */
     gs.Width = 640; gs.Height = 448;
 
     /* ---- struct layout matches the on-disk format ---- */
@@ -199,6 +227,46 @@ int main(int argc, char **argv)
           "every upload is preceded by a writeback of its pixels and its CLUT");
     CHECK(g_stub.n_flushes > 0,
           "and flushes were actually recorded, so the check above had something to check");
+
+    /* ---- gsKit_texture_size is the console's own arithmetic ---- */
+    /* The preflight's safety argument is "the sum mirrors the manager's
+     * appetite exactly", and that is only true if this function returns
+     * what the console's does. The stub's page-rounded approximation
+     * agreed on every power-of-two case and diverged on the rest --
+     * including 8 KB UNDER on a 320x32 T8 strip, the unsafe direction:
+     * a host-certified preflight that under-counts walks the console
+     * into _blockAlloc's no-exit loop. Review computed this table from
+     * gsKit's real block math; the suite now links that real function
+     * (vendored source, compiled with -DF_gsKit_texture_size) and these
+     * rows pin it against silent drift of the vendored file. */
+    {
+        static const struct { int w, h, psm; u32 want; } sz[] = {
+            {  16,  16, GS_PSM_CT32,    1024 },  /* every CLUT's csize   */
+            { 256, 128, GS_PSM_T8,     32768 },  /* channel-6 atlas      */
+            { 128, 128, GS_PSM_T8,     16384 },
+            {  64,  64, GS_PSM_CT32,   16384 },
+            { 640, 448, GS_PSM_CT32, 1146880 },  /* a framebuffer        */
+            {   8,   8, GS_PSM_CT32,     256 },  /* smallest block       */
+            {  24,  24, GS_PSM_CT32,    4096 },
+            { 320,  32, GS_PSM_T8,     24576 },  /* the under-count case */
+        };
+        /* sizeof-derived bound and one CHECK per row, both from review:
+         * the first version hardcoded `< 8`, and a ninth row with an
+         * impossible expectation left the suite green -- the quietest
+         * possible failure, since adding a case is exactly the
+         * maintenance action this table invites. And a bare boolean
+         * over the table turns a red pin into a manual bisect; a named
+         * row is the bisect already done. */
+        size_t k3;
+        char szmsg[96];
+        for (k3 = 0; k3 < sizeof sz / sizeof *sz; k3++) {
+            u32 got = gsKit_texture_size(sz[k3].w, sz[k3].h, sz[k3].psm);
+            snprintf(szmsg, sizeof szmsg,
+                     "gsKit_texture_size(%dx%d psm%d) = %u, the console's block math (got %u)",
+                     sz[k3].w, sz[k3].h, sz[k3].psm, (unsigned)sz[k3].want, (unsigned)got);
+            CHECK(got == sz[k3].want, szmsg);
+        }
+    }
 
     /* ---- render: the heal is bounded by the budget ---- */
     /* Review of the migration found that the render-time re-bind is a

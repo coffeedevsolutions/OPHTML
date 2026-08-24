@@ -43,10 +43,20 @@ def framebuffer_size(width: int, height: int) -> int:
 
 
 def default_budget(canvas_w: int, canvas_h: int) -> int:
-    """Conservative texture budget: total VRAM minus a double-buffered
-    CT32 framebuffer pair and one Z buffer at the canvas resolution —
-    the layout a stock gsKit sample allocates. Callers with fancier or
-    leaner setups override via --vram-budget."""
+    """Conservative texture budget: total VRAM minus THREE framebuffer-
+    sized reservations at the canvas resolution.
+
+    Deliberately more cautious than what this tree's own sample
+    reserves, and honest about it: the sample runs ZBuffering OFF, so
+    its console holds exactly two CT32 display buffers (gsKit only
+    allocates Z when ZBuffering is ON) -- but a host that turns Z on
+    with a 32-bit PSMZ needs the third buffer, and a bake-time default
+    must hold for the heaviest host it claims to support, not the
+    lightest. An earlier version of this docstring called this "the
+    layout a stock gsKit sample allocates", which was false in both
+    directions at once. Callers who know their real layout override
+    via --vram-budget; the runtime preflight then re-checks the true
+    remaining VRAM on the console itself at upload time."""
     fb = framebuffer_size(canvas_w, canvas_h)
     return VRAM_TOTAL - 3 * fb
 

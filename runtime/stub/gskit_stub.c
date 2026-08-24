@@ -21,19 +21,23 @@ void stub_reset_keep_tm(void)
     g_stub.n_scissor_sets = 0;
 }
 
-u32 gsKit_texture_size(u32 width, u32 height, u32 psm)
-{
-    /* Close enough for the fake allocator: bytes, page-rounded. */
-    u32 bpp = (psm == GS_PSM_T8) ? 1 : 4;
-    u32 size = width * height * bpp;
-    return (size + 8191u) & ~8191u;
-}
-
-u32 gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u32 type)
+/* Mirrors gsCore.c:35-51 behaviourally, not just in shape -- the real
+ * headers make a prototype divergence a compile error, but they cannot
+ * see behaviour, so the rounding and the comparison are transcribed:
+ * SYSBUFFER rounds to the 8 KB page, everything else to the 256-byte
+ * block, and the ceiling test is >= 4 MB on the POST-rounding size.
+ * (The real function also returns the pre-bump pointer, which is 0 for
+ * the first allocation and therefore equal to GSKIT_ALLOC_ERROR --
+ * gsKit's own landmine, kept, and documented where the tests place
+ * their GS.) */
+u32 gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u8 type)
 {
     u32 at = gs->CurrentPointer;
-    (void)type;
-    if (at + size > 4u * 1024u * 1024u) /* the GS really has 4 MB */
+    if (type == GSKIT_ALLOC_SYSBUFFER)
+        size = (size + 8191u) & ~8191u;
+    else
+        size = (size + 255u) & ~255u;
+    if (at + size >= 4u * 1024u * 1024u)
         return GSKIT_ALLOC_ERROR;
     gs->CurrentPointer += size;
     g_stub.vram_allocated = gs->CurrentPointer;
@@ -203,16 +207,17 @@ void gsKit_prim_sprite(GSGLOBAL *gs, float x1, float y1, float x2, float y2,
     record(0, 0, x1, y1, x2, y2, 0, 0, 0, 0, color);
 }
 
-void gsKit_prim_sprite_texture(GSGLOBAL *gs, GSTEXTURE *tex,
-                               float x1, float y1, float u1, float v1,
-                               float x2, float y2, float u2, float v2,
-                               int z, u64 color)
+void gsKit_prim_sprite_texture_3d(GSGLOBAL *gs, const GSTEXTURE *tex,
+                                  float x1, float y1, int iz1,
+                                  float u1, float v1,
+                                  float x2, float y2, int iz2,
+                                  float u2, float v2, u64 color)
 {
-    (void)gs; (void)z;
+    (void)gs; (void)iz1; (void)iz2;
     record(1, tex, x1, y1, x2, y2, u1, v1, u2, v2, color);
 }
 
-void gsKit_set_test(GSGLOBAL *gs, unsigned char preset)
+void gsKit_set_test(GSGLOBAL *gs, u8 preset)
 {
     (void)gs; (void)preset;
 }
@@ -224,7 +229,7 @@ void gsKit_set_test(GSGLOBAL *gs, unsigned char preset)
 u64 stub_prim_alpha = 0;
 unsigned char stub_prim_alpha_set = 0;
 
-void gsKit_set_primalpha(GSGLOBAL *gs, u64 alpha_mode, unsigned char per_pixel)
+void gsKit_set_primalpha(GSGLOBAL *gs, u64 alpha_mode, u8 per_pixel)
 {
     (void)gs; (void)per_pixel;
     stub_prim_alpha = alpha_mode;
