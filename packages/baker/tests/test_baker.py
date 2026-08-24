@@ -579,6 +579,45 @@ class TestArena(unittest.TestCase):
             self.skipTest(f"{path} not baked")
         return read_uib(path)
 
+    def write_fixture(self, path):
+        """A small blob covering every arena region, written with the
+        same writer the examples use so it tracks the format."""
+        from ps2ui_bake import gs
+        from ps2ui_bake.quads import DrawRecord, BakedTexture, OP_TEXQUAD
+        from ps2ui_bake.uib import write_uib
+        cluts = [bytes(256 * 4), bytes(256 * 4)]
+        textures = [
+            BakedTexture(gs.PSMT8, 16, 16, 0, bytes(16 * 16)),
+            BakedTexture(gs.PSMT8, 16, 16, 0, bytes(16 * 16)),  # shares CLUT 0
+            BakedTexture(gs.PSMT8, 8, 8, 1, bytes(8 * 8)),
+        ]
+        fonts = [{
+            "tex": 0, "size": 8, "weight": 400, "ascent": 6,
+            "line_height": 10,
+            "glyphs": [{"codepoint": ord("A"), "u": 0, "v": 0, "w": 4,
+                        "h": 6, "bearing_x": 0, "bearing_y": 0,
+                        "advance": 5}],
+        }]
+        slots = [
+            {"name": f"s{i}", "placeholder": "p", "x": 0, "text_y": 0,
+             "w": 40, "font": 0, "align": 0, "ellipsis": False,
+             "capacity": cap, "focus": 0xFFFF,
+             "color_base": (128, 128, 128, 128),
+             "color_focus": (128, 128, 128, 128)}
+            for i, cap in enumerate((7, 31, 64))
+        ]
+        focus = [
+            {"id": 0, "up": None, "down": 1, "left": None, "right": None,
+             "name": "a", "rect": (0, 0, 10, 10)},
+            {"id": 1, "up": 0, "down": None, "left": None, "right": None,
+             "name": "b", "rect": (0, 20, 10, 10)},
+        ]
+        recs = [DrawRecord(OP_TEXQUAD, 0, 0xFFFF, 0, 0, 16, 16,
+                           (128, 128, 128, 128), tex=0,
+                           u0=0, v0=0, u1=16, v1=16)]
+        write_uib(path, {"w": 640, "h": 448}, recs, textures, cluts,
+                  focus, 0, fonts=fonts, slots=slots)
+
     def test_gstexture_size_differs_by_pointer_width(self):
         from ps2ui_bake import arena
         # The whole reason the report names a target: GSTEXTURE holds
@@ -588,8 +627,15 @@ class TestArena(unittest.TestCase):
         self.assertEqual(arena.sizeof_gstexture(arena.HOST64_PTR), 48)
 
     def test_arena_size_sums_its_own_breakdown(self):
+        """On a blob this test writes, so it never depends on an
+        earlier step having baked one."""
+        import tempfile
         from ps2ui_bake import arena
-        u = self.blob("memcard")
+        from ps2ui_bake.uib import read_uib
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "f.uib")
+            self.write_fixture(path)
+            u = read_uib(path)
         for ptr in (arena.EE_PTR, arena.HOST64_PTR):
             self.assertEqual(
                 sum(n for _, n in arena.breakdown(u, ptr)),
@@ -673,15 +719,35 @@ class TestArena(unittest.TestCase):
             if cc.returncode != 0:
                 unavailable(f"cannot build the runtime here: "
                             f"{cc.stderr.decode()[:200]}")
-            names = ["memcard", "channel6"]
-            paths = []
-            for nm in names:
+            # A blob this test builds itself, so the comparison never
+            # depends on some earlier step having baked one. That
+            # dependency is what the skip guard was hiding: with the
+            # guard on and no examples baked, CI failed with "no baked
+            # blobs to compare" -- correct behaviour, and a sign the
+            # test was reaching outside itself for its own input.
+            #
+            # write_uib is the same writer the examples use, so this
+            # blob tracks the format automatically: no version pin to
+            # forget, and the C reader on this branch reads exactly
+            # what this branch's writer produces.
+            #
+            # Its shape exercises every arena term at a different
+            # value, so a layout bug cannot hide behind a coincidence:
+            # 3 textures but 2 CLUTs (the per-palette region), 3 slots
+            # with three different capacities (the packed text
+            # region), 2 focus nodes and 1 screen.
+            fixture = os.path.join(td, "arena_fixture.uib")
+            self.write_fixture(fixture)
+            paths = [("self-built fixture", fixture)]
+
+            # Real examples too, when they happen to be baked: they
+            # carry realistic table sizes the fixture does not. Extra
+            # coverage, never a dependency.
+            for nm in ("memcard", "channel6"):
                 p = os.path.normpath(os.path.join(
                     root, "examples", nm, "build", "ui.uib"))
                 if os.path.exists(p):
                     paths.append((nm, p))
-            if not paths:
-                unavailable("no baked blobs to compare")
             out = subprocess.run([exe] + [p for _, p in paths],
                                  capture_output=True, check=True)
             got = [int(x) for x in out.stdout.split()]
