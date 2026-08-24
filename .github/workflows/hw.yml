@@ -6,11 +6,15 @@
 #   elf       — the real ps2ui.c + sample compile inside the ps2dev
 #               toolchain container; proves the console build, uploads
 #               the ELF for anyone to run on hardware/emulator
-#   emulator  — EXPERIMENTAL (continue-on-error): boots the ELF in the
-#               Play! emulator (HLE BIOS, so legally runnable in CI),
-#               captures a frame, and image-diffs it against the
-#               previewer ground truth with tools/framediff.py.
-#               Until its first green run, treat results as advisory;
+#   emulator  — GATING since the DMA-alignment fix (#40): boots the ELF
+#               in the Play! emulator (HLE BIOS, so legally runnable in
+#               CI), captures a frame, and image-diffs it against the
+#               previewer ground truth with tools/framediff.py. It ran
+#               red for its entire experimental life because the render
+#               genuinely was wrong -- the fault was deterministic DMA
+#               address truncation, which faithful emulators reproduce
+#               -- and has been green on every run since the fix. A red
+#               here is a real texture-path regression, not noise;
 #               docs/bringup.md holds the local PCSX2 procedure.
 
 name: hw
@@ -269,7 +273,13 @@ jobs:
   emulator:
     needs: [bake, elf]
     runs-on: ubuntu-latest
-    continue-on-error: true # experimental until the first proven run
+    # No continue-on-error, deliberately. The probation this job shipped
+    # with ("experimental until the first proven run") ended when the
+    # ground-truth diff went green at #40 and stayed green through two
+    # texture-path refactors. An advisory gate is a gate nobody reads:
+    # the alignment bug sat behind a red-but-ignorable X for the
+    # emulator job's whole life. If Play!'s download or xvfb ever turn
+    # out to flake, fix or pin THAT -- do not put the blindfold back on.
     env:
       # Named once, because it moved once. The `baked` artifact's root
       # is the least common ancestor of its paths, so adding a second
@@ -608,8 +618,19 @@ jobs:
           # --stats prints a colour fingerprint of both frames. An RMSE
           # says they differ; the palette says how, which is the only
           # way to read this failure without opening the artifact.
+          #
+          # Thresholds are calibrated, not guessed: five green runs
+          # since the alignment fix measured global RMSE 4.79-4.83 and
+          # worst tile 13.7-13.9, against the capture pipeline's own
+          # resampling floor printed by the step above. 6.5/24 leaves
+          # ~35%/70% headroom for Play! or llvmpipe version drift while
+          # still catching the historical failure signature at a
+          # distance -- the alignment bug sat at 22.9/96.4. If this
+          # fires without a texture change, read the floor step's
+          # number first, then the fingerprints, before touching the
+          # tolerance.
           python3 tools/framediff.py "$PREVIEW" captured.png \
-            --out framediff.png --rmse 8 --tile-rmse 32 --stats
+            --out framediff.png --rmse 6.5 --tile-rmse 24 --stats
       - uses: actions/upload-artifact@v7
         if: always()
         with:
