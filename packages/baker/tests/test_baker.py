@@ -867,8 +867,43 @@ class TestCoverPattern(unittest.TestCase):
         being drawn -- which is exactly what bench step S1 reads."""
         raw = self.synthetic(0, 64, 64)
         texels = {raw[i:i + 4] for i in range(0, len(raw), 4)}
-        self.assertGreater(len(texels), 2)
+        # Three today -- white, the hue, and the hue darkened -- so this
+        # clears by exactly one. Noted rather than loosened: the CRC pin
+        # makes any change to the pattern deliberate, and a fourth value
+        # added to buy margin would be decoration.
+        self.assertGreater(len(texels), 2, f"only {len(texels)} distinct texels")
         self.assertNotEqual(self.synthetic(0, 64, 64), self.synthetic(1, 64, 64))
+
+    def test_the_pattern_varies_on_both_axes(self):
+        """Three distinct values could still be horizontal stripes, and
+        stripes are a shape stale VRAM plausibly takes: a framebuffer
+        row and a texture read at the wrong stride both stripe. A
+        checker cannot be mistaken for either.
+
+        Mirrors the C check exactly. The pair used to be asymmetric --
+        C compared every texel against texel zero, which is the white
+        BORDER, so a border around a flat fill passed there and failed
+        here. Review found it by collapsing the interior."""
+        w = h = 64
+        raw = self.synthetic(0, w, h)
+
+        def px(x, y):
+            i = (y * w + x) * 4
+            return raw[i:i + 4]
+
+        # Below and right of the corner block, not from the first
+        # interior texel. Scanning from the edge, a horizontal-stripe
+        # pattern still passes: the white corner block sits against the
+        # stripes and supplies the horizontal variation itself, so the
+        # check reads the block rather than the pattern. Same shape as
+        # the C-side mistake review found, one level down.
+        edge, cell = 2, 8
+        lo = edge + cell + 1
+        rng = [(x, y) for y in range(lo, h - edge) for x in range(lo, w - edge)]
+        self.assertTrue(any(px(x, y) != px(x - 1, y) for x, y in rng),
+                        "does not vary horizontally clear of the corner block")
+        self.assertTrue(any(px(x, y) != px(x, y - 1) for x, y in rng),
+                        "does not vary vertically clear of the corner block")
 
     def test_alpha_is_in_the_gs_domain(self):
         raw = self.synthetic(0, 32, 32)
