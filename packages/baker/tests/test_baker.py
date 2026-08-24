@@ -640,6 +640,117 @@ class TestStreamedTextures(unittest.TestCase):
             self.assertEqual(uib.textures[0].data, b"")
 
 
+class TestStreamedAuthoring(unittest.TestCase):
+    """<img data-tex-slot="name"> end to end, HTML through to the blob.
+
+    The runtime and format halves shipped first (v6 §3) with a fixture
+    written straight from write_uib. This is the authoring half: the
+    path an actual UI takes.
+    """
+
+    def bake(self, html, css):
+        import subprocess
+        import tempfile
+        from ps2ui_bake.uib import read_uib
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.normpath(os.path.join(here, "..", "..", ".."))
+        with tempfile.TemporaryDirectory() as td:
+            hp, cp = os.path.join(td, "p.html"), os.path.join(td, "p.css")
+            jp, up = os.path.join(td, "p.json"), os.path.join(td, "p.uib")
+            with open(hp, "w") as fh:
+                fh.write(html)
+            with open(cp, "w") as fh:
+                fh.write(css)
+            r = subprocess.run(
+                ["node", os.path.join(root, "packages", "layout", "bin",
+                                      "ps2ui-layout.js"), hp, cp, "-o", jp],
+                capture_output=True)
+            if r.returncode != 0:
+                return None, r.stderr.decode()
+            env = dict(os.environ,
+                       PYTHONPATH=os.path.join(root, "packages", "baker"))
+            r = subprocess.run([sys.executable, "-m", "ps2ui_bake", jp,
+                                "-o", up], capture_output=True, env=env)
+            if r.returncode != 0:
+                return None, r.stderr.decode()
+            return read_uib(up), r.stderr.decode()
+
+    CSS = ("body{display:flex;flex-direction:column}"
+           "#r{display:flex;flex-direction:row}"
+           "img{width:64px;height:64px}")
+
+    def test_a_streamed_slot_reaches_the_blob(self):
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover"></div>', self.CSS)
+        self.assertIsNotNone(uib, err)
+        from ps2ui_bake.uib import FEAT_STREAMED_TEX, TEXKIND_STREAMED
+        streamed = [t for t in uib.textures if t.kind == TEXKIND_STREAMED]
+        self.assertEqual(len(streamed), 1)
+        t = streamed[0]
+        self.assertEqual(t.name, "cover")
+        self.assertEqual((t.width, t.height), (64, 64))
+        # The reservation is the linear payload ps2ui_tex_set demands,
+        # not the page-rounded VRAM cost -- the two are different
+        # numbers and the app is told this one.
+        self.assertEqual(t.reservation, 64 * 64 * 4)
+        self.assertEqual(t.data, b"", "no texels travel in the blob")
+        self.assertTrue(uib.feature_flags & FEAT_STREAMED_TEX)
+
+    def test_the_slot_is_actually_drawn(self):
+        """A reservation nothing draws is a slot the app can fill and
+        nobody can see."""
+        from ps2ui_bake.quads import OP_TEXQUAD
+        from ps2ui_bake.uib import TEXKIND_STREAMED
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover"></div>', self.CSS)
+        self.assertIsNotNone(uib, err)
+        idx = [i for i, t in enumerate(uib.textures)
+               if t.kind == TEXKIND_STREAMED][0]
+        drawn = [r for r in uib.records
+                 if r.op == OP_TEXQUAD and r.tex == idx]
+        self.assertEqual(len(drawn), 1)
+        self.assertEqual((drawn[0].w, drawn[0].h), (64, 64))
+
+    def test_two_elements_share_one_slot(self):
+        """That is what a name is for -- one reservation, two places."""
+        from ps2ui_bake.quads import OP_TEXQUAD
+        from ps2ui_bake.uib import TEXKIND_STREAMED
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover">'
+            '<img data-tex-slot="cover"></div>', self.CSS)
+        self.assertIsNotNone(uib, err)
+        streamed = [t for t in uib.textures if t.kind == TEXKIND_STREAMED]
+        self.assertEqual(len(streamed), 1, "one slot, not two")
+        idx = [i for i, t in enumerate(uib.textures)
+               if t.kind == TEXKIND_STREAMED][0]
+        drawn = [r for r in uib.records
+                 if r.op == OP_TEXQUAD and r.tex == idx]
+        self.assertEqual(len(drawn), 2, "drawn in both places")
+
+    def test_one_name_at_two_sizes_is_refused(self):
+        """A slot has one reservation and the app is told one number,
+        so this has to fail rather than silently pick a size."""
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover">'
+            '<img class="big" data-tex-slot="cover"></div>',
+            self.CSS + ".big{width:32px;height:32px}")
+        self.assertIsNone(uib, "a size conflict must fail the bake")
+        self.assertIn("one reservation", err)
+
+    def test_the_reservation_counts_against_the_vram_budget(self):
+        """Reserved VRAM is spent whether or not the app fills it."""
+        from ps2ui_bake import vram
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover"></div>', self.CSS)
+        self.assertIsNotNone(uib, err)
+        lines, total, _budget, _ok = vram.report(
+            uib.textures, uib.cluts, 640, 448, None)
+        self.assertGreaterEqual(total, 64 * 64 * 4)
+        self.assertTrue(any("streamed" in ln for ln in lines),
+                        "the breakdown names it as a reservation, because "
+                        "'0 B raw' would read as free")
+
+
 class TestArena(unittest.TestCase):
     """The host mirror of runtime/ps2ui.c's arena_compute.
 

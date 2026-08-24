@@ -583,6 +583,48 @@ test('image: <img> measures intrinsically and emits an image command', () => {
   assert.equal(img.state, 'always');
 });
 
+test('streamed: data-tex-slot emits a named slot with no src', () => {
+  const ir = compile(
+    '<div><img data-tex-slot="cover"></div>',
+    'img { width: 64px; height: 64px }',
+    { fonts, assetDir: fixtureDir() },
+  );
+  const img = ir.commands.find((c) => c.op === 'image');
+  assert.ok(img, 'image command emitted');
+  assert.equal(img.streamed, true);
+  assert.equal(img.name, 'cover');
+  assert.equal(img.src, undefined, 'a streamed slot has no file');
+  assert.equal(img.w, 64);
+  assert.equal(img.h, 64);
+});
+
+test('streamed: needs an explicit width and height', () => {
+  // No file means no intrinsic size. Without this the box computes to
+  // 0x0 and the baker silently drops the quad -- a slot the app can
+  // fill and nobody can see.
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot="cover"></div>', 'img { width: 64px }',
+  ), /needs an explicit width and height/);
+});
+
+test('streamed: src and data-tex-slot are mutually exclusive', () => {
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot="cover" src="badge.png"></div>', 'img { }',
+  ), /mutually exclusive/);
+});
+
+test('streamed: the slot needs a name to be addressable', () => {
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot=""></div>', 'img { }',
+  ), /data-tex-slot needs a name/);
+});
+
+test('streamed: palettize is refused, the art does not exist yet', () => {
+  assert.throws(() => compileCss(
+    '<div><img data-tex-slot="cover" palettize></div>', 'img { }',
+  ), /palettize is not supported on a streamed slot/);
+});
+
 test('image: one specified axis keeps the intrinsic aspect ratio', () => {
   const ir = compile(
     '<div><img class="wide" src="badge.png"></div>',

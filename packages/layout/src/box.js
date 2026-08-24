@@ -121,9 +121,42 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
     };
   }
   if (el.tag === 'img') {
+    // A streamed slot: the app supplies the texels at runtime, so
+    // there is no file to read and nothing to bake. The blob carries
+    // geometry, a name and a reservation (uib format v6).
+    const texSlot = el.attrs['data-tex-slot'];
+    if (texSlot !== undefined) {
+      if (!texSlot) {
+        throw new Error(
+          `layout: <img> on line ${el.line}: data-tex-slot needs a name — `
+          + 'it is how the app addresses the slot at runtime',
+        );
+      }
+      if (el.attrs.src) {
+        throw new Error(
+          `layout: <img> on line ${el.line}: data-tex-slot="${texSlot}" and `
+          + 'src are mutually exclusive — a slot is either baked from a file '
+          + 'or filled at runtime, and carrying both would leave it ambiguous '
+          + 'which one the console draws',
+        );
+      }
+      if ('palettize' in el.attrs) {
+        throw new Error(
+          `layout: <img> on line ${el.line}: palettize is not supported on a `
+          + 'streamed slot — quantizing needs the art, which does not exist '
+          + 'until runtime. Supply PSMCT32 texels to ps2ui_tex_set',
+        );
+      }
+      box.image = { streamed: true, name: texSlot, w: null, h: null,
+                    palettize: false };
+      box.streamedTex = texSlot;
+    } else {
     const src = el.attrs.src;
     if (!src) {
-      throw new Error(`layout: <img> on line ${el.line} has no src attribute`);
+      throw new Error(
+        `layout: <img> on line ${el.line} has no src attribute `
+        + '(or data-tex-slot, for a slot the app fills at runtime)',
+      );
     }
     let resolved;
     if (isAbsolute(src)) {
@@ -145,6 +178,7 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
       src: resolved, w: size.w, h: size.h,
       palettize: 'palettize' in el.attrs,
     };
+    }
   }
   const focusable = 'focusable' in el.attrs;
   if (focusable && focusScope !== null) {

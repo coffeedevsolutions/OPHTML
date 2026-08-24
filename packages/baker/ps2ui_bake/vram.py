@@ -72,9 +72,14 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         size = page_rounded_size(t.width, t.height, t.fmt)
         total += size
         fmt_name = "PSMT8" if t.fmt == gs.PSMT8 else "PSMCT32"
+        # A streamed slot carries no texels, so "0 B raw" would read as
+        # free when it is a full reservation -- the VRAM is spent
+        # whether or not the app ever fills it. Say which it is.
+        raw = (f"{'streamed':>7s} " if getattr(t, "kind", 0) else
+               f"{len(t.data):7d} B raw")
         lines.append(
             f"  tex[{i:2d}] {fmt_name:8s} {t.width:4d}x{t.height:<4d} "
-            f"{len(t.data):7d} B raw -> {size:7d} B in pages"
+            f"{raw} -> {size:7d} B in pages"
         )
     for i, _c in enumerate(cluts):
         size = clut_size()

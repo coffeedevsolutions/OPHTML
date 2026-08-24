@@ -128,6 +128,17 @@ export function measureNode(box, availW, availH, ctx) {
     // out of here is exactly what the GS draws.
     let w = resolveLength(s.width, availW);
     let h = resolveLength(s.height, availH);
+    // A streamed slot has no file, so it has no intrinsic size to fall
+    // back on: the author has to state both. Caught here rather than
+    // later as a zero-sized quad the baker silently drops, which is
+    // what happens to any image whose width or height computes to 0.
+    if (box.image.streamed && (w == null || h == null)) {
+      throw new Error(
+        `layout: <img data-tex-slot="${box.image.name}"> needs an explicit `
+        + 'width and height — a streamed slot has no file to take its '
+        + 'intrinsic size from, and the reservation is sized from these',
+      );
+    }
     if (w == null && h == null) {
       w = box.image.w + pb.left + pb.right;
       h = box.image.h + pb.top + pb.bottom;

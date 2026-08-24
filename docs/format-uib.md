@@ -83,6 +83,10 @@ A **baked** texture is every texture that existed before v6: its texels
 are in the blob and the GIF DMAs them in place out of the caller's
 file.
 
+Authored as `<img data-tex-slot="name">` with an explicit width and
+height in CSS (there is no file to take an intrinsic size from). See
+the README's images section.
+
 A **streamed** texture is a slot the application fills at runtime —
 cover art off a disc, HDD or network, which cannot be baked because
 nothing at bake time knows what it is. The entry carries geometry, a
