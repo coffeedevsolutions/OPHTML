@@ -21,19 +21,23 @@ void stub_reset_keep_tm(void)
     g_stub.n_scissor_sets = 0;
 }
 
-u32 gsKit_texture_size(int width, int height, int psm)
-{
-    /* Close enough for the fake allocator: bytes, page-rounded. */
-    u32 bpp = (psm == GS_PSM_T8) ? 1u : 4u;
-    u32 size = (u32)width * (u32)height * bpp;
-    return (size + 8191u) & ~8191u;
-}
-
+/* Mirrors gsCore.c:35-51 behaviourally, not just in shape -- the real
+ * headers make a prototype divergence a compile error, but they cannot
+ * see behaviour, so the rounding and the comparison are transcribed:
+ * SYSBUFFER rounds to the 8 KB page, everything else to the 256-byte
+ * block, and the ceiling test is >= 4 MB on the POST-rounding size.
+ * (The real function also returns the pre-bump pointer, which is 0 for
+ * the first allocation and therefore equal to GSKIT_ALLOC_ERROR --
+ * gsKit's own landmine, kept, and documented where the tests place
+ * their GS.) */
 u32 gsKit_vram_alloc(GSGLOBAL *gs, u32 size, u8 type)
 {
     u32 at = gs->CurrentPointer;
-    (void)type;
-    if (at + size > 4u * 1024u * 1024u) /* the GS really has 4 MB */
+    if (type == GSKIT_ALLOC_SYSBUFFER)
+        size = (size + 8191u) & ~8191u;
+    else
+        size = (size + 255u) & ~255u;
+    if (at + size >= 4u * 1024u * 1024u)
         return GSKIT_ALLOC_ERROR;
     gs->CurrentPointer += size;
     g_stub.vram_allocated = gs->CurrentPointer;

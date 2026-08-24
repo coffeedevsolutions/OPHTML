@@ -102,10 +102,20 @@ int main(int argc, char **argv)
      * suite used to compile against had invented 0xFFFFFFFF for the
      * error value, which hid that landmine; the vendored headers
      * surfaced it on their first build. Real programs never see it
-     * because gsKit_init_screen allocates the framebuffers first,
-     * which is exactly what this line stands in for: two 640x448 CT32
-     * display buffers plus a 16-bit Z buffer, page-rounded. */
-    gs.CurrentPointer = 2u * 640u * 448u * 4u + 640u * 448u * 2u;
+     * because gsKit_init_screen allocates the framebuffers first.
+     *
+     * This stands in for what init_screen allocates FOR THE SAMPLE'S
+     * OWN SETTINGS, not a generic layout: main.c sets ZBuffering OFF
+     * (strict back-to-front paint order), and gsInit.c:347 allocates
+     * the Z buffer only when it is ON -- so the sample's console
+     * reserves exactly two CT32 display buffers and no Z. Review
+     * caught the first version of this line adding a phantom 16-bit Z,
+     * which made the test's free-VRAM number match neither the sample
+     * nor the baker's budget. The SYSBUFFER rounding is written out
+     * even though 640x448 CT32 lands on a page boundary anyway, so the
+     * expression stays true at a resolution where it does not. */
+    gs.CurrentPointer =
+        2u * ((640u * 448u * 4u + 8191u) & ~8191u);   /* = 2293760 */
     gs.Width = 640; gs.Height = 448;
 
     /* ---- struct layout matches the on-disk format ---- */
@@ -217,6 +227,36 @@ int main(int argc, char **argv)
           "every upload is preceded by a writeback of its pixels and its CLUT");
     CHECK(g_stub.n_flushes > 0,
           "and flushes were actually recorded, so the check above had something to check");
+
+    /* ---- gsKit_texture_size is the console's own arithmetic ---- */
+    /* The preflight's safety argument is "the sum mirrors the manager's
+     * appetite exactly", and that is only true if this function returns
+     * what the console's does. The stub's page-rounded approximation
+     * agreed on every power-of-two case and diverged on the rest --
+     * including 8 KB UNDER on a 320x32 T8 strip, the unsafe direction:
+     * a host-certified preflight that under-counts walks the console
+     * into _blockAlloc's no-exit loop. Review computed this table from
+     * gsKit's real block math; the suite now links that real function
+     * (vendored source, compiled with -DF_gsKit_texture_size) and these
+     * rows pin it against silent drift of the vendored file. */
+    {
+        static const struct { int w, h, psm; u32 want; } sz[] = {
+            {  16,  16, GS_PSM_CT32,    1024 },  /* every CLUT's csize   */
+            { 256, 128, GS_PSM_T8,     32768 },  /* channel-6 atlas      */
+            { 128, 128, GS_PSM_T8,     16384 },
+            {  64,  64, GS_PSM_CT32,   16384 },
+            { 640, 448, GS_PSM_CT32, 1146880 },  /* a framebuffer        */
+            {   8,   8, GS_PSM_CT32,     256 },  /* smallest block       */
+            {  24,  24, GS_PSM_CT32,    4096 },
+            { 320,  32, GS_PSM_T8,     24576 },  /* the under-count case */
+        };
+        int k3, all_sz = 1;
+        for (k3 = 0; k3 < 8; k3++)
+            if (gsKit_texture_size(sz[k3].w, sz[k3].h, sz[k3].psm) != sz[k3].want)
+                all_sz = 0;
+        CHECK(all_sz,
+              "gsKit_texture_size returns the console's block math for all eight pinned cases");
+    }
 
     /* ---- render: the heal is bounded by the budget ---- */
     /* Review of the migration found that the render-time re-bind is a

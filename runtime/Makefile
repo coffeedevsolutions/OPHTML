@@ -62,9 +62,20 @@ $(LIST_UIB): tests/fixture/list.html tests/fixture/list.css \
 		tests/fixture/list.html tests/fixture/list.css -o build/list.json
 	PYTHONPATH=../packages/baker python3 -m ps2ui_bake build/list.json -o $@
 
-build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h
+# gsKit's real texture-size arithmetic, selectively compiled from the
+# vendored source: gsKit guards every function with a per-function F_*
+# macro, so defining exactly one yields exactly one function. Softer
+# warning flags because the file is verbatim upstream and not ours to
+# edit; it is the one gsKit function whose VALUE (not just shape) the
+# runtime's preflight safety argument depends on.
+build/gsKit_texture_size.o: vendor/gsKit/src/gsTexture.c
 	@mkdir -p build
-	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c -o $@
+	$(CC) -std=c99 -O2 -c -DF_gsKit_texture_size \
+		-Ivendor/gsKit -Ivendor/host-shim $< -o $@
+
+build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h stub/gskit_stub.h build/gsKit_texture_size.o
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c build/gsKit_texture_size.o -o $@
 
 clean:
 	rm -rf build
