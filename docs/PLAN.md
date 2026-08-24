@@ -249,9 +249,9 @@ that document also records what would falsify it.
    routing, and its interaction with visibility. **[shipped]** The
    no-clear guarantee is stated on `ps2ui_render`, in the README with a
    worked frame loop, and in `format-uib.md`; input follows the last
-   `screen_set`; 22 runtime checks fence it, including a direct
-   clear counter in the stub, because the primitive sum alone survives
-   a clear being added. No `ps2ui_overlay_push` — the idiom, as the
+   `screen_set`; 23 runtime checks fence it, including counters in the
+   stub for clears and for the residency ageing tick, because the
+   primitive sum alone survives either being moved into render. No `ps2ui_overlay_push` — the idiom, as the
    design leaned, with the absence recorded as a decision.
 
 API breaks ride along (e.g. the `visible_get/set` error conflation from the

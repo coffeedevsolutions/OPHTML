@@ -1242,6 +1242,19 @@ int main(int argc, char **argv)
         CHECK(g_stub.n_clears == 0,
               "and render issued no clear, which is the guarantee the sum "
               "above only depends on");
+        /* The other half of the same idea, and the one review caught
+         * undefended. gsKit_TexManager_nextFrame is the residency
+         * ageing tick and it belongs to the CALLER's frame loop, once,
+         * after the flip. A render that took it over would make the
+         * overlay age the base's textures, so an open dialog
+         * re-uploads the base's atlases every frame -- and unlike a
+         * clear, which anyone sees the instant they look at a
+         * composited frame, that shows up only as frame time. The stub
+         * already had nextFrame as a bare no-op, so a render calling
+         * it linked fine and asserted nothing. */
+        CHECK(g_stub.n_frame_ticks == 0,
+              "and issued no residency ageing tick: nextFrame is the frame "
+              "loop's, once per frame, or the overlay ages the base");
 
         /* The anti-leak half, and it took two attempts to make it real.
          *
@@ -1256,12 +1269,21 @@ int main(int argc, char **argv)
          * two mechanisms, not one: a balanced blob's last POP already
          * re-applies stack[0], so the explicit restore at the end of
          * render is belt to those braces and deleting either alone
-         * leaves this green. It fires when both go. And it overlaps
-         * the single-render check further up, which asserts the same
-         * register after one replay -- kept anyway, because "the next
-         * drawer inherits the whole screen" is part of THIS contract
-         * and a reader of the composite block should not have to know
-         * the other check exists to find it stated.
+         * leaves this green. It fires when both go.
+         *
+         * The redundancy is structurally untestable, not merely
+         * untested (review's point, and sharper than the first version
+         * of this comment): the baker refuses to write an unbalanced
+         * blob and render refuses the pops of pushes it refused, so no
+         * blob the loader accepts can distinguish the two mechanisms.
+         * That is a reason to keep both and say so, not a reason to
+         * hunt for a fixture that separates them.
+         *
+         * It also overlaps the single-render check further up, which
+         * asserts the same register after one replay -- kept anyway,
+         * because "the next drawer inherits the whole screen" is part
+         * of THIS contract and a reader of the composite block should
+         * not have to know the other check exists to find it stated.
          *
          * It matters for compositing specifically: an app drawing its
          * own geometry after ps2ui_render -- which is the whole point

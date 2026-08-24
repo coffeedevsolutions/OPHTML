@@ -73,11 +73,14 @@ release will not load.
   screen, so an overlay cannot reach into the base by naming one of
   its nodes.
 
-  Two traps, now documented: `ctx->stats` describes one render and is
-  reset at the top of every call, so a composited frame ends holding
-  the overlay's counters; and `gsKit_TexManager_nextFrame` belongs
-  once per frame after the flip, not between the two renders, or an
-  open dialog re-uploads the base's atlases every frame.
+  Two traps, documented and fenced: `ctx->stats` describes one render
+  and is reset at the top of every call, so a composited frame ends
+  holding the overlay's counters; and `gsKit_TexManager_nextFrame`
+  belongs once per frame after the flip, not between the two renders,
+  or an open dialog re-uploads the base's atlases every frame. The
+  host stub now counts frame clears and residency ageing ticks, so a
+  render that takes over either fails by name rather than silently —
+  the primitive count notices neither.
 
   There is deliberately no `ps2ui_overlay_push`. The one thing it
   would buy is a dialog drawn over a base that still receives input,

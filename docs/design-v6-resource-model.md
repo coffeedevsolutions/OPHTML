@@ -496,7 +496,7 @@ none). The focus question is answered: **input follows the last
 `screen_set`**, so an overlay drawn last owns the D-pad for free and
 dismissing it is one call back, restoring the base's remembered focus.
 
-Fenced by 22 checks. Three notes on what making them real took,
+Fenced by 23 checks. Four notes on what making them real took,
 because two of the first drafts asserted nothing:
 
 - **The primitive sum does not fence the guarantee.** `composed ==
@@ -517,7 +517,21 @@ because two of the first drafts asserted nothing:
   anti-leak check reads the register instead. It is delivered by two
   mechanisms — a balanced blob's last POP re-applies `stack[0]`, and
   `render` restores it explicitly — so deleting either alone leaves it
-  green. It fires when both go.
+  green. It fires when both go. That redundancy is *structurally*
+  untestable rather than merely untested: the baker refuses to write
+  an unbalanced blob and `render` refuses the pops of pushes it
+  refused, so no blob the loader accepts can distinguish the two. A
+  reason to keep both and disclose it, not to hunt for a fixture.
+- **A documented trap is not a fenced one.** The `nextFrame` trap was
+  written into three documents and asserted nowhere; moving
+  `gsKit_TexManager_nextFrame` into `ps2ui_render` left the suite
+  green. Same shape as `gsKit_clear` one step further along — the stub
+  had `nextFrame` as a bare no-op, so a render calling it linked fine.
+  Counting it is not modelling the eviction heuristic, which stays out
+  on purpose; it is the stub's own rule applied again. This one
+  matters more than the clear in one respect: a clear is visible the
+  instant anyone looks at a composited frame, while a misplaced ageing
+  tick shows up only as frame time.
 
 **What the host cannot answer.** The stub leaves gsKit's eviction
 heuristic unmodelled on purpose: `ps2ui_upload` preflights the whole
