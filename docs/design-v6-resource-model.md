@@ -79,8 +79,22 @@ must live as long as the context. Every blob pays for 32 CLUTs; the
 memcard blob has **one**, shared by its eight indexed textures. (Rev 2
 said "2" here, which was neither the CLUT count nor the indexed-texture
 count — corrected against the blob.) The fixed overhead this design
-removes is therefore ~36 KiB — the 32 KiB pool plus a 3.3 KiB context —
-not the 13 KiB the table above was arguing from.
+removes is therefore ~36 KiB — the 32 KiB pool plus a 3.3 KiB context.
+
+That is a *different quantity* from the table above, which this
+sentence used to read as correcting. The table is a counterfactual:
+what the five original ceilings would cost if each were raised to fit
+UC-3 and charged to every blob. The ~36 KiB is what the shipped
+context actually cost, pool included. Both are true and neither
+supersedes the other; the table argues the shape is wrong, and this
+paragraph says how much the shape was costing before anyone raised
+anything.
+
+**[implemented]** Reconstructed from `2290a27^:runtime/ps2ui.h` and
+confirmed at review: `clut_pool[32][1024]` 32,768 + `gs_tex[32]` at EE
+pointer width 1,280 + `slot_text[16][96]` 1,536 + the small arrays 64
+= **35,648 B**. The UC-3 environment now asks for 8,285 bytes and a
+two-slot overlay for a few hundred.
 The pool moves into the arena (§2), which also inherits its two hard
 properties: the region must be 16-aligned (the #40 DMA-source
 invariant — a misaligned source truncates silently) and must outlive

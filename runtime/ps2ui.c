@@ -118,6 +118,27 @@ typedef struct arena_layout {
 #define PS2UI_ARENA_LIMIT ((uint64_t)(size_t)-1)
 #endif
 
+/* The limit may only be narrowed, never widened, and that is
+ * load-bearing rather than tidy: the carve below writes
+ * `L->total = (size_t)off` on the far side of the guard, and the only
+ * reason that narrowing is sound is that `off` was already proven to
+ * be at or under SIZE_MAX. A limit above it turns the guard into the
+ * exact bug it exists to prevent -- a wrapped total carving a small
+ * arena -- and does so silently.
+ *
+ * A `#if` cannot express this: the default expands to a cast, which
+ * the preprocessor is not allowed to evaluate. A negative array
+ * dimension can, in C99, without _Static_assert.
+ *
+ * It can only fire on a target narrower than the value: on a 64-bit
+ * host nothing representable in a uint64_t exceeds SIZE_MAX, so this
+ * is a fence on the console build (and on `make test-narrow`, which
+ * narrows correctly and passes it), not something the host suite can
+ * be made to trip. The construct itself was checked separately
+ * against a uint32_t stand-in, where the violation is expressible. */
+typedef char ps2ui_arena_limit_must_fit_size_t[
+    (PS2UI_ARENA_LIMIT <= (uint64_t)(size_t)-1) ? 1 : -1];
+
 /* Add one region to a running arena offset, refusing rather than
  * wrapping. Written as a subtraction against the room left, not as
  * `off + n > limit`, because the latter is the overflow it is meant to
