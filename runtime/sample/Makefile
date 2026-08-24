@@ -33,10 +33,13 @@ endif
 ifdef PROBE
 EE_CFLAGS += -DPS2UI_SAMPLE_PROBE
 endif
-# `make PROBE6=1` builds the bring-up step 6 instrument: one texture
-# drawn with each UV convention either side of an untextured reference
-# of the same pattern, so the reading is which of two seams vanished.
-# No .uib and no ps2ui involved -- it asks the GS directly.
+# `make PROBE6=1` builds the bring-up step 6b instrument: seven columns
+# over an aperiodic bar pattern, one variable per column, each above an
+# untextured reference of itself; the reading is which column's seam is
+# visible. No .uib, and no ps2ui except column G, which builds its
+# palette through the runtime's CLUT convention -- pair it with
+# LINEAR_CLUT=1 (probe6-linear.elf in CI) for the machine-readable A/B
+# on the convention itself.
 ifdef PROBE6
 EE_CFLAGS += -DPS2UI_SAMPLE_PROBE6
 endif

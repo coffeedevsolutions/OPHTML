@@ -26,7 +26,7 @@ Add a row per console; do not delete rows when a step later regresses.
 | SCPH-50000 | 3/4/5/7 conform, pre-fix | **fault found** — text unreadable garble on every cell; swizzle stripe away from the right edge; operator reported every painted image wrapping, right edge butted against left. All one fault: see 3c |
 | SCPH-50000 | 3 A/B conform-linear | **read** — colours change between arms (permutation is live and correct), text garbles identically in both. Ruled the CLUT out as the garble's cause; consistent with 3c, where the index shift is palette-independent |
 | SCPH-50000 | 4b conform-noalpha | **read** — glyphs become solid blocks tracing the text, ascenders and descenders visible. Glyph geometry ruled correct; the fault was in the sampled texels, not the quads. TCC ruled out: the forced-fault picture did not match the garble |
-| SCPH-50000 | 6b probe6 | **VOID, twice** — first run carried the fault class it was probing (no immune column); second run's leftmost calibration column seamed. Needs the aperiodic rebuild before its readings mean anything |
+| SCPH-50000 | 6b probe6 | **VOID, twice** — first run carried the fault class it was probing (no immune column); second run's leftmost calibration column seamed. Needs the aperiodic rebuild before its readings mean anything (landed — see the step 6 probe section; v3 awaits its first bench read) |
 | SCPH-50000 | 3/3c/5/7 conform, aligned build | **PASS on all four** — text legible everywhere, swizzle stripe hard against the bar's right end, MODULATE top two rows blank with the third legible, exactly one magenta square in CLIP. First legible text in the project's hardware history |
 | Play! (CI, llvmpipe) | 3c ground-truth diff | **PASS, first ever** — global RMSE 22.89 → 4.79 (tol 8), worst tile 96.35 → 13.73 (tol 32) on the aligned build, having failed on every prior build of the workflow's life. The truncation is in the DMA tag format, so a faithful emulator reproduces both the fault and the fix |
 
@@ -959,99 +959,117 @@ same screen is what separates "Play! renders text differently" from
 "ps2ui renders text wrongly", and until one has, this is not a defect
 against the renderer.
 
-### The step 6 probe — six columns, one variable each
+### The step 6 probe — seven columns, one variable each
 
 `make -C runtime/sample PROBE6=1` builds `probe6.elf`; CI ships it in
-the artifact.
+the artifact alongside `probe6-linear.elf`, its deliberate-fault twin.
 
-**Its first design was aimed at the wrong thing, and that is worth
-recording.** v1 drew one texture with and without a `+0.5` UV bias,
-because the glyph artifact looked like the classic half-texel question.
-Then the alignment card was captured from the same emulator and read
-**crisp on all three rungs** — through the identical
-`gsKit_prim_sprite_texture` path. Sampling is not uniformly broken, so
-v1 would have tested the configuration that already works: two clean
-seams at a bench, read as "nothing wrong here", operator sent
-elsewhere.
+**Both prior designs failed, and the record is the point.** v1 drew one
+texture with and without a `+0.5` UV bias — and would have tested the
+configuration that already works, since the alignment card reads crisp
+through the identical `gsKit_prim_sprite_texture` path. v2 replaced it
+with six columns over a periodic checker, and the bench **voided it
+twice**: its first run carried the very fault class it was probing
+(the DMA-truncation garble, with no column immune by construction to
+say so), and its second run's leftmost calibration column seamed —
+which v2's own reading table defines as "the probe is wrong". The
+checker itself was the deeper fault: its 16-texel period divides 64,
+so a texture-stride (TBW) fault — the one hypothesis the wide-atlas
+column existed for — shifts every row by a multiple of the period and
+renders as a perfectly clean column. An instrument blind to its own
+hypothesis, twice voided, got rebuilt rather than patched.
 
-What the card does not do is anything a glyph does:
+v3 changes three things and keeps the one-variable ladder:
 
-| | test card — crisp | glyph — wrong |
-|---|---|---|
-| format | PSMCT32 | **PSMT8 + CLUT** |
-| UV origin | `(0,0)` | `(1,1)`, `(11,1)`, … |
-| drawn | 64×64 | 9×9 |
+**The pattern is aperiodic** (`runtime/sample/probe6_pattern.h`):
+vertical bars of irregular width from a constant whose 16-cell windows
+disagree with *every* cell shift 1–31 of themselves — pinned by the
+host test suite against the exact bits the console draws, and
+falsified (the old checker constant goes red on precisely the pins its
+blindness names). No texel shift can render as alignment; a stride
+fault turns the bars into a staircase that needs no reference band at
+all. Bars carry no vertical information, so one horizontal stripe per
+band is the V axis.
 
-Three differences at once. So the question is no longer *which UV
-convention* but *which of these breaks it*, and the probe gives each
-one a column:
+**Column A is immune by construction**: CT32 (no CLUT), a 64-texel
+atlas (TBW=1, the minimum — no stride to get wrong), UV origin at the
+corner, one quad at 1:1, from a 16-aligned static buffer. Nothing this
+probe interrogates can fault in A, so "A misbehaves" now *means* the
+probe, panel, or capture is at fault — a confident VOID instead of
+last time's mystery.
 
-| column | format | atlas | UV origin | quads | isolates |
-|---|---|---|---|---|---|
-| A | CT32 | 128×128 | `(0,0)` | one | **the calibration** — must be seamless |
-| B | CT32 | 128×128 | `(3,3)` | one | a UV origin that is not the corner |
-| C | T8+CLUT | 128×128 | `(0,0)` | one | the indexed path |
-| D | T8+CLUT | 128×128 | `(3,3)` | one | both |
-| E | T8+CLUT | 128×128 | `(3,3)` | 8×8 | and at glyph scale |
-| F | T8+CLUT | **256×64** | `(3,3)` | 8×8 | and the real atlas geometry |
+**Column G reads the CLUT convention.** The CSM1 permutation is an
+involution, so from inside the renderer "applied once" and "applied
+twice or never" are unprovable — and the emulator's RMSE gate cannot
+tell either: the wrong convention moves the UI diff by ~0.02, inside
+tolerance by design. G's texels use indices 8 and 16 — the smallest
+pair the permutation exchanges — through a palette built by the same
+`PS2UI_CLUT_PERMUTE` toggle `ps2ui.c` uses, over a pattern whose ON
+share is deliberately ~59%, so the verdict is an **area of colour**:
+right convention = mostly orange, wrong = mostly teal. An area share
+survives any capture scaling, which is what lets a machine read it —
+`tools/read_probe6.py` gates on it in CI, on both arms: `probe6.elf`
+must read orange-dominant and `probe6-linear.elf` teal-dominant, so
+the runtime's convention and the instrument's ability to see the fault
+are convicted together, every run.
 
-**Column F exists because texture geometry is a variable too**, and the
-first five columns held it constant at a value matching nothing:
+| column | format | atlas | TBW | UV origin | quads | isolates |
+|---|---|---|---|---|---|---|
+| A | CT32 | 64×64 | 1 | `(0,0)` | one | **immune calibration** |
+| B | CT32 | 128×128 | 2 | `(0,0)` | one | a TBW=2 atlas |
+| C | CT32 | 128×128 | 2 | `(3,3)` | one | a non-corner origin |
+| D | T8+CLUT | 128×128 | 2 | `(3,3)` | one | the indexed path |
+| E | T8+CLUT | 128×128 | 2 | `(3,3)` | 8×8 | glyph-scale quads |
+| F | T8+CLUT | **256×64** | **4** | `(3,3)` | 8×8 | the real atlas geometry |
+| G | T8+CLUT | 256×64 | 4 | `(3,3)` | 8×8 | **the CLUT convention** (indices 8/16) |
 
-| | atlas | TBW |
-|---|---|---:|
-| test card — crisp | 64×64 CT32 | 1 |
-| columns A–E | 128×128 | 2 |
-| every shipped font atlas — the suspect | **256×64 PSMT8** | **4** |
+Columns A–F use CLUT indices 0 and 1 only — fixed points of the CSM1
+permutation, so the addressing columns cannot read a swizzle fault as
+an addressing one. G owns the swizzle question and uses the exchanged
+pair; its band is orange/teal where the others are grey, so its
+verdict never mixes with theirs. `TEX0.TBW` is texture buffer width in
+units of 64 texels; every shipped font atlas is 256-wide PSMT8
+(TBW=4), which is what F and G stand on.
 
-`TEX0.TBW` is texture buffer width in units of 64 texels, so a
-256-wide atlas addresses differently from a square 128-wide one. Had
-the cause lived there, A–E would all have come back clean and been read
-as *"not the format, not the origin, not the scale"* — an answer nobody
-can act on, and the same shape of mistake as this probe's v1.
+Every column draws the same 64×48 pattern at 1:1 with an untextured
+reference of itself directly beneath, phase-shifted by that column's
+own UV origin. A solid sprite cannot address a texture wrongly — and
+cannot fetch a palette entry either, so G's reference shows the
+correct colours whichever arm of the convention the textured band is
+on.
 
-Every column draws the same 72×48 checker at 1:1, with an untextured
-reference of that image directly beneath — phase-shifted by that
-column's own UV origin, so each reference is what *that* column should
-look like. One seam per column.
-
-**Read it as: which seam is visible.** A solid sprite cannot address a
-texture wrongly, so the reference band is what correct looks like and
-the boundary either disappears or it does not.
+**Read it as: bars straight → bars continuous across the join → G's
+colour.** The bench-runbook carries the operator's verdict table.
 
 | what you see | verdict |
 |---|---|
-| every seam invisible | none of these reproduces the artifact — look further out |
-| A seamless, one of B–F visible | **that column names the cause** |
-| **A visible** | **VOID** — the probe is wrong, not the renderer |
-| several visible | read the leftmost; the columns are cumulative |
+| all straight, all continuous, G mostly orange | none of these faults is present |
+| A clean, one of B–F kinked or leaning | **that column names the cause** |
+| **A faulty** | **VOID** — the probe, panel, or capture is wrong, not the renderer |
+| G mostly teal | **the CLUT convention is wrong** — a separate verdict from the seams |
+| several faulty | read the leftmost; the columns are cumulative |
 
-The CLUT uses indices 0 and 1 only. The GS permutes bits 3 and 4 of a
-palette index for CLUT storage (CSM1), and 0 and 1 are fixed points of
-that permutation — so this probe cannot read a swizzle fault as an
-addressing one. Step 3 owns the swizzle; this is step 6.
+**"No ps2ui involved" held for v1 and v2 and is now false in exactly
+one place, on purpose:** column G calls `ps2ui_clut_csm1` and honours
+`PS2UI_CLUT_PERMUTE`, because the mapping under test is the runtime's
+and a re-implementation would test a copy. Everything else still asks
+the GS directly.
 
-**The `+0.5` bias is not among the columns**, and by now not because
-testing a fix before reproducing the fault is backwards — though it is
-— but because the arithmetic above shows it is not a fix at all. It
-would move every pixel one texel past its target. Nothing here should
-grow a column for it.
+**The `+0.5` bias is still not among the columns** — testing a fix
+before reproducing a fault is backwards, and the v2 arithmetic showing
+it would move every pixel a texel past its target still stands.
 
-**No text anywhere**, deliberately: text is the thing under suspicion,
-and labelling the bands through the glyph path would be asking the
-suspect to testify. Position identifies them; this table says which is
-which.
+**No text anywhere**, still: text is the thing under suspicion, and
+labelling the bands through the glyph path would be asking the suspect
+to testify. Position identifies them; this table says which is which.
 
-Everything is drawn at 1:1. A quad drawn at any size other than its UV
-span makes the GS resample, and a resampled pattern degrades for
-reasons unrelated to addressing. Six `#error` guards hold the geometry
-inside the title-safe box, keep the sub-rect inside both atlases, keep
-the wide atlas a whole number of TBW units, and keep the glyph-sized
-quads tiling the band exactly; each was verified to fire on the fault
-it names. Two needed separate cases from the ones that would otherwise
-mask them: the horizontal safe-box guard, and the wide atlas's height,
-which runs out before the square atlas's does and so is invisible to
-that check.
+Everything is drawn at 1:1 — a resampled pattern degrades for reasons
+unrelated to addressing. Seven `#error` guards hold the geometry
+(safe box, sub-rect fits in all three atlases, whole TBW units, glyph
+tiling, stripe in the band's interior), each verified to fire on the
+fault it names; the pattern's aperiodicity, transition density, ON
+share, and stripe behaviour are pinned by `test_runtime.c` because a
+compile guard cannot compute them.
 
 ## 7. Scissor nesting
 

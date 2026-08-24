@@ -458,90 +458,110 @@ static void probe_frame(GSGLOBAL *gs)
 
 #ifdef PS2UI_SAMPLE_PROBE6
 /* Bring-up step 6 as a program: which part of the textured path is
- * sampling outside the texels it asked for?
+ * addressing texels it was not asked for -- and, since the rebuild,
+ * which side of the CLUT convention this stack is on.
  *
- * HISTORY, because this probe's first design was aimed at the wrong
- * thing and the record is the point. The emulator's UI capture came
- * back with every text run differing while flat quads matched -- at 4x,
- * `Library` reads `Liibrarny`, each glyph carrying a sliver of its
- * neighbour in the ATLAS. That looked like the classic half-texel UV
- * question, so v1 of this probe drew one texture with and without a
- * +0.5 bias.
+ * HISTORY, because both prior designs failed and the record is the
+ * point. v1 drew one texture with and without a +0.5 UV bias -- the
+ * classic half-texel question -- and would have tested the
+ * configuration that already works: the alignment card, through the
+ * identical gsKit_prim_sprite_texture path, reads crisp. v2 replaced
+ * it with six columns, one variable each, over a periodic checker.
+ * The bench voided v2 twice: its first run carried the very fault
+ * class it was probing (the DMA-truncation garble, with no column
+ * immune by construction to say so), and its second run's leftmost
+ * calibration column seamed, which its own reading table defines as
+ * "the probe is wrong". The checker itself was the deeper fault: its
+ * 16-texel period divides 64, so a texture-stride (TBW) fault -- the
+ * one hypothesis the wide-atlas column existed for -- shifts every
+ * row by a multiple of the period and renders as a perfectly clean
+ * column. An instrument blind to its own hypothesis, twice voided,
+ * got rebuilt rather than patched.
  *
- * Then the alignment test card was captured from the same emulator and
- * read CRISP on all three rungs. The card goes through the identical
- * gsKit_prim_sprite_texture path. So sampling is not uniformly broken,
- * and v1 would have tested the configuration that already works --
- * shown two clean seams at a bench, been read as "nothing wrong here",
- * and sent the operator looking elsewhere.
+ * v3, this one, changes three things and keeps the ladder:
  *
- * What the card does NOT do is anything a glyph does:
+ *   - the pattern is APERIODIC (probe6_pattern.h): vertical bars from
+ *     a constant whose windows disagree with every shift of
+ *     themselves, pinned by the host test suite against the exact
+ *     bits. No texel shift can render as alignment; a stride fault
+ *     turns the bars into a staircase that needs no reference at all.
+ *     One horizontal stripe carries the V axis.
+ *   - column A is IMMUNE BY CONSTRUCTION: CT32 (no CLUT), a 64-texel
+ *     atlas (TBW=1, the minimum -- no stride to get wrong), UV origin
+ *     at the corner, one quad at 1:1, from a 16-aligned static buffer.
+ *     Nothing this probe interrogates can fault in A, so "A seams"
+ *     now MEANS the probe, panel, or capture is at fault -- a
+ *     confident VOID instead of last time's mystery.
+ *   - column G reads the CLUT CONVENTION: same geometry as F, but its
+ *     texels use indices 8 and 16 -- the smallest pair the CSM1
+ *     permutation exchanges (pinned: test_runtime.c "csm1 swaps
+ *     8 <-> 16") -- through a palette built by the same
+ *     PS2UI_CLUT_PERMUTE toggle ps2ui.c uses. The permutation is an
+ *     involution, so from inside the renderer "applied once" and
+ *     "applied twice or never" are unprovable; G makes the GS say
+ *     which, as areas of colour: right convention = mostly orange
+ *     (the pattern's ON share is 38/64 by design), wrong = mostly
+ *     teal. That flip survives any capture scaling, which is what
+ *     lets CI read it -- the RMSE gate passes a wrong CLUT convention
+ *     with 1.6 of tolerance to spare (see hw.yml), and G is the
+ *     instrument built for exactly that blindness.
  *
- *     test card, crisp   PSMCT32   UVs (0,0)-(64,64)    drawn 64x64
- *     glyph, wrong       PSMT8+CLUT  UVs (1,1)-(10,10)  drawn 9x9
+ * The ladder, one variable per step:
  *
- * Three differences at once, so the question is no longer "which UV
- * convention" but "which of these breaks it". Hence one variable per
- * column:
+ *     A  CT32,   64x64,  UV (0,0), one quad   immune calibration
+ *     B  CT32,  128x128, UV (0,0), one quad   + a TBW=2 atlas
+ *     C  CT32,  128x128, UV (3,3), one quad   + a non-corner origin
+ *     D  T8+CLUT, 128x128, UV (3,3), one quad + the indexed path
+ *     E  T8+CLUT, 128x128, UV (3,3), 8x8      + glyph-scale quads
+ *     F  T8+CLUT, 256x64,  UV (3,3), 8x8      + the real atlas (TBW=4)
+ *     G  as F, indices 8/16 via the runtime's CLUT convention
  *
- *     A  CT32, UV origin (0,0)      the control: must be seamless
- *     B  CT32, UV origin (3,3)      a UV origin that is not the corner
- *     C  T8+CLUT, UV origin (0,0)   the indexed path
- *     D  T8+CLUT, UV origin (3,3)   both
- *     E  T8+CLUT, origin (3,3), assembled from GLYPH-SIZED quads
+ * Every column draws the same 64x48 pattern at 1:1 with an untextured
+ * reference of the same pattern directly beneath, phase-shifted by
+ * that column's own UV origin. The reading stays "which column's seam
+ * is visible": a solid sprite cannot address a texture wrongly. G
+ * additionally reads in colour -- its bands are orange/teal where the
+ * others are grey/dark, so the eye (and the capture fingerprint)
+ * separates its verdict from the geometry ones.
  *
- * Every column draws the same 88x64 image from the same 128x128 atlas
- * at 1:1, with an untextured reference of that image directly beneath.
- * One seam per column. The column whose seam is visible names the
- * cause; column A is the calibration, and a seam there means the probe
- * is wrong rather than the renderer.
+ * "No ps2ui involved" held for v1 and v2 and is now false in exactly
+ * one place, on purpose: G calls ps2ui_clut_csm1 (and honours
+ * PS2UI_CLUT_PERMUTE, so `make LINEAR_CLUT=1 PROBE6=1` builds the
+ * falsification arm that must render teal-dominant). The mapping
+ * under test is the runtime's; a re-implementation here would test a
+ * copy. Everything else still asks the GS directly.
  *
- * Note what is NOT tested: the +0.5 bias. Testing a candidate fix
- * before reproducing the fault is backwards -- once a column shows the
- * artifact, that column is where a bias belongs.
- *
- * NO TEXT ANYWHERE, deliberately. Text is the thing under suspicion,
- * and labelling these bands through the glyph path would be asking the
- * suspect to testify. Position identifies them; docs/bringup.md carries
- * the table.
+ * NO TEXT ANYWHERE, still: text is the thing under suspicion, and
+ * labelling the bands through the glyph path would be asking the
+ * suspect to testify. Position identifies them; docs/bringup.md
+ * carries the table.
  *
  * Everything is 1:1. A quad drawn at any size other than its UV span
  * makes the GS resample, and a resampled pattern degrades for reasons
- * that have nothing to do with addressing -- the same warning the test
- * card's own self-test carries. */
-#define P6_ATLAS    128          /* square atlas side, in texels */
-/* The real font atlas geometry, and the reason column F exists. Every
- * shipped blob packs glyphs into a 256-wide PSMT8 atlas -- memcard
- * 256x64, channel-6 256x64 and 256x128 -- and TEX0.TBW is texture
- * buffer width in units of 64 texels, so those are TBW=4. The crisp
- * test card is 64x64 (TBW=1) and the square atlas above is 128x128
- * (TBW=2): between them the first five columns matched neither the
- * known-good case nor the suspect one, and held the difference fixed
- * at a third value. A cause living in TBW or in the non-square shape
- * would have come back as five clean columns, read as "not the format,
- * not the origin, not the scale" -- an answer nobody can act on, which
- * is the exact failure this probe was rewritten to avoid. */
+ * that have nothing to do with addressing. */
+#include "probe6_pattern.h"
+
+#define P6_ATLAS_S  64           /* column A: one TBW unit exactly */
+#define P6_ATLAS_M  128          /* columns B..E */
+/* The real font atlas geometry. Every shipped blob packs glyphs into
+ * a 256-wide PSMT8 atlas -- memcard 256x64, channel-6 256x64 and
+ * 256x128 -- and TEX0.TBW is texture buffer width in units of 64
+ * texels, so those are TBW=4. Columns F and G stand on it. */
 #define P6_WIDE_W   256
 #define P6_WIDE_H   64
-#define P6_W        72           /* drawn width, in pixels and texels */
+#define P6_W        64           /* drawn width, in pixels and texels */
 #define P6_H        48           /* one band's height */
-#define P6_CELL     8            /* checker cell, in texels */
 #define P6_OFF      3            /* the "not the corner" UV origin */
-#define P6_COLS     6
+#define P6_COLS     7
 #define P6_GAP      10
-#define P6_X0       79
+#define P6_X0       66
 #define P6_TOP_Y    150
-#define P6_GLYPH_W  8            /* columns E and F: glyph-scale quads */
+#define P6_GLYPH_W  8            /* columns E..G: glyph-scale quads */
 #define P6_GLYPH_H  8
 
-/* A checker, not bars: a sampling error in either axis breaks alignment
- * with the reference, and with one column per hypothesis there is no
- * room to draw U and V separately. */
-
-/* Mid-tones. The step 2 probe learned this expensively -- a phone
- * against a panel clips the top of the range, so references 40 units
- * apart came back indistinguishable. These two are far apart in luma
- * and both inside what a camera resolves. */
+/* Mid-tones, for the same reason as the step 2 probe: a phone against
+ * a panel clips the top of the range, so the two levels must be far
+ * apart in luma and both inside what a camera resolves. */
 #define P6_ON_R  0xc0
 #define P6_ON_G  0xc0
 #define P6_ON_B  0xc0
@@ -549,7 +569,37 @@ static void probe_frame(GSGLOBAL *gs)
 #define P6_OFF_G 0x24
 #define P6_OFF_B 0x30
 
-#if (P6_ATLAS - P6_OFF) < P6_W || (P6_ATLAS - P6_OFF) < P6_H
+/* Column G's pair, chosen to be far apart in HUE rather than luma:
+ * the fault G reads is an exchange of the two colours, and an
+ * exchange of two greys is invisible in a fingerprint. Orange and
+ * teal appear nowhere else in any probe or example, so their shares
+ * in a capture belong to G alone. */
+#define P6G_ON_R  0xd0           /* orange = the pattern's ON cells */
+#define P6G_ON_G  0x80
+#define P6G_ON_B  0x20
+#define P6G_OFF_R 0x20           /* teal = OFF cells */
+#define P6G_OFF_G 0x68
+#define P6G_OFF_B 0x68
+/* The smallest index pair the CSM1 permutation exchanges (it swaps
+ * bits 3 and 4). Everything below 8 is a fixed point and would make G
+ * convention-blind -- which is precisely why the OTHER columns use
+ * indices 0 and 1: their question is addressing, and a swizzle fault
+ * must not be readable as an addressing one there. */
+#define P6G_IDX_ON  8
+#define P6G_IDX_OFF 16
+
+/* Mirrors ps2ui.c. LINEAR_CLUT=1 passes -DPS2UI_CLUT_PERMUTE=0 to
+ * every object in the build, this file included; the default must
+ * match ps2ui.c's or the two halves of the A/B would disagree about
+ * which arm they are. */
+#ifndef PS2UI_CLUT_PERMUTE
+#define PS2UI_CLUT_PERMUTE 1
+#endif
+
+#if P6_ATLAS_S < P6_W || P6_ATLAS_S < P6_H
+#error "step 6 probe: the band does not fit column A's atlas"
+#endif
+#if (P6_ATLAS_M - P6_OFF) < P6_W || (P6_ATLAS_M - P6_OFF) < P6_H
 #error "step 6 probe: the offset sub-rect does not fit inside the atlas"
 #endif
 /* Separately from the square one: the wide atlas is only 64 tall, so
@@ -564,27 +614,18 @@ static void probe_frame(GSGLOBAL *gs)
 #if (P6_W % P6_GLYPH_W) != 0 || (P6_H % P6_GLYPH_H) != 0
 #error "step 6 probe: glyph-sized quads must tile the band exactly"
 #endif
-/* The band must be an EVEN number of checker rows.
- *
- * The two bands are the same image stacked, so with an odd row count
- * the last row of the upper band and the first row of the lower one
- * land on the same phase and merge into one double-height row. That is
- * a visible feature at every join, in every column, whether the column
- * is faulty or not -- and the whole reading is "is there something at
- * the join". It shipped at 56px (7 rows) and made the probe unreadable
- * by eye at a bench; the CI measurement compares the two bands as
- * images and never noticed. */
-#if ((P6_H / P6_CELL) % 2) != 0
-#error "step 6 probe: band height must be an even number of checker rows, or every join shows a false seam"
+/* The stripe is the V axis; hard against a band edge it reads as the
+ * edge. Interior on both sides, with room for a shift of a few texels
+ * to move it visibly rather than off the band. */
+#if P6_STRIPE_Y0 < 8 || (P6_STRIPE_Y0 + P6_STRIPE_H) > (P6_H - 8)
+#error "step 6 probe: the stripe must sit in the band's interior"
 #endif
-/* Not "H is a whole number of cells" -- that cannot fire while the
- * glyph quad and the checker cell are the same size, so it would be a
- * guard with no reachable failure. This is the invariant that makes the
- * tiling guard above sufficient; break the equality and you get told
- * rather than silently losing the coverage. */
-#if P6_CELL != P6_GLYPH_H || P6_CELL != P6_GLYPH_W
-#error "step 6 probe: cell and glyph-quad size have diverged, so the tiling guard no longer implies whole checker rows"
-#endif
+/* v2 guarded "band height = even checker rows" here, because stacking
+ * two copies of a periodic checker manufactures a false feature at
+ * every join when the phase is odd. Bars are constant in y, so two
+ * stacked copies are continuous by construction and that guard has
+ * nothing left to hold; the stripe appearing once per band is the
+ * expected picture, not a seam. */
 #define P6_SPAN (P6_COLS * P6_W + (P6_COLS - 1) * P6_GAP)
 #if P6_X0 < PROBE_SAFE_X0 || (P6_X0 + P6_SPAN) > PROBE_SAFE_X1
 #error "step 6 probe runs outside the title-safe box horizontally"
@@ -593,111 +634,133 @@ static void probe_frame(GSGLOBAL *gs)
 #error "step 6 probe runs outside the title-safe box vertically"
 #endif
 
-static u32 p6_ct32[P6_ATLAS * P6_ATLAS] __attribute__((aligned(16)));
-static unsigned char p6_idx8[P6_ATLAS * P6_ATLAS] __attribute__((aligned(16)));
+static u32 p6_small[P6_ATLAS_S * P6_ATLAS_S] __attribute__((aligned(16)));
+static u32 p6_ct32[P6_ATLAS_M * P6_ATLAS_M] __attribute__((aligned(16)));
+static unsigned char p6_idx8[P6_ATLAS_M * P6_ATLAS_M] __attribute__((aligned(16)));
 static unsigned char p6_wide[P6_WIDE_W * P6_WIDE_H] __attribute__((aligned(16)));
+static unsigned char p6_gwide[P6_WIDE_W * P6_WIDE_H] __attribute__((aligned(16)));
 static u32 p6_clut[256] __attribute__((aligned(16)));
-static GSTEXTURE p6_tex32, p6_tex8, p6_tex8w;
+static u32 p6g_clut[256] __attribute__((aligned(16)));
+static GSTEXTURE p6_tex32s, p6_tex32, p6_tex8, p6_tex8w, p6_tex8g;
 
 /* GS_PSM_CT32 texels are little-endian ABGR in memory. */
 #define P6_TEXEL(r, g, b) \
     ((u32)(r) | ((u32)(g) << 8) | ((u32)(b) << 16) | ((u32)0x80 << 24))
 
-static int p6_on(int x, int y)
-{
-    return (((x / P6_CELL) + (y / P6_CELL)) & 1) == 0;
-}
-
 static void p6_fill(void)
 {
     int x, y, i;
-    for (y = 0; y < P6_ATLAS; y++) {
-        for (x = 0; x < P6_ATLAS; x++) {
-            int on = p6_on(x, y);
-            p6_ct32[y * P6_ATLAS + x] = on
+    for (y = 0; y < P6_ATLAS_S; y++)
+        for (x = 0; x < P6_ATLAS_S; x++)
+            p6_small[y * P6_ATLAS_S + x] = p6_on(x, y)
                 ? P6_TEXEL(P6_ON_R, P6_ON_G, P6_ON_B)
                 : P6_TEXEL(P6_OFF_R, P6_OFF_G, P6_OFF_B);
-            /* Indices 0 and 1 only. The GS permutes bits 3 and 4 of a
-             * palette index for CLUT storage (CSM1, see ps2ui_clut_csm1)
-             * and 0 and 1 are fixed points of that permutation, so this
-             * probe cannot be reading a swizzle fault as an addressing
-             * one. Step 3 owns the swizzle; this is step 6. */
-            p6_idx8[y * P6_ATLAS + x] = (unsigned char)(on ? 1 : 0);
+    for (y = 0; y < P6_ATLAS_M; y++) {
+        for (x = 0; x < P6_ATLAS_M; x++) {
+            int on = p6_on(x, y);
+            p6_ct32[y * P6_ATLAS_M + x] = on
+                ? P6_TEXEL(P6_ON_R, P6_ON_G, P6_ON_B)
+                : P6_TEXEL(P6_OFF_R, P6_OFF_G, P6_OFF_B);
+            /* Indices 0 and 1 only: fixed points of the CSM1
+             * permutation, so the addressing columns cannot read a
+             * swizzle fault as an addressing one. G owns the swizzle
+             * question and uses the exchanged pair. */
+            p6_idx8[y * P6_ATLAS_M + x] = (unsigned char)(on ? 1 : 0);
         }
     }
-    /* Same pattern, real font-atlas geometry. Filled from the same
-     * p6_on() so column F's reference band is the one every other
-     * column uses -- only the buffer width underneath it changes. */
-    for (y = 0; y < P6_WIDE_H; y++)
-        for (x = 0; x < P6_WIDE_W; x++)
-            p6_wide[y * P6_WIDE_W + x] = (unsigned char)(p6_on(x, y) ? 1 : 0);
+    /* Same pattern over the real font-atlas geometry, filled from the
+     * same p6_on() every band uses -- only what is underneath the
+     * pattern changes between columns. */
+    for (y = 0; y < P6_WIDE_H; y++) {
+        for (x = 0; x < P6_WIDE_W; x++) {
+            int on = p6_on(x, y);
+            p6_wide[y * P6_WIDE_W + x] = (unsigned char)(on ? 1 : 0);
+            p6_gwide[y * P6_WIDE_W + x] =
+                (unsigned char)(on ? P6G_IDX_ON : P6G_IDX_OFF);
+        }
+    }
     for (i = 0; i < 256; i++)
         p6_clut[i] = P6_TEXEL(P6_OFF_R, P6_OFF_G, P6_OFF_B);
     p6_clut[1] = P6_TEXEL(P6_ON_R, P6_ON_G, P6_ON_B);
+
+    /* Column G's palette, built the way ps2ui.c builds every shipped
+     * CLUT: author it linearly, then place entry i at ps2ui_clut_csm1(i)
+     * -- or at i, when LINEAR_CLUT=1 builds the falsification arm.
+     * ps2ui.c's permute_clut is static, so this mirrors its loop under
+     * the same macro and through the same exported mapping; the mapping
+     * is the thing under test, and a local re-implementation would test
+     * a copy of it. Unused entries are magenta: no index but 8 and 16
+     * exists in G's texels, so magenta anywhere means the probe's own
+     * data is corrupt, not that a convention is wrong. */
+    {
+        u32 lin[256];
+        for (i = 0; i < 256; i++)
+            lin[i] = P6_TEXEL(0x90, 0x00, 0x90);
+        lin[P6G_IDX_ON]  = P6_TEXEL(P6G_ON_R,  P6G_ON_G,  P6G_ON_B);
+        lin[P6G_IDX_OFF] = P6_TEXEL(P6G_OFF_R, P6G_OFF_G, P6G_OFF_B);
+        for (i = 0; i < 256; i++) {
+#if PS2UI_CLUT_PERMUTE
+            p6g_clut[ps2ui_clut_csm1((uint32_t)i)] = lin[i];
+#else
+            p6g_clut[i] = lin[i];
+#endif
+        }
+    }
 }
 
-static int p6_upload(GSGLOBAL *gs)
+static int p6_tex_init(GSGLOBAL *gs, GSTEXTURE *t, int w, int h, int psm,
+                       void *mem, u32 *clut)
 {
-    memset(&p6_tex32, 0, sizeof p6_tex32);
-    p6_tex32.Width  = P6_ATLAS;
-    p6_tex32.Height = P6_ATLAS;
-    p6_tex32.PSM    = GS_PSM_CT32;
+    memset(t, 0, sizeof *t);
+    t->Width  = w;
+    t->Height = h;
+    t->PSM    = (u8)psm;
     /* NEAREST, matching ps2ui.c. Under bilinear a boundary UV averages
      * its neighbours into mush; under nearest it rounds, and rounding
      * is what duplicates a column -- the shape of the artifact. Testing
      * the other filter would answer a question nobody asked. */
-    p6_tex32.Filter = GS_FILTER_NEAREST;
-    p6_tex32.Mem    = p6_ct32;
-    p6_tex32.Vram   = gsKit_vram_alloc(gs,
-        gsKit_texture_size(P6_ATLAS, P6_ATLAS, GS_PSM_CT32),
-        GSKIT_ALLOC_USERBUFFER);
-    if (p6_tex32.Vram == GSKIT_ALLOC_ERROR)
+    t->Filter = GS_FILTER_NEAREST;
+    t->Mem    = (u32 *)mem;
+    t->Vram   = gsKit_vram_alloc(gs, gsKit_texture_size(w, h, psm),
+                                 GSKIT_ALLOC_USERBUFFER);
+    if (t->Vram == GSKIT_ALLOC_ERROR)
         return -1;
-    gsKit_texture_upload(gs, &p6_tex32);
+    if (clut) {
+        t->ClutPSM  = GS_PSM_CT32;
+        t->Clut     = clut;
+        t->VramClut = gsKit_vram_alloc(gs,
+            gsKit_texture_size(16, 16, GS_PSM_CT32), GSKIT_ALLOC_USERBUFFER);
+        if (t->VramClut == GSKIT_ALLOC_ERROR)
+            return -1;
+    }
+    gsKit_texture_upload(gs, t);
+    return 0;
+}
 
-    memset(&p6_tex8, 0, sizeof p6_tex8);
-    p6_tex8.Width   = P6_ATLAS;
-    p6_tex8.Height  = P6_ATLAS;
-    p6_tex8.PSM     = GS_PSM_T8;
-    p6_tex8.ClutPSM = GS_PSM_CT32;
-    p6_tex8.Filter  = GS_FILTER_NEAREST;
-    p6_tex8.Mem     = (u32 *)(void *)p6_idx8;
-    p6_tex8.Clut    = p6_clut;
-    p6_tex8.Vram    = gsKit_vram_alloc(gs,
-        gsKit_texture_size(P6_ATLAS, P6_ATLAS, GS_PSM_T8),
-        GSKIT_ALLOC_USERBUFFER);
-    if (p6_tex8.Vram == GSKIT_ALLOC_ERROR)
+static int p6_upload(GSGLOBAL *gs)
+{
+    if (p6_tex_init(gs, &p6_tex32s, P6_ATLAS_S, P6_ATLAS_S, GS_PSM_CT32,
+                    p6_small, NULL) != 0)
         return -1;
-    p6_tex8.VramClut = gsKit_vram_alloc(gs,
-        gsKit_texture_size(16, 16, GS_PSM_CT32), GSKIT_ALLOC_USERBUFFER);
-    if (p6_tex8.VramClut == GSKIT_ALLOC_ERROR)
+    if (p6_tex_init(gs, &p6_tex32, P6_ATLAS_M, P6_ATLAS_M, GS_PSM_CT32,
+                    p6_ct32, NULL) != 0)
         return -1;
-    gsKit_texture_upload(gs, &p6_tex8);
-
-    memset(&p6_tex8w, 0, sizeof p6_tex8w);
-    p6_tex8w.Width   = P6_WIDE_W;
-    p6_tex8w.Height  = P6_WIDE_H;
-    p6_tex8w.PSM     = GS_PSM_T8;
-    p6_tex8w.ClutPSM = GS_PSM_CT32;
-    p6_tex8w.Filter  = GS_FILTER_NEAREST;
-    p6_tex8w.Mem     = (u32 *)(void *)p6_wide;
-    p6_tex8w.Clut    = p6_clut;
-    p6_tex8w.Vram    = gsKit_vram_alloc(gs,
-        gsKit_texture_size(P6_WIDE_W, P6_WIDE_H, GS_PSM_T8),
-        GSKIT_ALLOC_USERBUFFER);
-    if (p6_tex8w.Vram == GSKIT_ALLOC_ERROR)
+    if (p6_tex_init(gs, &p6_tex8, P6_ATLAS_M, P6_ATLAS_M, GS_PSM_T8,
+                    p6_idx8, p6_clut) != 0)
         return -1;
-    p6_tex8w.VramClut = gsKit_vram_alloc(gs,
-        gsKit_texture_size(16, 16, GS_PSM_CT32), GSKIT_ALLOC_USERBUFFER);
-    if (p6_tex8w.VramClut == GSKIT_ALLOC_ERROR)
+    if (p6_tex_init(gs, &p6_tex8w, P6_WIDE_W, P6_WIDE_H, GS_PSM_T8,
+                    p6_wide, p6_clut) != 0)
         return -1;
-    gsKit_texture_upload(gs, &p6_tex8w);
+    if (p6_tex_init(gs, &p6_tex8g, P6_WIDE_W, P6_WIDE_H, GS_PSM_T8,
+                    p6_gwide, p6g_clut) != 0)
+        return -1;
     return 0;
 }
 
 /* One textured band: the sub-rect at (off, off) drawn at 1:1. `step`
- * splits it into tiles of that size, so column E can assemble the same
- * image out of glyph-scale quads and nothing else about it changes. */
+ * splits it into tiles of that size, so the glyph-scale columns can
+ * assemble the same image out of glyph-sized quads and nothing else
+ * about them changes. */
 static void p6_band_tex(GSGLOBAL *gs, GSTEXTURE *t, int x0, int y0,
                         int off, int step_w, int step_h)
 {
@@ -715,15 +778,16 @@ static void p6_band_tex(GSGLOBAL *gs, GSTEXTURE *t, int x0, int y0,
     }
 }
 
-/* The same image with nothing sampled. This is the calibration, and it
- * is why the reading is a seam and not an opinion: a solid sprite
- * cannot address a texture wrongly. Phase-shifted by the column's own
- * UV origin, so each column's reference is what THAT column should
- * look like. */
-static void p6_band_ref(GSGLOBAL *gs, int x0, int y0, int off)
+/* The same image with nothing sampled. This is each column's ground
+ * truth, and it is why the reading is a seam and not an opinion: a
+ * solid sprite cannot address a texture wrongly, and cannot fetch a
+ * palette entry either -- so G's reference shows the CORRECT colours
+ * whichever arm of the convention the textured band above it is on.
+ * Phase-shifted by the column's own UV origin, so each reference is
+ * what THAT column should look like. */
+static void p6_band_ref(GSGLOBAL *gs, int x0, int y0, int off,
+                        u64 on, u64 off_c)
 {
-    u64 on  = GS_SETREG_RGBAQ(P6_ON_R,  P6_ON_G,  P6_ON_B,  0x80, 0x00);
-    u64 off_c = GS_SETREG_RGBAQ(P6_OFF_R, P6_OFF_G, P6_OFF_B, 0x80, 0x00);
     int x, y;
     for (y = 0; y < P6_H; y++) {
         for (x = 0; x < P6_W; ) {
@@ -740,26 +804,32 @@ static void p6_band_ref(GSGLOBAL *gs, int x0, int y0, int off)
 }
 
 static void p6_column(GSGLOBAL *gs, int col, GSTEXTURE *t, int off,
-                      int step_w, int step_h)
+                      int step_w, int step_h, u64 on, u64 off_c)
 {
     int x0 = P6_X0 + col * (P6_W + P6_GAP);
     p6_band_tex(gs, t, x0, P6_TOP_Y, off, step_w, step_h);
-    p6_band_ref(gs, x0, P6_TOP_Y + P6_H, off);
+    p6_band_ref(gs, x0, P6_TOP_Y + P6_H, off, on, off_c);
 }
 
 static void p6_frame(GSGLOBAL *gs)
 {
+    u64 on  = GS_SETREG_RGBAQ(P6_ON_R,  P6_ON_G,  P6_ON_B,  0x80, 0x00);
+    u64 off = GS_SETREG_RGBAQ(P6_OFF_R, P6_OFF_G, P6_OFF_B, 0x80, 0x00);
+    u64 gon  = GS_SETREG_RGBAQ(P6G_ON_R,  P6G_ON_G,  P6G_ON_B,  0x80, 0x00);
+    u64 goff = GS_SETREG_RGBAQ(P6G_OFF_R, P6G_OFF_G, P6G_OFF_B, 0x80, 0x00);
     gsKit_clear(gs, GS_SETREG_RGBAQ(PROBE_GND_R, PROBE_GND_G,
                                     PROBE_GND_B, 0x80, 0x00));
-    p6_column(gs, 0, &p6_tex32, 0,       P6_W,       P6_H);
-    p6_column(gs, 1, &p6_tex32, P6_OFF,  P6_W,       P6_H);
-    p6_column(gs, 2, &p6_tex8,  0,       P6_W,       P6_H);
-    p6_column(gs, 3, &p6_tex8,  P6_OFF,  P6_W,       P6_H);
-    p6_column(gs, 4, &p6_tex8,  P6_OFF,  P6_GLYPH_W, P6_GLYPH_H);
+    p6_column(gs, 0, &p6_tex32s, 0,      P6_W,       P6_H,       on, off);
+    p6_column(gs, 1, &p6_tex32,  0,      P6_W,       P6_H,       on, off);
+    p6_column(gs, 2, &p6_tex32,  P6_OFF, P6_W,       P6_H,       on, off);
+    p6_column(gs, 3, &p6_tex8,   P6_OFF, P6_W,       P6_H,       on, off);
+    p6_column(gs, 4, &p6_tex8,   P6_OFF, P6_GLYPH_W, P6_GLYPH_H, on, off);
     /* The closest replica of a real text run this probe can draw:
      * indexed, an origin off the corner, glyph-scale quads, and the
      * 256-wide atlas every shipped blob actually uses. */
-    p6_column(gs, 5, &p6_tex8w, P6_OFF,  P6_GLYPH_W, P6_GLYPH_H);
+    p6_column(gs, 5, &p6_tex8w,  P6_OFF, P6_GLYPH_W, P6_GLYPH_H, on, off);
+    /* And the same thing again asking the convention question. */
+    p6_column(gs, 6, &p6_tex8g,  P6_OFF, P6_GLYPH_W, P6_GLYPH_H, gon, goff);
 }
 #endif
 
@@ -827,7 +897,7 @@ int main(void)
     p6_fill();
     if (p6_upload(gs) != 0) {
         /* Solid olive = VRAM, the same as everywhere else in this file.
-         * Two 16 KiB textures cannot plausibly exhaust 4 MB, so this is
+         * Five small textures cannot plausibly exhaust 4 MB, so this is
          * really a guard against reading a blank probe as a verdict. */
         while (1) {
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x80, 0x80, 0x00, 0x80, 0x00));

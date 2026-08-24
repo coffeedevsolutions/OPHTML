@@ -187,13 +187,22 @@ jobs:
           make -C runtime/sample MINIMAL=1 EE_BIN=minimal.elf
           make -C runtime/sample objclean
           make -C runtime/sample PROBE=1 EE_BIN=probe.elf
-          # Bring-up step 6. One texture, two UV conventions, an
-          # untextured reference of the same pattern between them: the
-          # reading is which of the two seams vanished. No blob and no
-          # ps2ui -- it asks the GS directly, so its answer holds
-          # whatever else the renderer is doing.
+          # Bring-up step 6b. Seven columns over an aperiodic bar
+          # pattern, one variable per column, each above an untextured
+          # reference of itself: the reading is which column's seam is
+          # visible. No blob, and no ps2ui except in exactly one place:
+          # column G builds its palette through the runtime's own CLUT
+          # convention (ps2ui_clut_csm1 under PS2UI_CLUT_PERMUTE), so
+          # the pair of ELFs below is a machine-readable A/B on the
+          # convention itself. probe6-linear ships the wrong arm on
+          # purpose; the emulator job asserts that column G reads
+          # orange-dominant in the first and teal-dominant in the
+          # second, which convicts both the runtime's convention and
+          # the instrument's ability to see it, every run.
           make -C runtime/sample objclean
           make -C runtime/sample PROBE6=1 EE_BIN=probe6.elf
+          make -C runtime/sample objclean
+          make -C runtime/sample PROBE6=1 LINEAR_CLUT=1 EE_BIN=probe6-linear.elf
           # The bench instrument: cycling UI plus the once-a-second
           # telemetry line on stdout (PCSX2's console log captures it).
           make -C runtime/sample objclean
@@ -247,6 +256,7 @@ jobs:
           test -f runtime/sample/ps2ui_sample.elf
           test -f runtime/sample/probe.elf
           test -f runtime/sample/probe6.elf
+          test -f runtime/sample/probe6-linear.elf
           test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
           test -f runtime/sample/testcard.elf
@@ -262,6 +272,7 @@ jobs:
             runtime/sample/ps2ui_sample.elf
             runtime/sample/probe.elf
             runtime/sample/probe6.elf
+            runtime/sample/probe6-linear.elf
             runtime/sample/minimal.elf
             runtime/sample/telemetry.elf
             runtime/sample/testcard.elf
@@ -444,33 +455,58 @@ jobs:
             # reads as a pass whatever the frame contains.
             python3 tools/framediff.py probe.png --stats-only || true
           fi
-      - name: Bring-up step 6 — which UV convention does the GS want?
-        if: always()
+      - name: Bring-up step 6b — the probe's seams, and the CLUT verdict
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           GALLIUM_DRIVER: llvmpipe
           SDL_AUDIODRIVER: dummy
           ALSOFT_DRIVERS: "null"
         run: |
-          # Captured, not graded. This frame is read as two seams by a
-          # person; there is no threshold that turns "is there a line
-          # here" into a number without inventing one. The artifact is
-          # the deliverable, and docs/bringup.md carries the table.
-          xvfb-run -s "-screen 0 1280x896x24" sh -c '
-            ./squashfs-root/AppRun --fullscreen --elf elf/probe6.elf \
-              >probe6.log 2>&1 &
-            P=$!
-            sleep 20
-            if kill -0 $P 2>/dev/null; then
-              import -window root probe6.png
-            else
-              echo "step 6 probe ELF exited early:"; cat probe6.log
+          # The seam columns (A..F) are still captured, not graded: a
+          # person reads them, and the artifact is that deliverable.
+          # Column G is graded, here, as a gate. It renders indices the
+          # CSM1 permutation exchanges through the runtime's own CLUT
+          # convention, so its band is orange-dominant when the
+          # convention is right and teal-dominant when it is wrong --
+          # an AREA reading that survives the capture's scaling. This
+          # is the check the RMSE gate structurally cannot be: a wrong
+          # convention moves that diff ~0.02, inside tolerance by
+          # design (see the calibration comment below).
+          #
+          # Both arms run. probe6-linear ships the WRONG convention on
+          # purpose and must read `linear`: that leg convicts the
+          # instrument every run -- if G ever stops seeing the fault
+          # class, the falsification arm goes red, not silent.
+          #
+          # The reader proves it can fail before it is believed once.
+          python3 tools/read_probe6.py --self-test
+          for arm in probe6 probe6-linear; do
+            xvfb-run -s "-screen 0 1280x896x24" sh -c "
+              ./squashfs-root/AppRun --fullscreen --elf elf/$arm.elf \
+                >$arm.log 2>&1 &
+              P=\$!
+              sleep 20
+              if kill -0 \$P 2>/dev/null; then
+                import -window root ${arm}_raw.png
+              else
+                echo '$arm ELF exited early:'; cat $arm.log
+              fi
+              kill -9 \$P 2>/dev/null || true
+            "
+            if [ ! -f ${arm}_raw.png ]; then
+              echo "no $arm capture -- the gate cannot vouch"; exit 1
             fi
-            kill -9 $P 2>/dev/null || true
-          ' || true
-          if [ -f probe6.png ]; then
-            python3 tools/framediff.py probe6.png --stats-only || true
-          fi
+            # Same trim the UI capture gets, for the same reason: the
+            # reader's rectangles live in the 640x448 frame, and the
+            # raw root is Play!'s ~1.4x presentation on a desktop.
+            convert ${arm}_raw.png -fuzz 5% -trim +repage \
+              -resize 640x448\! $arm.png
+            python3 tools/framediff.py $arm.png --stats-only || true
+          done
+          echo "--- shipped convention: must read permuted ---"
+          python3 tools/read_probe6.py probe6.png --expect permuted
+          echo "--- falsification arm: must read linear ---"
+          python3 tools/read_probe6.py probe6-linear.png --expect linear
 
       - name: Trim the capture back to the framebuffer
         if: always()
@@ -692,6 +728,7 @@ jobs:
             framediff.png
             probe.png
             probe6.png
+            probe6-linear.png
             testcard.png
             linear.png
             linear_diff.png

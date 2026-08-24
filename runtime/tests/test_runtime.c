@@ -10,6 +10,10 @@
  * single include block for both targets, so the test names its own
  * dependency. */
 #include "../stub/gskit_stub.h"
+/* The step 6 probe's pattern bits, so the suite pins the aperiodicity
+ * the instrument's verdicts rest on -- against the exact constant the
+ * console draws, not a description of it. */
+#include "../sample/probe6_pattern.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -177,6 +181,63 @@ int main(int argc, char **argv)
         if (ps2ui_clut_csm1(ps2ui_clut_csm1((uint32_t)i)) != (uint32_t)i)
             break;
     CHECK(i == 256, "csm1 is an involution over 0..255");
+
+    /* ---- the step 6 probe's pattern is an instrument, not a picture ----
+     *
+     * The previous pattern was a periodic checker, and the periodicity
+     * voided the instrument: a TBW fault shifts each row's texels by a
+     * multiple of 64, every multiple of 64 was a multiple of the
+     * checker's period, and the one fault class the wide-atlas column
+     * existed for rendered as a clean column. These pins are what make
+     * the replacement's verdicts mean something; a constant that fails
+     * them is a picture. Each pin was falsified: the old checker
+     * (0xAAAA...) goes red on the shift pin at s=2 and on the share
+     * pin; an all-ones half (0xFFFFFFFF00000000) goes red on the
+     * transitions pin. */
+    {
+        /* Every 16-cell window disagrees with its own image at every
+         * cell shift 1..31 in at least 4 of 16 cells: no whole-cell
+         * texel shift -- 64 (a TBW unit) and the 4..12-texel DMA
+         * truncation class included -- can render as alignment. */
+        int s, w, ok_shift = 1, ok_trans = 1, on_cells = 0;
+        for (s = 1; s < 32 && ok_shift; s++)
+            for (w = 0; w + 16 + s <= P6_PAT_CELLS; w++) {
+                int c, d = 0;
+                for (c = 0; c < 16; c++)
+                    if (p6_bar((w + c) * P6_CELL) !=
+                        p6_bar((w + c + s) * P6_CELL))
+                        d++;
+                if (d < 4) { ok_shift = 0; break; }
+            }
+        CHECK(ok_shift,
+              "probe6 pattern: every 16-cell window breaks every cell shift 1..31");
+        /* Sub-cell shifts move bar EDGES, so every window must carry
+         * enough transitions to read a 1px offset at the seam. */
+        for (w = 0; w + 16 <= P6_PAT_CELLS; w++) {
+            int c, t = 0;
+            for (c = 1; c < 16; c++)
+                if (p6_bar((w + c) * P6_CELL) != p6_bar((w + c - 1) * P6_CELL))
+                    t++;
+            if (t < 5) { ok_trans = 0; break; }
+        }
+        CHECK(ok_trans,
+              "probe6 pattern: every 16-cell window has 5+ bar transitions");
+        /* Column G's verdict is an AREA flip: a wrong CLUT convention
+         * exchanges the two colours, so the ON share must sit far
+         * enough off 50% for the exchange to move the capture's colour
+         * fingerprint. A balanced pattern makes G unreadable. */
+        for (w = 0; w < P6_PAT_CELLS; w++)
+            on_cells += p6_bar(w * P6_CELL);
+        CHECK(on_cells >= 36 && on_cells <= 44,
+              "probe6 pattern: ON share is off-balance (36..44 of 64) for the G flip");
+        /* The stripe is the V axis: forced ON across every bar. */
+        for (w = 0; w < P6_PAT_CELLS; w++)
+            if (!p6_bar(w * P6_CELL))
+                break;
+        CHECK(w < P6_PAT_CELLS && p6_on(w * P6_CELL, P6_STRIPE_Y0) == 1
+                  && p6_on(w * P6_CELL, P6_STRIPE_Y0 + P6_STRIPE_H) == 0,
+              "probe6 pattern: stripe rows force ON over an OFF bar, and end");
+    }
 
     /* ---- upload ---- */
     vram_before = gs.CurrentPointer;
