@@ -288,6 +288,37 @@ VRAM footprint, blob size.
 > streaming covers while scrolling a windowed library; measurements
 > written down.
 
+Broken out, because three of the gate's four clauses are about the
+environment *running* and the first slice only proves it bakes:
+
+1. **The environment exists, bakes and loads.** **[shipped]**
+   `examples/opl-env`: six screens, 125 slots, ten streamed texture
+   slots, one overlay. 246,032-byte blob, 6,951-byte arena for the
+   whole environment, VRAM 392 KiB inside a 736 KiB budget. Carries the
+   `examples/` contract -- warning-free under `--strict`, screenshots
+   refreshed by building, `check-blobs` with no exemptions -- and CI
+   runs all three, which the first version did not.
+2. **A runtime driver.** An ELF that loads the environment, walks it
+   with the pad, and reports frame time and prim counts on screen.
+   Nothing loads `opl-env` on a console today, so nothing in clauses
+   3 or 4 can be measured.
+3. **The windowed library.** The gate names this explicitly and it is
+   the least-tested thing in the project: scrolling rebinds slot text
+   and streams new covers into the *fixed* reservations as the window
+   moves. Slot text and streaming have each been exercised alone and
+   never together under motion. The nine `data-repeat` rows are static
+   today.
+4. **Measure on hardware.** Frame time at field rate, prim counts,
+   VRAM, with the numbers written down beside the baked ones. Needs a
+   sitting, and needs 2 and 3 first.
+5. **File the gaps.** Ongoing, and the reason the phase exists. Three
+   from the first build: a runtime test harness that segfaulted on any
+   blob but one, single-line slots against a two-line dialog body, and
+   `--strict` catching a 12px focusable.
+
+`position: absolute` (F8) was **not** pulled: the overlay centres with
+flex and needed nothing. It stays in the pull lane.
+
 ### Phase 3 — Spend the hardware
 
 Optimization against Phase 2's numbers, not vibes:

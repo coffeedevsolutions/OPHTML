@@ -17,6 +17,7 @@
 #include "../sample/cover_pattern.h"
 #include "../sample/ladder_pattern.h"
 #include "../sample/ladder2_pattern.h"
+#include "../../examples/opl-env/window.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -182,6 +183,40 @@ int main(int argc, char **argv)
 
     /* ---- loader ---- */
     CHECK(load_arena(&ctx, blob, len) == PS2UI_OK, "load real blob");
+
+    /* This suite is written against ONE blob -- the memcard example --
+     * and asserts its contents by name throughout: slot "count", focus
+     * node "tile-okami", two screens, sixteen focusables. The Makefile
+     * takes UIB as a parameter, which reads like an invitation to point
+     * it at any blob, and pointing it at another one used to run 700
+     * checks and then SEGFAULT on strcmp(ps2ui_slot_get(...), ...) --
+     * because slot_get correctly returns NULL for a name the blob does
+     * not have, and the caller here did not expect NULL.
+     *
+     * Found by building examples/opl-env, whose build.sh copied the
+     * memcard one. The runtime was never at fault. Refuse up front with
+     * a sentence that says which blob this needs, rather than crashing
+     * deep in a check about something else. */
+    {
+    /* focus_set is the only way to ask "does this node exist", and it
+     * MOVES focus -- so the probe has to put it back, or the very next
+     * check (autofocus lands on nav-games) reads this guard's side
+     * effect as the blob's initial state. It did, once. */
+    const char *boot_focus = ps2ui_focus_name(&ctx);
+    int is_memcard = (ps2ui_slot_get(&ctx, "count") != NULL)
+                  && (ps2ui_focus_set(&ctx, "tile-okami") == 1);
+    if (boot_focus) ps2ui_focus_set(&ctx, boot_focus);
+    if (!is_memcard) {
+        fprintf(stderr,
+            "\n%s: this suite asserts the MEMCARD EXAMPLE's contents by\n"
+            "name (slot \"count\", focus \"tile-okami\") and was handed a\n"
+            "different blob: %s\n"
+            "Run it with UIB unset, or validate another blob with\n"
+            "tools/check-blobs.sh, which is blob-generic.\n",
+            argv[0], argv[1]);
+        return 2;
+    }
+    }
     CHECK(ctx.hdr->canvas_w == 640 && ctx.hdr->canvas_h == 448, "canvas is 640x448");
     CHECK(ctx.hdr->n_cmd > 0, "blob has commands");
     CHECK(ctx.hdr->n_screen == 2, "memcard example has 2 screens");
@@ -1372,6 +1407,108 @@ int main(int argc, char **argv)
             cover_fill(other, 1, 64, 64);
             CHECK(memcmp(cov, other, sizeof cov) != 0,
                   "and two indices differ, so a swapped cover is visible");
+        }
+    }
+
+    /* ---- the windowed library (Phase 2, clause 3) -------------------
+     * The exit gate names this and nothing has exercised it. The
+     * invariants below are the ones a list gets wrong: selection
+     * leaving the window, `top` running past the end, a list shorter
+     * than the window, and the empty list. Checked by exhaustion over
+     * small sizes rather than at a handful of points, because the off
+     * by one lives at a boundary and a spot check picks the middle. */
+    {
+        oplenv_window w;
+        int n, rows, step, bad_vis = 0, bad_top = 0, bad_row = 0, bad_sel = 0;
+
+        /* Every list size against every window size, walked end to end
+         * in both directions. 0 items is included deliberately: it is
+         * the state the library is in before the first scan finishes. */
+        for (n = 0; n <= 14; n++) {
+            for (rows = 1; rows <= 9; rows++) {
+                int i;
+                oplenv_window_init(&w, n, rows);
+                for (step = 0; step < 40; step++) {
+                    /* Sweep down past the end, then back up past the
+                     * start, so both clamps are crossed. */
+                    oplenv_window_move(&w, step < 20 ? 1 : -1);
+
+                    if (n > 0) {
+                        if (w.sel < 0 || w.sel >= n) bad_sel = 1;
+                        /* The invariant a list exists to maintain. */
+                        if (w.sel < w.top || w.sel >= w.top + rows)
+                            bad_vis = 1;
+                    }
+                    if (w.top < 0 || w.top > oplenv_window_max_top(&w))
+                        bad_top = 1;
+                    for (i = 0; i < rows; i++) {
+                        int it = oplenv_window_row_item(&w, i);
+                        if (it == -1) continue;
+                        if (it != w.top + i || it >= n) bad_row = 1;
+                    }
+                }
+            }
+        }
+        CHECK(!bad_sel, "the selection stays inside the list at every size, "
+                        "walked past both ends");
+        CHECK(!bad_vis, "and stays visible in the window, which is the one "
+                        "invariant a list exists to maintain");
+        CHECK(!bad_top, "the window never scrolls past the last full page, "
+                        "including when the list is shorter than it");
+        CHECK(!bad_row, "and every drawn row maps to top + row, or to -1 "
+                        "past the end of a short list");
+
+        /* Scrolling is the expensive event -- it refills nine
+         * reservations -- so "did we scroll" must be exact, not
+         * approximate. Moving inside the window must report 0. */
+        {
+            int moves_reported = 0, k;
+            oplenv_window_init(&w, 100, 9);
+            for (k = 0; k < 8; k++)
+                moves_reported += oplenv_window_move(&w, 1);
+            CHECK(moves_reported == 0,
+                  "moving within the window reports no scroll, so the covers "
+                  "are not re-uploaded for a move that did not need it");
+            CHECK(oplenv_window_move(&w, 1) == 1,
+                  "and the move that pushes the selection off the edge does");
+            CHECK(w.top == 1 && w.sel == 9,
+                  "scrolling by exactly one row, not by a page");
+        }
+
+        /* A list shorter than the window never scrolls at all. */
+        {
+            int scrolled = 0, k;
+            oplenv_window_init(&w, 4, 9);
+            for (k = 0; k < 20; k++) scrolled += oplenv_window_move(&w, 1);
+            CHECK(scrolled == 0 && w.top == 0,
+                  "a list shorter than the window never scrolls");
+            CHECK(oplenv_window_row_item(&w, 4) == -1
+                  && oplenv_window_row_item(&w, 3) == 3,
+                  "and its unused rows report -1 rather than stale items, so "
+                  "the app blanks them instead of showing the last title");
+        }
+
+        /* The empty list is the state the library boots in. */
+        {
+            oplenv_window_init(&w, 0, 9);
+            CHECK(oplenv_window_move(&w, 1) == 0
+                  && oplenv_window_move(&w, -1) == 0,
+                  "an empty library does not scroll");
+            CHECK(oplenv_window_row_item(&w, 0) == -1
+                  && oplenv_window_sel_row(&w) >= -1,
+                  "and reports no item in row 0 rather than item 0");
+        }
+
+        /* A jump longer than the list, in both directions. */
+        {
+            oplenv_window_init(&w, 412, 9);
+            oplenv_window_move(&w, 10000);
+            CHECK(w.sel == 411 && w.top == 403,
+                  "a jump past the end lands on the last item with a full "
+                  "window behind it");
+            oplenv_window_move(&w, -10000);
+            CHECK(w.sel == 0 && w.top == 0,
+                  "and a jump past the start lands on the first");
         }
     }
 

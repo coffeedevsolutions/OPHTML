@@ -29,6 +29,12 @@ known_flags() {
     case "$1" in
     examples/memcard/build/ui.uib)
         echo "--strict" ;;
+    examples/opl-env/build/ui.uib)
+        # The OPL-class environment: six screens, ten streamed texture
+        # slots, one overlay. Nothing exempted -- it is the example the
+        # Phase 2 measurements are taken from, and an exemption here
+        # would be an exemption on the numbers.
+        echo "--strict" ;;
     examples/memcard/build/testcard.uib)
         # The alignment card is made of 1px quads: four edge rules and
         # the step 8 interlace pair. The shimmer is the measurement.
@@ -45,6 +51,7 @@ known_flags() {
 }
 
 ALL="examples/memcard/build/ui.uib
+examples/opl-env/build/ui.uib
 examples/memcard/build/testcard.uib
 examples/channel6/build/ui.uib
 examples/channel6/build/ui-16x9.uib"

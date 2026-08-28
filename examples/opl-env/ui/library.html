@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<body>
+<div class="screen">
+
+  <div class="topbar">
+    <h1>LIBRARY</h1>
+    <div class="filters">
+      <p class="chip" id="f-all" focusable autofocus>ALL</p>
+      <p class="chip" id="f-hdd" focusable>HDD</p>
+      <p class="chip" id="f-usb" focusable>USB</p>
+      <p class="chip" id="f-smb" focusable>NET</p>
+      <p class="chip" id="f-score" focusable>85+</p>
+    </div>
+    <p class="counts" data-slot="lib-count" data-slot-capacity="16">412 titles</p>
+  </div>
+
+  <div class="body">
+    <div class="rows">
+      <div class="row" data-repeat="9" id="row-{i}" focusable>
+        <img class="art" data-tex-slot="row-{i}-art">
+        <div class="meta">
+          <p class="title" data-slot="row-{i}-title" data-slot-capacity="40">Title of a Game {n}</p>
+          <p class="sub" data-slot="row-{i}-sub" data-slot-capacity="32">2003 · Action</p>
+        </div>
+        <p class="score" data-slot="row-{i}-score" data-slot-capacity="4">92</p>
+        <p class="src" data-slot="row-{i}-src" data-slot-capacity="4">HDD</p>
+      </div>
+    </div>
+
+    <div class="side">
+      <p class="side-h">CONTINUE</p>
+      <div class="cont" data-repeat="3" id="cont-{i}" focusable>
+        <p class="cont-t" data-slot="cont-{i}-title" data-slot-capacity="28">Recent Title {n}</p>
+        <p class="cont-s" data-slot="cont-{i}-sub" data-slot-capacity="20">2h ago</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="hint">○ LAUNCH</p>
+    <p class="hint">△ DETAILS</p>
+    <p class="hint">✕ BACK</p>
+  </div>
+
+</div>
+</body>
+</html>

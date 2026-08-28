@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<body>
+<!-- The overlay screen. It is a SEPARATE screen composited over
+     whichever one is already on the frame, not a variant of each --
+     ps2ui_render draws over the existing frame rather than clearing
+     it, so the app draws library (or detail), then this, and input
+     follows the last screen_set. That is the idiom the composition
+     contract defines, and this is the example that exercises it. -->
+<div class="scrim">
+  <div class="dialog">
+    <h2 class="dlg-title" data-slot="dlg-title" data-slot-capacity="32">REMOVE TITLE</h2>
+    <!-- Two slots, not one, because slots are single-line by design and
+         a confirm body wanting two lines is ordinary. Splitting it is
+         the idiom; see the README's findings section for why that is
+         filed as a wart rather than shrugged at. -->
+    <p class="dlg-body" data-slot="dlg-body-1" data-slot-capacity="44">This removes the entry from the</p>
+    <p class="dlg-body" data-slot="dlg-body-2" data-slot-capacity="44">library. Files on disk are left alone.</p>
+    <p class="dlg-path" data-slot="dlg-path" data-slot-capacity="48">hdd0:/games/title.iso</p>
+    <div class="dlg-row">
+      <p class="dlg-btn" id="dlg-cancel" focusable autofocus>CANCEL</p>
+      <p class="dlg-btn dlg-danger" id="dlg-ok" focusable>REMOVE</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
