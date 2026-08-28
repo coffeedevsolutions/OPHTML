@@ -76,4 +76,52 @@ static void cover_fill(unsigned char *dst, int index, int w, int h)
             cover_texel(index, x, y, w, h, dst + ((y * w) + x) * 4);
 }
 
+/* The bench's phase schedule, here rather than in main.c so it can be
+ * tested at all.
+ *
+ * Its first version lived inline in the frame loop as
+ * `(frame / N) % 4`, which fired the FILL case on frame 0 -- so the
+ * EMPTY state was overwritten before a single frame reached the
+ * television, while the comment beside it claimed a five-second hold.
+ * Step S1 came back VOID from a console because of it, and nothing on
+ * the host could have said so: main.c is compiled but never linked
+ * into a test.
+ *
+ * Five phases on the first lap, four forever after. EMPTY belongs
+ * only at the top: ps2ui_tex_set has no "unset" and should not have
+ * one, so once the slots are filled they stay filled. That is why
+ * this is not simply `% 5`. */
+static unsigned cover_phase_for_frame(unsigned frame, unsigned per_phase)
+{
+    unsigned phase = frame / per_phase;
+    if (phase > 4u)
+        phase = 1u + ((phase - 1u) % 4u);
+    return phase;
+}
+
+/* The label the bench photographs, keyed by the same number the
+ * schedule returns.
+ *
+ * The point is that a photograph labels itself and cannot lie. Before
+ * this, the label was written inside each switch case, so the case
+ * that fired and the text it printed were two separate claims -- and
+ * the defect that made S1 void was exactly a disagreement between
+ * them: phase 0 printed nothing and filled instead. Deriving the
+ * label from the phase makes that disagreement unrepresentable.
+ *
+ * The test asserts these strings against the phase numbers, so a
+ * re-mapping shows up as a wrong label rather than as a bench sitting
+ * that reads the wrong step. */
+static const char *cover_phase_name(unsigned phase)
+{
+    switch (phase) {
+    case 0:  return "0 EMPTY: nothing set -- boxes must be blank";
+    case 1:  return "1 FILL: four covers via tex_set";
+    case 2:  return "2 SWAP: slot 0 now shows cover 3";
+    case 3:  return "3 RESTORE: slot 0 shows cover 0 again";
+    case 4:  return "4 COMPOSITE: dialog over covers";
+    default: return "?? schedule produced a phase with no name";
+    }
+}
+
 #endif /* PS2UI_COVER_PATTERN_H */

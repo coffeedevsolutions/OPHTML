@@ -37,7 +37,7 @@ test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test
 # newlib port rejects at the header, so covers.elf had never built for
 # a target while this said ok. hw.yml's elf job is the arbiter for
 # anything touching PS2SDK; see runtime/vendor/README.md.
-SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS
+SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS -DPS2UI_SAMPLE_PROGRESSIVE
 
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \

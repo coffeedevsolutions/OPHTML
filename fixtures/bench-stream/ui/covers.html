@@ -8,6 +8,13 @@
       <div class="cell"><img data-tex-slot="cover2"><div class="cap" data-slot="c2">2</div></div>
       <div class="cell"><img data-tex-slot="cover3"><div class="cap" data-slot="c3">3</div></div>
     </div>
+    <!-- Bench step S7. Hyphens are ONE texel tall in this face and sit
+         three rows above the baseline; E, L and 2 end ON the baseline.
+         The two candidate faults give opposite answers here:
+           dashes present, E broken -> only the baseline row is lost
+           dashes gone,    E broken -> the last row of every quad is lost
+         Nothing else on screen separates them. -->
+    <div class="s7">S7 - - - - - - - - - -  E L 2</div>
     <div class="status" data-slot="src">source: waiting</div>
     <div class="status" data-slot="state">state: waiting</div>
   </div>

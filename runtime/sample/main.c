@@ -864,6 +864,20 @@ static void p6_frame(GSGLOBAL *gs)
 #include <unistd.h>
 #include "cover_pattern.h"
 
+#ifdef PS2UI_SAMPLE_USB
+/* Everything below this point is CONTAINER-ONLY. None of these headers
+ * exist on the host, and after the fileio.h episode this file does not
+ * ship a shim for them: a shim describes an API, and describing one
+ * the host does not have is how covers.elf came to compile clean here
+ * while never building for a target at all. hw.yml's elf job is the
+ * arbiter -- see runtime/vendor/README.md. */
+#include <sifrpc.h>
+#include <iopcontrol.h>   /* SifIopReset, SifIopSync -- NOT in sifrpc.h */
+#include <loadfile.h>
+#include <sbv_patches.h>
+#include "irx_table.h"
+#endif
+
 #define COVER_W     128
 #define COVER_H     128
 #define COVER_BYTES (COVER_W * COVER_H * 4)
@@ -878,6 +892,86 @@ static unsigned char cover_buf[N_COVERS][COVER_BYTES]
     __attribute__((aligned(16)));
 
 static char cover_src[80];
+
+#ifdef PS2UI_SAMPLE_USB
+/* usb_wait_for_mass flips fields while the IOP enumerates, so it needs
+ * the screen the caller already owns. A file-scope pointer rather than
+ * an argument because covers_load is called from one place and
+ * threading it through three functions to reach one flip is worse. */
+static GSGLOBAL *cover_gs;
+#endif
+
+#ifdef PS2UI_SAMPLE_USB
+/* Bring the IOP back up with a mass-storage stack.
+ *
+ * wLaunchELF hands control over via LoadExecPS2, which resets the IOP,
+ * so whatever drivers it had loaded are gone. Resetting again here is
+ * not redundant: it is how we get a known state to load INTO, and the
+ * sample uses no IOP service of its own -- no pad, no sound, no
+ * memory card -- so there is nothing to lose by doing it.
+ *
+ * Every failure writes its own reason into cover_src, because at a
+ * bench "it fell back" and "it fell back at module 3 of 4 with -203"
+ * are different findings and only one of them can be acted on. */
+static int usb_bring_up(void)
+{
+    int i;
+
+    if (n_irx_modules == 0) {
+        sprintf(cover_src, "src: SYNTHETIC (no IOP modules embedded)");
+        return 0;
+    }
+
+    SifInitRpc(0);
+    while (!SifIopReset("", 0)) { }
+    while (!SifIopSync()) { }
+    SifInitRpc(0);
+    /* Binds the LoadFile RPC that SifExecModuleBuffer goes through.
+     * Skipping it is the other way this path fails on a console while
+     * linking perfectly well on a desk. */
+    SifLoadFileInit();
+    /* Without these, SifExecModuleBuffer is refused on a freshly reset
+     * IOP: the loader checks a prefix it has no reason to trust from a
+     * homebrew ELF. Standard homebrew boilerplate, and the reason
+     * -lpatches is on the link line for this build only. */
+    sbv_patch_enable_lmb();
+    sbv_patch_disable_prefix_check();
+
+    for (i = 0; i < n_irx_modules; i++) {
+        int rc = 0;
+        int id = SifExecModuleBuffer(irx_modules[i].buf,
+                                     *irx_modules[i].size, 0, NULL, &rc);
+        if (id < 0 || rc < 0) {
+            sprintf(cover_src, "src: SYNTHETIC (%s %s: id %d rc %d)",
+                    irx_stack_name, irx_modules[i].name, id, rc);
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* The mass driver enumerates asynchronously: the module loads, then
+ * the device shows up whenever the USB stack has finished walking it.
+ * Opening immediately would report a failure that is really just
+ * impatience -- and "no drive" and "not yet" look identical from one
+ * failed open. Two seconds is generous for a stick and still short
+ * enough that a bench does not think the ELF has hung. */
+static int usb_wait_for_mass(void)
+{
+    int tries;
+    for (tries = 0; tries < 120; tries++) {
+        int fd = open("mass:/ps2ui/cover0.raw", O_RDONLY);
+        if (fd >= 0) { close(fd); return 1; }
+        /* One field at a time, using the vsync we are already waiting
+         * on rather than a busy loop that starves the IOP doing the
+         * enumerating. */
+        gsKit_sync_flip(cover_gs);
+    }
+    sprintf(cover_src, "src: SYNTHETIC (%s loaded, mass: never appeared)",
+            irx_stack_name);
+    return 0;
+}
+#endif /* PS2UI_SAMPLE_USB */
 
 /* Read the covers off the drive. Returns 1 on success; on failure
  * writes why into cover_src and returns 0, because "it fell back" and
@@ -918,8 +1012,13 @@ static int covers_from_usb(void)
 static void covers_load(void)
 {
     int i;
+#ifdef PS2UI_SAMPLE_USB
+    if (usb_bring_up() && usb_wait_for_mass() && covers_from_usb())
+        return;
+#else
     if (covers_from_usb())
         return;
+#endif
     /* No drive, or the wrong files on it. Generate the same pattern
      * the host tool writes -- cover_pattern.h is included by both, and
      * a CRC pinned there is checked from both suites, so the fallback
@@ -951,6 +1050,53 @@ int main(void)
     dmaKit_chan_init(DMA_CHANNEL_GIF);
 
     gs = gsKit_init_global();
+#ifdef PS2UI_SAMPLE_PROGRESSIVE
+    /* 480p, and the one thing this build is for.
+     *
+     * The bench found capitals losing their baseline row on a
+     * television -- E reads as F, L as I, 2 as ? -- while the host
+     * previewer and the Play! emulator both render the SAME GIF
+     * command stream with full glyphs. Two renderers agree with each
+     * other and disagree with the console, which leaves two
+     * candidates and no way to choose between them from a desk:
+     *
+     *   H1  the display path: 480i plus this panel's deinterlacer.
+     *   H2  real GS behaviour Play! does not model. ps2ui passes raw
+     *       integer UVs; there is no 0.5 anywhere in ps2ui.c, and
+     *       bringup.md already carries "+0.5 UV bias" as unsettled.
+     *
+     * STEP 8 ARGUES AGAINST H1, not for it, and an earlier version of
+     * this comment had that backwards. The recorded reading is "both
+     * rules steady: the deinterlacer WEAVES static fields" -- the
+     * panel erased the 30 Hz alternation by showing both fields at
+     * once, which means it PRESERVED the static 1px horizontal rules.
+     * That is the content class a baseline stroke belongs to. It does
+     * not refute H1 (the same log has 1px checkers shimmering, so the
+     * panel is motion-adaptive and treats content differently), but it
+     * is evidence against, and citing it as support was wrong.
+     *
+     * The cheaper discriminator is geometry, not video mode: bench
+     * step S7 puts a row of one-pixel hyphens beside E L 2 on the same
+     * line. Hyphens sit three rows above the baseline, so losing the
+     * last row of every quad erases them while losing the baseline row
+     * alone leaves them untouched. Read S7 first; this build is the
+     * second arm.
+     *
+     * Progressive output separates them in one boot. Full glyphs at
+     * 480p convicts the display and acquits the renderer; still
+     * clipped at 480p convicts the UV convention. Nothing else about
+     * this build differs -- same blob, same draw calls, same
+     * everything -- so the mode is the only variable.
+     *
+     * If the television will not sync at 480p you get no picture.
+     * That is a failed reading, not a broken console: power off, boot
+     * the 480i build, and we find another discriminator. */
+    gs->Mode = GS_MODE_DTV_480P;
+    gs->Interlace = GS_NONINTERLACED;
+    gs->Field = GS_FRAME;
+    gs->Width = 640;
+    gs->Height = 448;
+#endif
     gs->PSM = GS_PSM_CT32;
     gs->PSMZ = GS_PSMZ_16S;
     gs->DoubleBuffering = GS_SETTING_ON;
@@ -1059,6 +1205,9 @@ int main(void)
         }
     }
 #ifdef PS2UI_SAMPLE_COVERS
+#ifdef PS2UI_SAMPLE_USB
+    cover_gs = gs;
+#endif
     covers_load();
     ps2ui_slot_set(&ui, "src", cover_src);
     ps2ui_slot_set(&ui, "state", "0 EMPTY: no slot filled yet");
@@ -1161,19 +1310,40 @@ int main(void)
          * phase on screen so a photo is self-labelling -- nobody has
          * to time anything or remember what they were looking at. */
         {
-            unsigned phase = (frame / COVER_PHASE_FRAMES) % 4u;
+            /* Five phases, not four, and the first one is EMPTY.
+             *
+             * The bench read S1 as VOID because of this line. It used
+             * to be `% 4u` with the first phase filling, so "no slot
+             * filled yet" was overwritten before a single frame was
+             * presented -- while the comment above claimed a
+             * five-second hold. An instrument that asserts a behaviour
+             * it does not have is worse than one that says nothing,
+             * and this one cost a reading at a console.
+             *
+             * EMPTY only makes sense once: ps2ui_tex_set has no
+             * "unset" and should not, so after the first pass the
+             * slots stay filled. The schedule therefore runs 0..4 on
+             * the first lap and cycles 1..4 forever after, which is
+             * why this is not simply `% 5u`. */
+            unsigned phase = cover_phase_for_frame(frame, COVER_PHASE_FRAMES);
             if (phase != cover_phase) {
                 cover_phase = phase;
+                /* One label, derived from the phase, set before the
+                 * actions rather than inside them. The switch below
+                 * now only DOES things; what the screen says is not
+                 * its to decide, which is why the two can no longer
+                 * disagree. */
+                ps2ui_slot_set(&ui, "state", cover_phase_name(phase));
                 switch (phase) {
                 case 0:
-                    /* Every slot back to empty. ps2ui_tex_set has no
-                     * "unset", and it should not: a NULL texels
-                     * argument is refused. Reloading the context is
-                     * the honest way to get back to unfilled, so the
-                     * phase instead just states that slots start
-                     * empty and shows it on the first pass through. */
-                    ps2ui_slot_set(&ui, "state",
-                                   "1 FILL: four covers via tex_set");
+                    /* Nothing is set. This is the whole of step S1:
+                     * every slot's VRAM is reserved and committed by
+                     * ps2ui_upload, so if anything appears in a box
+                     * here, render is not skipping unfilled slots and
+                     * each one is a window onto whatever else is in
+                     * VRAM. Five seconds, at the top, once. */
+                    break;
+                case 1:
                     for (i = 0; i < N_COVERS; i++) {
                         char nm[10];
                         sprintf(nm, "cover%d", i);
@@ -1181,26 +1351,20 @@ int main(void)
                                                     cover_buf[i], COVER_BYTES);
                     }
                     break;
-                case 1:
+                case 2:
                     /* The invalidate. Slot 0 is repointed at cover 3's
                      * texels: if residency were not dropped, the GS
                      * would keep drawing the OLD cover out of VRAM and
                      * this phase would look identical to the last one.
                      * That is the whole reading. */
-                    ps2ui_slot_set(&ui, "state",
-                                   "2 SWAP: slot 0 now shows cover 3");
                     cover_rc[0] = ps2ui_tex_set(&ui, gs, "cover0",
                                                 cover_buf[3], COVER_BYTES);
                     break;
-                case 2:
-                    ps2ui_slot_set(&ui, "state",
-                                   "3 RESTORE: slot 0 shows cover 0 again");
+                case 3:
                     cover_rc[0] = ps2ui_tex_set(&ui, gs, "cover0",
                                                 cover_buf[0], COVER_BYTES);
                     break;
                 default:
-                    ps2ui_slot_set(&ui, "state",
-                                   "4 COMPOSITE: dialog over covers");
                     break;
                 }
                 {
@@ -1216,7 +1380,7 @@ int main(void)
             }
             ps2ui_screen_set(&ui, "covers");
             ps2ui_render(&ui, gs);
-            if (phase == 3) {
+            if (phase == 4u) {
                 /* The composite. No clear between the two renders --
                  * that is the guarantee, and on a television it is
                  * either true or the covers vanish. */

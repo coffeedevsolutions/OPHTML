@@ -1279,6 +1279,65 @@ int main(int argc, char **argv)
         }
     }
 
+    /* ---- the bench's phase schedule (S1 came back VOID) -------------
+     * The first version fired FILL on frame 0, so the EMPTY state was
+     * overwritten before a frame reached the television while its own
+     * comment promised a five-second hold. A console read S1 as VOID
+     * and nothing on the host could have said why: the schedule lived
+     * inline in main.c, which is compiled but never linked into a
+     * test. It lives in a header now, and this is the fence. */
+    {
+        const unsigned P = 250u;
+        unsigned k, seen_empty = 0, empty_frames = 0;
+
+        CHECK(cover_phase_for_frame(0, P) == 0,
+              "the bench opens on EMPTY, which is the whole of step S1 -- "
+              "filling on frame 0 is what made it unreadable");
+        CHECK(cover_phase_for_frame(P - 1, P) == 0,
+              "and holds it for the full phase, not one frame");
+        CHECK(cover_phase_for_frame(P, P) == 1, "then FILL");
+        CHECK(cover_phase_for_frame(2 * P, P) == 2, "then SWAP");
+        CHECK(cover_phase_for_frame(3 * P, P) == 3, "then RESTORE");
+        CHECK(cover_phase_for_frame(4 * P, P) == 4, "then COMPOSITE");
+
+        /* EMPTY exactly once, and every later phase reachable forever.
+         * ps2ui_tex_set has no "unset", so a schedule that returned to
+         * EMPTY would be claiming a state it cannot produce. */
+        for (k = 0; k < 40u * P; k++) {
+            unsigned ph = cover_phase_for_frame(k, P);
+            if (ph == 0) { empty_frames++; if (k >= P) seen_empty = 1; }
+            if (ph > 4u) { seen_empty = 2; break; }
+        }
+        CHECK(seen_empty == 0,
+              "EMPTY happens once, at the top, and never comes back -- the "
+              "runtime cannot unset a slot, so offering it again would be a "
+              "state the instrument cannot actually produce");
+        CHECK(empty_frames == P,
+              "and lasts exactly one phase");
+        /* The label is derived from the phase, so a photograph cannot
+         * disagree with the step it is showing. That was the actual
+         * shape of the S1 defect: phase 0 fired the FILL action while
+         * claiming, in a comment, to hold empty. */
+        CHECK(strncmp(cover_phase_name(0), "0 EMPTY", 7) == 0
+              && strncmp(cover_phase_name(1), "1 FILL", 6) == 0
+              && strncmp(cover_phase_name(2), "2 SWAP", 6) == 0
+              && strncmp(cover_phase_name(3), "3 RESTORE", 9) == 0
+              && strncmp(cover_phase_name(4), "4 COMPOSITE", 11) == 0,
+              "each phase's on-screen label starts with its own number, so a "
+              "bench photograph names the step it actually shows");
+        CHECK(cover_phase_name(5)[0] == '?',
+              "and a phase the schedule cannot produce says so rather than "
+              "printing a neighbour's label");
+        {
+            unsigned hit[5] = {0, 0, 0, 0, 0};
+            for (k = 5u * P; k < 40u * P; k++)
+                hit[cover_phase_for_frame(k, P)]++;
+            CHECK(hit[1] && hit[2] && hit[3] && hit[4],
+                  "and the other four keep cycling, so a photograph missed "
+                  "at the bench comes round again rather than costing a boot");
+        }
+    }
+
     /* ---- composition: two screens in one frame (design v6 4) --------
      *
      * ps2ui_render never clears, so `screen_set + render` twice in one

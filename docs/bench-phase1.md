@@ -103,9 +103,20 @@ and lifts near-black to visible maroon.
 
 ## How `covers.elf` behaves
 
-It loops through **four phases, five seconds each**, forever. Looping
-is deliberate: a photograph that misses its moment comes round again
-instead of costing a reboot.
+**Five phases on the first lap, four forever after**, five seconds
+each. Looping is deliberate: a photograph that misses its moment comes
+round again instead of costing a reboot.
+
+`0 EMPTY` is the exception and it happens **once, at the top**. That is
+not a quirk, it is the honest shape of the thing: `ps2ui_tex_set` has
+no "unset" and should not have one, so once the slots are filled there
+is no way back to empty without reloading. **Photograph S1 in the
+first five seconds or reboot for it.**
+
+The first version of this ELF got that wrong -- it fired the fill on
+frame 0 while its own comment promised a five-second hold -- and step
+S1 came back VOID from a console because of it. The schedule and the
+on-screen label are both fenced by the host suite now.
 
 **You do not need to time anything.** The screen says which phase it is
 in, on the line labelled `state:`. A photo of this ELF labels itself.
@@ -119,11 +130,26 @@ tex_set rc: 0 0 0 0                      <- 0 is PS2UI_OK
 ```
 
 **Read `src:` first.** If it says `SYNTHETIC`, the drive was not
-readable and it names why — `open cover0: -X` means the launcher did
-not leave the USB driver resident, and a size mismatch means the art
-was converted at the wrong size. Everything below still runs on the
-generated pattern, so **the sitting is not wasted**; only step S6 needs
-the drive.
+readable and it names why. Everything below still runs on the generated
+pattern, so **the sitting is not wasted**; only step S6 needs the drive.
+
+The ELF now brings the USB stack up itself, so the failure modes have
+changed since the first sitting:
+
+| `src:` says | means |
+|---|---|
+| `mass:/ps2ui (4 x 65536 B)` | the drive was read. S6 is live |
+| `no IOP modules embedded` | the build found no mass-storage stack in its SDK. My problem, not yours |
+| `<stack> <module>: id N rc M` | a module refused to load, and which one |
+| `<stack> loaded, mass: never appeared` | the drivers came up but no device enumerated in two seconds. Try a different stick or port |
+| `open coverN: -1` | the device is there but that file is not. Check the folder is named `ps2ui` and sits at the drive root |
+| `coverN M B, want 65536` | the file is the wrong size — the art was converted at other than 128×128 |
+
+The first sitting reported `open cover0: -1` from a stick whose files
+were verified byte-exact. That was not the drive: wLaunchELF launches
+via `LoadExecPS2`, which **resets the IOP**, so the launcher's own USB
+drivers were gone before the ELF ran. Nothing survives that reset, so
+the ELF carries the modules now.
 
 ---
 
@@ -141,8 +167,9 @@ in them. Compare against `preview-unfilled.png`.
   colour. Their VRAM is reserved and committed at upload; if the GS is
   drawing *from* it before anything was sent, `render` is not skipping
   unfilled slots and every one of them is a window onto stale VRAM.
-- **VOID** — if `state:` is not `0 EMPTY` in your photo you caught a
-  later phase. Wait twenty seconds and shoot again.
+- **VOID** — if `state:` is not `0 EMPTY` in your photo, you missed
+  it. This phase does not come round again; reboot and shoot the first
+  five seconds.
 
 ---
 
@@ -180,6 +207,10 @@ Four covers, left to right, matching `preview-filled.png`.
 and it is a picture, not a test.
 
 **Boot `covers-nosync.elf` and photograph phase `1 FILL`.**
+
+If instead the covers looked *right* but the **text** looked wrong,
+that is a different finding and it has its own instrument -- see
+step S7.
 
 This is the same ELF with the cache writeback removed from
 `ps2ui_tex_set`. The EE wrote the texels through a write-back cache the
@@ -266,6 +297,75 @@ again. Photograph phase `1 FILL`.
   the file is exactly 65,536 bytes.
 
 ---
+
+---
+
+## Step S7 — the baseline row (added after the first sitting)
+
+The first sitting found capitals losing their bottom row on the
+television: **E renders as F, L as I, 2 as ?**. `MEMORY CARD` reads
+`MFMORY CARD`. Lowercase is unaffected, which is why nine bring-up
+steps and every host suite missed it, and it is visible in the Phase 0
+conformance grid, so it predates all of Phase 1.
+
+Two renderers disagree with the console. The host previewer draws full
+glyphs, and so does the Play! emulator **from the same GIF command
+stream** — so the atlas, the glyph table, the UVs and the geometry are
+all correct. That leaves the display path or real GS behaviour the
+emulator does not model.
+
+### S7a — read the dashes, it costs nothing
+
+**On the `covers.elf` screen you are already photographing**, there is
+a line reading:
+
+```
+S7 - - - - - - - - - -  E L 2
+```
+
+Those hyphens are **one pixel tall and sit three rows above the
+baseline**. E, L and 2 end *on* the baseline. That single line
+separates the two candidates outright:
+
+| what you see | what it means |
+|---|---|
+| **dashes present**, E broken | only the baseline row is being lost — the display path |
+| **dashes gone**, E broken | the last row of *every* glyph is being lost — geometry, and the renderer is at fault |
+| dashes present, E fine | nothing is wrong on this screen; photograph a screen where it is |
+
+Read this before booting anything else. It is on a screen you are
+already looking at.
+
+> A note on why this replaced a weaker argument. The first write-up
+> leant on "lowercase is untouched" as evidence for a baseline-specific
+> fault. It is not: in this face every non-descender — capital,
+> lowercase and digit — ends on the *same* row, so a uniform last-row
+> loss produces exactly the same picture. An `E` loses a full-width
+> bar and reads as `F`; an `e` loses the bottom two texels of a curve
+> and still reads as `e`. The dashes are the observation that actually
+> discriminates.
+
+### S7b — 480p, if S7a is ambiguous
+
+**Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in
+every respect except that it outputs 480p instead of 480i. Photograph
+the `MEMORY CARD` line under the `PS2` title and hold it next to your
+480i photo of the same screen.
+
+- **PASS (renderer acquitted)** — `MEMORY CARD` reads correctly at
+  480p. The clipping is the interlaced signal and this panel's
+  deinterlacer. Worth knowing that step 8's recorded reading cuts
+  *against* this: the panel weaves static fields, so it preserved the
+  static 1px rules it was shown. Not impossible — the same log has 1px
+  checkers shimmering, so the panel is motion-adaptive — but this
+  outcome would be the surprising one.
+- **FAIL (renderer convicted)** — still `MFMORY CARD` at 480p. The
+  fault is in what ps2ui asks the GS for, and the next arm is a
+  `+0.5` texel-centre bias, which `bringup.md` already carries as an
+  unsettled question.
+- **VOID** — no picture at all. Your television does not sync at 480p.
+  Power off, boot anything else, and tell me: we need a different
+  discriminator.
 
 ## When you are done
 

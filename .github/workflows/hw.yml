@@ -302,11 +302,52 @@ jobs:
           # that address. Same role as conform-noalpha -- a picture of
           # the fault to hold next to a photograph, not a test.
           make -C runtime/sample objclean
-          make -C runtime/sample COVERS=1 EE_BIN=covers.elf \
+          # USB=1 embeds the IOP mass-storage stack and brings it up.
+          # The first sitting reported `open cover0: -1` from a stick
+          # whose files were byte-exact: wLaunchELF launches via
+          # LoadExecPS2, which resets the IOP, so the launcher's own
+          # drivers are gone before this ELF runs. Nothing survives a
+          # reset -- the ELF has to carry them.
+          #
+          # This whole path is container-only: sifrpc.h and friends do
+          # not exist on the host, and this tree no longer writes
+          # shims to pretend otherwise. That makes THIS STEP the only
+          # thing that vouches for it, which is the arrangement
+          # runtime/vendor/README.md now spells out.
+          make -C runtime/sample COVERS=1 USB=1 EE_BIN=covers.elf \
             UIB=../../fixtures/bench-stream/build/bench.uib
+          # Checked HERE, before objclean removes the generated file.
+          # An empty module table links perfectly well and produces an
+          # ELF that can never read a drive -- it would say "no IOP
+          # modules embedded" at a bench, which is a wasted trip for a
+          # fault this job can see from the SDK's own directory
+          # listing. Also prints which stack was found, so a change of
+          # SDK vintage shows up in the log rather than as a different
+          # failure six months later.
+          grep -q 'irx_stack_name = "bdm"' runtime/sample/irx_table.c \
+            || grep -q 'irx_stack_name = "legacy"' runtime/sample/irx_table.c \
+            || { echo "embed_irx.sh found no complete IOP stack. Present:"; \
+                 ls "$PS2SDK/iop/irx" | head -40; exit 1; }
+          grep 'irx_stack_name' runtime/sample/irx_table.c
           make -C runtime/sample objclean
-          make -C runtime/sample COVERS=1 NO_SYNC=1 EE_BIN=covers-nosync.elf \
+          make -C runtime/sample COVERS=1 USB=1 NO_SYNC=1 \
+            EE_BIN=covers-nosync.elf \
             UIB=../../fixtures/bench-stream/build/bench.uib
+          # The baseline-row discriminator (bench step S7). The first
+          # sitting found capitals losing their bottom row on a
+          # television -- E as F, L as I, 2 as ? -- while the previewer
+          # and the emulator both render full glyphs from the same GIF
+          # command stream. That acquits the atlas, the glyph table,
+          # the UVs and the geometry, and leaves the display path
+          # against real GS behaviour Play! does not model.
+          #
+          # This is the memcard UI, identical in every respect except
+          # 480p instead of 480i, so the video mode is the only
+          # variable. Full glyphs at 480p acquits the renderer; still
+          # clipped convicts the UV convention.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 PROGRESSIVE=1 \
+            EE_BIN=ps2ui_sample_480p.elf
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -323,6 +364,7 @@ jobs:
           test -f runtime/sample/conform-noalpha.elf
           test -f runtime/sample/covers.elf
           test -f runtime/sample/covers-nosync.elf
+          test -f runtime/sample/ps2ui_sample_480p.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -341,6 +383,7 @@ jobs:
             runtime/sample/conform-noalpha.elf
             runtime/sample/covers.elf
             runtime/sample/covers-nosync.elf
+            runtime/sample/ps2ui_sample_480p.elf
 
   emulator:
     needs: [bake, elf]
