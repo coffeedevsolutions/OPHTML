@@ -853,7 +853,15 @@ static void p6_frame(GSGLOBAL *gs)
  * turns out not to hold on the bench, the on-screen source line says
  * so by name and the fallback below still produces a reading.
  */
-#include <fileio.h>
+/* POSIX, not fioOpen. ps2sdk's newlib port refuses fio/fileXio at the
+ * header with "#error Use posix function calls instead", so the first
+ * version of this did not compile for the console at all -- and the
+ * host syntax-check passed it, because I had written a shim declaring
+ * fioOpen. A shim that invents an API the real target forbids is worse
+ * than no shim: it converts a build error into a green tick. The shim
+ * is gone and these are the same three functions on both sides now. */
+#include <fcntl.h>
+#include <unistd.h>
 #include "cover_pattern.h"
 
 #define COVER_W     128
@@ -880,15 +888,16 @@ static int covers_from_usb(void)
     int i;
     for (i = 0; i < N_COVERS; i++) {
         char path[48];
-        int fd, got;
+        int fd;
+        long got;
         sprintf(path, "mass:/ps2ui/cover%d.raw", i);
-        fd = fioOpen(path, O_RDONLY);
+        fd = open(path, O_RDONLY);
         if (fd < 0) {
             sprintf(cover_src, "src: SYNTHETIC (open cover%d: %d)", i, fd);
             return 0;
         }
-        got = fioRead(fd, cover_buf[i], COVER_BYTES);
-        fioClose(fd);
+        got = (long)read(fd, cover_buf[i], COVER_BYTES);
+        close(fd);
         /* Exact, not "at least". A short read would DMA whatever was
          * left in the buffer and a long file means the art was
          * converted at the wrong size -- both draw convincingly wrong,
@@ -896,8 +905,8 @@ static int covers_from_usb(void)
          * ps2ui_tex_set applies to its own len argument, and the raw
          * files carry no header precisely so that this size check is
          * the integrity check. */
-        if (got != COVER_BYTES) {
-            sprintf(cover_src, "src: SYNTHETIC (cover%d %d B, want %d)",
+        if (got != (long)COVER_BYTES) {
+            sprintf(cover_src, "src: SYNTHETIC (cover%d %ld B, want %d)",
                     i, got, COVER_BYTES);
             return 0;
         }
