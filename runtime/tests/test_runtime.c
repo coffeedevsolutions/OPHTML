@@ -182,6 +182,40 @@ int main(int argc, char **argv)
 
     /* ---- loader ---- */
     CHECK(load_arena(&ctx, blob, len) == PS2UI_OK, "load real blob");
+
+    /* This suite is written against ONE blob -- the memcard example --
+     * and asserts its contents by name throughout: slot "count", focus
+     * node "tile-okami", two screens, sixteen focusables. The Makefile
+     * takes UIB as a parameter, which reads like an invitation to point
+     * it at any blob, and pointing it at another one used to run 700
+     * checks and then SEGFAULT on strcmp(ps2ui_slot_get(...), ...) --
+     * because slot_get correctly returns NULL for a name the blob does
+     * not have, and the caller here did not expect NULL.
+     *
+     * Found by building examples/opl-env, whose build.sh copied the
+     * memcard one. The runtime was never at fault. Refuse up front with
+     * a sentence that says which blob this needs, rather than crashing
+     * deep in a check about something else. */
+    {
+    /* focus_set is the only way to ask "does this node exist", and it
+     * MOVES focus -- so the probe has to put it back, or the very next
+     * check (autofocus lands on nav-games) reads this guard's side
+     * effect as the blob's initial state. It did, once. */
+    const char *boot_focus = ps2ui_focus_name(&ctx);
+    int is_memcard = (ps2ui_slot_get(&ctx, "count") != NULL)
+                  && (ps2ui_focus_set(&ctx, "tile-okami") == 1);
+    if (boot_focus) ps2ui_focus_set(&ctx, boot_focus);
+    if (!is_memcard) {
+        fprintf(stderr,
+            "\n%s: this suite asserts the MEMCARD EXAMPLE's contents by\n"
+            "name (slot \"count\", focus \"tile-okami\") and was handed a\n"
+            "different blob: %s\n"
+            "Run it with UIB unset, or validate another blob with\n"
+            "tools/check-blobs.sh, which is blob-generic.\n",
+            argv[0], argv[1]);
+        return 2;
+    }
+    }
     CHECK(ctx.hdr->canvas_w == 640 && ctx.hdr->canvas_h == 448, "canvas is 640x448");
     CHECK(ctx.hdr->n_cmd > 0, "blob has commands");
     CHECK(ctx.hdr->n_screen == 2, "memcard example has 2 screens");

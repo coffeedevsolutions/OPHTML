@@ -1,0 +1,315 @@
+/* Scoping fixture for Phase 1 sizing. Deliberately realistic rather
+ * than minimal: 12 library rows with four fields each, a continue-
+ * playing rail, and filter chips, because the question this answers is
+ * what an OPL-class environment actually demands of the runtime's
+ * static tables — not what fits inside them today. */
+
+.screen {
+  flex-direction: column;
+  background: #0b0f16;
+  padding: 26px 34px 30px;
+  gap: 6px;
+}
+
+/* -------------------------------------------------------- top bar */
+
+.topbar { flex-direction: row; align-items: center; gap: 16px; }
+
+h1 {
+  font-size: 22px;
+  font-weight: bold;
+  color: #f2f5fa;
+  letter-spacing: 2px;
+}
+
+.filters { flex-direction: row; gap: 6px; flex-grow: 1; }
+
+.chip {
+  font-size: 14px;
+  color: #8b94a7;
+  background: #141a26;
+  border: 2px solid #202839;
+  border-radius: 4px;
+  padding: 3px 10px;
+}
+
+.chip:focus {
+  color: #0b0f16;
+  background: #7c9be0;
+  border-color: #a9c0f0;
+}
+
+.counts { font-size: 14px; color: #8b94a7; }
+
+/* ---------------------------------------------------------- body */
+
+.body { flex-direction: row; flex-grow: 1; gap: 14px; }
+
+.rows { flex-direction: column; flex-grow: 1; gap: 2px; }
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  background: #101623;
+  border: 2px solid #1a2233;
+  border-radius: 3px;
+  padding: 0 8px;
+}
+
+.row:focus { background: #1a2740; border-color: #7c9be0; }
+
+/* Two streamed reservation sizes, dogfooding the mechanism at the two
+ * scales a real environment needs: a list thumbnail the app fills as
+ * rows scroll into view, and one large cover on the detail page. Both
+ * are fixed reservations the blob declares -- the picture bends to
+ * the box, the box does not bend to the picture. */
+.art { width: 28px; height: 28px; }
+
+.meta { flex-direction: column; flex-grow: 1; }
+
+.title {
+  font-size: 13px;
+  color: #dbe2ee;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.row:focus .title { color: #ffffff; }
+
+.sub { font-size: 11px; color: #6b7488; }
+
+.score { font-size: 14px; color: #63b98a; }
+
+.src { font-size: 12px; color: #8b94a7; }
+
+/* --------------------------------------------------- continue rail */
+
+.side {
+  flex-direction: column;
+  width: 152px;
+  gap: 6px;
+  background: #0e131d;
+  border: 2px solid #1a2233;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.side-h {
+  font-size: 14px;
+  color: #8b94a7;
+  letter-spacing: 2px;
+}
+
+.cont {
+  flex-direction: column;
+  background: #141a26;
+  border: 2px solid #202839;
+  border-radius: 3px;
+  padding: 3px 7px;
+}
+
+.cont:focus { background: #1a2740; border-color: #7c9be0; }
+
+.cont-t {
+  font-size: 13px;
+  color: #dbe2ee;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.cont-s { font-size: 11px; color: #6b7488; }
+
+/* -------------------------------------------------------- footer */
+
+.footer { flex-direction: row; gap: 18px; }
+
+.hint { font-size: 14px; color: #6b7488; }
+
+/* ================================================= landing screen */
+
+.hero { flex-direction: column; gap: 2px; }
+
+.hero-sub { font-size: 14px; color: #8b94a7; }
+
+.sources {
+  flex-direction: column;
+  width: 190px;
+  gap: 5px;
+  background: #0e131d;
+  border: 2px solid #1a2233;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.src-tile {
+  flex-direction: column;
+  background: #141a26;
+  border: 2px solid #202839;
+  border-radius: 3px;
+  padding: 4px 8px;
+}
+
+.src-tile:focus { background: #1a2740; border-color: #7c9be0; }
+
+.src-name { font-size: 14px; color: #dbe2ee; }
+.src-count { font-size: 11px; color: #6b7488; }
+
+.resume {
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 5px;
+  background: #0e131d;
+  border: 2px solid #1a2233;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.resume-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  background: #141a26;
+  border: 2px solid #202839;
+  border-radius: 3px;
+  padding: 4px 8px;
+}
+
+.resume-card:focus { background: #1a2740; border-color: #7c9be0; }
+
+.res-art { width: 28px; height: 28px; }
+
+.res-meta { flex-direction: column; flex-grow: 1; }
+
+.res-title {
+  font-size: 14px;
+  color: #dbe2ee;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.res-sub { font-size: 11px; color: #6b7488; }
+
+/* ================================================== detail screen */
+
+.det-art { width: 120px; height: 72px; }
+
+.det-fields { flex-direction: column; flex-grow: 1; gap: 2px; }
+
+.field { flex-direction: row; gap: 8px; }
+
+.field-k { font-size: 12px; color: #6b7488; width: 96px; }
+.field-v { font-size: 12px; color: #dbe2ee; }
+
+.blurb { font-size: 12px; color: #8b94a7; }
+
+.actions { flex-direction: row; gap: 8px; }
+
+.action {
+  font-size: 14px;
+  color: #8b94a7;
+  background: #141a26;
+  border: 2px solid #202839;
+  border-radius: 3px;
+  padding: 3px 10px;
+}
+
+.action:focus { color: #0b0f16; background: #7c9be0; border-color: #a9c0f0; }
+
+/* ================================================= filters screen */
+
+.facets {
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 3px;
+}
+
+.facet {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  background: #101623;
+  border: 2px solid #1a2233;
+  border-radius: 3px;
+  padding: 2px 8px;
+}
+
+.facet:focus { background: #1a2740; border-color: #7c9be0; }
+
+.facet-k { font-size: 14px; color: #8b94a7; flex-grow: 1; }
+.facet-v { font-size: 14px; color: #dbe2ee; }
+
+.preview-col {
+  flex-direction: column;
+  width: 190px;
+  gap: 4px;
+  background: #0e131d;
+  border: 2px solid #1a2233;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.match {
+  flex-direction: column;
+  background: #141a26;
+  border: 2px solid #202839;
+  border-radius: 3px;
+  padding: 3px 7px;
+}
+
+.match:focus { background: #1a2740; border-color: #7c9be0; }
+
+.match-t {
+  font-size: 13px;
+  color: #dbe2ee;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* ---- the overlay screen (confirm.html) ---------------------------
+ * Drawn over a screen that is already on the frame. The scrim is a
+ * full-canvas quad at partial alpha: with no clear between the two
+ * renders, it is what makes the layer underneath read as behind
+ * rather than as clutter. */
+.scrim {
+  width: 640px; height: 448px;
+  background: rgba(6, 9, 16, 0.62);
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  width: 340px;
+  flex-direction: column;
+  gap: 10px;
+  background: #141c2c;
+  border: 2px solid #33507f;
+  border-radius: 4px;
+  padding: 18px 20px;
+}
+
+.dlg-title { font-size: 16px; color: #eef3ff; letter-spacing: 1px; height: 22px; }
+.dlg-body  { font-size: 12px; color: #9aa6bd; height: 16px; }
+.dlg-path  { font-size: 11px; color: #6b7488; height: 16px; }
+
+.dlg-row { flex-direction: row; gap: 10px; justify-content: flex-end; height: 32px; }
+
+.dlg-btn {
+  /* 14px, not 12: --strict enforces a floor on FOCUSABLE text because
+     below it is unreadable from a couch, and a dialog button is the
+     most consequential text on the screen. The rule caught this. */
+  width: 104px; height: 32px;
+  font-size: 14px;
+  color: #c8d4ea;
+  background: #1b2436;
+  border: 2px solid #2b3a55;
+  border-radius: 3px;
+  padding: 8px 0;
+  text-align: center;
+}
+.dlg-btn:focus { background: #27406b; border-color: #7c9be0; color: #ffffff; }
+.dlg-danger:focus { background: #5c2430; border-color: #c86a78; }

@@ -430,6 +430,7 @@ jobs:
       PLAY_VERSION: "0.72"
       PLAY_ASSET: "Play!-8de4a71f-x86_64.AppImage"
       PLAY_SHA256: "5523586c7d89f90e0e6eb9cbc70008d1d6ef3d38656fea809517d3f5fd3004d3"
+      PLAY_CACHE: "/home/runner/.cache/ps2ui-play"
     # An emulator that comes up but never draws would otherwise sit on a
     # runner until the 6-hour default. Everything here is bounded work:
     # install, download, boot, one screenshot.
@@ -444,6 +445,14 @@ jobs:
         with:
           name: ps2ui-sample-elf
           path: elf
+      # Keyed on the pinned build AND its digest, so bumping either
+      # misses the cache rather than serving the old binary under a new
+      # name. No restore-keys, deliberately: a partial-prefix hit is
+      # exactly how the wrong emulator would get served silently.
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.PLAY_CACHE }}
+          key: play-${{ env.PLAY_VERSION }}-${{ env.PLAY_SHA256 }}
       - name: Install Play! and capture tooling
         run: |
           set -euo pipefail
@@ -471,12 +480,47 @@ jobs:
           # continue-on-error this job just gave up. The renderer under
           # test is an input like any other: it moves when we move it.
           echo "Play! $PLAY_VERSION (pinned): $PLAY_ASSET"
-          curl -sSfL -o Play.AppImage "$base/$PLAY_VERSION/$PLAY_ASSET"
+          # purei.org is one host with no mirror, and this job gates. A
+          # single connect timeout there fails a PR that changed nothing
+          # -- it cost a cycle on #59: 132s to time out, with no frame
+          # ever rendered and no diff ever computed. That failure looks
+          # at a glance exactly like a real red, which is the expensive
+          # part, because it invites re-running a gate on reflex.
+          #
+          # The cache step above makes a hit skip the network entirely.
+          # This retry only covers a cold cache, and it is bounded --
+          # five attempts with a widening gap, then a real failure whose
+          # message says which kind of failure it is. Never a fallback
+          # to "latest": an unpinned emulator would move the thresholds
+          # this job is calibrated against.
+          if [ -f "$PLAY_CACHE/$PLAY_ASSET" ]; then
+            echo "cache hit: $PLAY_CACHE/$PLAY_ASSET"
+            cp "$PLAY_CACHE/$PLAY_ASSET" Play.AppImage
+          else
+            ok=""
+            for attempt in 1 2 3 4 5; do
+              if curl -sSfL --connect-timeout 20 --max-time 300 \
+                   -o Play.AppImage "$base/$PLAY_VERSION/$PLAY_ASSET"; then
+                ok=yes; break
+              fi
+              echo "::warning::Play! download attempt $attempt failed"
+              sleep $((attempt * 10))
+            done
+            [ -n "$ok" ] || {
+              echo "::error::Play! could not be fetched from $base after 5 attempts. This is a FETCH failure, not a render regression: no frame was captured and no diff was computed."
+              exit 1
+            }
+          fi
 
           # Verify, do not merely print. A printed digest nobody reads is
           # the same blindfold in a different colour.
           echo "$PLAY_SHA256  Play.AppImage" | sha256sum -c -
           file Play.AppImage
+          # Only ever cache a binary whose digest has just been checked,
+          # so a truncated download cannot become a poisoned cache that
+          # every later run then trusts without re-verifying.
+          mkdir -p "$PLAY_CACHE"
+          cp Play.AppImage "$PLAY_CACHE/$PLAY_ASSET"
 
           # A pin with no staleness signal rots quietly. Report whether a
           # newer stable exists -- never gate on it, and keep the
