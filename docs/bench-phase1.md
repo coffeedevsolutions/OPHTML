@@ -538,6 +538,64 @@ Photograph the whole screen. If the small blocks at the top are hard to
 resolve, take a second photo of the top third — the rows are the
 question and the top ones are the smallest.
 
+#### S10 has been read: SCPH-50000, sitting 4
+
+| bias | last texel **row** | last texel **column** |
+|---|---|---|
+| `0` | lost unless the height is a power of two | **always** lost (100 is not one) |
+| `1/16` | present at every height | present |
+| `1/8` | present at every height | present |
+| `1/2` | present at every height | present |
+
+**Both axes fail, independently, each on its own span.** The clinching
+observation is column 1 at heights **4 and 8**: those rungs keep their
+bottom row, because 4 and 8 are powers of two, and *still* lose their
+right column, because 100 is not. Nothing before S10 could see the U
+axis at all — every earlier instrument was a power of two wide, which
+is the one span that cannot trigger the fault. Glyphs are not: `-` is 5
+texels wide and `S` is 9, and both have been losing their last column
+since the beginning.
+
+**The GS is not an exact interpolator.** At `1/2` the console does not
+shift — the red row is still red rather than becoming a second yellow.
+The card's own positive control was built expecting a shift, which was
+circular: it assumed the thing under test. The red band is what saved
+the reading, and the control is recorded as a design flaw rather than
+quietly dropped.
+
+**The fix is `1/16`, not `1/2`.** Both work on the console. Half a
+texel is the exact tipping point — the smallest bias that moves a
+round-to-nearest sampler off its texel — so on any renderer that
+interpolates exactly it shifts every sample by one, and a `1/2` build
+scores 17.34 on a frame diff whose healthy band is 4.8. Every bias
+below `1/2` is a no-op there. `1/16` fixes the console and leaves the
+previewer and the emulator exactly where they were, and it is the
+smallest the GS's four fractional UV bits can express.
+
+**What is inferred rather than measured:** V is swept across twelve
+heights, U is measured at exactly one width. S9 is the U sweep.
+
+### S9 — the acceptance test: re-run S7a
+
+**Boot `covers.elf` and read the S7 line.** This is the only step that
+closes the defect, because everything above tests the *card* rather
+than the shipping renderer — and it is also the real U-axis sweep,
+across dozens of genuine glyph widths.
+
+```
+S7 - - - - - - - - - -  E L 2
+```
+
+- **PASS** — `E L 2` read as themselves, bottom bars intact, and the
+  title reads `PS2UI PHASE 1 STREAM BENCH` rather than
+  `PS2UI PHASF 1 STRFAM BFNCH`. The defect is closed.
+- **FAIL** — still `F I ?`. The bias reached the ladder but not the
+  runtime, which would mean a call site bypassing `draw_texquad`; the
+  host suite fences that, so a FAIL here is a finding about the fence.
+
+Every capital on the screen is a sample. `EMPTY` in the `state:` line
+is the easiest one to check at a glance.
+
 ### S7b — 480p, only if S8 is inconclusive
 
 **Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in

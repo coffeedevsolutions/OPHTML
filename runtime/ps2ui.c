@@ -704,6 +704,75 @@ static void apply_scissor(GSGLOBAL *gs, const scissor_rect *r)
     gsKit_set_scissor(gs, GS_SETREG_SCISSOR(r->x0, r->x1 - 1, r->y0, r->y1 - 1));
 }
 
+/* One sixteenth of a texel, added to every UV that reaches the GS.
+ *
+ * MEASURED, bench step S10 (docs/bench-phase1.md), SCPH-50000. Twelve
+ * rungs 1..12 pixels tall, each 100 pixels wide, sampling the matching
+ * texels, drawn four times with only the UV bias differing:
+ *
+ *   bias    last texel ROW          last texel COLUMN
+ *   0       lost unless h is 2^n    ALWAYS lost (100 is not 2^n)
+ *   1/16    present at every h      present
+ *   1/8     present at every h      present
+ *   1/2     present at every h      present
+ *
+ * BOTH AXES FAIL, INDEPENDENTLY, EACH ON ITS OWN SPAN. The clinching
+ * observation is the rungs at h=4 and h=8 with bias 0: they keep their
+ * bottom ROW, because 4 and 8 are powers of two, and still lose their
+ * right COLUMN, because 100 is not. Nothing before S10 could see the U
+ * axis at all -- every earlier instrument was a power of two wide,
+ * which is the one span that cannot trigger the fault.
+ *
+ * WHY 1/16 AND NOT 1/2, when the bench says both work. Half a texel is
+ * the exact tipping point: it is the smallest bias that moves a
+ * round-to-nearest sampler off its texel, so on any renderer that
+ * interpolates EXACTLY it shifts every sample by one. Play! does
+ * exactly that -- a 1/2 build renders `Library` as `Liibrarny` and
+ * scores 17.34 on a frame diff whose healthy band is 4.8. Every bias
+ * below 1/2 is a no-op there, because floor(u + b + i + 0.5) == u + i
+ * for b < 1/2. So 1/16 is the value that fixes the console AND leaves
+ * the previewer and the emulator exactly where they were. It is also
+ * the smallest the GS's four fractional UV bits can express, which
+ * makes it the least intervention that works rather than a number
+ * chosen for taste.
+ *
+ * THE GS IS NOT AN EXACT INTERPOLATOR, and S10 measured that directly:
+ * at 1/2 the console does NOT shift. The bench card's own positive
+ * control was built expecting it to, which was circular -- it assumed
+ * the thing under test. What saved the reading was the red row: a
+ * shift replaces it with a second yellow, and it is still red.
+ *
+ * WHERE IT DOES NOT GO. The blob stays in integer texel space and the
+ * host previewer must never grow this. The previewer indexes texels
+ * directly, has been right about these glyphs the whole time, and is
+ * the ground truth the emulator diffs against. This is a property of
+ * the GS's sampler, so it lives at the one boundary where ps2ui hands
+ * coordinates to the GS.
+ *
+ * WHAT IS INFERRED RATHER THAN MEASURED. V is swept across twelve
+ * heights; U is measured at exactly ONE width, 100. The mechanism is
+ * symmetric and U behaves identically there, but the honest status of
+ * "1/16 fixes U at every width" is inference. Bench step S9 re-runs
+ * the real UI, whose glyphs span dozens of genuine widths, and that is
+ * the U sweep. */
+#define PS2UI_TEXEL_BIAS (1.0f / 16.0f)
+
+/* The one place ps2ui hands texture coordinates to the GS. Every
+ * textured draw goes through here so a fourth call site cannot be
+ * added later that quietly skips the bias -- which is exactly how this
+ * defect would come back. */
+static void draw_texquad(GSGLOBAL *gs, GSTEXTURE *tex,
+                         int x, int y, int w, int h,
+                         int u0, int v0, int u1, int v1, u64 color)
+{
+    gsKit_prim_sprite_texture(gs, tex,
+        (float)x, (float)y,
+        (float)u0 + PS2UI_TEXEL_BIAS, (float)v0 + PS2UI_TEXEL_BIAS,
+        (float)(x + w), (float)(y + h),
+        (float)u1 + PS2UI_TEXEL_BIAS, (float)v1 + PS2UI_TEXEL_BIAS,
+        0, color);
+}
+
 /* Runtime visibility (F21), one bit per focus node. Separate from the
  * baked state machine below: `hidden` answers "should this subtree be
  * painted at all", cmd_visible answers "is this the focused or the
@@ -909,11 +978,10 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
                 continue;
             }
             gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);
-            gsKit_prim_sprite_texture(gs, &ctx->gs_tex[c->tex],
-                (float)c->x, (float)c->y, (float)c->u0, (float)c->v0,
-                (float)(c->x + c->w), (float)(c->y + c->h),
-                (float)c->u1, (float)c->v1,
-                0, GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
+            draw_texquad(gs, &ctx->gs_tex[c->tex],
+                c->x, c->y, c->w, c->h,
+                c->u0, c->v0, c->u1, c->v1,
+                GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
         }
         }
     }
@@ -1121,13 +1189,11 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
             if (g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
-                    (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
-                    (float)g->u, (float)g->v,
-                    (float)(pen + g->bearing_x + g->w),
-                    (float)(s->text_y + g->bearing_y + g->h),
-                    (float)(g->u + g->w), (float)(g->v + g->h),
-                    0, GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+                draw_texquad(gs, &ctx->gs_tex[font->tex],
+                    pen + g->bearing_x, s->text_y + g->bearing_y,
+                    g->w, g->h,
+                    g->u, g->v, g->u + g->w, g->v + g->h,
+                    GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
             }
             pen += g->advance;
             prev = cp;
@@ -1141,13 +1207,11 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
             if (g && g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
-                    (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
-                    (float)g->u, (float)g->v,
-                    (float)(pen + g->bearing_x + g->w),
-                    (float)(s->text_y + g->bearing_y + g->h),
-                    (float)(g->u + g->w), (float)(g->v + g->h),
-                    0, GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+                draw_texquad(gs, &ctx->gs_tex[font->tex],
+                    pen + g->bearing_x, s->text_y + g->bearing_y,
+                    g->w, g->h,
+                    g->u, g->v, g->u + g->w, g->v + g->h,
+                    GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
             }
         }
     }

@@ -1196,6 +1196,100 @@ int main(int argc, char **argv)
         CHECK(ctx.stats.prims == k, "stats reset every frame");
     }
 
+    /* ---- the texel bias reaches the GS on every textured draw ------
+     * Bench step S10 measured that the GS loses a quad's last texel row
+     * AND its last texel column whenever the span is not a power of
+     * two, and that a bias of 1/16 restores both. This is the fence
+     * that keeps it, because nothing else in the suite can see a UV.
+     *
+     * The magnitude matters as much as the presence, which a previous
+     * version of this fix got wrong: 1/2 also works on the console but
+     * shifts an exact renderer by a whole texel, and the emulator gate
+     * duly rejected it. So the checks below pin the VALUE, not just
+     * that something was added.
+     *
+     * Both classes of textured draw are checked, because a bias applied
+     * to one looks identical to a bias applied to all from any counter:
+     * the static command list emits TEXQUADs, and slot text emits glyph
+     * quads through a different path. Each class is asserted non-empty
+     * before what it found there is trusted. */
+    {
+        uint32_t k;
+        const float bias = 1.0f / 16.0f;
+        int n_tex = 0, n_static = 0, n_glyph = 0;
+        const ps2ui_screen_entry *scr;
+
+        /* Sixteenths are exact in binary, so an == against the same
+         * expression the runtime uses is a real equality and not a
+         * float-comparison hazard. A bias that was not exact here
+         * would be a bias the GS's 12.4 UV register cannot express. */
+        CHECK(bias * 16.0f == 1.0f && bias < 0.5f,
+              "the bias is an exact sixteenth and below the half-texel "
+              "tipping point, so the GS can express it and an exact "
+              "sampler stays on the same texel");
+
+        render_and_count(&ctx, &gs);
+        scr = &ctx.screen_table[ctx.screen];
+
+        for (k = 0; k < (uint32_t)g_stub.n_prims; k++) {
+            const stub_prim *p = &g_stub.prims[k];
+            uint32_t j;
+            int matched = 0;
+            if (!p->textured)
+                continue;
+            n_tex++;
+
+            /* Static TEXQUADs are pinned against the record they came
+             * from. This is the only check that can catch a bias of the
+             * wrong SIGN or the wrong SIZE -- and the wrong size is not
+             * hypothetical, it is the bug this fix replaces. Geometry
+             * carries no bias, so matching on it is safe. */
+            for (j = scr->cmd_first; j < scr->cmd_first + scr->cmd_count; j++) {
+                const ps2ui_cmd *c = &ctx.cmd[j];
+                if (c->op != PS2UI_OP_TEXQUAD)
+                    continue;
+                if (p->x1 != (float)c->x || p->y1 != (float)c->y
+                    || p->x2 != (float)(c->x + c->w)
+                    || p->y2 != (float)(c->y + c->h))
+                    continue;
+                if (p->u1 == (float)c->u0 + bias
+                    && p->v1 == (float)c->v0 + bias
+                    && p->u2 == (float)c->u1 + bias
+                    && p->v2 == (float)c->v1 + bias) {
+                    matched = 1;
+                    break;
+                }
+            }
+            if (matched) { n_static++; continue; }
+
+            /* Glyph quads have no record to pin against. Their
+             * invariant is 1:1 sampling -- w pixels from w texels --
+             * which a bias applied to only one corner would break,
+             * plus the offset itself, recovered by subtracting the
+             * integer part. */
+            n_glyph++;
+            CHECK(p->u1 - (float)(int)p->u1 == bias
+                  && p->v1 - (float)(int)p->v1 == bias
+                  && p->u2 - (float)(int)p->u2 == bias
+                  && p->v2 - (float)(int)p->v2 == bias,
+                  "a glyph quad's UVs all carry exactly one sixteenth");
+            CHECK(p->u2 - p->u1 == p->x2 - p->x1
+                  && p->v2 - p->v1 == p->y2 - p->y1,
+                  "and still sample one texel per pixel, so the bias "
+                  "shifted the window without resizing it");
+        }
+
+        CHECK(n_static > 0,
+              "the frame drew static TEXQUADs, so pinning them against "
+              "their records asserted something");
+        CHECK(n_glyph > 0,
+              "and drew slot glyphs, so the second path was exercised too");
+        CHECK(n_static + n_glyph == n_tex,
+              "every textured primitive fell into exactly one class: a "
+              "quad with the wrong bias matches no record and is counted "
+              "as a glyph, where the sixteenth check catches it");
+    }
+
     /* ---- the streaming bench's fallback cover pattern ---------------
      * The bench ELF generates this on the EE when no drive is present,
      * and tools/make_cover_raw.py generates it on the host for the
