@@ -130,11 +130,26 @@ tex_set rc: 0 0 0 0                      <- 0 is PS2UI_OK
 ```
 
 **Read `src:` first.** If it says `SYNTHETIC`, the drive was not
-readable and it names why — `open cover0: -X` means the launcher did
-not leave the USB driver resident, and a size mismatch means the art
-was converted at the wrong size. Everything below still runs on the
-generated pattern, so **the sitting is not wasted**; only step S6 needs
-the drive.
+readable and it names why. Everything below still runs on the generated
+pattern, so **the sitting is not wasted**; only step S6 needs the drive.
+
+The ELF now brings the USB stack up itself, so the failure modes have
+changed since the first sitting:
+
+| `src:` says | means |
+|---|---|
+| `mass:/ps2ui (4 x 65536 B)` | the drive was read. S6 is live |
+| `no IOP modules embedded` | the build found no mass-storage stack in its SDK. My problem, not yours |
+| `<stack> <module>: id N rc M` | a module refused to load, and which one |
+| `<stack> loaded, mass: never appeared` | the drivers came up but no device enumerated in two seconds. Try a different stick or port |
+| `open coverN: -1` | the device is there but that file is not. Check the folder is named `ps2ui` and sits at the drive root |
+| `coverN M B, want 65536` | the file is the wrong size — the art was converted at other than 128×128 |
+
+The first sitting reported `open cover0: -1` from a stick whose files
+were verified byte-exact. That was not the drive: wLaunchELF launches
+via `LoadExecPS2`, which **resets the IOP**, so the launcher's own USB
+drivers were gone before the ELF ran. Nothing survives that reset, so
+the ELF carries the modules now.
 
 ---
 

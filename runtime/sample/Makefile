@@ -77,6 +77,24 @@ endif
 ifdef COVERS
 EE_CFLAGS += -DPS2UI_SAMPLE_COVERS
 endif
+# `make USB=1` (with COVERS=1) embeds the IOP mass-storage modules and
+# brings them up itself. The first bench sitting reported
+# `open cover0: -1` from a stick whose files were byte-exact: wLaunchELF
+# launches via LoadExecPS2, which resets the IOP, so the launcher's own
+# USB drivers are gone before this ELF runs. Nothing survives a reset;
+# the ELF has to carry them.
+#
+# SEPARATE FROM COVERS, deliberately, so the host and the container
+# compile the same thing for the same flag. `make syntax-check` builds
+# COVERS without USB, because sifrpc.h and friends do not exist on the
+# host -- and after the fileio.h episode this tree does not write a
+# shim to pretend otherwise. The elf job is the arbiter for this path;
+# see runtime/vendor/README.md.
+ifdef USB
+EE_CFLAGS += -DPS2UI_SAMPLE_USB
+EE_OBJS   += irx_table.o
+EE_LIBS   += -lpatches
+endif
 # `make NO_SYNC=1` removes the cache writeback from ps2ui_tex_set --
 # the bench's falsification arm, in the same spirit as NO_ALPHA and
 # LINEAR_CLUT. The EE writes texels through a write-back cache the GIF
@@ -113,6 +131,17 @@ ps2ui.o: ps2ui.c
 ui_uib.c: $(UIB)
 	$(PS2SDK)/bin/bin2c $(UIB) ui_uib.c ui_uib
 
+# The IOP modules, discovered rather than pinned: which set exists
+# depends on the PS2SDK vintage and both present `mass:`. embed_irx.sh
+# picks whichever is complete and names it in irx_stack_name, so a
+# failure at the bench says which stack it was.
+ifdef USB
+irx_table.c irx_table.h: embed_irx.sh
+	sh embed_irx.sh .
+irx_table.o: irx_table.c irx_table.h
+main.o: irx_table.h
+endif
+
 clean: objclean
 	rm -f $(EE_BIN)
 
@@ -122,7 +151,7 @@ clean: objclean
 # the UI ELF, so cleaning between a STATIC build and a PROBE build
 # silently threw away the first one.
 objclean:
-	rm -f $(EE_OBJS) ui_uib.c ps2ui.c ps2ui.h
+	rm -f $(EE_OBJS) ui_uib.c ps2ui.c ps2ui.h irx_*.c irx_table.h
 
 include $(PS2SDK)/samples/Makefile.pref
 include $(PS2SDK)/samples/Makefile.eeglobal

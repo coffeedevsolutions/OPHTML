@@ -864,6 +864,19 @@ static void p6_frame(GSGLOBAL *gs)
 #include <unistd.h>
 #include "cover_pattern.h"
 
+#ifdef PS2UI_SAMPLE_USB
+/* Everything below this point is CONTAINER-ONLY. None of these headers
+ * exist on the host, and after the fileio.h episode this file does not
+ * ship a shim for them: a shim describes an API, and describing one
+ * the host does not have is how covers.elf came to compile clean here
+ * while never building for a target at all. hw.yml's elf job is the
+ * arbiter -- see runtime/vendor/README.md. */
+#include <sifrpc.h>
+#include <loadfile.h>
+#include <sbv_patches.h>
+#include "irx_table.h"
+#endif
+
 #define COVER_W     128
 #define COVER_H     128
 #define COVER_BYTES (COVER_W * COVER_H * 4)
@@ -878,6 +891,82 @@ static unsigned char cover_buf[N_COVERS][COVER_BYTES]
     __attribute__((aligned(16)));
 
 static char cover_src[80];
+
+#ifdef PS2UI_SAMPLE_USB
+/* usb_wait_for_mass flips fields while the IOP enumerates, so it needs
+ * the screen the caller already owns. A file-scope pointer rather than
+ * an argument because covers_load is called from one place and
+ * threading it through three functions to reach one flip is worse. */
+static GSGLOBAL *cover_gs;
+#endif
+
+#ifdef PS2UI_SAMPLE_USB
+/* Bring the IOP back up with a mass-storage stack.
+ *
+ * wLaunchELF hands control over via LoadExecPS2, which resets the IOP,
+ * so whatever drivers it had loaded are gone. Resetting again here is
+ * not redundant: it is how we get a known state to load INTO, and the
+ * sample uses no IOP service of its own -- no pad, no sound, no
+ * memory card -- so there is nothing to lose by doing it.
+ *
+ * Every failure writes its own reason into cover_src, because at a
+ * bench "it fell back" and "it fell back at module 3 of 4 with -203"
+ * are different findings and only one of them can be acted on. */
+static int usb_bring_up(void)
+{
+    int i;
+
+    if (n_irx_modules == 0) {
+        sprintf(cover_src, "src: SYNTHETIC (no IOP modules embedded)");
+        return 0;
+    }
+
+    SifInitRpc(0);
+    while (!SifIopReset("", 0)) { }
+    while (!SifIopSync()) { }
+    SifInitRpc(0);
+    /* Without these, SifExecModuleBuffer is refused on a freshly reset
+     * IOP: the loader checks a prefix it has no reason to trust from a
+     * homebrew ELF. Standard homebrew boilerplate, and the reason
+     * -lpatches is on the link line for this build only. */
+    sbv_patch_enable_lmb();
+    sbv_patch_disable_prefix_check();
+
+    for (i = 0; i < n_irx_modules; i++) {
+        int rc = 0;
+        int id = SifExecModuleBuffer(irx_modules[i].buf,
+                                     *irx_modules[i].size, 0, NULL, &rc);
+        if (id < 0 || rc < 0) {
+            sprintf(cover_src, "src: SYNTHETIC (%s %s: id %d rc %d)",
+                    irx_stack_name, irx_modules[i].name, id, rc);
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* The mass driver enumerates asynchronously: the module loads, then
+ * the device shows up whenever the USB stack has finished walking it.
+ * Opening immediately would report a failure that is really just
+ * impatience -- and "no drive" and "not yet" look identical from one
+ * failed open. Two seconds is generous for a stick and still short
+ * enough that a bench does not think the ELF has hung. */
+static int usb_wait_for_mass(void)
+{
+    int tries;
+    for (tries = 0; tries < 120; tries++) {
+        int fd = open("mass:/ps2ui/cover0.raw", O_RDONLY);
+        if (fd >= 0) { close(fd); return 1; }
+        /* One field at a time, using the vsync we are already waiting
+         * on rather than a busy loop that starves the IOP doing the
+         * enumerating. */
+        gsKit_sync_flip(cover_gs);
+    }
+    sprintf(cover_src, "src: SYNTHETIC (%s loaded, mass: never appeared)",
+            irx_stack_name);
+    return 0;
+}
+#endif /* PS2UI_SAMPLE_USB */
 
 /* Read the covers off the drive. Returns 1 on success; on failure
  * writes why into cover_src and returns 0, because "it fell back" and
@@ -918,8 +1007,13 @@ static int covers_from_usb(void)
 static void covers_load(void)
 {
     int i;
+#ifdef PS2UI_SAMPLE_USB
+    if (usb_bring_up() && usb_wait_for_mass() && covers_from_usb())
+        return;
+#else
     if (covers_from_usb())
         return;
+#endif
     /* No drive, or the wrong files on it. Generate the same pattern
      * the host tool writes -- cover_pattern.h is included by both, and
      * a CRC pinned there is checked from both suites, so the fallback
@@ -1092,6 +1186,9 @@ int main(void)
         }
     }
 #ifdef PS2UI_SAMPLE_COVERS
+#ifdef PS2UI_SAMPLE_USB
+    cover_gs = gs;
+#endif
     covers_load();
     ps2ui_slot_set(&ui, "src", cover_src);
     ps2ui_slot_set(&ui, "state", "0 EMPTY: no slot filled yet");

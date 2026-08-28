@@ -302,10 +302,36 @@ jobs:
           # that address. Same role as conform-noalpha -- a picture of
           # the fault to hold next to a photograph, not a test.
           make -C runtime/sample objclean
-          make -C runtime/sample COVERS=1 EE_BIN=covers.elf \
+          # USB=1 embeds the IOP mass-storage stack and brings it up.
+          # The first sitting reported `open cover0: -1` from a stick
+          # whose files were byte-exact: wLaunchELF launches via
+          # LoadExecPS2, which resets the IOP, so the launcher's own
+          # drivers are gone before this ELF runs. Nothing survives a
+          # reset -- the ELF has to carry them.
+          #
+          # This whole path is container-only: sifrpc.h and friends do
+          # not exist on the host, and this tree no longer writes
+          # shims to pretend otherwise. That makes THIS STEP the only
+          # thing that vouches for it, which is the arrangement
+          # runtime/vendor/README.md now spells out.
+          make -C runtime/sample COVERS=1 USB=1 EE_BIN=covers.elf \
             UIB=../../fixtures/bench-stream/build/bench.uib
+          # Checked HERE, before objclean removes the generated file.
+          # An empty module table links perfectly well and produces an
+          # ELF that can never read a drive -- it would say "no IOP
+          # modules embedded" at a bench, which is a wasted trip for a
+          # fault this job can see from the SDK's own directory
+          # listing. Also prints which stack was found, so a change of
+          # SDK vintage shows up in the log rather than as a different
+          # failure six months later.
+          grep -q 'irx_stack_name = "bdm"' runtime/sample/irx_table.c \
+            || grep -q 'irx_stack_name = "legacy"' runtime/sample/irx_table.c \
+            || { echo "embed_irx.sh found no complete IOP stack. Present:"; \
+                 ls "$PS2SDK/iop/irx" | head -40; exit 1; }
+          grep 'irx_stack_name' runtime/sample/irx_table.c
           make -C runtime/sample objclean
-          make -C runtime/sample COVERS=1 NO_SYNC=1 EE_BIN=covers-nosync.elf \
+          make -C runtime/sample COVERS=1 USB=1 NO_SYNC=1 \
+            EE_BIN=covers-nosync.elf \
             UIB=../../fixtures/bench-stream/build/bench.uib
           # The baseline-row discriminator (bench step S7). The first
           # sitting found capitals losing their bottom row on a
