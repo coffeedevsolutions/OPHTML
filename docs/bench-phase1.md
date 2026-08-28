@@ -398,7 +398,58 @@ Photograph the whole screen once, straight on. If the answer is
 height-dependent, note the lowest rung where the line goes — that
 number is the finding.
 
-### S7b — 480p, only if S8 is inconclusive
+#### S8 has been read: SCPH-50000, sitting 3
+
+| height | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **A** raw integer UVs | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| **B** untextured stack | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **C** UVs + 0.5 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+Two of the four readings fired at once, which is the strongest outcome
+the card could produce. **B** keeps the line at every height, so no
+texture unit is involved in losing it and neither the rasteriser nor
+the display is the cause. **C** keeps it at every height, so the
+`+0.5` bias is a fix demonstrated rather than argued — it shipped in
+`ps2ui.c` as `PS2UI_TEXEL_BIAS`.
+
+**The signature is the powers of two.** 1, 2, 4 and 8 are exactly the
+heights ≤ 12 for which `1/h` is exact in binary, which points at a
+reciprocal in the GS's per-scanline UV step. That mechanism is the
+leading hypothesis and not settled; the correction is settled. It
+retrodicts S7a without being fitted to it: capitals are 11 texels tall
+and lost their row, the hyphen is 1 and kept it.
+
+**One axis is unmeasured.** Every arm is 128 pixels wide, a power of
+two, so the U axis was never swept at a width the fault would bite. A
+width ladder is the next instrument.
+
+### S9 — the acceptance test: re-run S7a
+
+**Boot `covers.elf` and read the S7 line**, exactly as in S7a. This is
+the only step that closes the defect, because everything above tests
+the *card*, not the shipping renderer.
+
+```
+S7 - - - - - - - - - -  E L 2
+```
+
+- **PASS** — `E L 2` read as `E`, `L` and `2`, with their bottom bars.
+  The title reads `PS2UI PHASE 1 STREAM BENCH` rather than
+  `PS2UI PHASF 1 STRFAM BFNCH`. The defect is closed.
+- **FAIL** — still `F I ?`. The bias reached the ladder but not the
+  runtime, which would mean a call site bypassing `draw_texquad`; the
+  host suite fences that, so a FAIL here is a finding about the fence.
+
+The whole screen is the reading — every capital on it is a sample, and
+`EMPTY` in the `state:` line is the easiest one to check at a glance.
+
+### S7b — 480p, superseded
+
+**S8 was conclusive, so this step is retired**; it is kept because a
+retired instrument that still boots is cheaper to re-read than to
+rebuild, and because its PASS branch would now be a *surprise* worth
+investigating rather than an answer.
 
 **Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in
 every respect except that it outputs 480p instead of 480i. Worth
@@ -414,9 +465,7 @@ the `MEMORY CARD` line under the `PS2` title and hold it next to your
   checkers shimmering, so the panel is motion-adaptive — but this
   outcome would be the surprising one.
 - **FAIL (renderer convicted)** — still `MFMORY CARD` at 480p. The
-  fault is in what ps2ui asks the GS for, and the next arm is a
-  `+0.5` texel-centre bias, which `bringup.md` already carries as an
-  unsettled question.
+  fault is in what ps2ui asks the GS for.
 - **VOID** — no picture at all. Your television does not sync at 480p.
   Power off, boot anything else, and tell me: we need a different
   discriminator.

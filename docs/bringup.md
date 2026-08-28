@@ -893,12 +893,12 @@ so the comparison is side by side rather than remembered. Every checker
 averages the same 50% grey, which is exactly why a mushed one is
 indistinguishable from it — and exactly why it is worth drawing.
 
-**If wrong:** not a missing `+0.5` — see "The UV convention is settled"
-below, which works the arithmetic and shows the bias would put every
-pixel one texel past the one it asked for. Under the nearest filtering
-ps2ui uses, texel-corner UVs at 1:1 are correct. Look instead at
-whether the quad is drawn at its UV span (anything else resamples), and
-at the texture's format and buffer width.
+**If wrong:** check the `+0.5` bias is present first — see "The UV
+convention" below. It is applied in `ps2ui.c`, was measured on hardware
+at bench step S8, and its absence costs the last texel row or column of
+every quad whose span is not a power of two. Then look at whether the
+quad is drawn at its UV span (anything else resamples), and at the
+texture's format and buffer width.
 
 `make_testcard.py --self-test` fences the construction, and CI runs it.
 The property that matters most there is the 1:1 mapping: a wedge quad
@@ -914,29 +914,41 @@ this card would measure the resampler. Its verdict is advisory: read
 the coarser rungs first, since through a scaled capture the 1px rung
 sits close to what survives at all.
 
-### The UV convention is settled: exact integer texels, no bias
+### The UV convention: half a texel, settled on hardware
 
-**Do not add a `+0.5` here.** `ps2ui.c` passes `u1 = u + w` — the exact
-texel edge — and `ps2ui.c:244` sets `GS_FILTER_NEAREST`. That pairing is
-correct for a 1:1 sprite, and the arithmetic says so:
+**`ps2ui.c` biases every UV by `+0.5`** before it reaches the GS. Bench
+step S8 measured that; see `PS2UI_TEXEL_BIAS` for the full reading.
 
-Pixel *i* of a sprite has its centre at `x0 + i + 0.5`, and UV
-interpolates linearly, so at 1:1 `u = u0 + i + 0.5`. Under nearest that
-floors to `u0 + i` — the texel asked for. Add a `+0.5` bias and it
-becomes `u0 + i + 1`: one texel past, on every pixel.
+This section used to say the opposite, at length and with a table. The
+argument was: pixel *i* of a 1:1 sprite has its centre at `x0 + i + 0.5`,
+UV interpolates linearly, so `u = u0 + i + 0.5`, which under
+`GS_FILTER_NEAREST` floors to `u0 + i` — the texel asked for — and a
+`+0.5` bias would push every sample one texel past it.
 
-| i | u, no bias | texel | u, +0.5 | texel |
-|---|---|---|---|---|
-| 0 | 5.5 | **5** | 6.0 | 6 |
-| 1 | 6.5 | **6** | 7.0 | 7 |
-| 2 | 7.5 | **7** | 8.0 | 8 |
+**The arithmetic is fine. The premise is not.** It assumes the GS
+interpolates UV exactly. On a real GS a sprite *h* pixels tall sampling
+*h* texels keeps its last texel row only when *h* is 1, 2, 4 or 8 — the
+powers of two, which are exactly the *h* for which `1/h` is exact in
+binary. Something in the step is a reciprocal, and at every other span
+the accumulated error carries the last sample across a texel boundary.
 
-The `+0.5` convention is a fix for **bilinear**, where a coordinate on a
-texel boundary averages two texels. ps2ui does not use bilinear. The
-previewer agrees independently: `preview.py:148` crops `[u0, u1)`.
+The old table also made a falsifiable prediction, and the bench falsified
+it directly. At `h = 1` the biased quad samples `v = 15.5 → 16.5`; under
+the table's model the pixel centre lands on `16.0`, one past the end of a
+16-row texture, and should have shown the wrapped dark row. The ladder's
+arm C showed the **bright** row at `h = 1`, and at all eleven other
+heights. A bias that pushed every sample one texel past could not do
+that.
 
-This is recorded as settled rather than merely undocumented because a
-capture from the emulator invites exactly the wrong conclusion, and did.
+That is why the wrong model survived so long: at power-of-two spans it is
+*exactly right*, and the previewer (`preview.py:148` crops `[u0, u1)`)
+and Play! both compute in float with no reciprocal, so both agree with it
+everywhere. Nothing on the host could have caught this. The console did,
+in one boot, once an instrument swept the one variable that mattered.
+
+Kept rather than deleted because the reasoning was careful, was believed
+for months, and was still wrong — and because the next confident
+derivation about this hardware deserves the reminder.
 
 ### What the emulator saw, and what it is not
 
@@ -984,7 +996,10 @@ the artifact alongside `probe6-linear.elf`, its deliberate-fault twin.
 **Both prior designs failed, and the record is the point.** v1 drew one
 texture with and without a `+0.5` UV bias — and would have tested the
 configuration that already works, since the alignment card reads crisp
-through the identical `gsKit_prim_sprite_texture` path. v2 replaced it
+through the identical `gsKit_prim_sprite_texture` path. (v1 was closer
+to the truth than anyone credited: the bias turned out to be the fix.
+It would still have read as a pass either way, because both its arms
+were drawn at power-of-two spans, where the two conventions agree.) v2 replaced it
 with six columns over a periodic checker, and the bench **voided it
 twice**: its first run carried the very fault class it was probing
 (the DMA-truncation garble, with no column immune by construction to
@@ -1072,9 +1087,13 @@ one place, on purpose:** column G calls `ps2ui_clut_csm1` and honours
 and a re-implementation would test a copy. Everything else still asks
 the GS directly.
 
-**The `+0.5` bias is still not among the columns** — testing a fix
-before reproducing a fault is backwards, and the v2 arithmetic showing
-it would move every pixel a texel past its target still stands.
+**The `+0.5` bias is not among the columns**, and by the time it
+mattered this was the right call for the wrong reason. Testing a fix
+before reproducing a fault is backwards, and that part holds. But the
+v2 arithmetic "showing" the bias would move every pixel a texel past
+its target does **not** hold — bench step S8 measured the opposite and
+`ps2ui.c` now applies the bias. Probe6 never swept quad height, which
+is the variable that exposes it; the height ladder did.
 
 **No text anywhere**, still: text is the thing under suspicion, and
 labelling the bands through the glyph path would be asking the suspect

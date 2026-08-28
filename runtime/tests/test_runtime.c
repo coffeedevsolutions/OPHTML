@@ -1195,6 +1195,89 @@ int main(int argc, char **argv)
         CHECK(ctx.stats.prims == k, "stats reset every frame");
     }
 
+    /* ---- the half-texel bias reaches the GS on every textured draw --
+     * Bench step S8 measured that a textured sprite h pixels tall
+     * sampling h texels loses its last texel row for every h except
+     * 1, 2, 4 and 8, and that biasing the UVs by half a texel restores
+     * it at all twelve heights the ladder swept. The bias is the fix;
+     * this is the fence that keeps it, because nothing else in the
+     * suite can see a UV.
+     *
+     * Two classes of textured draw exist and BOTH are checked, because
+     * a bias applied to one of them looks exactly like a bias applied
+     * to all of them from any counter: the static command list emits
+     * TEXQUADs, and slot text emits glyph quads through a different
+     * path. The block asserts each class is non-empty before trusting
+     * what it found there. */
+    {
+        uint32_t k;
+        int n_tex = 0, n_static = 0, n_glyph = 0;
+        const ps2ui_screen_entry *scr;
+
+        render_and_count(&ctx, &gs);
+        scr = &ctx.screen_table[ctx.screen];
+
+        for (k = 0; k < (uint32_t)g_stub.n_prims; k++) {
+            const stub_prim *p = &g_stub.prims[k];
+            uint32_t j;
+            int matched = 0;
+            if (!p->textured)
+                continue;
+            n_tex++;
+
+            /* Static TEXQUADs are pinned against the record they came
+             * from, which is the only check here that can catch a bias
+             * of the wrong SIGN or the wrong SIZE -- a fractional part
+             * of 0.5 alone is satisfied by -0.5 just as happily.
+             * Geometry carries no bias, so matching on it is safe. */
+            for (j = scr->cmd_first; j < scr->cmd_first + scr->cmd_count; j++) {
+                const ps2ui_cmd *c = &ctx.cmd[j];
+                if (c->op != PS2UI_OP_TEXQUAD)
+                    continue;
+                if (p->x1 != (float)c->x || p->y1 != (float)c->y
+                    || p->x2 != (float)(c->x + c->w)
+                    || p->y2 != (float)(c->y + c->h))
+                    continue;
+                if (p->u1 == (float)c->u0 + 0.5f
+                    && p->v1 == (float)c->v0 + 0.5f
+                    && p->u2 == (float)c->u1 + 0.5f
+                    && p->v2 == (float)c->v1 + 0.5f) {
+                    matched = 1;
+                    break;
+                }
+            }
+            if (matched) {
+                n_static++;
+                continue;
+            }
+
+            /* Everything else is a glyph quad, which has no record to
+             * pin against. Its invariant is 1:1 sampling -- w pixels
+             * from w texels -- which a bias applied to only one corner
+             * would break, plus the half-texel offset itself. */
+            n_glyph++;
+            CHECK(p->u1 - (float)(int)p->u1 == 0.5f
+                  && p->v1 - (float)(int)p->v1 == 0.5f
+                  && p->u2 - (float)(int)p->u2 == 0.5f
+                  && p->v2 - (float)(int)p->v2 == 0.5f,
+                  "a glyph quad's UVs all carry the half-texel bias");
+            CHECK(p->u2 - p->u1 == p->x2 - p->x1
+                  && p->v2 - p->v1 == p->y2 - p->y1,
+                  "and still sample one texel per pixel, so the bias "
+                  "shifted the window without resizing it");
+        }
+
+        CHECK(n_static > 0,
+              "the frame drew static TEXQUADs, so pinning them against "
+              "their records asserted something");
+        CHECK(n_glyph > 0,
+              "and drew slot glyphs, so the second path was exercised too");
+        CHECK(n_static + n_glyph == n_tex,
+              "every textured primitive fell into exactly one class: an "
+              "unbiased static quad would match no record and be counted "
+              "as a glyph, where the 0.5 check catches it");
+    }
+
     /* ---- the streaming bench's fallback cover pattern ---------------
      * The bench ELF generates this on the EE when no drive is present,
      * and tools/make_cover_raw.py generates it on the host for the

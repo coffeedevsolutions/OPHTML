@@ -940,6 +940,7 @@ static void draw_ladder(GSGLOBAL *gs, GSTEXTURE *tex)
  * while never building for a target at all. hw.yml's elf job is the
  * arbiter -- see runtime/vendor/README.md. */
 #include <sifrpc.h>
+#include <dirent.h>       /* opendir, to ask whether the DEVICE is up */
 #include <iopcontrol.h>   /* SifIopReset, SifIopSync -- NOT in sifrpc.h */
 #include <loadfile.h>
 #include <sbv_patches.h>
@@ -1035,8 +1036,30 @@ static int usb_wait_for_mass(void)
          * enumerating. */
         gsKit_sync_flip(cover_gs);
     }
-    sprintf(cover_src, "src: SYNTHETIC (%s loaded, mass: never appeared)",
-            irx_stack_name);
+
+    /* The loop above cannot say WHY it gave up, and the first version
+     * of this function did not try: it probed by opening the cover
+     * itself, so "no drive" and "a mounted drive with no /ps2ui on it"
+     * printed the same sentence. A sitting read that message and could
+     * not tell which of two unrelated fixes it needed.
+     *
+     * The wait stays keyed on the file, so the success path is byte
+     * for byte the one that passed S6 last sitting -- opening the
+     * directory sooner could report a filesystem that has mounted but
+     * not settled. This only runs once the answer is already "no", and
+     * all it does is name which no. */
+    {
+        DIR *d = opendir("mass:/");
+        if (d) {
+            closedir(d);
+            sprintf(cover_src,
+                    "src: SYNTHETIC (mass up, no /ps2ui/cover0.raw)");
+        } else {
+            sprintf(cover_src,
+                    "src: SYNTHETIC (%s loaded, no mass device)",
+                    irx_stack_name);
+        }
+    }
     return 0;
 }
 #endif /* PS2UI_SAMPLE_USB */

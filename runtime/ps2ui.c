@@ -704,6 +704,66 @@ static void apply_scissor(GSGLOBAL *gs, const scissor_rect *r)
     gsKit_set_scissor(gs, GS_SETREG_SCISSOR(r->x0, r->x1 - 1, r->y0, r->y1 - 1));
 }
 
+/* Half a texel, added to every UV that reaches the GS.
+ *
+ * MEASURED, bench step S8 (docs/bench-phase1.md), SCPH-50000. A twelve
+ * rung ladder drew the same one-texel bright row at the bottom of quads
+ * 1..12 pixels tall, each sampling the matching number of texels, in
+ * three arms:
+ *
+ *   raw integer UVs   line present ONLY at heights 1, 2, 4 and 8
+ *   untextured quads  line present at all twelve heights
+ *   UVs + 0.5         line present at all twelve heights
+ *
+ * The untextured arm keeps every row, so neither the rasteriser nor
+ * the display is losing it -- the fault is in texture sampling, and
+ * this constant is what the third arm demonstrated fixes it.
+ *
+ * WHY those four heights, as the leading hypothesis rather than a
+ * settled fact: 1, 2, 4 and 8 are exactly the heights <= 12 for which
+ * 1/h is exact in binary. That points at a reciprocal in the GS's
+ * per-scanline UV step, where for any other height the accumulated
+ * error carries the last row's sample across a texel boundary and it
+ * fetches the neighbouring row instead. Half a texel is the margin
+ * that survives it. The mechanism is a guess; the CORRECTION is not,
+ * because arm C was measured at every height the ladder sweeps.
+ *
+ * It also retrodicts the defect that started this, which is the
+ * strongest evidence for it: capitals in the bench face are 11 texels
+ * tall and lost their bottom row on this console, while the hyphen is
+ * 1 texel tall and kept it. Neither was fitted to the ladder.
+ *
+ * WHERE IT DOES NOT GO. The blob stays in integer texel space and the
+ * host previewer must never grow this: the previewer indexes texels
+ * directly, has been right about these glyphs the whole time, and is
+ * the ground truth the emulator diffs against. This is a property of
+ * the GS's sampler, so it lives at the one boundary where ps2ui hands
+ * coordinates to the GS.
+ *
+ * ONE AXIS IS UNMEASURED. The ladder swept height with every arm 128
+ * pixels wide, a power of two, so the U axis was never exercised at a
+ * width the fault would bite. The bias is applied to both axes because
+ * sampling texel centres is the correct rule in both, and arm C did
+ * exactly that -- but only V has bench evidence. A width ladder is the
+ * next instrument. */
+#define PS2UI_TEXEL_BIAS 0.5f
+
+/* The one place ps2ui hands texture coordinates to the GS. Every
+ * textured draw goes through here so a fourth call site cannot be
+ * added later that quietly skips the bias -- which is exactly how this
+ * defect would come back. */
+static void draw_texquad(GSGLOBAL *gs, GSTEXTURE *tex,
+                         int x, int y, int w, int h,
+                         int u0, int v0, int u1, int v1, u64 color)
+{
+    gsKit_prim_sprite_texture(gs, tex,
+        (float)x, (float)y,
+        (float)u0 + PS2UI_TEXEL_BIAS, (float)v0 + PS2UI_TEXEL_BIAS,
+        (float)(x + w), (float)(y + h),
+        (float)u1 + PS2UI_TEXEL_BIAS, (float)v1 + PS2UI_TEXEL_BIAS,
+        0, color);
+}
+
 /* Runtime visibility (F21), one bit per focus node. Separate from the
  * baked state machine below: `hidden` answers "should this subtree be
  * painted at all", cmd_visible answers "is this the focused or the
@@ -909,11 +969,10 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
                 continue;
             }
             gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);
-            gsKit_prim_sprite_texture(gs, &ctx->gs_tex[c->tex],
-                (float)c->x, (float)c->y, (float)c->u0, (float)c->v0,
-                (float)(c->x + c->w), (float)(c->y + c->h),
-                (float)c->u1, (float)c->v1,
-                0, GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
+            draw_texquad(gs, &ctx->gs_tex[c->tex],
+                c->x, c->y, c->w, c->h,
+                c->u0, c->v0, c->u1, c->v1,
+                GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
         }
         }
     }
@@ -1121,13 +1180,11 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
             if (g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
-                    (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
-                    (float)g->u, (float)g->v,
-                    (float)(pen + g->bearing_x + g->w),
-                    (float)(s->text_y + g->bearing_y + g->h),
-                    (float)(g->u + g->w), (float)(g->v + g->h),
-                    0, GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+                draw_texquad(gs, &ctx->gs_tex[font->tex],
+                    pen + g->bearing_x, s->text_y + g->bearing_y,
+                    g->w, g->h,
+                    g->u, g->v, g->u + g->w, g->v + g->h,
+                    GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
             }
             pen += g->advance;
             prev = cp;
@@ -1141,13 +1198,11 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
             if (g && g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                gsKit_prim_sprite_texture(gs, &ctx->gs_tex[font->tex],
-                    (float)(pen + g->bearing_x), (float)(s->text_y + g->bearing_y),
-                    (float)g->u, (float)g->v,
-                    (float)(pen + g->bearing_x + g->w),
-                    (float)(s->text_y + g->bearing_y + g->h),
-                    (float)(g->u + g->w), (float)(g->v + g->h),
-                    0, GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+                draw_texquad(gs, &ctx->gs_tex[font->tex],
+                    pen + g->bearing_x, s->text_y + g->bearing_y,
+                    g->w, g->h,
+                    g->u, g->v, g->u + g->w, g->v + g->h,
+                    GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
             }
         }
     }

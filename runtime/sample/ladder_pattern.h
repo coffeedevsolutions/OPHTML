@@ -1,5 +1,28 @@
 /* The height ladder: which quad heights lose their last texel row.
  *
+ * IT HAS BEEN READ. SCPH-50000, bench sitting 3:
+ *
+ *   height     1  2  3  4  5  6  7  8  9 10 11 12
+ *   A raw UVs  y  y  .  y  .  .  .  y  .  .  .  .
+ *   B untex    y  y  y  y  y  y  y  y  y  y  y  y
+ *   C +0.5     y  y  y  y  y  y  y  y  y  y  y  y
+ *
+ * B keeps every row, so the rasteriser and the display are innocent.
+ * C keeps every row, so the +0.5 bias is the fix -- it now ships as
+ * PS2UI_TEXEL_BIAS in ps2ui.c. A's survivors are exactly the powers
+ * of two, which are exactly the heights whose reciprocal is exact in
+ * binary; see the constant's comment for what that suggests and for
+ * how much of it is hypothesis.
+ *
+ * The card is kept, unchanged, as a regression instrument: arm A is
+ * deliberately still the UNBIASED path, so a future sitting can boot
+ * this and see the fault reproduce beside its fix. Do not "update"
+ * arm A to match what ps2ui now ships -- that would delete the only
+ * on-console evidence the bias does anything.
+ *
+ * The text below is the design as written before the reading, kept
+ * because it says what each outcome would have meant.
+ *
  * WHAT THE BENCH ESTABLISHED. On a SCPH-50000, capitals lose exactly
  * one screen row -- E reads as F, L as I, 2 as ?. Measured against the
  * blob: the lost row is the LAST row of an 11-texel-tall quad, and a
