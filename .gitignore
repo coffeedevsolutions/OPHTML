@@ -12,3 +12,4 @@ runtime/sample/ps2ui.h
 runtime/sample/ui_uib.c
 runtime/sample/*.o
 runtime/sample/*.elf
+fixtures/bench-stream/build/

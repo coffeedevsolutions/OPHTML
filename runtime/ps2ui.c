@@ -676,7 +676,17 @@ int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
      * decision to transfer is made from residency state that this call
      * is about to change, so the writeback belongs here where the
      * write happened. */
+#ifdef PS2UI_SKIP_SYNCDCACHE
+    /* The bench's falsification arm (make -C runtime/sample NO_SYNC=1),
+     * the same shape as PS2UI_PRIMALPHA_OFF and PS2UI_CLUT_PERMUTE=0.
+     * Not a fix, not a fallback and not a portability switch: it forces
+     * the fault so a sitting has a picture of what a live cache fault
+     * looks like, instead of guessing when a cover comes out wrong.
+     * Nothing in the shipped path defines this. */
+    (void)len;
+#else
     SyncDCache((void *)texels, (void *)((uint8_t *)(void *)(uintptr_t)texels + len));
+#endif
     /* Residency is stale by construction: the manager may hold this
      * texture as resident from a previous set, in which case the next
      * bind would draw the OLD cover from VRAM and never look at the

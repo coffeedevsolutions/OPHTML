@@ -15,11 +15,35 @@ from .quads import (
     STATE_ALWAYS, STATE_UNFOCUSED, STATE_FOCUSED, FOCUS_NONE,
 )
 from .rounding import gs_alpha_to_css
+from dataclasses import replace
+
 from .uib import UibFile
 
 
-def _decode_texture(uib: UibFile, index: int) -> Image.Image:
+def _decode_texture(uib: UibFile, index: int, fills: dict = None) -> Image.Image:
+    """None for a streamed slot with nothing in it, which is what the
+    runtime draws for one: ps2ui_render skips an unfilled slot and
+    counts it in stats.tex_unfilled. Before this the previewer read
+    tex.data unconditionally and Pillow raised "not enough image data"
+    on any blob carrying a streamed slot -- the first blob that did was
+    the streaming bench, months after the format shipped.
+
+    `fills` supplies texels for a named slot exactly as ps2ui_tex_set
+    does on the console: raw PSMCT32 of exactly width * height * 4
+    bytes. That is what makes a filled console frame comparable against
+    a preview at all."""
     tex = uib.textures[index]
+    if getattr(tex, "kind", 0) and not tex.data:
+        raw = (fills or {}).get(tex.name)
+        if raw is None:
+            return None
+        need = tex.width * tex.height * 4
+        if len(raw) != need:
+            raise ValueError(
+                f"slot {tex.name!r}: {len(raw)} bytes of texels for a "
+                f"{tex.width}x{tex.height} PSMCT32 reservation ({need} B). "
+                f"ps2ui_tex_set would return PS2UI_ERR_SIZE for this.")
+        tex = replace(tex, data=raw)
     if tex.fmt == gs.PSMCT32:
         img = Image.frombytes("RGBA", (tex.width, tex.height), tex.data)
         # GS alpha -> CSS alpha for Pillow compositing.
@@ -100,10 +124,13 @@ def _screen_index(uib: UibFile, screen) -> int:
 
 
 def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),
-           slot_text: dict = None, screen=0) -> Image.Image:
+           slot_text: dict = None, screen=0, tex_fills: dict = None) -> Image.Image:
     """Replay one screen (index or name; default first) to an RGBA image
     with the given focus-table index current. slot_text overrides
-    dynamic-text slots by name (else placeholders)."""
+    dynamic-text slots by name (else placeholders). tex_fills supplies
+    raw PSMCT32 texels for streamed texture slots by name, the host
+    mirror of ps2ui_tex_set; a slot with none draws nothing, which is
+    what the runtime does."""
     si = _screen_index(uib, screen)
     sc = uib.screens[si] if uib.screens else {
         "cmd_first": 0, "cmd_count": len(uib.records),
@@ -144,7 +171,9 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
 
         if rec.op == OP_TEXQUAD:
             if rec.tex not in tex_cache:
-                tex_cache[rec.tex] = _decode_texture(uib, rec.tex)
+                tex_cache[rec.tex] = _decode_texture(uib, rec.tex, tex_fills)
+            if tex_cache[rec.tex] is None:
+                continue        # unfilled slot: the console draws nothing
             src = tex_cache[rec.tex].crop((rec.u0, rec.v0, rec.u1, rec.v1))
             if src.size != (rec.w, rec.h):
                 src = src.resize((rec.w, rec.h), Image.BILINEAR)

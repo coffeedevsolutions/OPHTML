@@ -817,6 +817,101 @@ class TestStreamedAuthoring(unittest.TestCase):
         self.assertIn("64 KiB reserved by slots", summary)
 
 
+class TestCoverPattern(unittest.TestCase):
+    """The bench's fallback cover exists in two languages.
+
+    tools/make_cover_raw.py generates it on the host for the reference
+    PNG; runtime/sample/cover_pattern.h generates it on the EE when the
+    bench has no drive attached. If they diverge, a sitting compares a
+    console photograph against a picture of something else -- and the
+    divergence is invisible, because both halves look like a plausible
+    cover.
+
+    Pinned as a CRC in the header both sides include. This is the
+    Python half; runtime/tests/test_runtime.c is the C half.
+    """
+
+    def header(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.normpath(os.path.join(
+            here, "..", "..", "..", "runtime", "sample", "cover_pattern.h"))
+        self.assertTrue(os.path.exists(path), path)
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+
+    def synthetic(self, *a):
+        here = os.path.dirname(os.path.abspath(__file__))
+        tools = os.path.normpath(os.path.join(here, "..", "..", "..", "tools"))
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_cover_raw import synthetic
+        return synthetic(*a)
+
+    def test_python_matches_the_crc_the_header_pins(self):
+        import re
+        import zlib
+        m = re.search(r"#define\s+COVER_PATTERN_CRC_0_64X64\s+0x([0-9a-fA-F]+)u",
+                      self.header(), re.I)
+        self.assertIsNotNone(m, "the header must pin the CRC")
+        pinned = int(m.group(1), 16)
+        got = zlib.crc32(self.synthetic(0, 64, 64)) & 0xFFFFFFFF
+        self.assertEqual(
+            got, pinned,
+            f"make_cover_raw.synthetic(0,64,64) hashes to 0x{got:08x}, the "
+            f"header pins 0x{pinned:08x}. One generator moved; the ELF's "
+            f"fallback and the reference PNG are no longer the same picture.")
+
+    def test_the_pattern_can_tell_arrived_from_stale(self):
+        """The property, asserted on this side too. A flat cover looks
+        identical whether the texels arrived or a stale VRAM block is
+        being drawn -- which is exactly what bench step S1 reads."""
+        raw = self.synthetic(0, 64, 64)
+        texels = {raw[i:i + 4] for i in range(0, len(raw), 4)}
+        # Three today -- white, the hue, and the hue darkened -- so this
+        # clears by exactly one. Noted rather than loosened: the CRC pin
+        # makes any change to the pattern deliberate, and a fourth value
+        # added to buy margin would be decoration.
+        self.assertGreater(len(texels), 2, f"only {len(texels)} distinct texels")
+        self.assertNotEqual(self.synthetic(0, 64, 64), self.synthetic(1, 64, 64))
+
+    def test_the_pattern_varies_on_both_axes(self):
+        """Three distinct values could still be horizontal stripes, and
+        stripes are a shape stale VRAM plausibly takes: a framebuffer
+        row and a texture read at the wrong stride both stripe. A
+        checker cannot be mistaken for either.
+
+        Mirrors the C check exactly. The pair used to be asymmetric --
+        C compared every texel against texel zero, which is the white
+        BORDER, so a border around a flat fill passed there and failed
+        here. Review found it by collapsing the interior."""
+        w = h = 64
+        raw = self.synthetic(0, w, h)
+
+        def px(x, y):
+            i = (y * w + x) * 4
+            return raw[i:i + 4]
+
+        # Below and right of the corner block, not from the first
+        # interior texel. Scanning from the edge, a horizontal-stripe
+        # pattern still passes: the white corner block sits against the
+        # stripes and supplies the horizontal variation itself, so the
+        # check reads the block rather than the pattern. Same shape as
+        # the C-side mistake review found, one level down.
+        edge, cell = 2, 8
+        lo = edge + cell + 1
+        rng = [(x, y) for y in range(lo, h - edge) for x in range(lo, w - edge)]
+        self.assertTrue(any(px(x, y) != px(x - 1, y) for x, y in rng),
+                        "does not vary horizontally clear of the corner block")
+        self.assertTrue(any(px(x, y) != px(x, y - 1) for x, y in rng),
+                        "does not vary vertically clear of the corner block")
+
+    def test_alpha_is_in_the_gs_domain(self):
+        raw = self.synthetic(0, 32, 32)
+        self.assertEqual(set(raw[3::4]), {0x80},
+                         "0xFF would ask the GS for about twice the coverage "
+                         "it has -- backlog B1 on a new path")
+
+
 class TestArena(unittest.TestCase):
     """The host mirror of runtime/ps2ui.c's arena_compute.
 

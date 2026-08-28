@@ -262,6 +262,18 @@ rejected loudly.
 > model; the context contains no ceiling-sized arrays; a demo streams a
 > cover into a reserved slot on hardware; v6 documented with v5's rigor.
 
+All four items above have shipped. The gate's remaining clause is the
+hardware one, and it is the only thing between Phase 1 and Phase 2:
+`docs/bench-phase1.md` is the sitting, `fixtures/bench-stream` is the
+blob and the covers, and `covers.elf` / `covers-nosync.elf` are the
+instruments. Six steps, one photograph each.
+
+Nothing in Phase 1 has been on a console. That is deliberate — the
+host suites and the emulator gate carried it — but `ps2ui_tex_set`
+hands the GS memory the EE wrote through a write-back cache the GIF
+cannot see, which is the fault class #40 was and the one emulators
+model least well.
+
 ### Phase 2 — Prove it with the OPL-class app
 
 Build the UC-3 skeleton as `examples/opl-env`: landing page, library with

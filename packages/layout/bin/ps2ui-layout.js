@@ -59,7 +59,12 @@ try {
   const ir = compileFiles(positional[0], positional[1], options);
   for (const w of ir.warnings) console.warn(`warning: ${w}`);
   writeFileSync(out, JSON.stringify(ir, null, 1));
-  const quads = ir.commands.filter((c) => c.op === 'rect' || c.op === 'text').length;
+  // Every op in the IR paints -- rect, text and image are the whole
+  // set. Counting only rect and text reported "0 paint commands"
+  // for a page of nothing but images, which reads as "nothing was
+  // drawn" and cost two false starts while streamed slots were
+  // being built.
+  const quads = ir.commands.length;
   console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);
   if (strict && ir.warnings.length > 0) {
     console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);

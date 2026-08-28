@@ -833,12 +833,118 @@ static void p6_frame(GSGLOBAL *gs)
 }
 #endif
 
+#ifdef PS2UI_SAMPLE_COVERS
+/* ---------------------------------------------------------------------
+ * Phase 1 streaming bench (docs/bench-phase1.md).
+ *
+ * The one thing in this project that has never been on a console:
+ * ps2ui_tex_set. It points a slot at the caller's buffer and copies
+ * nothing, then writes that buffer back from the EE's write-back cache
+ * so the GIF can see it. Cache and DMA are the fault class emulators
+ * only partially model -- it is what #40 was -- so this earns silicon.
+ *
+ * WHERE THE TEXELS COME FROM. The EE has no image decoder and ps2ui
+ * does not want one: the app owns device I/O and decoding, the same
+ * split slot text has. tools/make_cover_raw.py converts art on the
+ * host into bare PSMCT32 of exactly the reserved size, and this reads
+ * it. No module loading here -- these ELFs are launched from a
+ * USB-capable launcher, which leaves usbd and the mass driver resident
+ * in the IOP, and this sample deliberately never resets it. If that
+ * turns out not to hold on the bench, the on-screen source line says
+ * so by name and the fallback below still produces a reading.
+ */
+/* POSIX, not fioOpen. ps2sdk's newlib port refuses fio/fileXio at the
+ * header with "#error Use posix function calls instead", so the first
+ * version of this did not compile for the console at all -- and the
+ * host syntax-check passed it, because I had written a shim declaring
+ * fioOpen. A shim that invents an API the real target forbids is worse
+ * than no shim: it converts a build error into a green tick. The shim
+ * is gone and these are the same three functions on both sides now. */
+#include <fcntl.h>
+#include <unistd.h>
+#include "cover_pattern.h"
+
+#define COVER_W     128
+#define COVER_H     128
+#define COVER_BYTES (COVER_W * COVER_H * 4)
+#define N_COVERS    4
+
+/* 16-aligned because ps2ui_tex_set refuses anything else: a DMA source
+ * address truncates silently below qword alignment, which is the exact
+ * fault bringup.md 3c records. Static, because the pointer handed to
+ * tex_set stays the slot's DMA source for as long as it can be drawn
+ * and gsKit re-reads it at RENDER time on an eviction heal. */
+static unsigned char cover_buf[N_COVERS][COVER_BYTES]
+    __attribute__((aligned(16)));
+
+static char cover_src[80];
+
+/* Read the covers off the drive. Returns 1 on success; on failure
+ * writes why into cover_src and returns 0, because "it fell back" and
+ * "it fell back for this reason" are different readings and only one
+ * of them is useful at a bench. */
+static int covers_from_usb(void)
+{
+    int i;
+    for (i = 0; i < N_COVERS; i++) {
+        char path[48];
+        int fd;
+        long got;
+        sprintf(path, "mass:/ps2ui/cover%d.raw", i);
+        fd = open(path, O_RDONLY);
+        if (fd < 0) {
+            sprintf(cover_src, "src: SYNTHETIC (open cover%d: %d)", i, fd);
+            return 0;
+        }
+        got = (long)read(fd, cover_buf[i], COVER_BYTES);
+        close(fd);
+        /* Exact, not "at least". A short read would DMA whatever was
+         * left in the buffer and a long file means the art was
+         * converted at the wrong size -- both draw convincingly wrong,
+         * which is worse than not drawing. This is the same reasoning
+         * ps2ui_tex_set applies to its own len argument, and the raw
+         * files carry no header precisely so that this size check is
+         * the integrity check. */
+        if (got != (long)COVER_BYTES) {
+            sprintf(cover_src, "src: SYNTHETIC (cover%d %ld B, want %d)",
+                    i, got, COVER_BYTES);
+            return 0;
+        }
+    }
+    sprintf(cover_src, "src: mass:/ps2ui  (%d x %d B)", N_COVERS, COVER_BYTES);
+    return 1;
+}
+
+static void covers_load(void)
+{
+    int i;
+    if (covers_from_usb())
+        return;
+    /* No drive, or the wrong files on it. Generate the same pattern
+     * the host tool writes -- cover_pattern.h is included by both, and
+     * a CRC pinned there is checked from both suites, so the fallback
+     * picture and the reference PNG cannot drift apart silently. */
+    for (i = 0; i < N_COVERS; i++)
+        cover_fill(cover_buf[i], i, COVER_W, COVER_H);
+}
+#endif /* PS2UI_SAMPLE_COVERS */
+
 int main(void)
 {
     GSGLOBAL *gs;
     ps2ui_ctx ui;
     int rc;
     unsigned frame = 0;
+#ifdef PS2UI_SAMPLE_COVERS
+    /* Five seconds a phase at either field rate. Not 300: PAL runs 50,
+     * and a bench that has to know which television it is looking at
+     * to read a phase boundary is a worse instrument. */
+#define COVER_PHASE_FRAMES 250u
+    unsigned cover_phase = 99u;      /* nothing yet; forces the first edge */
+    int cover_rc[N_COVERS];
+    int i;
+    for (i = 0; i < N_COVERS; i++) cover_rc[i] = -99;
+#endif
 
     dmaKit_init(D_CTRL_RELE_OFF, D_CTRL_MFD_OFF, D_CTRL_STS_UNSPEC,
                 D_CTRL_STD_OFF, D_CTRL_RCYC_8, 1 << DMA_CHANNEL_GIF);
@@ -952,6 +1058,16 @@ int main(void)
             gsKit_sync_flip(gs);
         }
     }
+#ifdef PS2UI_SAMPLE_COVERS
+    covers_load();
+    ps2ui_slot_set(&ui, "src", cover_src);
+    ps2ui_slot_set(&ui, "state", "0 EMPTY: no slot filled yet");
+    /* Phase 0 holds here for its full five seconds before anything is
+     * set, so the first thing the bench sees is what an UNFILLED slot
+     * draws. It must be nothing -- not garbage, not a stale VRAM
+     * block. ps2ui_upload preflighted their reservations, so the
+     * memory is committed; the question is whether render skips them. */
+#endif
 #ifdef PS2UI_SAMPLE_SCREEN
     /* `make SCREEN=probe` opens on that screen instead of screen 0.
      *
@@ -1037,6 +1153,77 @@ int main(void)
             if (dt < t_min) t_min = dt;
             if (dt > t_max) t_max = dt;
             t_sum += dt;
+        }
+#elif defined(PS2UI_SAMPLE_COVERS)
+        /* Four phases, five seconds each, looping. Looping on purpose:
+         * a bench photograph that misses its moment comes round again
+         * rather than costing a reboot, and the state slot names the
+         * phase on screen so a photo is self-labelling -- nobody has
+         * to time anything or remember what they were looking at. */
+        {
+            unsigned phase = (frame / COVER_PHASE_FRAMES) % 4u;
+            if (phase != cover_phase) {
+                cover_phase = phase;
+                switch (phase) {
+                case 0:
+                    /* Every slot back to empty. ps2ui_tex_set has no
+                     * "unset", and it should not: a NULL texels
+                     * argument is refused. Reloading the context is
+                     * the honest way to get back to unfilled, so the
+                     * phase instead just states that slots start
+                     * empty and shows it on the first pass through. */
+                    ps2ui_slot_set(&ui, "state",
+                                   "1 FILL: four covers via tex_set");
+                    for (i = 0; i < N_COVERS; i++) {
+                        char nm[10];
+                        sprintf(nm, "cover%d", i);
+                        cover_rc[i] = ps2ui_tex_set(&ui, gs, nm,
+                                                    cover_buf[i], COVER_BYTES);
+                    }
+                    break;
+                case 1:
+                    /* The invalidate. Slot 0 is repointed at cover 3's
+                     * texels: if residency were not dropped, the GS
+                     * would keep drawing the OLD cover out of VRAM and
+                     * this phase would look identical to the last one.
+                     * That is the whole reading. */
+                    ps2ui_slot_set(&ui, "state",
+                                   "2 SWAP: slot 0 now shows cover 3");
+                    cover_rc[0] = ps2ui_tex_set(&ui, gs, "cover0",
+                                                cover_buf[3], COVER_BYTES);
+                    break;
+                case 2:
+                    ps2ui_slot_set(&ui, "state",
+                                   "3 RESTORE: slot 0 shows cover 0 again");
+                    cover_rc[0] = ps2ui_tex_set(&ui, gs, "cover0",
+                                                cover_buf[0], COVER_BYTES);
+                    break;
+                default:
+                    ps2ui_slot_set(&ui, "state",
+                                   "4 COMPOSITE: dialog over covers");
+                    break;
+                }
+                {
+                    /* Return codes on screen, because a slot that
+                     * draws nothing has two causes -- refused, or
+                     * accepted and not transferred -- and only one of
+                     * them is a renderer bug. 0 is PS2UI_OK. */
+                    char rcs[40];
+                    sprintf(rcs, "tex_set rc: %d %d %d %d",
+                            cover_rc[0], cover_rc[1], cover_rc[2], cover_rc[3]);
+                    ps2ui_slot_set(&ui, "msg", rcs);
+                }
+            }
+            ps2ui_screen_set(&ui, "covers");
+            ps2ui_render(&ui, gs);
+            if (phase == 3) {
+                /* The composite. No clear between the two renders --
+                 * that is the guarantee, and on a television it is
+                 * either true or the covers vanish. */
+                ps2ui_screen_set(&ui, "dialog");
+                ps2ui_render(&ui, gs);
+                ps2ui_screen_set(&ui, "covers");
+            }
         }
 #else
         ps2ui_render(&ui, gs);

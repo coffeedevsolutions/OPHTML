@@ -67,6 +67,15 @@ jobs:
           # ci.yml built it before, and ci.yml produces no ELF, so those
           # four steps had nothing to run at the bench.
           ./examples/channel6/build.sh
+          # The Phase 1 streaming bench: a blob with four streamed
+          # slots, the covers that fill them, and the three reference
+          # pictures a sitting is read against. Its own artifact, not
+          # `baked`: upload-artifact roots a bundle at the least common
+          # ancestor of its paths, so adding a fixtures/ path to that
+          # one would silently re-root every examples/ path in it and
+          # the elf job's download would land somewhere else.
+          ./fixtures/bench-stream/build.sh
+          python3 tools/make_cover_raw.py --self-test
           python3 tools/make_testcard.py examples/memcard/build/testcard.uib \
             --preview examples/memcard/build/testcard-expected.png
           python3 tools/framediff.py --self-test
@@ -104,6 +113,19 @@ jobs:
             examples/memcard/build/testcard.uib
             examples/memcard/build/testcard-expected.png
             examples/channel6/build/ui.uib
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bench-stream
+          retention-days: 14
+          path: |
+            fixtures/bench-stream/build/bench.uib
+            fixtures/bench-stream/build/covers/cover0.raw
+            fixtures/bench-stream/build/covers/cover1.raw
+            fixtures/bench-stream/build/covers/cover2.raw
+            fixtures/bench-stream/build/covers/cover3.raw
+            fixtures/bench-stream/build/preview-unfilled.png
+            fixtures/bench-stream/build/preview-filled.png
+            fixtures/bench-stream/build/preview-composited.png
 
   elf:
     needs: bake
@@ -122,11 +144,16 @@ jobs:
         with:
           name: baked
           path: examples
+      - uses: actions/download-artifact@v8
+        with:
+          name: bench-stream
+          path: fixtures/bench-stream/build
       - name: Every blob the ELF builds against is present
         run: |
           test -f examples/memcard/build/ui.uib
           test -f examples/memcard/build/testcard.uib
           test -f examples/channel6/build/ui.uib
+          test -f fixtures/bench-stream/build/bench.uib
       - name: gsKit still has no per-texture TFX field
         continue-on-error: true
         run: |
@@ -261,6 +288,25 @@ jobs:
           make -C runtime/sample STATIC=1 SCREEN=probe NO_ALPHA=1 \
             EE_BIN=conform-noalpha.elf \
             UIB=../../examples/channel6/build/ui.uib
+          # The Phase 1 streaming bench and its falsification arm. This
+          # is the only pair here that reads a file at runtime: the
+          # covers come off mass:/ps2ui, because ps2ui_tex_set takes
+          # decoded texels and the EE has no decoder. With no drive the
+          # ELF generates the same pattern from cover_pattern.h, which
+          # both suites check against the host generator, so a sitting
+          # produces a reading either way.
+          #
+          # covers-nosync is what a live cache fault looks like: the EE
+          # writes texels through a write-back cache the GIF cannot
+          # see, so without the writeback the GS DMAs whatever was at
+          # that address. Same role as conform-noalpha -- a picture of
+          # the fault to hold next to a photograph, not a test.
+          make -C runtime/sample objclean
+          make -C runtime/sample COVERS=1 EE_BIN=covers.elf \
+            UIB=../../fixtures/bench-stream/build/bench.uib
+          make -C runtime/sample objclean
+          make -C runtime/sample COVERS=1 NO_SYNC=1 EE_BIN=covers-nosync.elf \
+            UIB=../../fixtures/bench-stream/build/bench.uib
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -275,6 +321,8 @@ jobs:
           test -f runtime/sample/sample-linear.elf
           test -f runtime/sample/conform-linear.elf
           test -f runtime/sample/conform-noalpha.elf
+          test -f runtime/sample/covers.elf
+          test -f runtime/sample/covers-nosync.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -291,6 +339,8 @@ jobs:
             runtime/sample/sample-linear.elf
             runtime/sample/conform-linear.elf
             runtime/sample/conform-noalpha.elf
+            runtime/sample/covers.elf
+            runtime/sample/covers-nosync.elf
 
   emulator:
     needs: [bake, elf]
