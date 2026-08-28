@@ -345,10 +345,64 @@ already looking at.
 > and still reads as `e`. The dashes are the observation that actually
 > discriminates.
 
-### S7b — 480p, if S7a is ambiguous
+### S8 — the height ladder
+
+**Run this before S7b.** S7a's first reading killed both hypotheses
+S7b was built to separate, so 480p is now the less informative arm.
+
+What S7a actually established, measured against the blob rather than
+guessed: the hyphens sit at screen row **233**, one pixel tall; `E`,
+`L` and `2` occupy rows **227–237**, and row 237 — which carries their
+three bottom bars and is the widest row on the line, 24 inked texels
+against 7 for the stem rows — is the only row lost.
+
+Both strokes measure **one texel** out of the atlas: the size-15 face
+this line is authored in inks `E` as `[8,2,2,2,2,8,2,2,2,2,8]` and the
+hyphen as `[5]`. So thickness is not a variable here at all — two
+horizontal strokes of identical thickness differ only in the height of
+the quad carrying them, and the one in a 1-row quad renders while the
+one at the bottom of an 11-row quad does not.
+
+That is neither "the last row of every quad" (the hyphen's only row
+*is* its last) nor a panel eating thin horizontal detail (the hyphen
+is a thin isolated horizontal stroke and a display eating those would
+eat it first). Whatever is doing this treats a tall quad differently
+from a short one.
+
+**Boot `ladder.elf`.** No blob, no ps2ui — it draws directly, so the
+question is about the GS and nothing else is in the way.
+
+Twelve rungs down the screen, heights 1 to 12, each labelled by the
+row of small ticks on the left — count them. Three blocks across:
+
+| | arm | what it is |
+|---|---|---|
+| left | **A** | a textured quad with the UVs ps2ui ships today |
+| middle | **B** | the same rung built from stacked 1-pixel *untextured* quads |
+| right | **C** | arm A with a `+0.5` texel bias on the UVs |
+
+Every block is a dark body with **one bright line along its bottom**.
+Every rung's last texel row is the *same* atlas row, so the question
+is identical in every column and needs no reinterpretation per height.
+
+**The whole reading is: which blocks have their bright bottom line?**
+
+| what you see | what it means |
+|---|---|
+| **A has the line at every height** | the fault is not where this card looks; photograph it anyway and tell me |
+| **A loses it above some height, B keeps it** | texture sampling. The height it starts at is the signature — say which rung |
+| **A and B both lose it above some height** | rasterisation or the display. The renderer is off the hook |
+| **C keeps it where A loses it** | the `+0.5` bias is the fix, demonstrated rather than argued |
+
+Photograph the whole screen once, straight on. If the answer is
+height-dependent, note the lowest rung where the line goes — that
+number is the finding.
+
+### S7b — 480p, only if S8 is inconclusive
 
 **Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in
-every respect except that it outputs 480p instead of 480i. Photograph
+every respect except that it outputs 480p instead of 480i. Worth
+running only if S8 pointed at the display rather than at sampling. Photograph
 the `MEMORY CARD` line under the `PS2` title and hold it next to your
 480i photo of the same screen.
 

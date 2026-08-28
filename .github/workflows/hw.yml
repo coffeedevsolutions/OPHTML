@@ -348,6 +348,18 @@ jobs:
           make -C runtime/sample objclean
           make -C runtime/sample STATIC=1 PROGRESSIVE=1 \
             EE_BIN=ps2ui_sample_480p.elf
+          # The height ladder (bench step S8). The first sitting's S7a
+          # reading killed both of the hypotheses the discriminator was
+          # built to separate: a one-texel hyphen survives while the
+          # two-texel bar of an E on the same line does not, so it is
+          # neither "the last row of every quad" nor a panel eating
+          # thin horizontal strokes. What is left has to treat a tall
+          # quad differently from a short one.
+          #
+          # Twelve rungs, three arms, one question asked three ways.
+          # No blob and no ps2ui in the path, for probe6's reason.
+          make -C runtime/sample objclean
+          make -C runtime/sample LADDER=1 EE_BIN=ladder.elf
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -365,6 +377,7 @@ jobs:
           test -f runtime/sample/covers.elf
           test -f runtime/sample/covers-nosync.elf
           test -f runtime/sample/ps2ui_sample_480p.elf
+          test -f runtime/sample/ladder.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -384,6 +397,7 @@ jobs:
             runtime/sample/covers.elf
             runtime/sample/covers-nosync.elf
             runtime/sample/ps2ui_sample_480p.elf
+            runtime/sample/ladder.elf
 
   emulator:
     needs: [bake, elf]

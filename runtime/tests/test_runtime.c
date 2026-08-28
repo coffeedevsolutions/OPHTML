@@ -15,6 +15,7 @@
  * console draws, not a description of it. */
 #include "../sample/probe6_pattern.h"
 #include "../sample/cover_pattern.h"
+#include "../sample/ladder_pattern.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1276,6 +1277,66 @@ int main(int argc, char **argv)
             cover_fill(other, 1, 64, 64);
             CHECK(memcmp(cov, other, sizeof cov) != 0,
                   "and two indices differ, so a swapped cover is visible");
+        }
+    }
+
+    /* ---- the height ladder's geometry (bench step S8) ---------------
+     * The card's whole value is that only ONE thing differs between
+     * its arms. If two arms disagreed about which atlas row they end
+     * on, or two rungs were not actually different heights, a
+     * photograph would look like a finding and mean nothing -- which
+     * is how the first probe6 went VOID twice. */
+    {
+        int i, ok_last = 1, ok_h = 1, ok_span = 1, ok_sep = 1;
+        for (i = 0; i < LADDER_MAX_H; i++) {
+            /* Every rung ends on the SAME atlas row, so "the bright
+             * line is missing" means one thing in every column and
+             * needs no per-column reinterpretation. */
+            if (ladder_v0(i) + ladder_h(i) != LADDER_ROWS) ok_last = 0;
+            if (ladder_h(i) != i + 1) ok_h = 0;
+            if (ladder_v0(i) < 0) ok_span = 0;
+            /* Rungs must not overlap on screen, or a lost row in one
+             * would be read as a lost row in its neighbour. */
+            if (i && ladder_y(i) < ladder_y(i - 1) + ladder_h(i - 1) + 2)
+                ok_sep = 0;
+        }
+        CHECK(ok_last, "every rung ends on the same atlas row, so the "
+                       "bright line asks the same question at every height");
+        CHECK(ok_h, "and the twelve rungs are heights 1 through 12");
+        CHECK(ok_span, "and none of them samples above the top of the texture");
+        CHECK(ok_sep, "and no two rungs overlap, so a lost row cannot be "
+                      "read against the wrong height");
+        CHECK(ladder_y(LADDER_MAX_H - 1) + LADDER_MAX_H < 448,
+              "and the last rung is on screen");
+        CHECK(LADDER_ARM_A_X + LADDER_W < LADDER_ARM_B_X
+              && LADDER_ARM_B_X + LADDER_W < LADDER_ARM_C_X
+              && LADDER_ARM_C_X + LADDER_W <= 640,
+              "and the three arms sit side by side without overlapping");
+        {
+            /* Rendered, not just described: fill the real texture and
+             * count what came out. ladder_fill is what the ELF calls,
+             * so this exercises the same code rather than a paraphrase
+             * of it -- and it keeps -Werror=unused-function honest
+             * about a helper the card depends on. */
+            static unsigned char lt[LADDER_W * LADDER_ROWS * 4];
+            unsigned char t[4];
+            int bright = 0, y;
+            ladder_fill(lt, LADDER_W, LADDER_ROWS);
+            CHECK(lt[(LADDER_BRIGHT_ROW * LADDER_W) * 4] > 200,
+                  "ladder_fill puts the bright row where the geometry "
+                  "says it is");
+            CHECK(lt[0] < 100,
+                  "and leaves the body dark, so the line is the signal");
+            for (y = 0; y < LADDER_ROWS; y++) {
+                ladder_texel(0, y, t);
+                if (t[0] > 200) bright++;
+            }
+            CHECK(bright == 1,
+                  "and exactly one row of the texture is bright, so a "
+                  "surviving line cannot be a different row standing in");
+            ladder_texel(0, LADDER_BRIGHT_ROW, t);
+            CHECK(t[0] > 200 && t[3] == 0x80,
+                  "and it is the last one, in the GS alpha domain");
         }
     }
 
