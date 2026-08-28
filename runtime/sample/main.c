@@ -872,6 +872,7 @@ static void p6_frame(GSGLOBAL *gs)
  * while never building for a target at all. hw.yml's elf job is the
  * arbiter -- see runtime/vendor/README.md. */
 #include <sifrpc.h>
+#include <iopcontrol.h>   /* SifIopReset, SifIopSync -- NOT in sifrpc.h */
 #include <loadfile.h>
 #include <sbv_patches.h>
 #include "irx_table.h"
@@ -925,6 +926,10 @@ static int usb_bring_up(void)
     while (!SifIopReset("", 0)) { }
     while (!SifIopSync()) { }
     SifInitRpc(0);
+    /* Binds the LoadFile RPC that SifExecModuleBuffer goes through.
+     * Skipping it is the other way this path fails on a console while
+     * linking perfectly well on a desk. */
+    SifLoadFileInit();
     /* Without these, SifExecModuleBuffer is refused on a freshly reset
      * IOP: the loader checks a prefix it has no reason to trust from a
      * homebrew ELF. Standard homebrew boilerplate, and the reason
