@@ -951,6 +951,39 @@ int main(void)
     dmaKit_chan_init(DMA_CHANNEL_GIF);
 
     gs = gsKit_init_global();
+#ifdef PS2UI_SAMPLE_PROGRESSIVE
+    /* 480p, and the one thing this build is for.
+     *
+     * The bench found capitals losing their baseline row on a
+     * television -- E reads as F, L as I, 2 as ? -- while the host
+     * previewer and the Play! emulator both render the SAME GIF
+     * command stream with full glyphs. Two renderers agree with each
+     * other and disagree with the console, which leaves two
+     * candidates and no way to choose between them from a desk:
+     *
+     *   H1  the display path. 480i plus this panel's deinterlacer.
+     *       The same panel already made bring-up step 8 VOID by
+     *       erasing 1px flicker, and a thin horizontal stroke sitting
+     *       on the baseline is the same physics.
+     *   H2  real GS behaviour Play! does not model. ps2ui passes raw
+     *       integer UVs; there is no 0.5 anywhere in ps2ui.c, and
+     *       bringup.md already carries "+0.5 UV bias" as unsettled.
+     *
+     * Progressive output separates them in one boot. Full glyphs at
+     * 480p convicts the display and acquits the renderer; still
+     * clipped at 480p convicts the UV convention. Nothing else about
+     * this build differs -- same blob, same draw calls, same
+     * everything -- so the mode is the only variable.
+     *
+     * If the television will not sync at 480p you get no picture.
+     * That is a failed reading, not a broken console: power off, boot
+     * the 480i build, and we find another discriminator. */
+    gs->Mode = GS_MODE_DTV_480P;
+    gs->Interlace = GS_NONINTERLACED;
+    gs->Field = GS_FRAME;
+    gs->Width = 640;
+    gs->Height = 448;
+#endif
     gs->PSM = GS_PSM_CT32;
     gs->PSMZ = GS_PSMZ_16S;
     gs->DoubleBuffering = GS_SETTING_ON;
@@ -1161,19 +1194,40 @@ int main(void)
          * phase on screen so a photo is self-labelling -- nobody has
          * to time anything or remember what they were looking at. */
         {
-            unsigned phase = (frame / COVER_PHASE_FRAMES) % 4u;
+            /* Five phases, not four, and the first one is EMPTY.
+             *
+             * The bench read S1 as VOID because of this line. It used
+             * to be `% 4u` with the first phase filling, so "no slot
+             * filled yet" was overwritten before a single frame was
+             * presented -- while the comment above claimed a
+             * five-second hold. An instrument that asserts a behaviour
+             * it does not have is worse than one that says nothing,
+             * and this one cost a reading at a console.
+             *
+             * EMPTY only makes sense once: ps2ui_tex_set has no
+             * "unset" and should not, so after the first pass the
+             * slots stay filled. The schedule therefore runs 0..4 on
+             * the first lap and cycles 1..4 forever after, which is
+             * why this is not simply `% 5u`. */
+            unsigned phase = cover_phase_for_frame(frame, COVER_PHASE_FRAMES);
             if (phase != cover_phase) {
                 cover_phase = phase;
+                /* One label, derived from the phase, set before the
+                 * actions rather than inside them. The switch below
+                 * now only DOES things; what the screen says is not
+                 * its to decide, which is why the two can no longer
+                 * disagree. */
+                ps2ui_slot_set(&ui, "state", cover_phase_name(phase));
                 switch (phase) {
                 case 0:
-                    /* Every slot back to empty. ps2ui_tex_set has no
-                     * "unset", and it should not: a NULL texels
-                     * argument is refused. Reloading the context is
-                     * the honest way to get back to unfilled, so the
-                     * phase instead just states that slots start
-                     * empty and shows it on the first pass through. */
-                    ps2ui_slot_set(&ui, "state",
-                                   "1 FILL: four covers via tex_set");
+                    /* Nothing is set. This is the whole of step S1:
+                     * every slot's VRAM is reserved and committed by
+                     * ps2ui_upload, so if anything appears in a box
+                     * here, render is not skipping unfilled slots and
+                     * each one is a window onto whatever else is in
+                     * VRAM. Five seconds, at the top, once. */
+                    break;
+                case 1:
                     for (i = 0; i < N_COVERS; i++) {
                         char nm[10];
                         sprintf(nm, "cover%d", i);
@@ -1181,26 +1235,20 @@ int main(void)
                                                     cover_buf[i], COVER_BYTES);
                     }
                     break;
-                case 1:
+                case 2:
                     /* The invalidate. Slot 0 is repointed at cover 3's
                      * texels: if residency were not dropped, the GS
                      * would keep drawing the OLD cover out of VRAM and
                      * this phase would look identical to the last one.
                      * That is the whole reading. */
-                    ps2ui_slot_set(&ui, "state",
-                                   "2 SWAP: slot 0 now shows cover 3");
                     cover_rc[0] = ps2ui_tex_set(&ui, gs, "cover0",
                                                 cover_buf[3], COVER_BYTES);
                     break;
-                case 2:
-                    ps2ui_slot_set(&ui, "state",
-                                   "3 RESTORE: slot 0 shows cover 0 again");
+                case 3:
                     cover_rc[0] = ps2ui_tex_set(&ui, gs, "cover0",
                                                 cover_buf[0], COVER_BYTES);
                     break;
                 default:
-                    ps2ui_slot_set(&ui, "state",
-                                   "4 COMPOSITE: dialog over covers");
                     break;
                 }
                 {
@@ -1216,7 +1264,7 @@ int main(void)
             }
             ps2ui_screen_set(&ui, "covers");
             ps2ui_render(&ui, gs);
-            if (phase == 3) {
+            if (phase == 4u) {
                 /* The composite. No clear between the two renders --
                  * that is the guarantee, and on a television it is
                  * either true or the covers vanish. */

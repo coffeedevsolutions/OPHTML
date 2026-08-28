@@ -307,6 +307,21 @@ jobs:
           make -C runtime/sample objclean
           make -C runtime/sample COVERS=1 NO_SYNC=1 EE_BIN=covers-nosync.elf \
             UIB=../../fixtures/bench-stream/build/bench.uib
+          # The baseline-row discriminator (bench step S7). The first
+          # sitting found capitals losing their bottom row on a
+          # television -- E as F, L as I, 2 as ? -- while the previewer
+          # and the emulator both render full glyphs from the same GIF
+          # command stream. That acquits the atlas, the glyph table,
+          # the UVs and the geometry, and leaves the display path
+          # against real GS behaviour Play! does not model.
+          #
+          # This is the memcard UI, identical in every respect except
+          # 480p instead of 480i, so the video mode is the only
+          # variable. Full glyphs at 480p acquits the renderer; still
+          # clipped convicts the UV convention.
+          make -C runtime/sample objclean
+          make -C runtime/sample STATIC=1 PROGRESSIVE=1 \
+            EE_BIN=ps2ui_sample_480p.elf
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -323,6 +338,7 @@ jobs:
           test -f runtime/sample/conform-noalpha.elf
           test -f runtime/sample/covers.elf
           test -f runtime/sample/covers-nosync.elf
+          test -f runtime/sample/ps2ui_sample_480p.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -341,6 +357,7 @@ jobs:
             runtime/sample/conform-noalpha.elf
             runtime/sample/covers.elf
             runtime/sample/covers-nosync.elf
+            runtime/sample/ps2ui_sample_480p.elf
 
   emulator:
     needs: [bake, elf]

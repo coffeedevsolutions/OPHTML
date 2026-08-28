@@ -58,6 +58,16 @@ endif
 ifdef LINEAR_CLUT
 EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 endif
+# `make PROGRESSIVE=1` outputs 480p instead of 480i. The bench's
+# baseline-row discriminator: the host previewer and the emulator both
+# render full glyphs from the same command stream, so a console that
+# clips them is either the display path or GS behaviour the emulator
+# does not model. Progressive separates those in one boot and changes
+# nothing else. Needs a television that syncs at 480p; if it does not,
+# there is no picture and the reading simply did not happen.
+ifdef PROGRESSIVE
+EE_CFLAGS += -DPS2UI_SAMPLE_PROGRESSIVE
+endif
 # `make COVERS=1` builds the Phase 1 streaming bench: four 128x128
 # streamed slots filled at runtime from mass:/ps2ui/cover*.raw, a
 # four-phase loop (fill, swap, restore, composite) and an on-screen

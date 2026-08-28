@@ -103,9 +103,20 @@ and lifts near-black to visible maroon.
 
 ## How `covers.elf` behaves
 
-It loops through **four phases, five seconds each**, forever. Looping
-is deliberate: a photograph that misses its moment comes round again
-instead of costing a reboot.
+**Five phases on the first lap, four forever after**, five seconds
+each. Looping is deliberate: a photograph that misses its moment comes
+round again instead of costing a reboot.
+
+`0 EMPTY` is the exception and it happens **once, at the top**. That is
+not a quirk, it is the honest shape of the thing: `ps2ui_tex_set` has
+no "unset" and should not have one, so once the slots are filled there
+is no way back to empty without reloading. **Photograph S1 in the
+first five seconds or reboot for it.**
+
+The first version of this ELF got that wrong -- it fired the fill on
+frame 0 while its own comment promised a five-second hold -- and step
+S1 came back VOID from a console because of it. The schedule and the
+on-screen label are both fenced by the host suite now.
 
 **You do not need to time anything.** The screen says which phase it is
 in, on the line labelled `state:`. A photo of this ELF labels itself.
@@ -141,8 +152,9 @@ in them. Compare against `preview-unfilled.png`.
   colour. Their VRAM is reserved and committed at upload; if the GS is
   drawing *from* it before anything was sent, `render` is not skipping
   unfilled slots and every one of them is a window onto stale VRAM.
-- **VOID** — if `state:` is not `0 EMPTY` in your photo you caught a
-  later phase. Wait twenty seconds and shoot again.
+- **VOID** — if `state:` is not `0 EMPTY` in your photo, you missed
+  it. This phase does not come round again; reboot and shoot the first
+  five seconds.
 
 ---
 
@@ -180,6 +192,10 @@ Four covers, left to right, matching `preview-filled.png`.
 and it is a picture, not a test.
 
 **Boot `covers-nosync.elf` and photograph phase `1 FILL`.**
+
+If instead the covers looked *right* but the **text** looked wrong,
+that is a different finding and it has its own instrument -- see
+step S7.
 
 This is the same ELF with the cache writeback removed from
 `ps2ui_tex_set`. The EE wrote the texels through a write-back cache the
@@ -266,6 +282,39 @@ again. Photograph phase `1 FILL`.
   the file is exactly 65,536 bytes.
 
 ---
+
+---
+
+## Step S7 — the baseline row (added after the first sitting)
+
+The first sitting found capitals losing their bottom row on the
+television: **E renders as F, L as I, 2 as ?**. `MEMORY CARD` reads
+`MFMORY CARD`. Lowercase is unaffected, which is why nine bring-up
+steps and every host suite missed it, and it is visible in the Phase 0
+conformance grid, so it predates all of Phase 1.
+
+Two renderers disagree with the console. The host previewer draws full
+glyphs, and so does the Play! emulator **from the same GIF command
+stream** — so the atlas, the glyph table, the UVs and the geometry are
+all correct. That leaves the display path or real GS behaviour the
+emulator does not model, and guessing between them wastes a sitting.
+
+**Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in
+every respect except that it outputs 480p instead of 480i. Photograph
+the `MEMORY CARD` line under the `PS2` title and hold it next to your
+480i photo of the same screen.
+
+- **PASS (renderer acquitted)** — `MEMORY CARD` reads correctly at
+  480p. The clipping is the interlaced signal and this panel's
+  deinterlacer, which is the same instrument that made bring-up step 8
+  VOID. The fix is a display note, not a code change.
+- **FAIL (renderer convicted)** — still `MFMORY CARD` at 480p. The
+  fault is in what ps2ui asks the GS for, and the next arm is a
+  `+0.5` texel-centre bias, which `bringup.md` already carries as an
+  unsettled question.
+- **VOID** — no picture at all. Your television does not sync at 480p.
+  Power off, boot anything else, and tell me: we need a different
+  discriminator.
 
 ## When you are done
 
