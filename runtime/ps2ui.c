@@ -721,7 +721,11 @@ static void apply_scissor(GSGLOBAL *gs, const scissor_rect *r)
  * bottom ROW, because 4 and 8 are powers of two, and still lose their
  * right COLUMN, because 100 is not. Nothing before S10 could see the U
  * axis at all -- every earlier instrument was a power of two wide,
- * which is the one span that cannot trigger the fault.
+ * which is the one span that cannot trigger the fault. Glyphs are not:
+ * ps2ui-check prints the count on every run, and for the memcard
+ * atlases it is 74 and 82 of 113 inked glyphs at non-power-of-two
+ * WIDTH, 99 and 83 at non-power-of-two HEIGHT. Two thirds of the font
+ * was losing its last column and seven eighths its last row.
  *
  * WHY 1/16 AND NOT 1/2, when the bench says both work. Half a texel is
  * the exact tipping point: it is the smallest bias that moves a

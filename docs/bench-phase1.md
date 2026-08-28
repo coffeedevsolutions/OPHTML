@@ -552,9 +552,18 @@ observation is column 1 at heights **4 and 8**: those rungs keep their
 bottom row, because 4 and 8 are powers of two, and *still* lose their
 right column, because 100 is not. Nothing before S10 could see the U
 axis at all — every earlier instrument was a power of two wide, which
-is the one span that cannot trigger the fault. Glyphs are not: `-` is 5
-texels wide and `S` is 9, and both have been losing their last column
-since the beginning.
+is the one span that cannot trigger the fault. Glyphs are not, and the
+scale of it is much larger than a hand-picked letter suggests —
+measured from the memcard atlases, and now printed by `ps2ui-check` on
+every run so it is stated by the build rather than recalled:
+
+```
+font 0 (size 13): 113 inked glyphs, 74 non-power-of-two width, 99 non-power-of-two height
+font 1 (size 14): 113 inked glyphs, 82 non-power-of-two width, 83 non-power-of-two height
+```
+
+**Roughly two thirds of every glyph has been losing its last texel
+column, and seven eighths its last row, since the beginning.**
 
 **The GS is not an exact interpolator.** At `1/2` the console does not
 shift — the red row is still red rather than becoming a second yellow.
