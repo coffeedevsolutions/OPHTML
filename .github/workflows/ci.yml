@@ -70,6 +70,17 @@ jobs:
       - name: Channel-6 browser end to end
         run: ./examples/channel6/build.sh
 
+      # Phase 2's environment, and the blob its baseline numbers are
+      # taken from. Built here rather than only by hand: the README's
+      # measurements, the no-exemption check-blobs rule and the
+      # --strict claim are all worth exactly what runs them, and a
+      # configured-but-unexecuted check is the shape this project keeps
+      # catching. build.sh runs check-blobs on its own blob too; the
+      # explicit list below names it as well, so the two invocations
+      # cannot drift apart.
+      - name: OPL environment end to end
+        run: ./examples/opl-env/build.sh
+
       # The scoping fixture is Phase 1 input and its only value is
       # being comparable later, so the number it reports is a
       # tripwire: if an OPL-class screen starts demanding a different
@@ -81,7 +92,9 @@ jobs:
       # renderer change lands without rebuilding the examples, the drift
       # shows up here rather than living in the README forever.
       - name: Committed screenshots match the renderer
-        run: git diff --exit-code examples/memcard/screenshots examples/channel6/screenshots
+        run: git diff --exit-code examples/memcard/screenshots \
+                                  examples/channel6/screenshots \
+                                  examples/opl-env/screenshots
 
       # The Phase 1 streaming bench. Built here as well as in hw.yml so
       # a change to the layout compiler or the baker that breaks the
@@ -134,6 +147,7 @@ jobs:
         run: |
           ./tools/check-blobs.sh \
             examples/memcard/build/ui.uib \
+            examples/opl-env/build/ui.uib \
             examples/channel6/build/ui.uib \
             examples/channel6/build/ui-16x9.uib
 

@@ -431,6 +431,10 @@ jobs:
       PLAY_ASSET: "Play!-8de4a71f-x86_64.AppImage"
       PLAY_SHA256: "5523586c7d89f90e0e6eb9cbc70008d1d6ef3d38656fea809517d3f5fd3004d3"
       PLAY_CACHE: "/home/runner/.cache/ps2ui-play"
+      # Seconds. Sized against timeout-minutes below minus the
+      # emulator work, so the retry loop always has room to reach its
+      # own error message rather than dying on the job timeout.
+      PLAY_FETCH_BUDGET: "300"
     # An emulator that comes up but never draws would otherwise sit on a
     # runner until the 6-hour default. Everything here is bounded work:
     # install, download, boot, one screenshot.
@@ -497,17 +501,46 @@ jobs:
             echo "cache hit: $PLAY_CACHE/$PLAY_ASSET"
             cp "$PLAY_CACHE/$PLAY_ASSET" Play.AppImage
           else
+            # The retry policy and the job's timeout have to agree, and
+            # tuning two numbers until they do is how they drift apart.
+            # The loop enforces the budget instead, so the ::error::
+            # below is ALWAYS reachable -- the first version could not
+            # reach it in the one case it was written for: at
+            # --max-time 300, two stalled attempts plus a sleep is 610s
+            # against a 600s job, so the job died on a generic timeout
+            # and handed the reader exactly the ambiguous red this
+            # change set out to remove.
+            #
+            # 600s job (timeout-minutes below), ~175s observed emulator
+            # work, ~30s of apt: 300s is a fetch budget with room left.
+            # A stalled transfer burns it in attempts of at most 90s; a
+            # refused connection -- what #59 actually hit -- returns in
+            # ~20s, so that case still gets all five.
+            started=$(date +%s)
             ok=""
             for attempt in 1 2 3 4 5; do
-              if curl -sSfL --connect-timeout 20 --max-time 300 \
+              left=$(( PLAY_FETCH_BUDGET - ($(date +%s) - started) ))
+              if [ "$left" -le 15 ]; then
+                echo "::warning::Play! fetch budget of ${PLAY_FETCH_BUDGET}s spent before attempt $attempt"
+                break
+              fi
+              cap=$(( left < 90 ? left : 90 ))
+              if curl -sSfL --connect-timeout 20 --max-time "$cap" \
                    -o Play.AppImage "$base/$PLAY_VERSION/$PLAY_ASSET"; then
                 ok=yes; break
               fi
-              echo "::warning::Play! download attempt $attempt failed"
-              sleep $((attempt * 10))
+              echo "::warning::Play! download attempt $attempt failed (${cap}s cap, ${left}s of budget left)"
+              # Sleep only if the budget can still absorb it. Without
+              # this the trailing backoff overshoots the budget by up
+              # to 50s, so the loop would spend more than the number it
+              # names -- and the whole point of the budget is that it
+              # is the number, not an approximation of it.
+              back=$(( attempt * 10 ))
+              [ $(( PLAY_FETCH_BUDGET - ($(date +%s) - started) )) -gt "$back" ] \
+                && sleep "$back" || true
             done
             [ -n "$ok" ] || {
-              echo "::error::Play! could not be fetched from $base after 5 attempts. This is a FETCH failure, not a render regression: no frame was captured and no diff was computed."
+              echo "::error::Play! could not be fetched from $base within ${PLAY_FETCH_BUDGET}s. This is a FETCH failure, not a render regression: no frame was captured and no diff was computed."
               exit 1
             }
           fi
