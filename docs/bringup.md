@@ -968,13 +968,15 @@ So both of these are true at once, and neither cancels the other:
   face is size 13, where `E` is 9 and `e` is 7, so the model predicts
   **both** degrade there. `bench-phase1.md` §S8 carries the full table.
 
-**The correction is open.** A half texel is too much: it is exactly the
-amount that moves an exact sampler off its texel. The GS's UV register
+**The correction is `1/16`, measured at bench step S10.** A half texel
+is too much: it is exactly the amount that moves an exact sampler off
+its texel. The GS's UV register
 carries four fractional bits, so `1/16` is representable and leaves an
-exact sampler where it was — if the reciprocal error is sub-texel, the
-smallest bias that fixes the console may be far smaller than the one
-that breaks the emulator. That is a hypothesis awaiting an instrument,
-not a recommendation.
+exact sampler where it was. S10 measured that it fixes **both** axes on
+the console, and that the console does **not** shift even at `1/2` —
+so the GS is not an exact interpolator, and the old table describes
+every renderer here except the one that matters. `ps2ui.c` applies
+`1/16`; see `PS2UI_TEXEL_BIAS`.
 
 **What made this hard to see, and the lesson worth keeping:** at
 power-of-two spans the exact model is precisely correct, and every

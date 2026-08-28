@@ -1,5 +1,35 @@
 /* Ladder v2: how big a UV bias the GS needs, and whether it shifts.
  *
+ * IT HAS BEEN READ. SCPH-50000, sitting 4:
+ *
+ *   bias    last texel ROW          last texel COLUMN
+ *   0       lost unless h is 2^n    ALWAYS lost (100 is not 2^n)
+ *   1/16    present at every h      present
+ *   1/8     present at every h      present
+ *   1/2     present at every h      present
+ *
+ * BOTH AXES FAIL, INDEPENDENTLY, EACH ON ITS OWN SPAN -- the finding
+ * this card was built for and v1 could not have produced. The clincher
+ * is column 1 at h=4 and h=8: those rungs keep their bottom row (4 and
+ * 8 are powers of two) and still lose their right column (100 is not).
+ *
+ * THE POSITIVE CONTROL DID NOT FIRE, AND THAT WAS A DESIGN FLAW HERE,
+ * not a fault in the reading. Arm 1/2 was required to show SHIFTED on
+ * the reasoning that half a texel shifts an exact sampler -- but the
+ * GS is not an exact sampler, which is the thing under test, so the
+ * control was circular. What saved the reading is the red row: a shift
+ * replaces it with a second yellow, and it stayed red in every biased
+ * column. The card could see a shift; there was none to see.
+ *
+ * Recorded rather than corrected, because the next card that needs a
+ * positive control has to pick one that does not assume its own
+ * conclusion, and this is the worked example of getting that wrong.
+ *
+ * ps2ui ships 1/16 (see PS2UI_TEXEL_BIAS): it fixes both axes on the
+ * console and is below the half-texel tipping point, so it is a no-op
+ * on the previewer and on Play!, where 1/2 scored 17.34 against a
+ * healthy 4.8.
+ *
  * WHY THERE IS A V2. Ladder v1 established two things and could not
  * establish a third. Raw integer UVs lose a quad's last texel row at
  * every height that is not a power of two; the same rungs drawn

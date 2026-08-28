@@ -376,6 +376,26 @@ def check_fonts(uib, rep: Report) -> None:
         rep.error(cps == sorted(cps),
                   f"font {i} glyphs are codepoint-sorted for bsearch")
 
+        # How many glyphs the GS sampling defect bites, stated by the
+        # build rather than recalled by a person. A quad whose sampled
+        # span is not a power of two loses its last texel row/column on
+        # a real GS (bench S8/S10); PS2UI_TEXEL_BIAS is the correction.
+        #
+        # A note(), not a check: there is no threshold to fail against
+        # and inventing one would be a result that cannot fail. It is
+        # here because hand-quoted glyph metrics were wrong in four
+        # consecutive pull requests -- "capitals are 11 texels tall"
+        # (they are 9 and 10), "S is 9 wide" (8 in the face that draws
+        # the static text). The conclusions survived every time, which
+        # is exactly why it kept recurring.
+        inked = [g for g in font["glyphs"].values() if g["w"] > 0]
+        if inked:
+            npow2_w = sum(1 for g in inked if g["w"] & (g["w"] - 1))
+            npow2_h = sum(1 for g in inked if g["h"] & (g["h"] - 1))
+            rep.note(f"font {i} (size {font['size']}): {len(inked)} inked "
+                     f"glyphs, {npow2_w} of non-power-of-two width, "
+                     f"{npow2_h} of non-power-of-two height")
+
         # Same contract for the kern table, plus: a pair naming a glyph
         # the atlas does not carry can never be looked up, and a stored
         # zero is a lookup that returns what a miss would have.
