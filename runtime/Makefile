@@ -29,6 +29,14 @@ test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test
 # push-and-hope, and the telemetry build duly shipped `asm volatile`,
 # which -std=c99 rejects, with every local suite green. Same flags the
 # console build uses; -fsyntax-only because the host has no EE.
+#
+# WHAT THIS TARGET DOES NOT VOUCH FOR. It catches C-language errors.
+# It does not know whether a PS2SDK API exists, or is permitted --
+# vendor/host-shim only describes the ones it declares. The streaming
+# bench compiled clean here against a shim for fio/fileXio, an API the
+# newlib port rejects at the header, so covers.elf had never built for
+# a target while this said ok. hw.yml's elf job is the arbiter for
+# anything touching PS2SDK; see runtime/vendor/README.md.
 SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS
 
 syntax-check:

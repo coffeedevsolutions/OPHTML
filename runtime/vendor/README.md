@@ -44,6 +44,44 @@ Two classes stay console-only, on purpose:
   `unsigned long` under newlib on the EE. A `printf` format that is
   wrong only on the EE (the `54c3abb` class) still surfaces only in
   the container's `-Werror=format`.
+- **Whether an API is permitted at all.** This one is not a subtlety
+  and it has already cost a build: **the shims make the host
+  *compile*, not *conform*.** A shim describes an API; the container
+  is the only thing that knows whether PS2SDK actually offers it, on
+  what terms, and whether the port forbids it outright.
+
+  Demonstrated rather than argued. The streaming bench first read its
+  covers with `fioOpen`/`fioRead`/`fioClose`, and a
+  `host-shim/fileio.h` declaring those three made `make syntax-check`
+  green. ps2sdk's newlib port rejects them at the header:
+
+  ```
+  #error "Using fio/fileXio functions directly in the newlib port
+          will lead to problems."
+  #error "Use posix function calls instead."
+  ```
+
+  So `covers.elf` had never compiled for a target while every local
+  suite passed. The shim did not merely fail to catch the problem — it
+  *converted a build error into a green tick*, on the one check whose
+  whole job is catching console-only breakage before a bench sitting.
+  A shim for an API the target forbids is worse than no shim at all.
+
+  It was deleted rather than corrected: `open`/`read`/`close` from
+  `<fcntl.h>` and `<unistd.h>` exist for real on both sides, so the
+  two now compile the same three functions instead of one side
+  compiling a description of them.
+
+  **Before adding a shim, ask whether the real header exists on the
+  host.** If it does, use it. If it does not, the shim buys a host
+  compile and nothing more, and `hw.yml`'s `elf` job stays the only
+  thing that vouches for the console build.
+
+  The two shims that remain are lower-risk than `fileio.h` was and are
+  kept on that basis: `tamtypes.h` is types, and `kernel.h` declares
+  `SyncDCache`/`FlushCache`, which gsKit itself calls — neither is an
+  API the port refuses. They are still descriptions, and the container
+  is still the arbiter.
 
 Known upstream wart, vendored as-is: the doc comment near
 `gsInit.h:884` still recommends `gsKit_init_global(GS_MODE_NTSC)`;
