@@ -58,6 +58,16 @@ endif
 ifdef LINEAR_CLUT
 EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 endif
+# `make LADDER=1` builds the height ladder: twelve rungs, three arms
+# each, asking one question three ways -- is the bright bottom line
+# there? Arm A is a textured quad with the UVs ps2ui ships, arm B is
+# the same rung built from stacked 1px untextured quads, arm C is
+# arm A with a +0.5 texel bias. No blob and no ps2ui in the path, for
+# probe6's reason: the question is what the GS does with a textured
+# sprite, so adding the runtime would add a variable.
+ifdef LADDER
+EE_CFLAGS += -DPS2UI_SAMPLE_LADDER
+endif
 # `make PROGRESSIVE=1` outputs 480p instead of 480i. The bench's
 # baseline-row discriminator: the host previewer and the emulator both
 # render full glyphs from the same command stream, so a console that

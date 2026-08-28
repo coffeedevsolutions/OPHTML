@@ -833,6 +833,74 @@ static void p6_frame(GSGLOBAL *gs)
 }
 #endif
 
+#ifdef PS2UI_SAMPLE_LADDER
+/* ---------------------------------------------------------------------
+ * The height ladder. See ladder_pattern.h for what it is asking and
+ * how to read it; this is only the drawing.
+ *
+ * No blob and no ps2ui, deliberately. The question is about what the
+ * GS does with a textured sprite, so putting the runtime in the path
+ * would add a variable rather than remove one -- the same reason
+ * probe6 draws its own bars.
+ */
+#include "ladder_pattern.h"
+
+static unsigned char ladder_tex_buf[LADDER_W * LADDER_ROWS * 4]
+    __attribute__((aligned(16)));
+
+static void draw_ladder(GSGLOBAL *gs, GSTEXTURE *tex)
+{
+    int i;
+    for (i = 0; i < LADDER_MAX_H; i++) {
+        int h  = ladder_h(i);
+        int y  = ladder_y(i);
+        int v0 = ladder_v0(i);
+        int k;
+
+        /* Tick marks: h little squares, so the rung labels itself
+         * without a font -- this card carries no blob and so has no
+         * glyphs to write a number with. */
+        for (k = 0; k < h; k++)
+            gsKit_prim_sprite(gs,
+                (float)(LADDER_TICK_X + k * 6), (float)(y + h - 4),
+                (float)(LADDER_TICK_X + k * 6 + 4), (float)(y + h),
+                0, GS_SETREG_RGBAQ(0x60, 0x70, 0xA0, 0x80, 0x00));
+
+        /* A -- textured, raw integer UVs. What ps2ui ships. */
+        gsKit_prim_sprite_texture(gs, tex,
+            (float)LADDER_ARM_A_X, (float)y,
+            0.0f, (float)v0,
+            (float)(LADDER_ARM_A_X + LADDER_W), (float)(y + h),
+            (float)LADDER_W, (float)LADDER_ROWS,
+            0, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00));
+
+        /* B -- the same rung built from h stacked 1px UNTEXTURED
+         * quads, bright one last. No texture unit in the path, so if
+         * this loses its bottom line too, the texture stage is
+         * innocent and the fault is rasterisation or the display. */
+        for (k = 0; k < h; k++) {
+            u64 c = (k == h - 1)
+                  ? GS_SETREG_RGBAQ(255, 236, 150, 0x80, 0x00)
+                  : GS_SETREG_RGBAQ(44, 54, 96, 0x80, 0x00);
+            gsKit_prim_sprite(gs,
+                (float)LADDER_ARM_B_X, (float)(y + k),
+                (float)(LADDER_ARM_B_X + LADDER_W), (float)(y + k + 1),
+                0, c);
+        }
+
+        /* C -- textured with UVs biased by half a texel. The standing
+         * candidate fix, drawn beside the thing it would fix so the
+         * comparison is one glance rather than two boots. */
+        gsKit_prim_sprite_texture(gs, tex,
+            (float)LADDER_ARM_C_X, (float)y,
+            0.5f, (float)v0 + 0.5f,
+            (float)(LADDER_ARM_C_X + LADDER_W), (float)(y + h),
+            (float)LADDER_W + 0.5f, (float)LADDER_ROWS + 0.5f,
+            0, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00));
+    }
+}
+#endif /* PS2UI_SAMPLE_LADDER */
+
 #ifdef PS2UI_SAMPLE_COVERS
 /* ---------------------------------------------------------------------
  * Phase 1 streaming bench (docs/bench-phase1.md).
@@ -1139,6 +1207,46 @@ int main(void)
         gsKit_sync_flip(gs);
     }
     return 0;
+#endif
+
+#ifdef PS2UI_SAMPLE_LADDER
+    /* The height ladder. Holds indefinitely rather than returning on a
+     * timer like the probes: there is nothing to time here and the
+     * reading wants a steady frame to photograph. */
+    {
+        GSTEXTURE lt;
+        memset(&lt, 0, sizeof lt);
+        ladder_fill(ladder_tex_buf, LADDER_W, LADDER_ROWS);
+        lt.Width  = LADDER_W;
+        lt.Height = LADDER_ROWS;
+        lt.PSM    = GS_PSM_CT32;
+        lt.Filter = GS_FILTER_NEAREST;   /* the question is which texel,
+                                          * so no interpolation may be
+                                          * allowed to blur the answer */
+        lt.Mem    = (u32 *)(void *)ladder_tex_buf;
+        SyncDCache(ladder_tex_buf, ladder_tex_buf + sizeof ladder_tex_buf);
+        lt.Vram = gsKit_vram_alloc(gs, gsKit_texture_size(lt.Width, lt.Height,
+                                                          lt.PSM),
+                                   GSKIT_ALLOC_USERBUFFER);
+        if (lt.Vram == GSKIT_ALLOC_ERROR) {
+            while (1) {
+                gsKit_clear(gs, GS_SETREG_RGBAQ(0x80, 0x80, 0x00, 0x80, 0x00));
+                gsKit_queue_exec(gs);
+                gsKit_sync_flip(gs);
+            }
+        }
+        /* Opaque and unblended, for probe6's reason: only one thing may
+         * differ between the arms, and the blend is settled elsewhere. */
+        gs->PrimAlphaEnable = GS_SETTING_OFF;
+        while (1) {
+            gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
+            gsKit_TexManager_bind(gs, &lt);
+            draw_ladder(gs, &lt);
+            gsKit_queue_exec(gs);
+            gsKit_sync_flip(gs);
+            gsKit_TexManager_nextFrame(gs);
+        }
+    }
 #endif
 
 #ifdef PS2UI_SAMPLE_PROBE6
