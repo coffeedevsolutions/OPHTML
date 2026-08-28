@@ -398,6 +398,84 @@ Photograph the whole screen once, straight on. If the answer is
 height-dependent, note the lowest rung where the line goes — that
 number is the finding.
 
+#### S8 has been read: SCPH-50000, sitting 3
+
+| height | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **A** raw integer UVs | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| **B** untextured stack | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **C** UVs + 0.5 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+**What A and B establish.** Raw integer UVs lose the last texel row at
+every height that is not a power of two — and the powers of two are
+exactly the heights whose reciprocal is exact in binary, which points
+at a reciprocal in the GS's per-scanline UV step. B keeps every row
+with no texture unit in its path, so neither the rasteriser nor the
+display is losing it. **The fault is real and it is in texture
+sampling.** An exact interpolator does not have it: the previewer and
+Play! both render every row.
+
+**It retrodicts S7a without being fitted to it, and the retrodiction is
+differential** — a single already-photographed line separates the two
+predictions. Measured from `fixtures/bench-stream/build/bench.uib`,
+whose only *drawn* font face is size 15 (texture 5; the size-14 face is
+baked but renders nothing):
+
+| glyph | height | power of two? | predicted | observed |
+|---|---|---|---|---|
+| `E` `L` `2` | 11 | no | loses its row | `SYNTHETIC` → `SYNTHFTIC` |
+| `e` `o` `a` | 8 | **yes** | keeps its row | `loaded`, `never appeared` clean |
+| `-` | 1 | **yes** | keeps its row | dashes present |
+
+All three appear in one line of the sitting-3 photograph: capitals
+broken and lowercase clean, *in the same word*. Lowercase surviving is a
+model **prediction** here, not the observational limit it was assumed to
+be — and the examples make the contrast, because they use different
+faces:
+
+| blob | face drawn | `E` | `e` |
+|---|---|---|---|
+| `bench.uib` | 15 | 11 — loses | **8 — keeps** |
+| `memcard/ui.uib` | 13 | 9 — loses | 7 — loses |
+| `channel6/ui.uib` | 14, 16, 20 | 10, 12, 15 — all lose | 8 keeps, 9 and 11 lose |
+
+So `MEMORY CARD` (size 13, lowercase `h=7`) should degrade in lowercase
+too, and there "lowercase looks untouched" **is** an observational limit
+— a 7-row `e` loses two texels of curve tip where an `E` loses a
+full-width bar. Both mechanisms are real; which applies depends on the
+face.
+
+**What C establishes: nothing.** The ladder texture is uniform dark on
+every row but the last and ignores `x` entirely, so a bias that shifts
+sampling down a whole texel is invisible on rows 0–14 and, on the last
+row, reads texel 16 and clamps back to 15 — lighting up anyway. Arm C
+shows a bright bottom line whether the bias corrects sampling or merely
+shifts it. **It cannot fail, so its passing means nothing.**
+
+That surfaced when the `+0.5` bias was built on this reading and the
+emulator gate rejected it: `Library` rendered as `Liibrarny`, frame
+diff 17.34 against a healthy 4.8. On an exact interpolator the bias
+makes every glyph sample one texel across and lose its leftmost column
+— which `bringup.md` has argued correctly all along, for renderers that
+interpolate exactly. The GS is not one of them, and the correction it
+needs is **still open**.
+
+**Two axes, one asked.** Every arm is 128 pixels wide, a power of two,
+so the U axis was never swept at a width the fault would bite.
+
+#### Ladder v2 — what the next card has to do
+
+1. **Per-row and per-column detail in the texture**, so a one-texel
+   shift is distinguishable from a lost row rather than hidden by
+   uniformity and clamping. This is the defect that made S8's third arm
+   worthless.
+2. **Sweep bias magnitude**, not just presence: `0`, `1/16`, `1/8`,
+   `1/2`. The GS's UV register carries four fractional bits, and any
+   bias below half a texel leaves an exact sampler on the same texel —
+   so a small enough correction could fix the console without moving
+   the emulator at all.
+3. **Sweep width as well as height.**
+
 ### S7b — 480p, only if S8 is inconclusive
 
 **Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in
