@@ -16,6 +16,7 @@
 #include "../sample/probe6_pattern.h"
 #include "../sample/cover_pattern.h"
 #include "../sample/ladder_pattern.h"
+#include "../sample/ladder2_pattern.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1277,6 +1278,133 @@ int main(int argc, char **argv)
             cover_fill(other, 1, 64, 64);
             CHECK(memcmp(cov, other, sizeof cov) != 0,
                   "and two indices differ, so a swapped cover is visible");
+        }
+    }
+
+    /* ---- ladder v2 (bench step S10) ---------------------------------
+     * v1's third arm could not fail: its texture was uniform, so a
+     * bias that shifted sampling by a whole texel looked exactly like
+     * one that fixed it. The FIRST check here is the one that would
+     * have caught that, and it is the reason this card exists. */
+    {
+        unsigned char last[4], prev[4], body[4], edge[4];
+        int i, a, ok_last = 1, ok_h = 1, ok_span = 1, ok_sep = 1, ok_arm = 1;
+
+        ladder2_texel(0, L2_ROW_LAST, last);
+        ladder2_texel(0, L2_ROW_PREV, prev);
+        ladder2_texel(0, 0, body);
+        ladder2_texel(L2_COL_LAST, 0, edge);
+
+        /* THE V1 FENCE. Consecutive texel rows must differ, or a
+         * one-texel shift is invisible and the card answers nothing.
+         * Sabotaging ladder2_texel to return one colour for both rows
+         * -- which is what v1 effectively did -- fires this. */
+        CHECK(last[0] != prev[0] || last[1] != prev[1] || last[2] != prev[2],
+              "the last two texel rows differ, so a one-texel shift "
+              "cannot be mistaken for correct sampling -- the exact "
+              "hole that made ladder v1's bias arm unfalsifiable");
+        CHECK(body[0] != prev[0] || body[1] != prev[1] || body[2] != prev[2],
+              "and the row above those differs again, so a shift of one "
+              "is distinguishable from a shift of two");
+        /* The U axis needs the same property along x, and v1 had no
+         * per-column detail at all.
+         *
+         * The invariant comes FIRST, because the check below samples
+         * the pattern at the same constant the pattern paints with, so
+         * the two move together and the difference check alone cannot
+         * see the cyan column leave the sampled sub-rect. Set
+         * L2_COL_LAST to L2_W + 5 and the card is U-blind while every
+         * check stays green -- v1's shape one level up, in the fence
+         * for the dimension v2 exists to add. */
+        CHECK(L2_COL_LAST == L2_W - 1,
+              "the cyan column is the last one a quad actually samples, "
+              "so the U axis is asked something rather than painted "
+              "outside the sampled sub-rect");
+        CHECK(edge[0] != body[0] || edge[1] != body[1] || edge[2] != body[2],
+              "and the last sampled column differs from the body, so a "
+              "horizontal shift is visible too");
+
+        /* A sampled width that is a power of two cannot trigger the
+         * fault, which is why every v1 arm was blind to U. */
+        CHECK((L2_W & (L2_W - 1)) != 0,
+              "the sampled width is not a power of two, so the U axis "
+              "is actually asked something");
+        CHECK(L2_W <= L2_TEX_W && L2_COL_LAST < L2_TEX_W,
+              "and the sampled sub-rect fits inside the GS texture");
+        CHECK((L2_TEX_W & (L2_TEX_W - 1)) == 0
+              && (L2_TEX_H & (L2_TEX_H - 1)) == 0,
+              "while the GS texture itself is power-of-two sized, as "
+              "TEX0 requires");
+
+        /* The bias sweep is the experiment. Both controls must be
+         * present or a reading cannot be interpreted. */
+        CHECK(ladder2_bias(0) == 0.0f,
+              "arm 0 is the unbiased negative control, so the card has "
+              "to reproduce the fault before any other column counts");
+        CHECK(ladder2_bias(L2_N_ARMS - 1) == 0.5f,
+              "and the last arm is the half-texel positive control, "
+              "known to shift, so a card that cannot see a shift "
+              "convicts itself");
+        for (a = 1; a < L2_N_ARMS; a++) {
+            if (!(ladder2_bias(a) > ladder2_bias(a - 1))) ok_arm = 0;
+            /* Sixteenths: representable in the GS's 12.4 UV register,
+             * so each column tests the bias it claims to. */
+            if (ladder2_bias(a) * 16.0f != (float)(int)(ladder2_bias(a) * 16.0f))
+                ok_arm = 0;
+        }
+        CHECK(ok_arm, "the biases increase and are all exact sixteenths, "
+                      "so no column tests a value the GS cannot express");
+        for (a = 1; a < L2_N_ARMS - 1; a++)
+            if (ladder2_bias(a) >= 0.5f) ok_arm = 0;
+        CHECK(ok_arm, "and the candidate arms are all below half a texel, "
+                      "where an exact sampler stays on the same texel");
+
+        for (i = 0; i < L2_MAX_H; i++) {
+            if (ladder2_v0(i) + ladder2_h(i) != L2_TEX_H) ok_last = 0;
+            if (ladder2_h(i) != i + 1) ok_h = 0;
+            if (ladder2_v0(i) < 0) ok_span = 0;
+            if (i && ladder2_y(i) < ladder2_y(i - 1) + ladder2_h(i - 1) + 2)
+                ok_sep = 0;
+        }
+        CHECK(ok_last, "every v2 rung still ends on the same atlas row");
+        CHECK(ok_h, "and the twelve rungs are heights 1 through 12");
+        CHECK(ok_span, "and none samples above the top of the texture");
+        CHECK(ok_sep, "and no two rungs overlap");
+        CHECK(ladder2_y(L2_MAX_H - 1) + L2_MAX_H < 448,
+              "and the last rung is on screen");
+        for (a = 1; a < L2_N_ARMS; a++)
+            if (ladder2_arm_x(a) < ladder2_arm_x(a - 1) + L2_W) ok_arm = 0;
+        CHECK(ok_arm, "and the four arms sit side by side without overlapping");
+        CHECK(ladder2_arm_x(L2_N_ARMS - 1) + L2_W <= 640,
+              "and the last arm is on screen");
+
+        {
+            /* Rendered, not described: ladder2_fill is what the ELF
+             * calls, so this exercises the same code rather than a
+             * paraphrase of it. */
+            static unsigned char t2[L2_TEX_W * L2_TEX_H * 4];
+            int y, distinct = 0;
+            unsigned char seen[4][4];
+            ladder2_fill(t2, L2_TEX_W, L2_TEX_H);
+            CHECK(t2[(L2_ROW_LAST * L2_TEX_W) * 4] > 200,
+                  "ladder2_fill puts the yellow row where the geometry "
+                  "says it is");
+            CHECK(t2[(L2_ROW_PREV * L2_TEX_W) * 4] > 200
+                  && t2[(L2_ROW_PREV * L2_TEX_W) * 4 + 1] < 150,
+                  "and the red row directly above it");
+            CHECK(t2[L2_COL_LAST * 4 + 1] > 150,
+                  "and the cyan column at the right edge of the body");
+            /* Exactly one yellow row, or "the bottom is yellow" stops
+             * being a unique reading. */
+            for (y = 0, distinct = 0; y < L2_TEX_H; y++) {
+                unsigned char c[4];
+                ladder2_texel(0, y, c);
+                if (c[0] > 200 && c[1] > 200) distinct++;
+            }
+            CHECK(distinct == 1,
+                  "exactly one row of the texture is yellow, so a second "
+                  "bright row cannot be read as the one under test");
+            (void)seen;
         }
     }
 

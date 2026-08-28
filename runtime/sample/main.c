@@ -901,6 +901,56 @@ static void draw_ladder(GSGLOBAL *gs, GSTEXTURE *tex)
 }
 #endif /* PS2UI_SAMPLE_LADDER */
 
+#ifdef PS2UI_SAMPLE_LADDER2
+/* ---------------------------------------------------------------------
+ * Ladder v2 (bench step S10). See ladder2_pattern.h for what each block
+ * means and why v1's third arm had to be replaced.
+ *
+ * No blob and no ps2ui, for v1's reason: the question is what the GS
+ * does with a textured sprite, so the runtime would add a variable
+ * rather than remove one.
+ */
+#include "ladder2_pattern.h"
+
+static unsigned char ladder2_tex_buf[L2_TEX_W * L2_TEX_H * 4]
+    __attribute__((aligned(16)));
+
+static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
+{
+    int i, a;
+    for (i = 0; i < L2_MAX_H; i++) {
+        int h  = ladder2_h(i);
+        int y  = ladder2_y(i);
+        int v0 = ladder2_v0(i);
+        int k;
+
+        /* Tick marks: h little squares, so a rung labels itself without
+         * a font -- this card carries no blob and so has no glyphs to
+         * write a number with. */
+        for (k = 0; k < h; k++)
+            gsKit_prim_sprite(gs,
+                (float)(L2_TICK_X + k * 2), (float)(y + h - 2),
+                (float)(L2_TICK_X + k * 2 + 1), (float)(y + h),
+                0, GS_SETREG_RGBAQ(0x60, 0x70, 0xA0, 0x80, 0x00));
+
+        for (a = 0; a < L2_N_ARMS; a++) {
+            float b = ladder2_bias(a);
+            int   x = ladder2_arm_x(a);
+            /* Every arm is the SAME draw with the SAME geometry; only
+             * the bias differs. That is the entire experiment, and any
+             * other difference between the columns would invalidate
+             * the comparison. */
+            gsKit_prim_sprite_texture(gs, tex,
+                (float)x, (float)y,
+                0.0f + b, (float)v0 + b,
+                (float)(x + L2_W), (float)(y + h),
+                (float)L2_W + b, (float)L2_TEX_H + b,
+                0, GS_SETREG_RGBAQ(0x80, 0x80, 0x80, 0x80, 0x00));
+        }
+    }
+}
+#endif /* PS2UI_SAMPLE_LADDER2 */
+
 #ifdef PS2UI_SAMPLE_COVERS
 /* ---------------------------------------------------------------------
  * Phase 1 streaming bench (docs/bench-phase1.md).
@@ -1265,6 +1315,45 @@ int main(void)
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
             gsKit_TexManager_bind(gs, &lt);
             draw_ladder(gs, &lt);
+            gsKit_queue_exec(gs);
+            gsKit_sync_flip(gs);
+            gsKit_TexManager_nextFrame(gs);
+        }
+    }
+#endif
+
+#ifdef PS2UI_SAMPLE_LADDER2
+    /* Ladder v2. Holds indefinitely, like v1: nothing to time, and the
+     * reading wants a steady frame to photograph. */
+    {
+        GSTEXTURE lt;
+        memset(&lt, 0, sizeof lt);
+        ladder2_fill(ladder2_tex_buf, L2_TEX_W, L2_TEX_H);
+        lt.Width  = L2_TEX_W;
+        lt.Height = L2_TEX_H;
+        lt.PSM    = GS_PSM_CT32;
+        lt.Filter = GS_FILTER_NEAREST;   /* the question is which texel,
+                                          * so no interpolation may be
+                                          * allowed to blur the answer */
+        lt.Mem    = (u32 *)(void *)ladder2_tex_buf;
+        SyncDCache(ladder2_tex_buf, ladder2_tex_buf + sizeof ladder2_tex_buf);
+        lt.Vram = gsKit_vram_alloc(gs, gsKit_texture_size(lt.Width, lt.Height,
+                                                          lt.PSM),
+                                   GSKIT_ALLOC_USERBUFFER);
+        if (lt.Vram == GSKIT_ALLOC_ERROR) {
+            while (1) {
+                gsKit_clear(gs, GS_SETREG_RGBAQ(0x80, 0x80, 0x00, 0x80, 0x00));
+                gsKit_queue_exec(gs);
+                gsKit_sync_flip(gs);
+            }
+        }
+        /* Opaque and unblended, for v1's reason: only one thing may
+         * differ between the arms, and the blend is settled elsewhere. */
+        gs->PrimAlphaEnable = GS_SETTING_OFF;
+        while (1) {
+            gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
+            gsKit_TexManager_bind(gs, &lt);
+            draw_ladder2(gs, &lt);
             gsKit_queue_exec(gs);
             gsKit_sync_flip(gs);
             gsKit_TexManager_nextFrame(gs);

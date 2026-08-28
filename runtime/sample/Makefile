@@ -65,6 +65,10 @@ endif
 # arm A with a +0.5 texel bias. No blob and no ps2ui in the path, for
 # probe6's reason: the question is what the GS does with a textured
 # sprite, so adding the runtime would add a variable.
+ifdef LADDER2
+EE_CFLAGS += -DPS2UI_SAMPLE_LADDER2
+endif
+
 ifdef LADDER
 EE_CFLAGS += -DPS2UI_SAMPLE_LADDER
 endif
