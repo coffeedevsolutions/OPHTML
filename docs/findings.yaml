@@ -1,0 +1,296 @@
+# The findings ledger. Prose renders to docs/findings.md; the graph is
+# enforced by tools/check-findings.py in CI.
+#
+# A finding is a claim with a FALSIFIER. If nothing could kill it, it is
+# an opinion and this file will refuse it -- the belief that a +0.5
+# texel bias was wrong survived months and four pull requests precisely
+# because nobody had written down what would cheaply end it.
+#
+# status:  provisional  believed, phase still open
+#          confirmed    measured, phase locked
+#          overturned   killed; must name what killed it
+#          stale        a dependency died; needs re-examination
+#
+# Overturning something in a later phase mechanically stales every
+# finding that depends on it. That is the point of the file.
+
+phases:
+  0: {title: "Verify the metal", locked: true}
+  1: {title: "One resource model", locked: true}
+  2: {title: "Prove it with the OPL-class app", locked: false}
+
+findings:
+
+# ---------------------------------------------------------------- GS
+- id: F-001
+  phase: 0
+  status: confirmed
+  claim: "GS alpha is a 0..128 domain: 0x80 is opaque, not 0xFF"
+  evidence:
+    instrument: docs/bringup.md
+    measurement: >-
+      Blend is Cv = (Cs-Cd)*As>>7 + Cd. Corroborated on the shipped
+      blob: 0 of 513 probe-screen TEXQUAD channels exceed 0x80, so
+      0x80 -> 255 under modulate is exact rather than a clamp.
+  falsifier: "A TEXQUAD at As=0x80 that composites to anything but full coverage"
+  note: >-
+    Art authored at 255 alpha asks for about twice the coverage it has.
+  refs: ["#28"]
+
+- id: F-002
+  phase: 0
+  status: confirmed
+  claim: "gsKit's default ALPHA runs the blend backwards"
+  evidence:
+    instrument: docs/bringup.md
+    measurement: >-
+      Default GS_BLEND_BACK2FRONT (0x01) gives A=Cd B=Cs C=As D=Cs,
+      i.e. effective coverage 128-As. Solved back from each rendered
+      ladder swatch on a SCPH-50000 and under Play!, exact on every
+      rung. 0x40 was the only clean rung -- the single alpha where
+      128-As == As -- which a frame that merely "looked wrong" would
+      never have singled out.
+  falsifier: "A default-state blend where coverage tracks As rather than 128-As"
+  depends_on: [F-001]
+  note: >-
+    Two corollaries that cost time. The fix must run EVERY FRAME,
+    because GS blend state is global and survives your frame: an early
+    two-ladder capture showed both ladders clean because the fix
+    persisted into frame 2 and the test was comparing itself against
+    itself. And it must go through gsKit_set_primalpha -- assigning
+    gs->PrimAlpha does not emit the register, which was identified by
+    two ladders coming back byte-identical.
+  refs: ["#28", "#30"]
+
+- id: F-003
+  phase: 0
+  status: confirmed
+  claim: "A misaligned DMA source is truncated, not faulted"
+  evidence:
+    instrument: docs/format-uib.md
+    measurement: >-
+      A GIF DMA_REF tag's ADDR field starts at bit 4, so a source under
+      16-byte alignment cannot be expressed and the transfer begins up
+      to 15 bytes early. off_blob mod 16 was 4, 12, 4, 4 across four
+      shipped blobs; 12 bytes is 12 texels of a 256-wide PSMT8 atlas.
+      Fixing it produced the first green ground-truth emulator diff in
+      the project's history, RMSE 22.89 -> 4.79.
+  falsifier: "A blob with off_blob mod 16 != 0 whose textures land correctly"
+  note: >-
+    The operator reported "the right edge of every image butted against
+    its left edge" twice, and it was read past twice. Because the
+    truncation lives in the DMA tag format rather than in silicon,
+    Play! reproduced both the fault and the fix.
+  refs: ["#40"]
+
+- id: F-004
+  phase: 0
+  status: confirmed
+  claim: "PrimAlphaEnable is one field driving two registers: PRIM.ABE and TEX0.TCC"
+  evidence:
+    instrument: runtime/ps2ui.c
+    measurement: >-
+      Passed in the tcc position at all 30 GS_SETREG_TEX0 sites,
+      read per draw at all 65 reads, never latched. TCC=0 tells the GS
+      the glyph atlas is opaque RGB, so every glyph becomes a solid
+      block of its own text colour.
+  falsifier: "A build with PrimAlphaEnable off whose glyphs keep their antialiasing"
+  note: >-
+    Produces the signature "text broken, boxes fine", because glyph
+    coverage IS texture alpha while untextured geometry is unaffected.
+  refs: ["#39"]
+
+- id: F-005
+  phase: 0
+  status: confirmed
+  claim: "gsKit has no DECAL path; TEX0.TFX is hardcoded to MODULATE"
+  evidence:
+    instrument: runtime/vendor/gsKit/gsTexture.h
+    measurement: >-
+      GSTEXTURE has no Function field at 43122eb, and TFX is 0 at all
+      30 TEX0 sites. TEX0.TBW is also unsettable by the caller:
+      gsKit_texture_upload's first statement is gsKit_setup_tbw().
+  falsifier: "A GSTEXTURE field or gsKit call that selects DECAL"
+  note: >-
+    Settled by reading the library, after four bench-blocking questions
+    in a row -- GSTEXTURE::Function, TEX0.TFX, TEX0.TCC, TEX0.TBW --
+    were all answerable from source and were instead attacked with A/B
+    ELFs on a console. See L-012.
+  refs: ["#38", "#39"]
+
+- id: F-006
+  phase: 0
+  status: confirmed
+  claim: "gsKit's TexManager cannot report VRAM exhaustion; it hangs"
+  evidence:
+    instrument: runtime/ps2ui.c
+    measurement: >-
+      _blockAlloc loops evicting ever-hotter textures until something
+      fits and has no NULL-returning exit, so an over-budget blob under
+      raw TexManager_bind is a console hang inside gsKit rather than an
+      error code.
+  falsifier: "An over-budget bind that returns an error instead of hanging"
+  note: >-
+    Hence ps2ui keeps an all-or-nothing preflight AND re-checks per
+    frame, because every gsKit_vram_alloc resets the manager's block
+    list and shrinks the region the preflight approved.
+  refs: ["#41"]
+
+# ------------------------------------------------- the sampling defect
+- id: F-011
+  phase: 0
+  status: overturned
+  claim: "A +0.5 UV bias is wrong: under NEAREST at 1:1 it lands one texel past target"
+  evidence:
+    instrument: docs/bringup.md
+    measurement: >-
+      Pixel i of a 1:1 sprite centres at x0+i+0.5, so u = u0+i+0.5,
+      which floors to u0+i. Adding 0.5 gives u0+i+1.
+  falsifier: "A renderer where a +0.5 bias does not move the sampled texel"
+  overturned_by: [F-020]
+  note: >-
+    KEPT DELIBERATELY, AND STILL TRUE OF EVERY RENDERER HERE EXCEPT THE
+    ONE THAT MATTERS. The arithmetic is correct for an exact
+    interpolator; the premise -- that the GS is one -- is not. It
+    survived months because at power-of-two spans it is exactly right,
+    and because the previewer and Play! both compute in float with no
+    reciprocal, so every host-side renderer this project owns agreed
+    with it. Nothing off-console could have caught it.
+  refs: ["#36", "#57"]
+
+- id: F-019
+  phase: 1
+  status: confirmed
+  claim: "The GS is not an exact UV interpolator"
+  evidence:
+    instrument: runtime/sample/ladder_pattern.h
+    measurement: >-
+      Bench S8, SCPH-50000: a textured sprite h pixels tall sampling h
+      texels keeps its last texel row only at h in {1,2,4,8} -- exactly
+      the heights where 1/h is exact in binary. The same rungs drawn as
+      stacked untextured quads keep every row, so the rasteriser and
+      the display are not involved.
+  falsifier: >-
+    A non-power-of-two span that keeps its last texel row with no bias,
+    or an untextured stack that loses one
+  note: >-
+    The mechanism -- a reciprocal in the per-scanline UV step -- remains
+    a HYPOTHESIS. The correction is measured; the explanation is not.
+  refs: ["#56", "#58"]
+
+- id: F-020
+  phase: 1
+  status: confirmed
+  claim: "Both texture axes lose their last texel independently, each on its own span"
+  evidence:
+    instrument: runtime/sample/ladder2_pattern.h
+    measurement: >-
+      Bench S10, SCPH-50000: blocks 100 wide, heights 1-12. At bias 0
+      the last ROW is lost unless the height is a power of two, and the
+      last COLUMN is always lost because 100 is not. The clincher is
+      heights 4 and 8, which keep their row and still lose their
+      column.
+  falsifier: >-
+    A quad whose width is not a power of two that keeps its last column
+    with no bias
+  depends_on: [F-019]
+  overturns: [F-011]
+  note: >-
+    Nothing before S10 could see the U axis: every earlier instrument
+    was a power of two wide, which is the one span that cannot trigger
+    the fault.
+  refs: ["#59", "#61"]
+
+- id: F-021
+  phase: 1
+  status: confirmed
+  claim: "A 1/16 texel bias fixes the console and is a no-op on an exact renderer"
+  evidence:
+    instrument: runtime/ps2ui.c
+    measurement: >-
+      floor(u + b + i + 0.5) == u + i for any b < 1/2, so every
+      sub-half bias leaves an exact sampler on the same texel. 1/2 is
+      the exact tipping point: a 1/2 build renders Library as
+      Liibrarny and scores 17.34 on a frame diff whose healthy band is
+      4.79. The 1/16 build scored 4.79 / 13.73 -- the exact pre-bias
+      value. 1/16 is also the smallest the GS's four fractional UV bits
+      can express.
+  falsifier: >-
+    An emulator diff that moves under 1/16, or a console span that
+    still loses its last texel with it applied
+  depends_on: [F-020]
+  note: >-
+    U is INFERRED, NOT MEASURED, at widths other than 100. Bench step
+    S9 re-runs the real UI across dozens of genuine glyph widths and is
+    the U sweep; it is also the only step that closes the defect, since
+    everything so far tests the card rather than the shipping renderer.
+  refs: ["#61"]
+
+- id: F-022
+  phase: 1
+  status: confirmed
+  claim: "Two thirds of the font has been losing its last texel column since the beginning"
+  evidence:
+    instrument: packages/baker/ps2ui_bake/check.py
+    measurement: >-
+      memcard atlases: size 13 has 113 inked glyphs, 74 of
+      non-power-of-two width and 99 of non-power-of-two height; size 14
+      has 82 and 83. ps2ui-check prints this on every run.
+  falsifier: "A recount from the baked atlases that disagrees"
+  depends_on: [F-020]
+  note: >-
+    Printed by the build because hand-quoted glyph metrics were wrong
+    in four consecutive pull requests. See L-006.
+  refs: ["#61"]
+
+# ------------------------------------------------------------ Phase 1
+- id: F-030
+  phase: 1
+  status: confirmed
+  claim: "wLaunchELF resets the IOP, so no launcher-loaded driver survives"
+  evidence:
+    instrument: runtime/sample/main.c
+    measurement: >-
+      Bench S6 returned "open cover0: -1" from a stick carrying four
+      byte-verified 65,536-byte files. wLaunchELF launches via
+      LoadExecPS2, which resets the IOP, so its USB drivers were gone
+      before the ELF ran. Embedding the stack fixed it and S6 passed.
+  falsifier: "A launcher-loaded IRX still responding after LoadExecPS2"
+  note: >-
+    The USB stack is discovered rather than pinned: BDM in modern SDKs,
+    usbhdfsd in older ones, both presenting mass:. CI refuses an empty
+    module table.
+  refs: ["#55"]
+
+- id: F-031
+  phase: 1
+  status: confirmed
+  claim: "An OPL-class environment costs a 6,951-byte arena, not a 35,648-byte ceiling"
+  evidence:
+    instrument: examples/opl-env/README.md
+    measurement: >-
+      opl-env: 6 screens, 125 slots, 246,032-byte blob, VRAM 392 KiB of
+      a 736 KiB budget. The fixed-maxima context charged 35,648 bytes
+      on every blob regardless of content; the 121-slot UC-3 fixture
+      needs 8,285.
+  falsifier: "A realistic environment whose arena exceeds the old fixed ceiling"
+  refs: ["#48", "#60"]
+
+- id: F-032
+  phase: 2
+  status: provisional
+  claim: "Per-row reservations make a one-row scroll re-upload every cover"
+  evidence:
+    instrument: examples/opl-env/window.h
+    measurement: >-
+      Reservations are per ROW, not per item, so scrolling by one row
+      leaves every visible row showing a different title: 9 x 3,136 =
+      28,224 bytes of upload per scroll step.
+  falsifier: "A scroll step measured on hardware that uploads less than every row"
+  depends_on: [F-031]
+  note: >-
+    Arithmetic, not yet a measurement -- it needs the driver ELF and a
+    sitting. Phase 3's likely answer is to rotate which reservation a
+    row draws from rather than re-upload, and the number exists so that
+    is decided by measurement rather than guessed.
+  refs: ["#60"]
