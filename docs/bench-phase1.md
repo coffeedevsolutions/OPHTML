@@ -353,12 +353,21 @@ S7b was built to separate, so 480p is now the less informative arm.
 What S7a actually established, measured against the blob rather than
 guessed: the hyphens sit at screen row **233**, one pixel tall; `E`,
 `L` and `2` occupy rows **227–237**, and row 237 — which carries their
-three bottom bars and is the widest row on the line — is the only row
-lost. A **one-pixel** stroke survives while a two-pixel bar four rows
-below it does not. So it is neither "the last row of every quad" (the
-hyphen's only row *is* its last) nor a panel eating thin horizontal
-detail (the hyphen is the thinnest thing on screen). Whatever is doing
-this treats a tall quad differently from a short one.
+three bottom bars and is the widest row on the line, 24 inked texels
+against 7 for the stem rows — is the only row lost.
+
+Both strokes measure **one texel** out of the atlas: the size-15 face
+this line is authored in inks `E` as `[8,2,2,2,2,8,2,2,2,2,8]` and the
+hyphen as `[5]`. So thickness is not a variable here at all — two
+horizontal strokes of identical thickness differ only in the height of
+the quad carrying them, and the one in a 1-row quad renders while the
+one at the bottom of an 11-row quad does not.
+
+That is neither "the last row of every quad" (the hyphen's only row
+*is* its last) nor a panel eating thin horizontal detail (the hyphen
+is a thin isolated horizontal stroke and a display eating those would
+eat it first). Whatever is doing this treats a tall quad differently
+from a short one.
 
 **Boot `ladder.elf`.** No blob, no ps2ui — it draws directly, so the
 question is about the GS and nothing else is in the way.

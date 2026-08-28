@@ -11,8 +11,20 @@
  * That killed the two hypotheses the first write-up carried. "The last
  * row of every quad is lost" cannot be it: a one-row quad's only row
  * IS its last, and it survives. "The panel erases thin horizontal
- * strokes" cannot be it either: the surviving hyphen is a ONE-pixel
- * stroke, thinner than the two-pixel bar that vanishes.
+ * strokes" cannot be it either: the hyphen IS a thin isolated
+ * horizontal stroke, and a display that ate those would eat it first.
+ *
+ * Both bars measure ONE texel out of the atlas -- the size-15 face
+ * inks E as [8,2,2,2,2,8,2,2,2,2,8] and the hyphen as [5] -- so the
+ * finding states with thickness removed as a variable rather than
+ * relied on, and this is the form the whole card rests on:
+ *
+ *   TWO HORIZONTAL STROKES OF IDENTICAL THICKNESS, ONE TEXEL, DIFFER
+ *   ONLY IN THE HEIGHT OF THE QUAD CARRYING THEM. THE ONE IN A 1-ROW
+ *   QUAD RENDERS; THE ONE AT THE BOTTOM OF AN 11-ROW QUAD DOES NOT.
+ *
+ * Nothing else is left in the frame, and quad height is exactly what
+ * the ladder sweeps.
  *
  * What is left has to treat a tall quad differently from a short one,
  * which is a sampling or rasterisation property rather than anything a
