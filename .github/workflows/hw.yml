@@ -360,6 +360,11 @@ jobs:
           # No blob and no ps2ui in the path, for probe6's reason.
           make -C runtime/sample objclean
           make -C runtime/sample LADDER=1 EE_BIN=ladder.elf
+          # Ladder v2 (bench step S10): four bias magnitudes against
+          # twelve heights, on a texture with the per-row and
+          # per-column detail v1 lacked. v1's bias arm could not fail.
+          make -C runtime/sample objclean
+          make -C runtime/sample LADDER2=1 EE_BIN=ladder2.elf
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -378,6 +383,7 @@ jobs:
           test -f runtime/sample/covers-nosync.elf
           test -f runtime/sample/ps2ui_sample_480p.elf
           test -f runtime/sample/ladder.elf
+          test -f runtime/sample/ladder2.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -398,6 +404,7 @@ jobs:
             runtime/sample/covers-nosync.elf
             runtime/sample/ps2ui_sample_480p.elf
             runtime/sample/ladder.elf
+            runtime/sample/ladder2.elf
 
   emulator:
     needs: [bake, elf]

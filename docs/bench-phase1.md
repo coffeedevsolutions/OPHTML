@@ -463,7 +463,7 @@ needs is **still open**.
 **Two axes, one asked.** Every arm is 128 pixels wide, a power of two,
 so the U axis was never swept at a width the fault would bite.
 
-#### Ladder v2 — what the next card has to do
+#### Ladder v2 — what the next card had to do, and does (step S10 below)
 
 1. **Per-row and per-column detail in the texture**, so a one-texel
    shift is distinguishable from a lost row rather than hidden by
@@ -475,6 +475,68 @@ so the U axis was never swept at a width the fault would bite.
    so a small enough correction could fix the console without moving
    the emulator at all.
 3. **Sweep width as well as height.**
+
+### S10 — ladder v2: how big a bias, and does it shift?
+
+**Boot `ladder2.elf`.** No blob, no ps2ui. Four columns, twelve rows.
+
+Every block is the same draw with the same geometry; **only the UV bias
+differs between columns**, left to right:
+
+| column | bias | what it is |
+|---|---|---|
+| 1 | `0` | what ps2ui ships — **negative control** |
+| 2 | `1/16` | the smallest bias the GS's UV register can express |
+| 3 | `1/8` | the next one up |
+| 4 | `1/2` | **positive control**, known to shift on an exact renderer |
+
+#### Reading one block — three states, and each has a positive signature
+
+The texture's last row is **yellow**, the row above it is **red**, the
+body is dark navy, and the body's rightmost column is **cyan**.
+
+| what you see at the bottom of a block | verdict |
+|---|---|
+| yellow row with **red directly above it** | sampling is **CORRECT** |
+| yellow row with **no red** (or two yellows) | sampling is **SHIFTED** |
+| **red** row and no yellow | last row is **LOST** |
+
+That third state is what S8 called "the line is missing", and it now
+has a colour rather than an absence. The second state is the one S8
+could not see at all — its bias arm showed a yellow bottom row whether
+the bias fixed the sampling or ruined it, which is why a fix built on
+it was rejected by the emulator gate.
+
+**The cyan right edge is the U axis**, which S8 never asked about: its
+arms were all 128 wide, a power of two, the one span that cannot
+trigger the fault. Here the blocks are 100 wide. Cyan present at the
+right edge of the body means horizontal sampling is correct; cyan gone
+means it is shifted. Only visible on blocks 3 rows and taller.
+
+#### Before reading anything else, check the two controls
+
+- **Column 1 must show LOST** at heights 3, 5, 6, 7, 9, 10, 11 and 12.
+  If it does not, the card is not reproducing the fault and nothing
+  else on it can be trusted. Say so and stop.
+- **Column 4 must show SHIFTED.** If it does not, this card cannot see
+  a shift, which is exactly the defect that made S8's third arm
+  worthless. Say so and stop.
+
+Only if both controls read as expected do columns 2 and 3 mean
+anything.
+
+#### What each outcome would settle
+
+| reading | what it means |
+|---|---|
+| column 2 CORRECT at every height | `1/16` fixes the console and is **invisible to the emulator** — any bias below half a texel leaves an exact sampler on the same texel. Best possible answer. |
+| column 2 SHIFTED or LOST, column 3 CORRECT | `1/8` is the answer, same argument |
+| both LOST, column 4 SHIFTED | the needed bias is between `1/8` and `1/2`, and a bias that fixes the console may not exist below the one that breaks the emulator. That is a real conflict and it needs a different approach, not a bigger number. |
+| column 1 CORRECT | the fault did not reproduce — void, see above |
+
+Photograph the whole screen. If the small blocks at the top are hard to
+resolve, take a second photo of the top third — the rows are the
+question and the top ones are the smallest.
 
 ### S7b — 480p, only if S8 is inconclusive
 
