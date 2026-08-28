@@ -912,6 +912,111 @@ class TestCoverPattern(unittest.TestCase):
                          "it has -- backlog B1 on a new path")
 
 
+class TestS7Discriminator(unittest.TestCase):
+    """Bench step S7's calibration.
+
+    A console clips the bottom row of capitals: E reads as F, L as I,
+    2 as ?. Two mechanisms explain that, and they need separating:
+
+      lost-baseline-row  only the row every non-descender ends on
+      lost-last-row      the last row of every glyph quad
+
+    "Lowercase is untouched" does NOT separate them, which is what the
+    first write-up got wrong. Every non-descender in this face --
+    capital, lowercase and digit alike -- ends on the SAME row, so a
+    uniform last-row loss produces exactly the reported picture: an E
+    loses a full-width bar and reads as F, while an `e` loses the
+    two-texel bottom of a curve and still reads as `e`.
+
+    What DOES separate them is a glyph one pixel tall that does not sit
+    on the baseline. Under lost-last-row a hyphen loses its only row
+    and vanishes; under lost-baseline-row it is untouched.
+
+    MEASURED FROM THE DRAWN QUADS, not from the font table. The first
+    version of this read uib.fonts, which describes SLOT text only --
+    static text is flattened into TEXQUADs at bake time and never
+    consults it. The S7 line is static, so the font table was the wrong
+    object entirely and the check would have held while the line on
+    screen changed underneath it.
+    """
+
+    BUILD = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "..", "..", "fixtures", "bench-stream", "build"))
+
+    def line_and_quads(self):
+        """The S7 line from the IR, and the quads the baker drew for it."""
+        irp = os.path.join(self.BUILD, "covers.json")
+        blob = os.path.join(self.BUILD, "bench.uib")
+        if not (os.path.exists(irp) and os.path.exists(blob)):
+            self.skipTest("bench fixture not built; ci.yml builds it")
+        with open(irp) as fh:
+            ir = json.load(fh)
+        line = [c for c in ir["commands"]
+                if c["op"] == "text" and c["text"].startswith("S7")]
+        self.assertEqual(len(line), 1,
+                         "the covers screen must carry exactly one S7 line")
+        c = line[0]
+        uib = read_uib(blob)
+        lo, hi = c["y"] - 2, c["y"] + c["size"] + 4
+        quads = [r for r in uib.records
+                 if r.op == OP_TEXQUAD and lo <= r.y <= hi]
+        return c, quads
+
+    def test_the_line_carries_both_kinds_of_glyph(self):
+        c, quads = self.line_and_quads()
+        self.assertIn("-", c["text"], "hyphens are the instrument")
+        self.assertIn("E", c["text"], "and a capital is the reference")
+        self.assertGreater(len(quads), 8,
+                           "the S7 line must actually reach the blob as "
+                           "drawn quads, or there is nothing on screen")
+
+    def test_the_hyphens_are_exactly_one_pixel_tall(self):
+        """Losing one row of two leaves a thinner dash, which separates
+        nothing. This is what makes the step readable at all."""
+        _, quads = self.line_and_quads()
+        thin = [r for r in quads if r.h == 1]
+        self.assertGreaterEqual(
+            len(thin), 8,
+            f"expected the row of hyphens to draw as 1px quads; got "
+            f"{sorted(set(r.h for r in quads))} as the heights on that line")
+
+    def test_the_hyphens_do_not_end_where_the_capitals_do(self):
+        """If they shared a bottom row, both candidate faults would
+        erase both and the step would answer nothing."""
+        _, quads = self.line_and_quads()
+        thin = [r for r in quads if r.h == 1]
+        tall = [r for r in quads if r.h > 4]
+        self.assertTrue(thin and tall, "need both kinds on the line")
+        hy_bot = max(r.y + r.h for r in thin)
+        cap_bot = max(r.y + r.h for r in tall)
+        self.assertLess(
+            hy_bot, cap_bot,
+            f"hyphens end at y={hy_bot} and capitals at y={cap_bot}; S7 "
+            f"needs them apart or both mechanisms erase both")
+
+    def test_capitals_lowercase_and_digits_share_a_bottom_row(self):
+        """The observation the first write-up drew the wrong conclusion
+        from, asserted so the correction cannot quietly rot back.
+
+        Read from the font table deliberately: this is a claim about the
+        FACE, not about one line of static text."""
+        blob = os.path.join(self.BUILD, "bench.uib")
+        if not os.path.exists(blob):
+            self.skipTest("bench fixture not built")
+        g = read_uib(blob).fonts[0]["glyphs"]
+        bottoms = {}
+        for ch in "ELo2eanc":
+            m = g.get(ord(ch))
+            if m and m["h"]:
+                bottoms[ch] = m["bearing_y"] + m["h"]
+        self.assertEqual(
+            len(set(bottoms.values())), 1,
+            f"capitals, lowercase and digits should share one bottom row; "
+            f"got {bottoms}. If they ever do not, 'lowercase is untouched' "
+            f"starts carrying information it does not carry today.")
+
+
 class TestArena(unittest.TestCase):
     """The host mirror of runtime/ps2ui.c's arena_compute.
 

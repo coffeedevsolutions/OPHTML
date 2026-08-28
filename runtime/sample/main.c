@@ -1055,13 +1055,27 @@ int main(void)
      * other and disagree with the console, which leaves two
      * candidates and no way to choose between them from a desk:
      *
-     *   H1  the display path. 480i plus this panel's deinterlacer.
-     *       The same panel already made bring-up step 8 VOID by
-     *       erasing 1px flicker, and a thin horizontal stroke sitting
-     *       on the baseline is the same physics.
+     *   H1  the display path: 480i plus this panel's deinterlacer.
      *   H2  real GS behaviour Play! does not model. ps2ui passes raw
      *       integer UVs; there is no 0.5 anywhere in ps2ui.c, and
      *       bringup.md already carries "+0.5 UV bias" as unsettled.
+     *
+     * STEP 8 ARGUES AGAINST H1, not for it, and an earlier version of
+     * this comment had that backwards. The recorded reading is "both
+     * rules steady: the deinterlacer WEAVES static fields" -- the
+     * panel erased the 30 Hz alternation by showing both fields at
+     * once, which means it PRESERVED the static 1px horizontal rules.
+     * That is the content class a baseline stroke belongs to. It does
+     * not refute H1 (the same log has 1px checkers shimmering, so the
+     * panel is motion-adaptive and treats content differently), but it
+     * is evidence against, and citing it as support was wrong.
+     *
+     * The cheaper discriminator is geometry, not video mode: bench
+     * step S7 puts a row of one-pixel hyphens beside E L 2 on the same
+     * line. Hyphens sit three rows above the baseline, so losing the
+     * last row of every quad erases them while losing the baseline row
+     * alone leaves them untouched. Read S7 first; this build is the
+     * second arm.
      *
      * Progressive output separates them in one boot. Full glyphs at
      * 480p convicts the display and acquits the renderer; still

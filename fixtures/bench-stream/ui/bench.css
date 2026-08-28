@@ -13,6 +13,13 @@ body { width: 640px; height: 448px; display: flex; flex-direction: column;
 
 .status { font-size: 15px; color: #b9c6e8; height: 24px; }
 
+/* Step S7's line. 15px because that is a size where the hyphen bakes
+   to exactly one texel -- which is the whole instrument. A larger size
+   gives it two rows, and losing one of two leaves a thinner dash
+   rather than no dash, which answers nothing. The baker suite asserts
+   the height, so a stylesheet edit cannot void this silently. */
+.s7 { font-size: 15px; color: #ffd9a0; height: 24px; }
+
 /* The overlay screen. An ordinary screen whose ground is a translucent
    scrim -- the format has no flag for "overlay" and needs none. */
 .scrim  { width: 640px; height: 448px; display: flex; flex-direction: column;

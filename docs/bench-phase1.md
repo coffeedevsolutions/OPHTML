@@ -312,7 +312,40 @@ Two renderers disagree with the console. The host previewer draws full
 glyphs, and so does the Play! emulator **from the same GIF command
 stream** — so the atlas, the glyph table, the UVs and the geometry are
 all correct. That leaves the display path or real GS behaviour the
-emulator does not model, and guessing between them wastes a sitting.
+emulator does not model.
+
+### S7a — read the dashes, it costs nothing
+
+**On the `covers.elf` screen you are already photographing**, there is
+a line reading:
+
+```
+S7 - - - - - - - - - -  E L 2
+```
+
+Those hyphens are **one pixel tall and sit three rows above the
+baseline**. E, L and 2 end *on* the baseline. That single line
+separates the two candidates outright:
+
+| what you see | what it means |
+|---|---|
+| **dashes present**, E broken | only the baseline row is being lost — the display path |
+| **dashes gone**, E broken | the last row of *every* glyph is being lost — geometry, and the renderer is at fault |
+| dashes present, E fine | nothing is wrong on this screen; photograph a screen where it is |
+
+Read this before booting anything else. It is on a screen you are
+already looking at.
+
+> A note on why this replaced a weaker argument. The first write-up
+> leant on "lowercase is untouched" as evidence for a baseline-specific
+> fault. It is not: in this face every non-descender — capital,
+> lowercase and digit — ends on the *same* row, so a uniform last-row
+> loss produces exactly the same picture. An `E` loses a full-width
+> bar and reads as `F`; an `e` loses the bottom two texels of a curve
+> and still reads as `e`. The dashes are the observation that actually
+> discriminates.
+
+### S7b — 480p, if S7a is ambiguous
 
 **Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in
 every respect except that it outputs 480p instead of 480i. Photograph
@@ -321,8 +354,11 @@ the `MEMORY CARD` line under the `PS2` title and hold it next to your
 
 - **PASS (renderer acquitted)** — `MEMORY CARD` reads correctly at
   480p. The clipping is the interlaced signal and this panel's
-  deinterlacer, which is the same instrument that made bring-up step 8
-  VOID. The fix is a display note, not a code change.
+  deinterlacer. Worth knowing that step 8's recorded reading cuts
+  *against* this: the panel weaves static fields, so it preserved the
+  static 1px rules it was shown. Not impossible — the same log has 1px
+  checkers shimmering, so the panel is motion-adaptive — but this
+  outcome would be the surprising one.
 - **FAIL (renderer convicted)** — still `MFMORY CARD` at 480p. The
   fault is in what ps2ui asks the GS for, and the next arm is a
   `+0.5` texel-centre bias, which `bringup.md` already carries as an
