@@ -92,9 +92,16 @@ jobs:
       # renderer change lands without rebuilding the examples, the drift
       # shows up here rather than living in the README forever.
       - name: Committed screenshots match the renderer
-        run: git diff --exit-code examples/memcard/screenshots \
-                                  examples/channel6/screenshots \
-                                  examples/opl-env/screenshots
+        # A block scalar, NOT a plain one. YAML folds a plain scalar's
+        # continuation lines into a single line and keeps the
+        # backslashes as literal characters, so bash reads "\ " as an
+        # escaped space and the next path arrives with a leading space:
+        # `fatal:  examples/channel6/screenshots: no such path`. This
+        # step caught its own formatting on the run that added it.
+        run: |
+          git diff --exit-code examples/memcard/screenshots \
+                               examples/channel6/screenshots \
+                               examples/opl-env/screenshots
 
       # The Phase 1 streaming bench. Built here as well as in hw.yml so
       # a change to the layout compiler or the baker that breaks the
