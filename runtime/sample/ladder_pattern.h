@@ -106,7 +106,9 @@
 
 #define LADDER_ROWS      16   /* texture height; row 15 is the bright one */
 #define LADDER_W        128   /* texture and block width, drawn 1:1       */
-#define LADDER_MAX_H     12   /* tallest rung; capitals are 11            */
+#define LADDER_MAX_H     12   /* tallest rung. Drawn capitals across the  */
+                              /* three blobs are h=9,10,11,12 and 15, so  */
+                              /* 1..12 covers all but the size-20 face.   */
 #define LADDER_PITCH     30   /* vertical spacing between rungs           */
 #define LADDER_TOP       24
 #define LADDER_TICK_X    24

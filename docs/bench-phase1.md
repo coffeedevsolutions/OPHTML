@@ -415,8 +415,35 @@ display is losing it. **The fault is real and it is in texture
 sampling.** An exact interpolator does not have it: the previewer and
 Play! both render every row.
 
-It retrodicts S7a without being fitted to it — capitals are 11 texels
-tall and lost their row, the hyphen is 1 and kept it.
+**It retrodicts S7a without being fitted to it, and the retrodiction is
+differential** — a single already-photographed line separates the two
+predictions. Measured from `fixtures/bench-stream/build/bench.uib`,
+whose only *drawn* font face is size 15 (texture 5; the size-14 face is
+baked but renders nothing):
+
+| glyph | height | power of two? | predicted | observed |
+|---|---|---|---|---|
+| `E` `L` `2` | 11 | no | loses its row | `SYNTHETIC` → `SYNTHFTIC` |
+| `e` `o` `a` | 8 | **yes** | keeps its row | `loaded`, `never appeared` clean |
+| `-` | 1 | **yes** | keeps its row | dashes present |
+
+All three appear in one line of the sitting-3 photograph: capitals
+broken and lowercase clean, *in the same word*. Lowercase surviving is a
+model **prediction** here, not the observational limit it was assumed to
+be — and the examples make the contrast, because they use different
+faces:
+
+| blob | face drawn | `E` | `e` |
+|---|---|---|---|
+| `bench.uib` | 15 | 11 — loses | **8 — keeps** |
+| `memcard/ui.uib` | 13 | 9 — loses | 7 — loses |
+| `channel6/ui.uib` | 14, 16, 20 | 10, 12, 15 — all lose | 8 keeps, 9 and 11 lose |
+
+So `MEMORY CARD` (size 13, lowercase `h=7`) should degrade in lowercase
+too, and there "lowercase looks untouched" **is** an observational limit
+— a 7-row `e` loses two texels of curve tip where an `E` loses a
+full-width bar. Both mechanisms are real; which applies depends on the
+face.
 
 **What C establishes: nothing.** The ladder texture is uniform dark on
 every row but the last and ignores `x` entirely, so a bias that shifts

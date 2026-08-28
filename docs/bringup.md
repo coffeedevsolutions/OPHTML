@@ -959,9 +959,14 @@ So both of these are true at once, and neither cancels the other:
   every pixel one texel past its target. Measured, not argued: a build
   with the bias renders `Library` as `Liibrarny` under Play! and scores
   17.34 on the frame diff against a healthy 4.8.
-- **The console still drops the last row without it.** That is what
-  the original glyph defect is — capitals are 11 texels tall and lose
-  their bottom bar, the hyphen is 1 texel and keeps it.
+- **The console still drops the last row without it.** That is what the
+  original glyph defect is. Measured per blob, because the number
+  depends on which face is drawn and quoting it without one has
+  misled three readings: in `fixtures/bench-stream` the drawn face is
+  size 15, where `E` is 11 texels and loses its bar while `e` is 8 — a
+  power of two — and keeps its row; in `examples/memcard` the drawn
+  face is size 13, where `E` is 9 and `e` is 7, so the model predicts
+  **both** degrade there. `bench-phase1.md` §S8 carries the full table.
 
 **The correction is open.** A half texel is too much: it is exactly the
 amount that moves an exact sampler off its texel. The GS's UV register
