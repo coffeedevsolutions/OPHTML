@@ -896,9 +896,12 @@ indistinguishable from it — and exactly why it is worth drawing.
 **If wrong:** not a missing `+0.5` — see "The UV convention is settled"
 below, which works the arithmetic and shows the bias would put every
 pixel one texel past the one it asked for. Under the nearest filtering
-ps2ui uses, texel-corner UVs at 1:1 are correct. Look instead at
-whether the quad is drawn at its UV span (anything else resamples), and
-at the texture's format and buffer width.
+ps2ui uses, texel-corner UVs at 1:1 are correct **on this card, which
+is drawn at power-of-two spans**; the subsection under it records what
+bench step S8 measured about other spans on real hardware, which is a
+different and still-open question. Look here at whether the quad is
+drawn at its UV span (anything else resamples), and at the texture's
+format and buffer width.
 
 `make_testcard.py --self-test` fences the construction, and CI runs it.
 The property that matters most there is the 1:1 mapping: a wedge quad
@@ -937,6 +940,44 @@ previewer agrees independently: `preview.py:148` crops `[u0, u1)`.
 
 This is recorded as settled rather than merely undocumented because a
 capture from the emulator invites exactly the wrong conclusion, and did.
+
+#### …but the arithmetic above describes an EXACT interpolator, and the GS is not one
+
+Bench step S8 measured a twelve-rung height ladder on an SCPH-50000.
+A textured sprite *h* pixels tall sampling *h* texels keeps its last
+texel row **only when h is 1, 2, 4 or 8** — the powers of two, which
+are exactly the *h* for which `1/h` is exact in binary. The same rungs
+drawn as stacked untextured quads keep every row, so the rasteriser and
+the display are not involved. Something in the GS's per-scanline UV
+step behaves like a reciprocal, and at every other span the accumulated
+error carries the last sample across a texel boundary.
+
+So both of these are true at once, and neither cancels the other:
+
+- **The table above is right**, for the previewer, for Play!, and for
+  any renderer that interpolates exactly. Adding `+0.5` there moves
+  every pixel one texel past its target. Measured, not argued: a build
+  with the bias renders `Library` as `Liibrarny` under Play! and scores
+  17.34 on the frame diff against a healthy 4.8.
+- **The console still drops the last row without it.** That is what
+  the original glyph defect is — capitals are 11 texels tall and lose
+  their bottom bar, the hyphen is 1 texel and keeps it.
+
+**The correction is open.** A half texel is too much: it is exactly the
+amount that moves an exact sampler off its texel. The GS's UV register
+carries four fractional bits, so `1/16` is representable and leaves an
+exact sampler where it was — if the reciprocal error is sub-texel, the
+smallest bias that fixes the console may be far smaller than the one
+that breaks the emulator. That is a hypothesis awaiting an instrument,
+not a recommendation.
+
+**What made this hard to see, and the lesson worth keeping:** at
+power-of-two spans the exact model is precisely correct, and every
+host-side renderer this project owns is exact. Nothing off-console
+could have caught it. The first card that tried had a uniform texture,
+so its bias arm could not fail — see `ladder_pattern.h`. Give the next
+one per-row and per-column detail, sweep the bias magnitude rather than
+its presence, and sweep width as well as height.
 
 ### What the emulator saw, and what it is not
 
@@ -1074,7 +1115,10 @@ the GS directly.
 
 **The `+0.5` bias is still not among the columns** — testing a fix
 before reproducing a fault is backwards, and the v2 arithmetic showing
-it would move every pixel a texel past its target still stands.
+it would move every pixel a texel past its target still stands (the
+emulator has since confirmed that half, out loud). What probe6 never
+sweeps is **quad height**, which is the variable that exposes the
+console-only fault; the height ladder does, and S8 read it.
 
 **No text anywhere**, still: text is the thing under suspicion, and
 labelling the bands through the glyph path would be asking the suspect
