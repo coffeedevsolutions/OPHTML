@@ -427,10 +427,13 @@ below is a guess about which resource is scarce:
    numbers.
 
    **It gated the rest of the phase, and the gate has now returned an
-   answer.** [F-037] Bench S12, HW #262: `gs` 0.92 ms, **5.5% of a
-   field**. The arm moved it to 3.21 for eight full-screen blended
-   sprites — 1.00 Gpix/s, where a GS's fill rate belongs — and moved
-   `ee` by +0.00, so it is a measurement and not a latched bit.
+   answer.** [F-037] Bench S12, HW #262: `gs` 0.93 ms, **5.6% of a
+   field**. The arm moved it to 3.22 for eight full-screen blended
+   sprites — 1.002 Gpix/s, which is **84.9% of the part's 1.180 Gpix/s
+   blended peak** (16 pipelines at 147.456 MHz, halved by the
+   read-modify-write) — and moved `ee` by +0.00. A latched bit reads
+   0.00 forever; a broken instrument does not land within 15% of a
+   spec sheet.
 
    | | of a field |
    |---|---|

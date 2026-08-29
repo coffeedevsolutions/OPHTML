@@ -579,22 +579,29 @@ findings:
     instrument: docs/bench-phase2.md
     measurement: >-
       Bench S12, SCPH-50000, HW #262, oplenv.elf at 5ea02ae. gs 0.91 to
-      0.93 ms against a 16.683 ms NTSC field -- 5.5%. With ee at 2.41
-      ms the two together are 3.34 ms, 20.0% of a field, leaving 13.34
-      ms unused; the worst photographed frame, ee peak 3.66 plus gs
-      0.93, is 4.59 ms and 27.5%.
+      0.93 ms against a 16.683 ms NTSC field -- 5.6% at the top of the
+      range, the convention used throughout. With ee at 2.41 ms the two
+      together are 3.34 ms, 20.0% of a field, leaving 13.34 ms unused.
+
+      4.59 ms (27.5%) is the worst frame photographed, but it is an EE
+      PEAK paired with a GS MEAN and is therefore a LOWER BOUND, not
+      the worst frame. gs has no peak-hold yet.
   falsifier: >-
     A gs reading approaching f on this content, or a gs that does not
     move when oplenv-fill.elf draws over it
   depends_on: [F-036]
   note: >-
-    THE ARM IS WHY THIS IS A MEASUREMENT. gs read 0.92 on the plain
-    build and 3.21 on oplenv-fill.elf, so the CSR FINISH bit is not
-    latched. It moved by 2.29 ms for eight full-screen alpha-blended
-    sprites -- 2,293,760 blended pixels, which is 1.00 Gpix/s, sitting
-    where a GS's alpha-blended fill rate is expected to sit. A latched
-    instrument reads 0.00 forever; a broken one would not have landed
-    on the hardware's own number.
+    THE ARM IS WHY THIS IS A MEASUREMENT, and it checks against the
+    PART rather than against itself. gs read 0.92 on the plain build
+    and 3.21 on oplenv-fill.elf, so the CSR FINISH bit is not latched.
+    It moved 2.29 ms for 2,293,760 blended pixels: 1.002 Gpix/s. The GS
+    is 16 pixel pipelines at 147.456 MHz -- 2.359 Gpix/s unblended,
+    halved to 1.180 when a blend forces a framebuffer read-modify-write
+    -- so the arm landed at 84.9% of the part's blended peak, and
+    85.7%/84.2% across the reading's 2.27-2.31 ms spread. 85% of
+    theoretical on real silicon with page breaks is where it belongs. A
+    latched instrument reads 0.00 forever; a broken one does not land
+    within 15% of a spec sheet.
 
     AND IT MOVED NOTHING ELSE. ee was 2.41 on both builds at p599 and
     2.37 on both at p590 -- +0.00 twice. One prim per sprite, so the EE
@@ -606,13 +613,44 @@ findings:
     mean because that window contains no scroll frame. That is what
     it should do and nobody had to arrange it.
 
-    WHAT IS STILL SMEARED: gs has no peak-hold, and the scroll frame
-    pushes 28,224 bytes through the same chain, so the figure averages
-    away the frames most likely to spike it. Comparing the fill build's
-    up0 and up28224 windows hints at a few tenths of a millisecond per
-    upload frame, but that is 0.01 ms of mean difference against a 0.01
-    ms print resolution, which is not a measurement. A gs peak-hold
-    would settle it and costs one build.
+    AND THE READOUT AUDITED ITSELF ACROSS A CODE CHANGE. Between HW
+    #261 and #262 the readout split from one line into two, growing
+    from 27 inked glyphs to 17+21 = 38, a rise of 11. On both windows
+    photographed at matched shape, p rose by exactly 11: 579 to 590 for
+    nine double-digit titles, 588 to 599 for nine triple-digit ones.
+    Third time this instrument has audited itself on prim count, and
+    the first across two pull requests and two sittings rather than
+    within a single screen.
+
+    WHAT IS STILL SMEARED: gs has no peak-hold. The sharper reason is
+    not the smearing but that THE TWO SPIKES COINCIDE -- the scroll
+    frame does the bind work on the EE and pushes 28,224 bytes through
+    the same chain, so it is the worst frame on both axes at once. A
+    real worst-frame figure needs gs^ beside ee^, and until it exists
+    the 4.59 ms above is a lower bound.
+
+    THE PEAK-HOLD HAS A PREDICTION, so the next sitting can falsify it
+    rather than merely observe it. 28,224 bytes is 0.024 ms on the DMA
+    path and 0.188 ms EE-inline; the up0-vs-up28224 mean difference of
+    0.01 ms over a 1-in-30 duty cycle implies about 0.3 ms per upload
+    frame, the same order as the inline figure. So predict gs^ between
+    0.95 and 1.15 against a 0.93 mean -- 2 to 20 print units, readable.
+    A gs^ sitting on the mean would falsify the upload-cost story.
+
+    THE FILL BUILD REPORTED m1 AND THE CAUSE IS UNKNOWN. The frame
+    period is vsync-locked, so top-to-top quantises to whole fields and
+    the 18.33 ms trip can only be cleared by two of them: one frame's
+    work exceeded a WHOLE 16.683 ms field. This finding first offered
+    frame 0's cold start, and that does not survive being priced. For
+    the fill build's extra 2.29 ms to be what tipped it, plain frame 0
+    must have landed in [14.39, 16.68) ms -- 11.05 ms above plain
+    steady state. The blob's entire texture payload is 233,660 bytes:
+    0.19 ms of GIF DMA, and 1.56 ms even at an EE-inline 150 MB/s.
+    Short by a factor of seven. And FirstFrame argues the wrong way,
+    since queue_exec_real SKIPS its wait on frame 0, making that frame
+    shorter. Nothing identified accounts for 11 ms. `m` records how
+    many, never when; a frame index on the first miss answers "when"
+    and leaves "why" open.
   refs: ["#67"]
 
 - id: F-038
