@@ -36,9 +36,23 @@ jobs:
 
       - name: Layout tests
         working-directory: packages/layout
-        # Unquoted so the shell expands the glob — Node itself only
-        # learned to glob --test arguments after Node 20.
-        run: node --test test/*.test.js
+        # `npm test`, NOT the command it wraps. Open-coding the runner
+        # here meant the package's own documented entry point was never
+        # exercised: `npm test` was `node --test test/`, which cannot
+        # resolve a bare directory on Node 22, so the one command a
+        # developer actually types crashed while CI stayed green. A
+        # check that passes because it is not the check anyone runs.
+        #
+        # The script behind it takes NO argument. Review caught the
+        # first fix here: `test/*.test.js` matches one directory level,
+        # so a failing test in `test/parse/` was skipped and the suite
+        # reported 83/83 green. Bare `node --test` recurses, needs no
+        # shell to expand anything, and excludes node_modules by
+        # default since Node 18 — which `engines` already requires. The
+        # careful glob reasoning that used to sit here is exactly what
+        # created that gap, so the argument is gone rather than
+        # explained.
+        run: npm test
 
       - name: Baker tests
         working-directory: packages/baker

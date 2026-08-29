@@ -78,9 +78,17 @@ extern unsigned int size_ui_uib;
  */
 #if defined(PS2UI_SAMPLE_TELEMETRY) || defined(PS2UI_SAMPLE_OPLENV)
 /* COP0 Count on the R5900 ticks once per CPU cycle at 294.912 MHz.
- * TODO(bench): confirm on hardware. Several MIPS implementations tick
- * Count at half the core clock, and if the R5900 is one of them every
- * ee_us here would be 2x off.
+ *
+ * This carried a bench marker directly above the paragraph that
+ * answers it, for two pull requests after the answer arrived -- so a
+ * grep for open work found a question that was closed. Review then
+ * caught the obituary quoting the marker verbatim, which leaves the
+ * same grep landing here: the prose is plainly explanatory to a human
+ * and not to grep, which is the tool the finding is about. The
+ * question is kept
+ * because it is the reason the measurement was worth taking: several
+ * MIPS implementations tick Count at half the core clock, and if the
+ * R5900 were one of them every ee_us here would be 2x off.
  *
  * SETTLED, HW #260: it is not. A vsync-locked loop measured with this
  * constant reported 16.73 ms against a true NTSC field period of

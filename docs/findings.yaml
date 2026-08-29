@@ -495,7 +495,7 @@ findings:
     headroom change `ee` is the EE's work and is not vsync-locked, so
     it is not a clock against a known interval.
   note: >-
-    Retires the TODO(bench) that has sat on EE_HZ since the telemetry
+    Retires the bench marker that had sat on EE_HZ since the telemetry
     build shipped, which said to treat ee_us as relative rather than
     absolute. It is absolute. Settled as a side effect of measuring
     something else, because the field period is a known quantity and
