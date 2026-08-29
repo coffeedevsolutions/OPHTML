@@ -3086,6 +3086,132 @@ int main(int argc, char **argv)
         free(dup);
     }
 
+    {
+        /* THE SLOT'S base/focus SELECTION, fenced in both directions.
+         *
+         * Review found this missing, and the asymmetry was the finding:
+         * ps2ui_cmd::tint_focus has NO producer -- it is format
+         * headroom -- and got a three-iteration two-blob fence above.
+         * ps2ui_slot_entry::tint_focus has had one since v6, it is
+         * what every focused row's text draws in today, and it had
+         * nothing. Both of these compiled clean and passed all 378
+         * checks:
+         *
+         *     col = &row[is_focused ? s->tint_base  : s->tint_base];
+         *     col = &row[is_focused ? s->tint_focus : s->tint_focus];
+         *
+         * (The blunter `col = &row[s->tint_base];` does not compile --
+         * -Werror catches the now-dead is_focused. A happy accident,
+         * not a fence: the two forms above keep it used.)
+         *
+         * ONE BLOB, TWO FOCUS STATES -- which was a hole for commands
+         * and is exact here. Focus changes WHICH commands draw, so a
+         * whole-frame signature moves whether or not the field is
+         * read; render_slots emits the same glyph quads either way and
+         * only their colour changes. So the slot prims alone are a
+         * valid if-and-only-if, and they are isolable: the pen runs
+         * after the command list, so the last stats.slot_glyphs prims
+         * of the frame are exactly its output. */
+        ps2ui_ctx sc;
+        GSGLOBAL sgs;
+        static uint8_t sarena[1 << 20];
+        uint32_t si, subject = 0xFFFFFFFFu;
+        int found = 0;
+
+        memset(&sgs, 0, sizeof sgs);
+        sgs.CurrentPointer = 16;
+        stub_reset();
+
+        if (ps2ui_load(&sc, blob, len, sarena, sizeof sarena) == PS2UI_OK
+            && ps2ui_upload(&sc, &sgs) == PS2UI_OK) {
+            const ps2ui_tint_entry *srow =
+                sc.tints + (size_t)sc.theme * sc.hdr->n_tint;
+            /* A subject whose two tints are DIFFERENT COLOURS, not
+             * merely different indices, and which is focusable at all.
+             * Four of this fixture's six slots have base == focus and
+             * no focus node; without this line the check would report
+             * green on one of those. */
+            for (si = 0; si < sc.hdr->n_slot && !found; si++) {
+                const ps2ui_slot_entry *sl = &sc.slots[si];
+                const ps2ui_tint_entry *b = &srow[sl->tint_base];
+                const ps2ui_tint_entry *f = &srow[sl->tint_focus];
+                if (sl->focus == PS2UI_NONE)
+                    continue;
+                if (b->r == f->r && b->g == f->g && b->b == f->b
+                    && b->a == f->a)
+                    continue;
+                subject = si;
+                found = 1;
+            }
+            CHECK(found,
+                  "the fixture has a focusable slot whose base and focus "
+                  "tints are different COLOURS, or the pair below is "
+                  "vacuous");
+
+            if (found) {
+                const ps2ui_slot_entry *sl = &sc.slots[subject];
+                u64 c_base = GS_SETREG_RGBAQ(srow[sl->tint_base].r,
+                                             srow[sl->tint_base].g,
+                                             srow[sl->tint_base].b,
+                                             srow[sl->tint_base].a, 0x00);
+                u64 c_focus = GS_SETREG_RGBAQ(srow[sl->tint_focus].r,
+                                              srow[sl->tint_focus].g,
+                                              srow[sl->tint_focus].b,
+                                              srow[sl->tint_focus].a, 0x00);
+                int n_on = 0, n_off = 0;
+                int base_on = 0, base_off = 0, foc_on = 0, foc_off = 0;
+                uint16_t scr;
+                int j, first;
+
+                /* Its screen, or the pen never walks it. */
+                for (scr = 0; scr < sc.hdr->n_screen; scr++) {
+                    const ps2ui_screen_entry *e = &sc.screen_table[scr];
+                    if (subject >= (uint32_t)e->slot_first
+                        && subject < (uint32_t)e->slot_first + e->slot_count) {
+                        sc.screen = scr;
+                        break;
+                    }
+                }
+
+                sc.focus = sl->focus;
+                stub_reset_keep_tm();
+                ps2ui_render(&sc, &sgs);
+                n_on = (int)sc.stats.slot_glyphs;
+                first = g_stub.n_prims - n_on;
+                for (j = first; j < g_stub.n_prims; j++) {
+                    if (g_stub.prims[j].color == c_base) base_on++;
+                    if (g_stub.prims[j].color == c_focus) foc_on++;
+                }
+
+                sc.focus = PS2UI_NONE;
+                stub_reset_keep_tm();
+                ps2ui_render(&sc, &sgs);
+                n_off = (int)sc.stats.slot_glyphs;
+                first = g_stub.n_prims - n_off;
+                for (j = first; j < g_stub.n_prims; j++) {
+                    if (g_stub.prims[j].color == c_base) base_off++;
+                    if (g_stub.prims[j].color == c_focus) foc_off++;
+                }
+
+                CHECK(n_on > 0 && n_on == n_off,
+                      "the slot pen draws the same glyphs at both focus "
+                      "states, so the counts below differ by colour and "
+                      "nothing else");
+                CHECK(foc_on > foc_off,
+                      "A SLOT DRAWS ITS FOCUS TINT WHILE FOCUSED. Fails "
+                      "if the pen reads tint_base in both branches -- the "
+                      "focus colour would then never reach the GS and no "
+                      "other check in this suite would notice");
+                CHECK(base_off > base_on,
+                      "and its BASE tint while not. Fails if the pen "
+                      "reads tint_focus in both branches, which draws "
+                      "every row of running text permanently highlighted");
+            }
+        } else {
+            CHECK(0, "the slot tint fixture loads and uploads");
+        }
+    }
+
 report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);

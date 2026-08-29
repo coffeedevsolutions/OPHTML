@@ -364,6 +364,15 @@ def check_gs_domains(uib, rep: Report) -> None:
                   + (f"; slots {', '.join(bad[:5])}" if bad else ""))
 
 
+# Below this many painting commands a blob has no palette to speak of,
+# and the ratio in check_tints would fail it for being small rather
+# than for being wrong. Named rather than inlined because the number
+# carries the reasoning above it: a future edit that moves it should
+# have to read why it is there, which is the same argument as the
+# note-instead-of-skip it guards. Every shipped blob is 700+.
+TINT_RATIO_MIN_PAINTS = 100
+
+
 def check_tints(uib, rep: Report) -> None:
     """The tint table (v7), and the premise it rests on.
 
@@ -393,7 +402,7 @@ def check_tints(uib, rep: Report) -> None:
     # fail it for being small -- but silently dropping the check on a
     # small blob is the pattern this project keeps catching, so it
     # becomes a note (measured, never asserted) rather than an absence.
-    if paints < 100:
+    if paints < TINT_RATIO_MIN_PAINTS:
         rep.note(f"{n_tint} tints over {paints} painting commands: too few "
                  "draws for the palette ratio to mean anything, so it is "
                  "measured and not asserted here")
