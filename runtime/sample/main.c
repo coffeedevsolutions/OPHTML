@@ -1572,6 +1572,21 @@ int main(void)
                     last_upload = 0;
                 if (w.sel >= OPLENV_TITLES - 1)
                     oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
+
+                /* Move the highlight with the selection. Without this
+                 * the focus ring sits on whatever row the blob
+                 * autofocused and the scroll looks like the list is
+                 * moving under a stuck cursor -- which is exactly what
+                 * it was doing until -Werror=unused-function pointed
+                 * out that nothing called sel_row. */
+                {
+                    int r = oplenv_window_sel_row(&w);
+                    if (r >= 0) {
+                        char fname[16];
+                        sprintf(fname, "row-%d", r);
+                        ps2ui_focus_set(&ui, fname);
+                    }
+                }
             }
 
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
