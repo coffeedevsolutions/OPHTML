@@ -555,7 +555,10 @@ class TestSlotCapacity(unittest.TestCase):
                                       "ps2ui-layout.js"), hp, cp, "-o", jp],
                 capture_output=True)
             if r.returncode != 0:
-                self.skipTest("layout unavailable: " + r.stderr.decode()[:120])
+                # Node IS available where the gate is set, so this is a
+                # broken layout compiler rather than a missing tool.
+                unavailable(self, "the layout compiler would not run: "
+                                  + r.stderr.decode()[:120])
             env = dict(os.environ,
                        PYTHONPATH=os.path.join(root, "packages", "baker"))
             r = subprocess.run([sys.executable, "-m", "ps2ui_bake", jp,
@@ -565,9 +568,18 @@ class TestSlotCapacity(unittest.TestCase):
             return read_uib(up), r.stderr.decode()
 
     def test_capacity_survives_the_bake(self):
-        uib, _ = self.bake(200)
-        if uib is None:
-            self.skipTest("bake refused a capacity it should accept")
+        uib, err = self.bake(200)
+        # NOT A SKIP, AND THIS ONE NEVER SHOULD HAVE BEEN. The other
+        # skips in this file guard a missing FIXTURE; this guarded the
+        # test's own subject. bake() returns None only when the baker
+        # refused -- a failing `node` is caught above -- so "bake
+        # refused a capacity it should accept" is the exact defect this
+        # test exists to find, and it was reported as OK. Worse in kind
+        # than the four TestS7Discriminator skips that prompted the
+        # audit, because no reordering or fixture could ever have made
+        # it run: the condition it skipped on WAS the failure.
+        self.assertIsNotNone(
+            uib, f"the baker refused a capacity it should accept: {err[:300]}")
         self.assertEqual([s["capacity"] for s in uib.slots], [200],
                          "the blob must record what the author asked for")
 
@@ -1058,16 +1070,6 @@ class TestArena(unittest.TestCase):
     asserts ps2ui_arena_size against an independent carve of the same
     header; this side asserts the Python against the real blobs.
     """
-
-    def blob(self, name):
-        import os
-        from ps2ui_bake.uib import read_uib
-        here = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.normpath(os.path.join(
-            here, "..", "..", "..", "examples", name, "build", "ui.uib"))
-        if not os.path.exists(path):
-            self.skipTest(f"{path} not baked")
-        return read_uib(path)
 
     def write_fixture(self, path):
         """A small blob covering every arena region, written with the
@@ -2569,14 +2571,21 @@ class TestCheck(unittest.TestCase):
             #
             # THE DISTINCTION IS NOW LOAD-BEARING, because the S7 tests
             # above carried a skip message of the same shape that was
-            # NOT true: it cited this workflow as the reason the skip
-            # was safe while the step it named ran ninety-six lines
-            # later, so those four never ran in CI at all. The test to
-            # apply is whether the coverage exists at the MOMENT of the
-            # skip, not whether the workflow mentions it somewhere.
-            # Here it does -- those blobs are validated by name in a
-            # later step that gates -- so this one stays a skip while
-            # the S7 four became failures.
+            # NOT true, and those four never ran in CI at all.
+            #
+            # The test to apply is NOT whether the cited step runs
+            # first. This skip cites a step 116 lines below the one
+            # that runs this suite, and is fine; the S7 four cited a
+            # step 96 lines below, and were not. The difference is what
+            # the cited step DOES: that one asserts this same property
+            # over these same bytes, by name, and gates. Theirs merely
+            # built a fixture, so for them ordering was everything and
+            # the coverage was zero, not late.
+            #
+            # Written out because the first version of this reasoning,
+            # and the rule in docs/method.md it came from, both got it
+            # wrong in the ordering direction -- which would have
+            # condemned this skip and blessed a badly-ordered one.
             self.skipTest("examples not built in this checkout; ci.yml "
                           "gates these blobs with ps2ui-check after the "
                           "example builds")

@@ -54,10 +54,37 @@ for must exist. The workflow was reordered as well — the reorder is the
 fix, the failure is the tripwire, and shipping only the first is what
 invites being reordered back.
 
-The general form, since it has now caught two tests and will catch a
-third: *a skip message may cite a workflow step as the reason the skip
-is safe only if that step has already run.* Coverage that exists later
-in the file is not coverage.
+**The general form, and the first draft of it was wrong in a way worth
+keeping.** It read: *a skip message may cite a workflow step as the
+reason the skip is safe only if that step has already run.* Review
+applied it to the one skip this file deliberately keeps —
+`TestCheck.test_the_shipped_examples_pass`, which cites a step at
+`ci.yml:191` and runs at `:75`, **116 lines too late** — and the rule
+condemns it. It should not: that step really does assert the same
+property over the same bytes, by name, and gates.
+
+So ordering is the incidental part. For the S7 four the coverage was
+not late, it was **zero**: nothing else ran those assertions in any
+position, and had the fixture build happened to sit at line 40 all
+along, an ordering rule would have blessed them while they still had no
+second reader.
+
+> A skip message may cite a workflow step as the reason it is safe only
+> if that step **actually asserts the same property**. If nothing else
+> does, the skip *is* the coverage — and a skip is reported as `OK`.
+> Ordering matters only when what is cited is the step that builds the
+> fixture the test needs.
+
+That condemns the four, exempts the fifth for the reason that actually
+holds, and does not depend on line numbers that move.
+
+**The audit it prompted found a worse one**, two hundred lines up from
+the four: `test_capacity_survives_the_bake` skipped with *"bake refused
+a capacity it should accept"* — a skip guarding not a missing fixture
+but the test's own subject. No reordering could have made that one run,
+because the condition it skipped on **was** the failure it existed to
+detect. A skip on a missing fixture is a coverage gap; a skip on your
+own assertion is a test that reports `OK` for the bug.
 
 Others: a `argc == 3` guard that silently skipped eighteen checks when
 a fourth fixture was added, leaving the suite green *and smaller*; and
