@@ -11,7 +11,7 @@ prose rots like any other document.
 
 | status | count |
 |---|---:|
-| confirmed | 17 |
+| confirmed | 18 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -216,7 +216,7 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 **Falsifier:** A realistic environment whose arena exceeds the old fixed ceiling
 
-**Rests on this:** F-032, F-034
+**Rests on this:** F-032, F-034, F-036
 
 *#48, #60*
 
@@ -236,7 +236,7 @@ TWO NUMBERS ABOVE MEAN LESS THAN THEY LOOK, and PR #64's review was right to say
 
 *#61, #64*
 
-## Phase 2 — Prove it with the OPL-class app (**open**)
+## Phase 2 — Prove it with the OPL-class app (locked)
 
 ### F-032 — Per-row reservations make a one-row scroll re-upload every cover
 
@@ -248,7 +248,7 @@ TWO NUMBERS ABOVE MEAN LESS THAN THEY LOOK, and PR #64's review was right to say
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs a 6,951-byte aren…)
 
-**Rests on this:** F-034
+**Rests on this:** F-034, F-036
 
 Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload. The number exists so that is decided by a measurement rather than guessed, and it now is one.
 
@@ -265,6 +265,8 @@ The 0.05 ms gap was first written down here as "0.28% error". It was not error. 
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs a 6,951-byte aren…), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
 
+**Rests on this:** F-036
+
 WHAT THIS MEASUREMENT DID NOT MEASURE: headroom. The HW #260 build read the clock after gsKit_sync_flip, which blocks until vsync, so 16.73 ms was dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it said nothing about how much of the field was left. A number that stable, that plausible and that mislabelled is the same shape of defect as the rest of this project, arrived at with a stopwatch instead of a renderer.
 THE INSTRUMENT HAS SINCE CHANGED. The driver now reports `f`, the wall-clock frame period, which is the quantity this finding claims; `ee`, the EE's own work, stopping at the DMA kick before the flip; and `m`, a count of dropped fields cumulative since boot, because a falsifier reading "any dropped field" cannot be served by a rolling mean. So this finding stays falsifiable against the shipping build. The ordering is asserted by tools/check-timing-probe.py, which fails on all eight ways of reinstating the old shape -- including one it did not catch until #64's review found it, where the correct capture is kept and a second one added after the flip.
 `ee` is EE-side cost only: gsKit_queue_exec returns while the GS is still drawing, so `f - ee` is an upper bound on the headroom available to EE work and NOT a measure of GS occupancy. Nothing here has yet measured GS occupancy.
@@ -280,8 +282,27 @@ A self-consistency check fell out of the prim count: the first photograph reads 
 
 **Falsifier:** A known wall-clock interval that the driver reports at half or double its true length. Read `f` for this, not `ee`: since the headroom change `ee` is the EE's work and is not vsync-locked, so it is not a clock against a known interval.
 
+**Rests on this:** F-036
+
 Retires the TODO(bench) that has sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
 THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch the claim but is worth recording. 8.34 was the true half-period, not what that build would have printed; #64's review said 8.37, which is the half-period through the truncated divisor before the integer print truncates again. The value is 8.36. The finding survives because a factor of two does not care, but a counterfactual nobody evaluated is not evidence, and this one sat in a confirmed finding through a phase.
 
 *#63, #64*
+
+### F-036 — The OPL-class environment uses about an eighth of a field on the EE
+
+**Measured:** Bench S11, SCPH-50000, HW #261, oplenv.elf at 4d351ae. ee 2.12 ms at the top of the list, 2.21 ms once scrolling, 2.25 ms in the hundreds -- 12.7% to 13.5% of a 16.683 ms NTSC field, leaving about 14.4 ms unused on the EE side. f read 16.68 on every frame and m read 0 throughout, held past title 250.
+
+**Instrument:** `docs/bench-phase2.md`
+
+**Falsifier:** An ee reading approaching f at this content level, or any m above zero
+
+**Depends on:** [F-034](#f-034) (The OPL-class environment runs at full field rat…), [F-035](#f-035) (COP0 Count ticks once per CPU cycle at 294.912 M…)
+
+WHAT THIS DOES NOT MEASURE, again: GS occupancy. ee stops at the DMA kick and the GS keeps drawing, so 13.5% is the EE's share and the GS's share is still unknown. What m=0 adds is that whatever the GS is doing, it is not costing a field. A build that wanted the GS number would have to read the clock after a drawing-finished sync rather than after a vsync, and nothing here has done that.
+THE READOUT IS DRAWN BY THE THING IT MEASURES, which turned the prim count into an exact check for the second time. Between the 1-9 window and the 11-19 window the count rises 13: nine from the title digits, one per row, and FOUR from the readout's own text, because "up0" became "up28224". Between 11-19 and 140-148 it rises exactly nine, the digit change alone, because the readout's length did not move. Both worked out before being checked, both exact.
+EE cost is close to linear in prim count with no large fixed term: 2.12/566, 2.21/579 and 2.25/588 all give 3.8 us per prim, and the marginal cost across the clean pair is 4.4 us [3.3, 5.6]. The interval is wide because ee prints to 0.01 ms, which is 10 us against deltas of 40. Do not quote a per-prim cost from this without widening the print first.
+The 2.12 reading is CONFOUNDED and must not be used for a marginal cost: it is the only one at up0, so it differs from the others in upload state as well as in digits.
+
+*#64*
 
