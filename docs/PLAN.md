@@ -1,6 +1,6 @@
 # ps2ui Foundation Plan
 
-*rev 1.3 · 2026-08-29 · format v6 shipped · **Phases 0, 1 and 2 locked; Phase 3 open at P3a** · bring-up matrix complete — steps 1–7, 9, 10 pass on SCPH-50000; 8 void pending a CRT (panel deinterlacer, with positive field evidence logged)*
+*rev 1.4 · 2026-08-29 · format v6 shipped · **Phases 0, 1 and 2 locked; Phase 3 open, and its speed case has been measured away** · bring-up matrix complete — steps 1–7, 9, 10 pass on SCPH-50000; 8 void pending a CRT (panel deinterlacer, with positive field evidence logged)*
 
 *Progress lives in §6. Every phase gate is a measurement with a
 falsifier in [`docs/findings.yaml`](findings.yaml), not a checkbox
@@ -398,7 +398,7 @@ is divide it — 10% GS and 90% GS are indistinguishable from them, and
 the two lead to opposite plans. Until the share is known, every item
 below is a guess about which resource is scarce:
 
-0. **P3a — the GS's share of the field.** **[in progress]** Read the clock after
+0. **P3a — the GS's share of the field.** **[shipped — #66, answered at HW #262]** Read the clock after
    `gsKit_finish()` rather than after vsync. Smaller than it sounds:
    `gsKit_queue_exec_real` has *already* appended the FINISH token
    (`gsCore.c:582` at 43122eb) and cleared CSR (`:594`) before sending
@@ -426,39 +426,60 @@ below is a guess about which resource is scarce:
    rather than smeared into a 1-in-30 mean [F-036] — one sitting, both
    numbers.
 
-   **It gates the rest of the phase**, because its answer decides
-   whether this phase is about speed at all:
+   **It gated the rest of the phase, and the gate has now returned an
+   answer.** [F-037] Bench S12, HW #262: `gs` 0.92 ms, **5.5% of a
+   field**. The arm moved it to 3.21 for eight full-screen blended
+   sprites — 1.00 Gpix/s, where a GS's fill rate belongs — and moved
+   `ee` by +0.00, so it is a measurement and not a latched bit.
 
-   | GS share | what Phase 3 becomes |
+   | | of a field |
    |---|---|
-   | high (fill-bound) | page-aware packing and overdraw reduction matter; chains do not |
-   | low | neither matters for frame rate; re-scope toward capability — theming, larger content, more on screen |
+   | EE | 14.4% |
+   | GS | 5.6% |
+   | **together** | **20.0%**, 13.34 ms unused |
+   | worst photographed frame | 27.5% |
+
+   **So Phase 3 is not about speed.** The branch that said "re-scope
+   toward capability" is the one that fired, and the items below are
+   re-ordered accordingly. This is the outcome the phase was written to
+   make possible: an optimisation phase that measured first and then
+   declined to optimise.
 
 Then, in an order P3a decides:
 
 1. **P3b — CLUT-swap theming.** Same PSMT8 art, multiple ~1 KiB
-   palettes; instant recolor for themes and focus states. **Not gated
-   on P3a** — it buys capability rather than speed, so it is worth
-   doing whichever way the GS number lands, and it is the only Phase 3
-   item that is true of both branches.
+   palettes; instant recolor for themes and focus states. **Now the
+   phase's lead item**, having been the only one not gated on P3a: it
+   buys capability rather than speed, which is the half of the phase
+   that survived the measurement.
 2. **P3c — page-aware atlas packing.** Pack to 8 KiB page boundaries
    (64×32 CT32, 128×64 T8) to minimise TBP switches and make streamed
-   reservations exact. **Gated on P3a showing the GS fill-bound.** If
-   the GS is idle, this is a VRAM-tidiness change wearing a performance
-   argument, and should be justified as the former or not at all.
+   reservations exact. **Gate did not open** [F-037]: the GS is at
+   5.6%, so there is no frame-rate case. It survives only as what it
+   always also was — VRAM tidiness and exact streamed reservations —
+   and must be argued that way, on the 392 KiB footprint rather than on
+   milliseconds.
 3. **P3d — precompiled GIF/DMA chains.** Bake each screen's static
    geometry as a ready-to-kick chain; runtime patches the dynamic tail.
-   Frame ≈ one DMA kick — the logical conclusion of "everything at
-   build time." **Gated on P3a showing an EE cost worth removing, which
-   Phase 2 says it will not** [F-036]: the EE is at 13.5% and this
-   removes EE work. It stays on the list because it buys headroom for
-   content Phase 2 never drew, but that is a different argument from
-   the one originally written here and has to be made on its own.
+   Frame ≈ one DMA kick. **Gate did not open, and this was the phase's
+   headline item** [F-036, F-037]. It removes EE work; the EE is at
+   14.4% of a vsync-locked field, so the best case is two milliseconds
+   off fourteen that are already idle. Deferred, not deleted — the
+   argument for it is headroom for content nobody has drawn yet, and
+   F-038 says what would have to be shown first.
 
 The ordering is deliberate: the ungated item first, then the two whose
 justification does not exist yet. A phase that opens "optimization
 against Phase 2's numbers, not vibes" should not begin with the item
 those numbers argue against.
+
+**The bar for reopening either gate is written down** [F-038]: content
+inside the Phase 2 envelope that pushes `ee` or `gs` past about half a
+field. The most likely candidate is not more list rows — text is cheap
+and the EE is nowhere near its limit — but anything that fills area: a
+background image, larger cover art, or a transition compositing two
+full screens. Fill scales with area, and this screen is mostly flat
+panels.
 
 > **Exit gate:** measured frame CPU time published before/after; chains
 > are opt-in per blob via a feature bit and degrade to the replay path.

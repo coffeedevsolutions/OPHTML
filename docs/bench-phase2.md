@@ -125,6 +125,37 @@ F-032, F-034, F-035.
 deepened. About an eighth of a field on the EE, roughly 14.4 ms
 unused. F-036.
 
+**HW #262 (S12)** — `oplenv.elf` *and* `oplenv-fill.elf` at `5ea02ae`.
+The pair, which is the whole point:
+
+| build | `ee` | peak | `gs` |
+|---|---|---|---|
+| plain | 2.31 → 2.41 | 3.53 → 3.66 | **0.91 → 0.93** |
+| fill | 2.28 → 2.41 | 2.29 → 3.66 | **3.20 → 3.22** |
+
+`gs` moved 2.29 ms for 2,293,760 blended pixels — **1.00 Gpix/s**,
+which is where a GS's alpha-blended fill rate belongs. `ee` moved
+**+0.00** at matched prim counts (2.41 vs 2.41 at p599, 2.37 vs 2.37 at
+p590), so the arm moved the GS number and nothing else. Not latched.
+
+So: **EE 14.4%, GS 5.6%, together 20.0% of a field**, 13.34 ms unused;
+worst photographed frame 4.59 ms, 27.5%. F-037, F-038.
+
+Two things worth noticing in that table. The fill build's `up0` window
+reads `ee2.28^2.29` — the peak collapsing onto the mean, because a
+window with no scroll frame has no spike to hold. Nobody arranged that;
+it is the peak-hold checking its own semantics.
+
+And the fill build reports **`m1`** where the plain build held `m0`.
+One field, early, and it never climbs across a run spanning titles 1 to
+130. The likely cause is frame 0: `gsKit_queue_exec_real` skips its
+wait on the first frame, and frame 0 uploads every atlas and all nine
+covers cold, so the first measured period carries the whole cold start
+— and the fill build's extra 2.3 ms pushed it over the 18.33 ms trip
+that the plain build stayed under. That is a hypothesis, not a reading:
+`m` records *how many*, never *when*. Reporting the frame index of the
+first miss would settle it, and costs one build.
+
 ---
 
 ## P3a — reading the GS's share

@@ -18,6 +18,7 @@ phases:
   0: {title: "Verify the metal", locked: true}
   1: {title: "One resource model", locked: true}
   2: {title: "Prove it with the OPL-class app", locked: true}
+  3: {title: "Spend the hardware", locked: false}
 
 findings:
 
@@ -568,3 +569,80 @@ findings:
     cost: it is the only one at up0, so it differs from the others in
     upload state as well as in digits.
   refs: ["#65"]
+
+# ------------------------------------------------------------ Phase 3
+- id: F-037
+  phase: 3
+  status: confirmed
+  claim: "The GS spends about a twentieth of a field on an OPL-class screen"
+  evidence:
+    instrument: docs/bench-phase2.md
+    measurement: >-
+      Bench S12, SCPH-50000, HW #262, oplenv.elf at 5ea02ae. gs 0.91 to
+      0.93 ms against a 16.683 ms NTSC field -- 5.5%. With ee at 2.41
+      ms the two together are 3.34 ms, 20.0% of a field, leaving 13.34
+      ms unused; the worst photographed frame, ee peak 3.66 plus gs
+      0.93, is 4.59 ms and 27.5%.
+  falsifier: >-
+    A gs reading approaching f on this content, or a gs that does not
+    move when oplenv-fill.elf draws over it
+  depends_on: [F-036]
+  note: >-
+    THE ARM IS WHY THIS IS A MEASUREMENT. gs read 0.92 on the plain
+    build and 3.21 on oplenv-fill.elf, so the CSR FINISH bit is not
+    latched. It moved by 2.29 ms for eight full-screen alpha-blended
+    sprites -- 2,293,760 blended pixels, which is 1.00 Gpix/s, sitting
+    where a GS's alpha-blended fill rate is expected to sit. A latched
+    instrument reads 0.00 forever; a broken one would not have landed
+    on the hardware's own number.
+
+    AND IT MOVED NOTHING ELSE. ee was 2.41 on both builds at p599 and
+    2.37 on both at p590 -- +0.00 twice. One prim per sprite, so the EE
+    has nothing extra to build. A `gs` that rose while `ee` rose with
+    it would have been measuring the wrong thing.
+
+    The peak-hold checked itself as a side effect: on the fill build's
+    up0 window the readout is ee2.28^2.29, the peak collapsing onto the
+    mean because that window contains no scroll frame. That is what
+    it should do and nobody had to arrange it.
+
+    WHAT IS STILL SMEARED: gs has no peak-hold, and the scroll frame
+    pushes 28,224 bytes through the same chain, so the figure averages
+    away the frames most likely to spike it. Comparing the fill build's
+    up0 and up28224 windows hints at a few tenths of a millisecond per
+    upload frame, but that is 0.01 ms of mean difference against a 0.01
+    ms print resolution, which is not a measurement. A gs peak-hold
+    would settle it and costs one build.
+  refs: ["#67"]
+
+- id: F-038
+  phase: 3
+  status: provisional
+  claim: "Neither processor is the constraint on an OPL-class screen"
+  evidence:
+    instrument: docs/PLAN.md
+    measurement: >-
+      EE 14.4% and GS 5.6% of a field, measured independently and on
+      the same build (F-036, F-037). Phase 3's headline item was
+      precompiled DMA chains, which remove EE work; its second was
+      page-aware packing, argued on fill. Neither resource is close to
+      its limit, so neither item can improve a vsync-locked frame rate.
+  falsifier: >-
+    A content shape inside the Phase 2 envelope -- 412 titles, nine
+    rows, one scroll step -- that pushes ee or gs past about half a
+    field
+  depends_on: [F-036, F-037]
+  note: >-
+    PROVISIONAL, and the phase stays open, because this is a claim
+    about a CONTENT SHAPE rather than about the console. It is true of
+    nine rows of text with 28x28 covers and one scroll step at a time.
+    A grid view, larger art, a background image, or a transition that
+    composites two full screens are all outside what has been measured,
+    and the second of those is the one most likely to move gs, since
+    fill scales with area and this screen is mostly flat panels.
+
+    What it does settle is that no Phase 3 item may be justified by
+    frame rate without first showing content that threatens one of
+    these two numbers. That is a higher bar than the phase opened with
+    and it is the point of having measured.
+  refs: ["#67"]
