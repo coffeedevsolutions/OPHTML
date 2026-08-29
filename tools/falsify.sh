@@ -29,9 +29,29 @@ snap=$(mktemp)
 cp "$file" "$snap"
 # Restore on any exit, including a signal or a failure inside the edit.
 trap 'cp "$snap" "$file"; rm -f "$snap"' EXIT INT TERM
+# The fence must PASS on the real bytes first. Without this, a fence
+# command that cannot run at all -- a typo, a missing build step, or
+# the whole command quoted as one argv entry, which is how this was
+# found -- fails identically before and after the sabotage, and the
+# verdict below reads that failure as "caught". A false pass on a
+# falsification is worse than no falsification: it is a check this
+# project believes it has.
+if ! "$@" >/dev/null 2>&1; then
+    echo "FENCE ALREADY FAILS ON THE UNMODIFIED FILE -- verdict would be" \
+         "meaningless. Check the command: it must be separate arguments," \
+         "not one quoted string." >&2
+    exit 2
+fi
 python3 - "$file" || { echo "SABOTAGE FAILED TO APPLY" >&2; exit 2; }
 if "$@" >/dev/null 2>&1; then
     echo "PASSED -- HOLE: the fence did not catch it"
     exit 1
 fi
-"$@" 2>&1 | grep -m1 "not ok" || echo "caught (no 'not ok' line)"
+# The VERDICT is the exit status above; what follows is a hint at which
+# check fired, and it is only a hint. A fence that embeds another
+# tool's TAP output (the baker suite runs check.py over deliberately
+# bad blobs) prints "not ok" lines that have nothing to do with the
+# sabotage, so read the names, do not trust the first one.
+echo "caught. failing lines (a hint, not the verdict):"
+"$@" 2>&1 | grep -E "^not ok|^FAIL:|^ERROR:" | head -5 \
+    || echo "  (fence failed with no recognisable failure line)"

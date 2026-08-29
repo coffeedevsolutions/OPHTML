@@ -11,6 +11,7 @@ import copy
 import os
 import shutil
 import struct
+import zlib
 import subprocess
 import sys
 import tempfile
@@ -34,8 +35,9 @@ from ps2ui_bake.quads import (
 from ps2ui_bake.uib import (write_uib, read_uib, MAGIC, VERSION,
                             FEAT_DYNAMIC_TEXT, FEAT_KERNING,
                             FEAT_SLOT_SPACING,
+                            FEAT_ROLE_TINTS,
                             _CMD, _HEADER, _FOCUS, _FONT, _KERN,
-                            _SLOT)
+                            _SLOT, _TINT)
 from ps2ui_bake import preview
 
 REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
@@ -1506,9 +1508,15 @@ class TestUib(unittest.TestCase):
             return read_uib(path)
 
     def test_struct_sizes_match_c_runtime(self):
-        self.assertEqual(_HEADER.size, 76)
+        # v7: the header grew by off_tint, n_theme and its pad, with
+        # n_tint taking the u16 that was already padding after
+        # n_screen. The command did NOT grow: four colour bytes became
+        # two u16 indices and the two that freed went into tint_focus,
+        # inside padding that was already there to reach two qwords.
+        self.assertEqual(_HEADER.size, 84)
         self.assertEqual(_CMD.size, 32)
         self.assertEqual(_FOCUS.size, 24)
+        self.assertEqual(_TINT.size, 4)
 
     def test_records_round_trip_exactly(self):
         recs = [
@@ -1775,7 +1783,11 @@ class TestKernTable(unittest.TestCase):
         # `name_off`, so a v5 reader would walk the texture table at
         # the wrong stride -- the same argument that made kerning a
         # version bump rather than a feature bit alone.
-        self.assertEqual(VERSION, 6)
+        # v7: commands and slots hold tint INDICES where they held
+        # rgba, and the header grew a tint table. Neither stride nor
+        # meaning survives a v6 reader, so this is a version bump for
+        # the same reason as the two above.
+        self.assertEqual(VERSION, 7)
 
     def test_the_feature_bit_states_what_the_tables_hold(self):
         # Stated, not inferred: with the bit clear the runtime may skip
@@ -1978,6 +1990,154 @@ class TestCrossLanguagePen(unittest.TestCase):
                          AtlasBuilder(TTF, METRICS, 400, 32).add("T").advance - 5)
 
 
+class TestTintTable(unittest.TestCase):
+    """v7: colour left the command and the slot for a shared table.
+
+    The premise is that a UI's palette is tiny and repeated, so a theme
+    is a table swap rather than a walk over every primitive. That is a
+    measurable claim about the shipped blobs, not a design opinion, so
+    it is measured here.
+    """
+
+    def write(self, records, slots=(), fonts=(), **kw):
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 320, "h": 240}, list(records),
+                      [], [], [], None, fonts=list(fonts),
+                      slots=list(slots), **kw)
+            return read_uib(path)
+
+    def test_repeated_colour_interns_once(self):
+        # Twenty quads, two colours. The whole design rests on this
+        # being 2 and not 20.
+        recs = []
+        for i in range(20):
+            rgba = (0x10, 0x20, 0x30, 0x80) if i % 2 else (0x40, 0x50, 0x60, 0x80)
+            recs.append(DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE,
+                                   i, 0, 4, 4, rgba))
+        u = self.write(recs)
+        self.assertEqual(len(u.themes), 1)
+        self.assertEqual(len(u.themes[0]), 2)
+        # And the indices actually point at the right rows -- a table
+        # of the right SIZE with the wrong mapping would satisfy the
+        # count above and render the UI in the wrong colours.
+        for r, orig in zip(u.records, recs):
+            self.assertEqual(r.rgba, orig.rgba)
+
+    def test_scissors_do_not_intern(self):
+        # A scissor has no colour. Interning its zeros would put an
+        # entry in the table that no draw can ever reach.
+        recs = [
+            DrawRecord(OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE, 0, 0, 10, 10,
+                       (0, 0, 0, 0)),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                       (1, 2, 3, 0x80)),
+            DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE, 0, 0, 0, 0,
+                       (0, 0, 0, 0)),
+        ]
+        u = self.write(recs)
+        self.assertEqual(len(u.themes[0]), 1)
+        self.assertEqual(u.themes[0][0], (1, 2, 3, 0x80))
+
+    def patched(self, path, mutate):
+        """Apply `mutate(bytearray)` to a written blob and re-CRC it."""
+        with open(path, "rb") as fh:
+            raw = bytearray(fh.read())
+        mutate(raw)
+        struct.pack_into("<I", raw, 48, 0)
+        struct.pack_into("<I", raw, 48, zlib.crc32(bytes(raw)) & 0xFFFFFFFF)
+        with open(path, "wb") as fh:
+            fh.write(bytes(raw))
+
+    def test_an_index_past_the_table_is_named_not_an_indexerror(self):
+        # The reader resolves indices, so a corrupt one lands in a list
+        # subscript. Left alone that raises IndexError, which names a
+        # Python builtin instead of the malformed field and reaches
+        # ps2ui-check as a traceback rather than a verdict on the file.
+        from ps2ui_bake.uib import _HEADER
+        recs = [DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                           (1, 2, 3, 0x80))]
+        for off, which in ((12, "tint"), (14, "tint_focus")):
+            with tempfile.TemporaryDirectory() as td:
+                path = os.path.join(td, "t.uib")
+                write_uib(path, {"w": 320, "h": 240}, list(recs),
+                          [], [], [], None)
+                with open(path, "rb") as fh:
+                    off_cmd = _HEADER.unpack_from(fh.read(), 0)[12]
+
+                def bump(raw, off_cmd=off_cmd, off=off):
+                    struct.pack_into("<H", raw, off_cmd + off, 999)
+
+                self.patched(path, bump)
+                with self.assertRaises(ValueError) as cm:
+                    read_uib(path)
+                self.assertIn("tint table", str(cm.exception))
+                self.assertIn(which, str(cm.exception))
+
+    def test_a_slot_index_past_the_table_is_named_too(self):
+        # Same fault one table over. Checked separately because slots
+        # resolve BOTH indices where a command resolves only `tint`,
+        # so a single loop would not have covered them.
+        from ps2ui_bake.uib import _HEADER
+        ir = TestDynamicText().slot_ir()
+        f = Flattener(ir, font_paths())
+        f.run()
+        for off, which in ((22, "tint_base"), (24, "tint_focus")):
+            with tempfile.TemporaryDirectory() as td:
+                path = os.path.join(td, "t.uib")
+                write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                          f.focus_nodes, None, fonts=f.fonts, slots=f.slots,
+                          screens=f.screens)
+                with open(path, "rb") as fh:
+                    off_slot = _HEADER.unpack_from(fh.read(), 0)[20]
+
+                def bump(raw, off_slot=off_slot, off=off):
+                    struct.pack_into("<H", raw, off_slot + off, 999)
+
+                self.patched(path, bump)
+                with self.assertRaises(ValueError) as cm:
+                    read_uib(path)
+                self.assertIn("tint table", str(cm.exception))
+                self.assertIn(which, str(cm.exception))
+
+    def test_the_writer_does_not_claim_role_keying(self):
+        # It keys on the resolved colour, so it must not set the bit
+        # that says otherwise -- the runtime would then accept a second
+        # theme that cannot be correct.
+        recs = [DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                           (1, 2, 3, 0x80))]
+        u = self.write(recs)
+        self.assertFalse(u.feature_flags & FEAT_ROLE_TINTS)
+
+    def test_more_than_one_theme_without_the_bit_is_refused(self):
+        # The reader owes the same refusal as ps2ui_load. Patched by
+        # hand because no writer can produce this yet, which is exactly
+        # why the check has to build it.
+        recs = [DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                           (1, 2, 3, 0x80))]
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, {"w": 320, "h": 240}, recs, [], [], [], None)
+            with open(path, "rb") as fh:
+                raw = bytearray(fh.read())
+            # n_theme, counted from the END of the header: it is
+            # followed only by its pad and the two aspect fields, so
+            # this survives a field being added ahead of it. A
+            # positional index from the front did not -- the first
+            # version of this line pointed at n_tint.
+            fields = list(_HEADER.unpack_from(raw, 0))
+            fields[-4] = 2
+            _HEADER.pack_into(raw, 0, *fields)
+            struct.pack_into("<I", raw, 48, 0)          # zero the crc
+            struct.pack_into("<I", raw, 48,
+                             zlib.crc32(bytes(raw)) & 0xFFFFFFFF)
+            with open(path, "wb") as fh:
+                fh.write(bytes(raw))
+            with self.assertRaises(ValueError) as cm:
+                read_uib(path)
+            self.assertIn("FEAT_ROLE_TINTS", str(cm.exception))
+
+
 class TestSlotSpacing(unittest.TestCase):
     """Letter-spacing travels with the slot (feature bit 2). The two
     former pad bytes carry it, so the stride is unchanged and the bit is
@@ -1996,8 +2156,13 @@ class TestSlotSpacing(unittest.TestCase):
                       screens=f.screens)
             return read_uib(path)
 
-    def test_the_stride_did_not_move(self):
-        self.assertEqual(_SLOT.size, 32)
+    def test_the_stride_moved_and_spacing_moved_with_it(self):
+        # It DID move at v7: 32 -> 28. Unlike the command, the slot
+        # entry carried no padding, so replacing color_base[4] and
+        # color_focus[4] with two u16 indices freed four real bytes per
+        # slot. letter_spacing is still the last field, which is what
+        # the writer's feature-bit check now indexes from.
+        self.assertEqual(_SLOT.size, 28)
 
     def test_spacing_round_trips_and_declares_itself(self):
         u = self.bake(3)

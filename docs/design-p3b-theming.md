@@ -1,7 +1,8 @@
 # Design: theming
 
-*Draft · 2026-08-29 · Phase 3 of `docs/PLAN.md` · nothing implemented
-beyond §3's mechanism (F-041)*
+*2026-08-29 · Phase 3 of `docs/PLAN.md` · §3's mechanism (F-041) and
+§5's format (v7) have shipped; §4's DX, §6's `ps2ui_theme_set` and the
+role-keying feature bit's producer have not*
 
 > **Status.** This is the design pass `design-v6-resource-model.md` set
 > the precedent for: written before the format moves, so the argument
@@ -11,8 +12,19 @@ beyond §3's mechanism (F-041)*
 > It disagrees with `PLAN.md` about what P3b is, and the disagreement
 > is the point of the document.
 >
+> **Rev 4** is the implementation (P3b-1, v7). Every count in §2 and
+> §3a-ii was one too high: the script behind them counted the colour
+> field of *every* command, and a scissor command carries `(0,0,0,0)`
+> in a field that is not a colour and that no draw ever reads. The
+> shipped tables exclude it, so opl-env is **12** entries and not 13,
+> channel6 **33** and not 34, memcard **9** and not 10. The measured
+> tables are in `docs/format-uib.md`; the tables below are left as
+> written with the corrections marked, because the argument they
+> support does not turn on one entry and the record of what was
+> measured wrong is worth more than a tidy table.
+>
 > **Rev 3** folds in review: colour also lives in `ps2ui_slot_entry`,
-> which §3a missed — 4 of opl-env's 13 colours are slot-only — and that
+> which §3a missed — 4 of opl-env's 12 colours are slot-only — and that
 > is where the shrink rev 2 retracted turns out to be real.
 >
 > **Rev 2** is the adversarial pass, run against the draft the same day
@@ -68,11 +80,17 @@ Distinct colours across every command, in every blob this repo ships:
 
 | blob | commands | distinct colours | table | ~~blob saved~~ |
 |---|---|---|---|---|
-| `examples/opl-env` | 1,302 | **9** | 36 B | ~~3,906 B~~ **0** |
-| `examples/channel6` | 913 | **32** | 128 B | ~~2,739 B~~ **0** |
-| `examples/memcard` | 808 | **10** | 40 B | ~~2,424 B~~ **0** |
-| `fixtures/bench-stream` | 74 | 8 | 32 B | ~~222 B~~ **0** |
-| `examples/memcard` testcard | 18 | 7 | 28 B | ~~54 B~~ **0** |
+| `examples/opl-env` | 1,302 | ~~9~~ **8** | 32 B | ~~3,906 B~~ **0** |
+| `examples/channel6` | 913 | ~~32~~ **31** | 124 B | ~~2,739 B~~ **0** |
+| `examples/memcard` | 808 | ~~10~~ **9** | 36 B | ~~2,424 B~~ **0** |
+| `fixtures/bench-stream` | 74 | ~~8~~ 7 | 28 B | ~~222 B~~ **0** |
+| `examples/memcard` testcard | 18 | ~~7~~ 6 | 24 B | ~~54 B~~ **0** |
+
+**[rev 4]** Each count above was one too high: the scissor commands'
+`(0,0,0,0)` was being counted as a colour. It is not one — a scissor
+has no vertex colour, the runtime never reads those bytes, and v7's
+writer does not intern them. The conclusion is unchanged and the
+direction of the error is the safe one.
 
 **[rev 2] The blob does not shrink, and the draft was wrong to say so.**
 `ps2ui_cmd` is **32 bytes: 26 used and `pad0[6]`**. Replacing `r,g,b,a`
@@ -131,12 +149,17 @@ re-indexing only `ps2ui_cmd` leaves every one of them baked.
 
 | blob | cmd colours | slot colours | union | **only in slots** |
 |---|---|---|---|---|
-| opl-env | 9 | 8 | 13 | **4** |
-| channel6 | 32 | 6 | 34 | 2 |
-| bench-stream | 8 | 2 | 10 | 2 |
-| memcard | 10 | 3 | 10 | 0 |
+| opl-env | ~~9~~ **8** | 8 | ~~13~~ **12** | **4** |
+| channel6 | ~~32~~ **31** | 6 | ~~34~~ **33** | 2 |
+| bench-stream | ~~8~~ 7 | 2 | ~~10~~ 9 | 2 |
+| memcard | ~~10~~ **9** | 3 | ~~10~~ **9** | 0 |
 
-On this document's own worked example, **4 of the 13 colours are
+**[rev 4]** Same correction as §2, and the shipped `n_tint` values
+match the corrected union exactly: 12, 33, 9. The finding this section
+exists for — that slots carry colour too, and how much of it — is
+untouched: four is still four.
+
+On this document's own worked example, **4 of the 12 colours are
 unreachable by the table §3a proposes**, and they are not obscure:
 
 ```
@@ -261,7 +284,7 @@ here argues for it.
 
 ---
 
-## 5. Format
+## 5. Format — **shipped, v7 (P3b-1)**
 
 ```c
 typedef struct ps2ui_tint_entry { uint8_t r, g, b, a; } ps2ui_tint_entry;
@@ -276,17 +299,43 @@ Header gains `n_tint`, `n_theme`, `off_tint`. The table is
   `color_focus[4]`, gains `uint16_t tint_base` and
   `uint16_t tint_focus`. Struct **shrinks** 32 → 28.
 
+**[rev 4] Both predictions hold; the header grew by 8.** `sizeof` on
+the shipped structs: header 76 → 84 (`off_tint`, `n_theme` and its
+pad; `n_tint` took the u16 that was already pad after `n_screen`),
+command 32 → 32, slot 32 → 28, tint entry 4.
+
+**[rev 4] One theme, and the wrong combination is refused rather than
+documented.** This slice ships value-keyed indices, because role-keying
+needs the IR to carry each colour's declaration site and that is a
+layout-package change. Value-keying is *exact* at one theme — there is
+nothing to diverge into — so what would be wrong is `n_theme > 1`
+without role-keying, and that is what `PS2UI_FEAT_ROLE_TINTS` names:
+`ps2ui_load` returns `PS2UI_ERR_TINTS`, and the Python reader raises.
+A blob that cannot be recoloured correctly does not open.
+
+**[rev 4] `tint_focus` on a command is honoured but has no producer.**
+The baker writes it equal to `tint` everywhere; no CSS path expresses a
+per-command focus recolour yet. The runtime reads it, and
+`test_runtime` exercises it against a hand-patched blob in both
+directions — a runtime that ignores the field fails, and one that reads
+it unconditionally fails too. A format field nothing reads would have
+been the same mistake as a check with no subject.
+
 Sized from the blob, not from a ceiling — P1i removed the last of those
 and this must not add one back. 32 colours is the highest count
 observed; `uint16_t` is chosen so that a photographic UI with a
-thousand does not hit a wall it cannot see coming.
+thousand does not hit a wall it cannot see coming. **[rev 4]** The
+shipped counts are 12, 33 and 9; 33 is the highest observed, and
+`ps2ui-check` asserts `4 x n_tint < painting commands` on every blob so
+that a baker change which stopped deduping fails a build rather than
+quietly making theming expensive.
 
 `a` stays in the GS 0–128 domain [F-001], converted at bake exactly as
 it is now, so nothing about the alpha contract moves.
 
 ---
 
-## 6. Runtime API
+## 6. Runtime API — *not yet implemented*
 
 ```c
 int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme);

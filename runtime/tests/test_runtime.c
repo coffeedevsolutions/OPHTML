@@ -168,15 +168,16 @@ int main(int argc, char **argv)
     gs.Width = 640; gs.Height = 448;
 
     /* ---- struct layout matches the on-disk format ---- */
-    CHECK(sizeof(ps2ui_header) == 76, "header struct is 76 bytes");
+    CHECK(sizeof(ps2ui_header) == 84, "header struct is 84 bytes (v7: tint table)");
     CHECK(sizeof(ps2ui_screen_entry) == 24, "screen entry struct is 24 bytes");
     CHECK(sizeof(ps2ui_font_entry) == 24, "font entry struct is 24 bytes");
     CHECK(sizeof(ps2ui_glyph) == 20, "glyph struct is 20 bytes");
     CHECK(sizeof(ps2ui_kern) == 12, "kern struct is 12 bytes");
-    CHECK(sizeof(ps2ui_slot_entry) == 32, "slot entry struct is 32 bytes");
+    CHECK(sizeof(ps2ui_slot_entry) == 28, "slot entry struct is 28 bytes (v7: tint indices)");
     CHECK(sizeof(ps2ui_tex_entry) == 20, "tex entry struct is 20 bytes (v6: kind + name_off)");
     CHECK(sizeof(ps2ui_clut_entry) == 8, "clut entry struct is 8 bytes");
     CHECK(sizeof(ps2ui_cmd) == 32, "cmd struct is 32 bytes");
+    CHECK(sizeof(ps2ui_tint_entry) == 4, "tint entry struct is 4 bytes");
     CHECK(sizeof(ps2ui_focus_node) == 24, "focus node struct is 24 bytes");
 
     u32 vram_before, vram_used;
@@ -711,18 +712,43 @@ int main(int argc, char **argv)
      * TEXQUADs draw with TEX MODULATE where 0x80 is identity; a channel
      * above 0x80 means the baker leaked a full-range color and hardware
      * would render it overbright. Solid QUADs are flat-shaded and may
-     * use the full 0..255 RGB range. */
+     * use the full 0..255 RGB range.
+     *
+     * v7: the colour is a tint index now, so this reads the entry the
+     * command points at. Which is the whole reason to check it here
+     * rather than at bake time -- the indirection is exactly where a
+     * domain could be lost. */
     {
         uint32_t k;
         int domain_ok = 1;
+        const ps2ui_tint_entry *row = ctx.tints
+                                      + (size_t)ctx.theme * ctx.hdr->n_tint;
         for (k = 0; k < ctx.hdr->n_cmd; k++) {
             const ps2ui_cmd *c = &ctx.cmd[k];
+            const ps2ui_tint_entry *t;
+            if (c->op != PS2UI_OP_QUAD && c->op != PS2UI_OP_TEXQUAD)
+                continue;
+            t = &row[c->tint];
             if (c->op == PS2UI_OP_TEXQUAD
-                && (c->r > 0x80 || c->g > 0x80 || c->b > 0x80 || c->a > 0x80)) {
+                && (t->r > 0x80 || t->g > 0x80 || t->b > 0x80 || t->a > 0x80)) {
                 domain_ok = 0;
                 break;
             }
-            if (c->op == PS2UI_OP_QUAD && c->a > 0x80) {
+            if (c->op == PS2UI_OP_QUAD && t->a > 0x80) {
+                domain_ok = 0;
+                break;
+            }
+            /* Both indices, not just the live one: tint_focus is drawn
+             * whenever this command's node holds focus, so a leak
+             * there is a leak that only appears when someone moves the
+             * cursor onto it. */
+            t = &row[c->tint_focus];
+            if (c->op == PS2UI_OP_TEXQUAD
+                && (t->r > 0x80 || t->g > 0x80 || t->b > 0x80 || t->a > 0x80)) {
+                domain_ok = 0;
+                break;
+            }
+            if (c->op == PS2UI_OP_QUAD && t->a > 0x80) {
                 domain_ok = 0;
                 break;
             }
@@ -2789,6 +2815,275 @@ int main(int argc, char **argv)
                       "clut_set before upload is refused, not silently "
                       "overwritten by the upload that follows");
         }
+    }
+
+    /* ---- P3b: the tint table (v7) ----
+     *
+     * Colour left the command and the slot; both now hold u16 indices
+     * into the live theme's row. What that buys is the point of the
+     * phase: a theme is a table the size of a UI's palette rather than
+     * a walk over every primitive. What it risks is an indirection
+     * that can be wrong in ways inline bytes could not be, so each
+     * of those failure modes gets a check. */
+    {
+        uint32_t k, paints = 0;
+        const ps2ui_tint_entry *row =
+            ctx.tints + (size_t)ctx.theme * ctx.hdr->n_tint;
+
+        for (k = 0; k < ctx.hdr->n_cmd; k++)
+            if (ctx.cmd[k].op == PS2UI_OP_QUAD
+                || ctx.cmd[k].op == PS2UI_OP_TEXQUAD)
+                paints++;
+        /* The design's premise, as a tripwire on the real blob rather
+         * than an assertion in prose: a UI's colour is a small set
+         * repeated. If a change to the baker ever stopped deduping,
+         * the table would grow toward the paint count and theming
+         * would stop being cheap -- with every other check still
+         * green, because every index would still resolve. */
+        CHECK(paints > 100,
+              "the fixture paints enough primitives for the ratio below "
+              "to mean something");
+        CHECK(ctx.hdr->n_tint * 4u < paints,
+              "the tint table is far smaller than the paint count: this "
+              "is the whole reason a theme is a table swap");
+        printf("# n_cmd %u, %u painting, n_tint %u, n_theme %u\n",
+               (unsigned)ctx.hdr->n_cmd, (unsigned)paints,
+               (unsigned)ctx.hdr->n_tint, (unsigned)ctx.hdr->n_theme);
+
+        /* Every index a draw can reach must be in range -- checked
+         * here over the whole table as well as by ps2ui_load, because
+         * load's loop is the thing under test. */
+        {
+            int in_range = 1;
+            for (k = 0; k < ctx.hdr->n_cmd; k++) {
+                const ps2ui_cmd *c = &ctx.cmd[k];
+                if (c->op != PS2UI_OP_QUAD && c->op != PS2UI_OP_TEXQUAD)
+                    continue;
+                if (c->tint >= ctx.hdr->n_tint
+                    || c->tint_focus >= ctx.hdr->n_tint)
+                    in_range = 0;
+            }
+            for (k = 0; k < ctx.hdr->n_slot; k++)
+                if (ctx.slots[k].tint_base >= ctx.hdr->n_tint
+                    || ctx.slots[k].tint_focus >= ctx.hdr->n_tint)
+                    in_range = 0;
+            CHECK(in_range, "every command and slot tint index is in range");
+        }
+        (void)row;
+    }
+    {
+        /* The refusals. An out-of-range index would read past the
+         * table into whatever follows it in the file and paint a
+         * colour that depends on the blob's layout -- a fault with no
+         * symptom on a host and an arbitrary one on a console. */
+        ps2ui_ctx bad;
+        uint8_t *dup = malloc(len);
+        uint32_t k;
+        int patched = 0;
+        memcpy(dup, blob, len);
+        for (k = 0; k < ctx.hdr->n_cmd && !patched; k++) {
+            ps2ui_cmd *c = (ps2ui_cmd *)(dup + ctx.hdr->off_cmd) + k;
+            if (c->op == PS2UI_OP_QUAD || c->op == PS2UI_OP_TEXQUAD) {
+                c->tint = ctx.hdr->n_tint;   /* one past the end */
+                patched = 1;
+            }
+        }
+        CHECK(patched,
+              "the fixture has a painting command to corrupt, or the "
+              "check below passes by finding nothing to reject");
+        recrc(dup, len);
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_BOUNDS,
+              "a command tint index past n_tint is refused");
+
+        memcpy(dup, blob, len);
+        patched = 0;
+        for (k = 0; k < ctx.hdr->n_slot && !patched; k++) {
+            ps2ui_slot_entry *sl =
+                (ps2ui_slot_entry *)(dup + ctx.hdr->off_slot) + k;
+            sl->tint_focus = ctx.hdr->n_tint;
+            patched = 1;
+        }
+        CHECK(patched, "the fixture has a slot to corrupt");
+        recrc(dup, len);
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_BOUNDS,
+              "a slot tint index past n_tint is refused");
+
+        /* n_theme == 0 is not "no theming". A themeless blob has one
+         * row; zero rows means every index addresses nothing. */
+        memcpy(dup, blob, len);
+        ((ps2ui_header *)dup)->n_theme = 0;
+        recrc(dup, len);
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_BOUNDS,
+              "n_theme == 0 is refused: a themeless blob still has one row");
+
+        /* THE REFUSAL THIS FEATURE BIT EXISTS FOR. Tints keyed on the
+         * resolved colour collapse unrelated declarations that happen
+         * to share a value into one entry, and no second theme can
+         * ever tell them apart -- it would recolour the focus ring and
+         * eight unrelated things together, plausibly, with no
+         * diagnostic. Refusing the combination is the only way that
+         * failure is visible before a television shows it. */
+        memcpy(dup, blob, len);
+        ((ps2ui_header *)dup)->n_theme = 2;
+        recrc(dup, len);
+        CHECK(load_arena(&bad, dup, len) == PS2UI_ERR_TINTS,
+              "n_theme > 1 without FEAT_ROLE_TINTS is refused by name, not "
+              "loaded into a theme switch that cannot be correct");
+        /* And the bit is what lifts it -- otherwise the check above
+         * would pass on any blob for any reason. The table is still
+         * one row long here, so the load fails on the truncation the
+         * second row would need; PS2UI_ERR_TINTS is what must NOT
+         * come back. */
+        ((ps2ui_header *)dup)->feature_flags |= PS2UI_FEAT_ROLE_TINTS;
+        recrc(dup, len);
+        CHECK(load_arena(&bad, dup, len) != PS2UI_ERR_TINTS,
+              "and the feature bit is what lifts that refusal, so the "
+              "check above is about role-keying and not about n_theme");
+        free(dup);
+    }
+    {
+        /* tint_focus, exercised.
+         *
+         * The baker writes it equal to tint everywhere, so honouring
+         * it is a claim nothing else in the toolchain would test --
+         * green because the subject is absent, the shape this project
+         * keeps catching. Point one focused command at a different
+         * entry by hand and the drawn colour must follow the cursor.
+         *
+         * THE COMPARISON IS BETWEEN TWO BLOBS AT THE SAME FOCUS, not
+         * between two focus states of one blob. The first version did
+         * the latter and was a hole: focus already changes WHICH
+         * commands draw (state UNFOCUSED/FOCUSED), so the frame
+         * signature differs whether or not tint_focus is read at all.
+         * A runtime that ignored the field entirely passed it. Same
+         * focus, same draw set, one field different: now the only
+         * thing that can move the signature is the field. */
+        ps2ui_ctx bc, fc;
+        GSGLOBAL bgs, fgs;
+        uint8_t *base = malloc(len);
+        uint8_t *dup = malloc(len);
+        uint32_t k;
+        int patched = 0;
+        uint16_t node = PS2UI_NONE;
+        memcpy(base, blob, len);
+        memcpy(dup, blob, len);
+        for (k = 0; k < ctx.hdr->n_cmd && !patched; k++) {
+            ps2ui_cmd *c = (ps2ui_cmd *)(dup + ctx.hdr->off_cmd) + k;
+            if ((c->op != PS2UI_OP_QUAD && c->op != PS2UI_OP_TEXQUAD)
+                || c->focus == PS2UI_NONE)
+                continue;
+            /* STATE_ALWAYS, so the command draws in BOTH arms below.
+             *
+             * Two versions of this line were wrong. Omitting it picked
+             * command 14, whose state is UNFOCUSED: skipped in exactly
+             * the frame where tint_focus is read, so both blobs drew
+             * the same and the first check failed for a reason that
+             * had nothing to do with the runtime. Allowing FOCUSED
+             * fixed that and opened a hole in the second: a FOCUSED
+             * command draws nothing when focus is elsewhere, so a
+             * runtime reading tint_focus UNCONDITIONALLY -- recolouring
+             * the whole UI -- passed both checks. Only ALWAYS puts the
+             * same prim in both frames, which is what makes the pair
+             * an if-and-only-if. */
+            if (c->state != PS2UI_STATE_ALWAYS)
+                continue;
+            /* On the screen the context actually renders, for the same
+             * reason: a command outside the current screen's range is
+             * never walked. */
+            if (k < ctx.screen_table[ctx.screen].cmd_first
+                || k >= (uint32_t)ctx.screen_table[ctx.screen].cmd_first
+                          + ctx.screen_table[ctx.screen].cmd_count)
+                continue;
+            /* A DIFFERENT ENTRY, not merely a different index: two
+             * indices holding the same colour would make this pass by
+             * drawing the same thing twice. */
+            {
+                const ps2ui_tint_entry *t = ctx.tints;
+                uint16_t j;
+                for (j = 0; j < ctx.hdr->n_tint; j++) {
+                    if (t[j].r != t[c->tint].r || t[j].g != t[c->tint].g
+                        || t[j].b != t[c->tint].b || t[j].a != t[c->tint].a) {
+                        c->tint_focus = j;
+                        node = c->focus;
+                        patched = 1;
+                        break;
+                    }
+                }
+            }
+        }
+        /* The premise, checked. The first version looked only for a
+         * focusable SOLID quad, and this fixture has none: 639 of its
+         * focusable commands are textured and 0 are not. Without this
+         * line the block would have reported green on having found
+         * nothing to test. */
+        CHECK(patched,
+              "the fixture has a focusable painting command and a second, "
+              "visibly different tint to point it at");
+        recrc(dup, len);
+
+        {
+            static uint8_t barena[1 << 20];
+            static uint8_t tarena[1 << 20];
+            int loaded;
+            memset(&bgs, 0, sizeof bgs);
+            memset(&fgs, 0, sizeof fgs);
+            bgs.CurrentPointer = 16;
+            fgs.CurrentPointer = 16;
+            stub_reset();
+            loaded = ps2ui_load(&bc, base, len, barena, sizeof barena) == PS2UI_OK
+                     && ps2ui_upload(&bc, &bgs) == PS2UI_OK;
+            stub_reset();
+            loaded = loaded
+                     && ps2ui_load(&fc, dup, len, tarena, sizeof tarena) == PS2UI_OK
+                     && ps2ui_upload(&fc, &fgs) == PS2UI_OK;
+            CHECK(loaded,
+                  "the tint_focus fixture and its unpatched twin both load "
+                  "and upload");
+            if (patched && loaded) {
+                u64 plain = 0, tinted = 0, un_plain = 0, un_tinted = 0;
+                int j;
+
+                bc.focus = node;
+                stub_reset_keep_tm();
+                ps2ui_render(&bc, &bgs);
+                for (j = 0; j < g_stub.n_prims; j++)
+                    plain ^= g_stub.prims[j].color * (u64)(j + 1);
+
+                fc.focus = node;
+                stub_reset_keep_tm();
+                ps2ui_render(&fc, &fgs);
+                for (j = 0; j < g_stub.n_prims; j++)
+                    tinted ^= g_stub.prims[j].color * (u64)(j + 1);
+
+                CHECK(plain != tinted,
+                      "TINT_FOCUS IS HONOURED: two blobs identical but for "
+                      "one command's tint_focus, rendered at the same focus, "
+                      "draw different colour -- which is what the two bytes "
+                      "freed from the inline colour bought");
+
+                /* And it is read ONLY while that node holds focus. A
+                 * runtime that read tint_focus unconditionally would
+                 * pass the check above and recolour the whole UI. */
+                bc.focus = PS2UI_NONE;
+                stub_reset_keep_tm();
+                ps2ui_render(&bc, &bgs);
+                for (j = 0; j < g_stub.n_prims; j++)
+                    un_plain ^= g_stub.prims[j].color * (u64)(j + 1);
+
+                fc.focus = PS2UI_NONE;
+                stub_reset_keep_tm();
+                ps2ui_render(&fc, &fgs);
+                for (j = 0; j < g_stub.n_prims; j++)
+                    un_tinted ^= g_stub.prims[j].color * (u64)(j + 1);
+
+                CHECK(un_plain == un_tinted,
+                      "and only while that node holds focus: with focus "
+                      "elsewhere the patched blob draws exactly what the "
+                      "unpatched one draws");
+            }
+        }
+        free(base);
+        free(dup);
     }
 
 report:

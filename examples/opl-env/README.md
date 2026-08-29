@@ -39,7 +39,7 @@ re-deriving them.
 These are the Phase 2 baseline; Phase 3 optimises against them.
 
 ```
-blob            246,144 bytes
+blob            245,680 bytes
 arena             7,031 bytes      (the whole six-screen environment)
 screens                   6
 slots                   127
@@ -66,7 +66,7 @@ det-art                  120x72   34,560 B
                                   62,784 B total
 ```
 
-Against the memcard example, for scale: 175,088-byte blob, 6 slots,
+Against the memcard example, for scale: 175,120-byte blob, 6 slots,
 808 commands. This is roughly **20× the slot count** on 1.4× the blob.
 
 **Frame time and prim counts on hardware are not measured yet.** They

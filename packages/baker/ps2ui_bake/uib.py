@@ -1,17 +1,25 @@
-""".uib writer and reader (format version 5).
+""".uib writer and reader (format version 7).
 
 Little-endian throughout (the EE is little-endian; so is every host we
 care about). Full layout in docs/format-uib.md; summary:
 
-    header       76 bytes, magic "UIB1", crc32, feature flags, display aspect
-    tex table    n_tex    x 16 bytes
+    header       84 bytes, magic "UIB1", crc32, feature flags, display aspect
+    tex table    n_tex    x 20 bytes
     clut table   n_clut   x  8 bytes
     cmd list     n_cmd    x 32 bytes
     focus table  n_focus  x 24 bytes
     font table   n_font   x 24 bytes   (dynamic text, feature bit 0)
-    slot table   n_slot   x 32 bytes   (dynamic text, feature bit 0)
+    slot table   n_slot   x 28 bytes   (dynamic text, feature bit 0)
     screen table n_screen x 24 bytes   (always >= 1)
+    tint table   n_theme x n_tint x 4  (theme-major, n_theme >= 1)
     blob         textures, CLUTs, glyph and kern tables, names (NUL-term.)
+
+Colour does not travel in commands or slots any more: both hold u16
+indices into the live theme's row of the tint table (v7). A UI's
+palette is a tiny set repeated thousands of times -- opl-env paints 9
+distinct colours across 590 primitives -- so a theme is a table swap
+rather than a walk over every command. Themeless blobs are not a
+special case: they have one row, holding what used to be inline.
 
 Screens partition the command, focus and slot tables into contiguous
 ranges; textures, CLUTs and fonts are shared across all screens. Focus
@@ -38,7 +46,7 @@ from .quads import (
 )
 
 MAGIC = 0x31424955  # "UIB1"
-VERSION = 6
+VERSION = 7
 
 FEAT_DYNAMIC_TEXT = 1 << 0
 FEAT_KERNING = 1 << 1
@@ -46,16 +54,27 @@ FEAT_SLOT_SPACING = 1 << 2
 # The blob declares at least one streamed texture: a reader that cannot
 # fill one must refuse the file rather than draw an empty slot.
 FEAT_STREAMED_TEX = 1 << 3
+# Tint indices are keyed on the authored DECLARATION, not on the
+# resolved colour. This writer keys on the value and so must not set
+# it -- and the runtime refuses n_theme > 1 without it, because two
+# declarations that happen to share a colour would collapse into one
+# entry that no theme could ever tell apart. Harmless at one theme
+# (nothing to diverge into); wrong at two, silently.
+FEAT_ROLE_TINTS = 1 << 4
 FEAT_KNOWN = (FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING
-              | FEAT_STREAMED_TEX)
+              | FEAT_STREAMED_TEX | FEAT_ROLE_TINTS)
 
 # A texture with no name. Not 0: offset 0 is a legitimate blob offset.
 NAME_NONE = 0xFFFFFFFF
 
-_HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHIHH")  # 76 bytes
+_HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHIIHHHH")  # 84 bytes
 _TEX = struct.Struct("<BBHHHIII")              # 20 bytes (v6: kind, name_off)
 _CLUT = struct.Struct("<HHI")                  # 8 bytes
-_CMD = struct.Struct("<BBHhhHHBBBBHHHHH6x")    # 32 bytes
+# 26 used bytes and six of padding, unchanged at 32: the four colour
+# bytes became two u16 indices, and the two that freed went into
+# tint_focus rather than shrinking anything. The padding is what
+# reaches two qwords, so a smaller struct was never on offer.
+_CMD = struct.Struct("<BBHhhHHHHHHHHH6x")      # 32 bytes
 # Field order keeps every u32 4-aligned so the C runtime can overlay
 # plain structs on the file with no packing pragmas.
 _FOCUS = struct.Struct("<HHHHHHIhhHH")         # 24 bytes
@@ -64,16 +83,19 @@ _FONT = struct.Struct("<HHHHHHIH2xI")          # 24 bytes
 # every writer before it wrote zeros there, and zero spacing is the
 # meaning zeros already had, so the stride is unchanged and feature
 # bit 2 is what makes the new field loud rather than a version bump.
-_SLOT = struct.Struct("<IIhhHHBBHHBBBBBBBBh") # 32 bytes
+# 32 -> 28: this one carried no padding at all, so the eight colour
+# bytes replaced by two u16 indices are four real bytes per slot.
+_SLOT = struct.Struct("<IIhhHHBBHHHHh")       # 28 bytes
 _SCREEN = struct.Struct("<IIIHHHHH2x")        # 24 bytes
+_TINT = struct.Struct("<BBBB")                # 4 bytes
 _CRC_OFFSET = 48
 _GLYF = struct.Struct("<IHHHHhhH2x")           # 20 bytes, in blob
 _KERN = struct.Struct("<IIh2x")                # 12 bytes, in blob
 
-assert _HEADER.size == 76 and _TEX.size == 20 and _CLUT.size == 8
-assert _SCREEN.size == 24
+assert _HEADER.size == 84 and _TEX.size == 20 and _CLUT.size == 8
+assert _SCREEN.size == 24 and _TINT.size == 4
 assert _CMD.size == 32 and _FOCUS.size == 24
-assert _FONT.size == 24 and _SLOT.size == 32 and _GLYF.size == 20
+assert _FONT.size == 24 and _SLOT.size == 28 and _GLYF.size == 20
 assert _KERN.size == 12
 
 
@@ -136,6 +158,46 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         _align16(blob)
         clut_entries.append((len(c) // 4, 0, off))
 
+    # The tint table. One theme, keyed on the RESOLVED COLOUR -- see
+    # FEAT_ROLE_TINTS above for why that is exact at one theme and
+    # wrong at two, and why this writer therefore does not set the bit.
+    #
+    # Order is first appearance: the command list in draw order, then
+    # the slot table. Deterministic (a rebuild of the same IR gives the
+    # same table, which the blob-drift checks rely on) and readable --
+    # entry 0 is whatever the first thing painted was, not whatever
+    # sorted first.
+    #
+    # Scissor commands do not intern. They carry no colour, the runtime
+    # never reads their tint fields, and interning them would put an
+    # entry in the table that no draw can reach.
+    tint_index = {}
+    tint_entries = []
+
+    def _tint(rgba):
+        key = tuple(int(v) & 0xFF for v in rgba)
+        i = tint_index.get(key)
+        if i is None:
+            i = len(tint_entries)
+            # n_tint is a u16, so 65535 entries is the ceiling and the
+            # highest reachable index is 65534. A UI with more distinct
+            # colours than that is not a UI this format models.
+            if i > 0xFFFF:
+                raise ValueError("more than 65536 distinct tints")
+            tint_index[key] = i
+            tint_entries.append(key)
+        return i
+
+    cmd_tints = []
+    for r in records:
+        if r.op in (OP_QUAD, OP_TEXQUAD):
+            t = _tint(r.rgba)
+            cmd_tints.append((t, t))
+        else:
+            cmd_tints.append((0, 0))
+    slot_tints = [(_tint(sl["color_base"]), _tint(sl["color_focus"]))
+                  for sl in slots]
+
     id_to_index = {n["id"]: i for i, n in enumerate(focus_nodes)}
     focus_entries = []
     for i, n in enumerate(focus_nodes):
@@ -168,17 +230,16 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
                              len(kerns), kerns_off))
 
     slot_entries = []
-    for sl in slots:
+    for i, sl in enumerate(slots):
         name_off = len(blob)
         blob += sl["name"].encode("utf-8") + b"\0"
         ph_off = len(blob)
         blob += sl["placeholder"].encode("utf-8") + b"\0"
-        cb, cf = sl["color_base"], sl["color_focus"]
         slot_entries.append((
             name_off, ph_off, sl["x"], sl["text_y"], sl["w"], sl["font"],
             sl["align"], 1 if sl["ellipsis"] else 0, sl["capacity"],
             sl["focus"],
-            cb[0], cb[1], cb[2], cb[3], cf[0], cf[1], cf[2], cf[3],
+            slot_tints[i][0], slot_tints[i][1],
             sl.get("letter_spacing", 0),
         ))
     _align16(blob)
@@ -210,7 +271,11 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     # zero count.
     if any(e[7] for e in font_entries):
         feature_flags |= FEAT_KERNING
-    if any(e[18] for e in slot_entries):
+    # letter_spacing, and indexed from the END: it is the last field of
+    # the entry, and the positional 18 that used to be here silently
+    # became out of range when the eight colour bytes ahead of it
+    # collapsed into two indices.
+    if any(e[-1] for e in slot_entries):
         feature_flags |= FEAT_SLOT_SPACING
     if any(e[1] == TEXKIND_STREAMED for e in tex_entries):
         feature_flags |= FEAT_STREAMED_TEX
@@ -230,6 +295,10 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     off += _SLOT.size * len(slot_entries)
     off_screen = off
     off += _SCREEN.size * len(screen_entries)
+    # Last table before the blob, and 4 bytes wide, so it needs no
+    # alignment of its own: every table above it is a multiple of four.
+    off_tint = off
+    off += _TINT.size * len(tint_entries)
     # The blob section must start on a 16-byte file offset. Texture
     # data_offs are 16-aligned relative to the blob and bin2c places the
     # whole file 16-aligned in memory, so this padding is the one link
@@ -255,17 +324,21 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         off_tex, off_clut, off_cmd, off_focus, off_blob, len(blob),
         0,  # crc32, patched below
         len(font_entries), len(slot_entries), off_font, off_slot,
-        len(screen_entries), 0, off_screen,
+        len(screen_entries), len(tint_entries), off_screen,
+        # One theme. More is refused by the runtime until tints are
+        # keyed on the declaration -- FEAT_ROLE_TINTS, which this
+        # writer does not set.
+        off_tint, 1, 0,
         int(display_aspect[0]), int(display_aspect[1]),
     )
     for e in tex_entries:
         out += _TEX.pack(*e)
     for e in clut_entries:
         out += _CLUT.pack(*e)
-    for r in records:
+    for r, (t, tf) in zip(records, cmd_tints):
         out += _CMD.pack(
             r.op, r.state, r.focus, r.x, r.y, r.w, r.h,
-            r.rgba[0], r.rgba[1], r.rgba[2], r.rgba[3],
+            t, tf,
             r.tex, r.u0, r.v0, r.u1, r.v1,
         )
     for e in focus_entries:
@@ -276,6 +349,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         out += _SLOT.pack(*e)
     for e in screen_entries:
         out += _SCREEN.pack(*e)
+    for e in tint_entries:
+        out += _TINT.pack(*e)
     out += bytes(blob_pad)
     assert len(out) == off_blob, "layout arithmetic and bytes written disagree"
     out += blob
@@ -301,6 +376,11 @@ class UibFile:
     slots: list = field(default_factory=list)
     screens: list = field(default_factory=list)
     display_aspect: tuple = (4, 3)
+    # n_theme rows of n_tint (r, g, b, a) tuples, theme-major. Records
+    # and slots above already have their colours resolved through
+    # row 0; this is the table itself, for tooling that wants to show
+    # a UI's palette rather than its primitives.
+    themes: list = field(default_factory=list)
 
 
 def read_uib(path) -> UibFile:
@@ -310,8 +390,8 @@ def read_uib(path) -> UibFile:
         raise ValueError(f"{path}: truncated header")
     (magic, version, feature_flags, cw, ch, n_tex, n_clut, n_cmd, n_focus,
      initial, off_tex, off_clut, off_cmd, off_focus, off_blob, blob_len,
-     crc, n_font, n_slot, off_font, off_slot, n_screen, _pad, off_screen,
-     dar_num, dar_den,
+     crc, n_font, n_slot, off_font, off_slot, n_screen, n_tint, off_screen,
+     off_tint, n_theme, _pad, dar_num, dar_den,
      ) = _HEADER.unpack_from(data, 0)
     if magic != MAGIC:
         raise ValueError(f"{path}: not a .uib (magic {magic:#x})")
@@ -326,7 +406,36 @@ def read_uib(path) -> UibFile:
         raise ValueError(f"{path}: crc mismatch (file {crc:#x}, computed {actual:#x})")
     if off_blob + blob_len > len(data):
         raise ValueError(f"{path}: truncated (blob extends past EOF)")
+    if n_theme == 0:
+        raise ValueError(f"{path}: n_theme is 0 (a themeless blob still has one row)")
+    if n_theme > 1 and not (feature_flags & FEAT_ROLE_TINTS):
+        raise ValueError(
+            f"{path}: {n_theme} themes without FEAT_ROLE_TINTS -- tints keyed on "
+            "the resolved colour cannot diverge between themes")
     blob = data[off_blob:off_blob + blob_len]
+
+    # Rows first: everything below resolves indices through them, so
+    # callers keep seeing rgba tuples and nothing downstream of the
+    # reader learned a new concept.
+    themes = []
+    for t in range(n_theme):
+        base = off_tint + t * n_tint * _TINT.size
+        themes.append([_TINT.unpack_from(data, base + i * _TINT.size)
+                       for i in range(n_tint)])
+    live = themes[0] if themes else []
+
+    # Index validation happens at each use site below, not in a pass of
+    # its own: a separate pass would have to re-derive the field
+    # offsets by hand, and the offsets are exactly what a format move
+    # changes. What it must not do is let the resolution raise
+    # IndexError from inside a list subscript -- a catch, but one that
+    # names a Python builtin instead of the malformed field, and that
+    # ps2ui-check prints as a traceback rather than as a verdict.
+    def tint(kind, which, i, idx):
+        if not 0 <= idx < n_tint:
+            raise ValueError(f"{path}: {kind} {i} {which} index {idx} is past "
+                             f"the {n_tint}-entry tint table")
+        return live[idx]
 
     def cstr(off):
         end = blob.index(b"\0", off)
@@ -335,6 +444,7 @@ def read_uib(path) -> UibFile:
     out = UibFile(cw, ch, initial, feature_flags)
     out.display_aspect = (dar_num, dar_den)
     out.off_blob = off_blob
+    out.themes = themes
     for i in range(n_tex):
         (fmt, kind, w, h, clut, doff, dlen,
          noff) = _TEX.unpack_from(data, off_tex + i * _TEX.size)
@@ -351,10 +461,22 @@ def read_uib(path) -> UibFile:
         ncolors, _pad, doff = _CLUT.unpack_from(data, off_clut + i * _CLUT.size)
         out.cluts.append(bytes(blob[doff:doff + ncolors * 4]))
     for i in range(n_cmd):
-        (op, state, focus, x, y, w, h, r, g, b, a,
+        (op, state, focus, x, y, w, h, tint_idx, tint_focus,
          tex, u0, v0, u1, v1) = _CMD.unpack_from(data, off_cmd + i * _CMD.size)
+        # Scissor commands carry no colour and their tint fields are
+        # not indices; a DrawRecord wants a tuple regardless.
+        if op in (OP_QUAD, OP_TEXQUAD):
+            rgba = tint("command", "tint", i, tint_idx)
+            # Checked and then discarded. tint_focus is read only while
+            # this command's node holds focus, so an out-of-range one
+            # is a fault that appears when the cursor lands on it and
+            # not before -- which is exactly why it is checked here
+            # rather than left to whoever eventually resolves it.
+            tint("command", "tint_focus", i, tint_focus)
+        else:
+            rgba = (0, 0, 0, 0)
         out.records.append(DrawRecord(
-            op, state, focus, x, y, w, h, (r, g, b, a), tex, u0, v0, u1, v1,
+            op, state, focus, x, y, w, h, tuple(rgba), tex, u0, v0, u1, v1,
         ))
     for i in range(n_focus):
         (idx, up, down, left, right, _pad, name_off, x, y, w, h,
@@ -384,8 +506,10 @@ def read_uib(path) -> UibFile:
                           "glyphs": glyphs, "kerns": kerns})
     for i in range(n_slot):
         (name_off, ph_off, x, text_y, w, font, align, flags, capacity,
-         focus, br, bg_, bb, ba, fr, fg, fb, fa, letter_spacing,
+         focus, tint_base, tint_focus, letter_spacing,
          ) = _SLOT.unpack_from(data, off_slot + i * _SLOT.size)
+        br, bg_, bb, ba = tint("slot", "tint_base", i, tint_base)
+        fr, fg, fb, fa = tint("slot", "tint_focus", i, tint_focus)
         out.slots.append({
             "name": cstr(name_off), "placeholder": cstr(ph_off),
             "x": x, "text_y": text_y, "w": w, "font": font,
@@ -393,6 +517,7 @@ def read_uib(path) -> UibFile:
             "capacity": capacity, "focus": focus,
             "letter_spacing": letter_spacing,
             "color_base": (br, bg_, bb, ba), "color_focus": (fr, fg, fb, fa),
+            "tint_base": tint_base, "tint_focus": tint_focus,
         })
     for i in range(n_screen):
         (name_off, cmd_first, cmd_count, focus_first, focus_count,

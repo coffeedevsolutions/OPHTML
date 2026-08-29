@@ -40,8 +40,8 @@ from .quads import (
     FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
     STATE_ALWAYS, STATE_FOCUSED, STATE_UNFOCUSED, TEX_NONE,
 )
-from .uib import (FEAT_KERNING, FEAT_SLOT_SPACING, FEAT_STREAMED_TEX,
-                  TEXKIND_STREAMED, read_uib)
+from .uib import (FEAT_KERNING, FEAT_ROLE_TINTS, FEAT_SLOT_SPACING,
+                  FEAT_STREAMED_TEX, TEXKIND_STREAMED, read_uib)
 
 ERROR = "error"
 WARNING = "warning"
@@ -364,6 +364,56 @@ def check_gs_domains(uib, rep: Report) -> None:
                   + (f"; slots {', '.join(bad[:5])}" if bad else ""))
 
 
+def check_tints(uib, rep: Report) -> None:
+    """The tint table (v7), and the premise it rests on.
+
+    Colour left the command and the slot for a shared table, on the
+    claim that a UI's palette is tiny and repeated -- so a theme is a
+    table swap rather than a walk over every primitive. That is a
+    measurable property of a blob, not a design opinion, and a baker
+    change that stopped deduping would leave every other check green:
+    every index would still resolve, every colour would still be
+    right, and theming would quietly stop being cheap. This is the
+    only thing that would notice.
+    """
+    paints = sum(1 for r in uib.records if r.op in (OP_QUAD, OP_TEXQUAD))
+    n_tint = len(uib.themes[0]) if uib.themes else 0
+
+    rep.error(len(uib.themes) >= 1,
+              "the blob has at least one theme row -- a themeless UI is "
+              "one row, not zero")
+    rep.error(n_tint <= 0xFFFF,
+              f"{n_tint} tints fit the format's uint16 count field")
+    # Ratio, not an exact count: an authoring edit may legitimately add
+    # a colour, and a build should not fail for that. A table growing
+    # toward the paint count is a different thing entirely.
+    #
+    # Only above a threshold, and SAID OUT LOUD below it. A blob with
+    # three primitives has no palette to speak of and the ratio would
+    # fail it for being small -- but silently dropping the check on a
+    # small blob is the pattern this project keeps catching, so it
+    # becomes a note (measured, never asserted) rather than an absence.
+    if paints < 100:
+        rep.note(f"{n_tint} tints over {paints} painting commands: too few "
+                 "draws for the palette ratio to mean anything, so it is "
+                 "measured and not asserted here")
+    else:
+        rep.error(n_tint * 4 < paints,
+                  f"{n_tint} tints over {paints} painting commands: the "
+                  "palette is a small repeated set, which is what makes a "
+                  "theme a table swap")
+    # Value-keyed indices collapse two declarations that share a colour
+    # into one entry, which no second theme can tell apart. The bit
+    # says the baker keyed on the declaration instead; without it more
+    # than one row is a UI that cannot be recoloured correctly, and
+    # ps2ui_load refuses to open it.
+    role = "set" if uib.feature_flags & FEAT_ROLE_TINTS else "clear"
+    rep.error(len(uib.themes) <= 1 or (uib.feature_flags & FEAT_ROLE_TINTS),
+              f"{len(uib.themes)} theme(s) with FEAT_ROLE_TINTS {role}: "
+              "more than one row needs the bit, or ps2ui_load refuses the "
+              "blob")
+
+
 def check_fonts(uib, rep: Report) -> None:
     """What the runtime's glyph bsearch assumes."""
     for i, font in enumerate(uib.fonts):
@@ -546,6 +596,7 @@ def check_blob(uib, budget=None, allow_dead: int = 0,
     check_screens(uib, rep)
     check_scissors(uib, rep)
     check_gs_domains(uib, rep)
+    check_tints(uib, rep)
     check_fonts(uib, rep)
     check_vram(uib, rep, budget)
     check_crt(uib, rep, (uib.canvas_w, uib.canvas_h), allow_dead,

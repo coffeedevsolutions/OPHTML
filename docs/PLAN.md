@@ -484,7 +484,31 @@ Then, in an order P3a decides:
    struct frees pay for the focus-recolour index that was an open
    question.
 
-   Design first, as with v6: the format move is not started.
+   Design first, as with v6. **The slices, and where they stand:**
+
+   | # | slice | state |
+   |---|---|---|
+   | P3b-0 | the CLUT-swap mechanism: `ps2ui_clut_set`, measured | **done** (#70, F-041) |
+   | P3b-1 | the tint table format (v7) | **done** |
+   | P3b-2 | `ps2ui_theme_set` and a second row a baker can write | next |
+   | P3b-3 | role-keyed indices: the IR carries each colour's declaration site (a layout-package change), which is what `PS2UI_FEAT_ROLE_TINTS` gates | after P3b-2 |
+   | P3b-4 | DX: `ps2ui-check` prints the table with CSS origin; the previewer renders every theme; `--strict` fails a theme missing a key | after P3b-3 |
+   | P3b-5 | `var()` in the CSS parser, so a theme is authored rather than hand-indexed | last |
+
+   **P3b-1 shipped the format and one correction to the design.** Every
+   colour count in the design doc was one too high: the script behind
+   them counted the `(0,0,0,0)` in a scissor command's colour field,
+   which is not a colour and which no draw reads. The shipped tables are
+   12 entries (opl-env), 33 (channel6) and 9 (memcard).
+
+   **It also ships one refusal rather than one caveat.** Role-keying
+   needs the layout package to carry declaration sites, so P3b-1 keys on
+   the resolved value — which is *exact* at one theme, because there is
+   nothing to diverge into. The combination that would be wrong is
+   `n_theme > 1` without role-keying, and `ps2ui_load` returns
+   `PS2UI_ERR_TINTS` for it. A blob that cannot be recoloured correctly
+   does not open, rather than opening and recolouring nine unrelated
+   things together.
 2. **P3c — page-aware atlas packing.** Pack to 8 KiB page boundaries
    (64×32 CT32, 128×64 T8) to minimise TBP switches and make streamed
    reservations exact. **Gate did not open** [F-037]: the GS is at

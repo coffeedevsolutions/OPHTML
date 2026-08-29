@@ -274,6 +274,24 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
      * are gone -- see arena_compute. */
     if (ctx->hdr->n_screen == 0)
         return PS2UI_ERR_BOUNDS;
+    /* Every paint reads a tint, so a table with no rows is a blob
+     * whose commands index nothing -- not a blob without theming.
+     * A themeless blob has exactly one row. */
+    if (ctx->hdr->n_theme == 0)
+        return PS2UI_ERR_BOUNDS;
+    /* The refusal the feature bit exists for. With indices keyed on
+     * the resolved COLOUR, two unrelated declarations that happen to
+     * share a value are the same entry and cannot be given different
+     * colours by any theme -- in opl-env #7c9be0 is written by nine
+     * separate declarations, so a second row would move the focus ring
+     * and eight other things together, silently and with no way to
+     * say so. One row cannot diverge from itself, so value-keying is
+     * exact there; more than one is only sound once the baker keys on
+     * the declaration site and says so with this bit. Refusing beats
+     * documenting: the wrong render would be plausible. */
+    if (ctx->hdr->n_theme > 1
+        && !(ctx->hdr->feature_flags & PS2UI_FEAT_ROLE_TINTS))
+        return PS2UI_ERR_TINTS;
 
     {
         const ps2ui_header *h = ctx->hdr;
@@ -284,10 +302,17 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
         uint64_t need_font  = (uint64_t)h->off_font  + (uint64_t)h->n_font  * sizeof(ps2ui_font_entry);
         uint64_t need_slot  = (uint64_t)h->off_slot  + (uint64_t)h->n_slot  * sizeof(ps2ui_slot_entry);
         uint64_t need_scr   = (uint64_t)h->off_screen + (uint64_t)h->n_screen * sizeof(ps2ui_screen_entry);
+        /* n_theme x n_tint, and BOTH are uint16 -- so the product is
+         * bounded by 2^32 and the sum by 2^32 + 2^32, which a uint64
+         * holds exactly. Computed in uint64 for that reason and not
+         * because either factor is suspicious. */
+        uint64_t need_tint  = (uint64_t)h->off_tint
+                              + (uint64_t)h->n_theme * (uint64_t)h->n_tint
+                                * sizeof(ps2ui_tint_entry);
         uint64_t need_blob  = (uint64_t)h->off_blob  + h->blob_len;
         if (need_tex > size || need_clut > size || need_cmd > size
             || need_focus > size || need_font > size || need_slot > size
-            || need_scr > size || need_blob > size)
+            || need_scr > size || need_tint > size || need_blob > size)
             return PS2UI_ERR_TRUNCATED;
     }
 
@@ -301,6 +326,7 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
     ctx->fonts       = (const ps2ui_font_entry *)(ctx->data + ctx->hdr->off_font);
     ctx->slots       = (const ps2ui_slot_entry *)(ctx->data + ctx->hdr->off_slot);
     ctx->screen_table = (const ps2ui_screen_entry *)(ctx->data + ctx->hdr->off_screen);
+    ctx->tints       = (const ps2ui_tint_entry *)(ctx->data + ctx->hdr->off_tint);
     ctx->blob        = ctx->data + ctx->hdr->off_blob;
 
     /* The GIF DMA reads texture bytes straight out of this blob, and
@@ -365,6 +391,15 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
             return PS2UI_ERR_BOUNDS;
         if (c->focus != PS2UI_NONE && c->focus >= ctx->hdr->n_focus)
             return PS2UI_ERR_BOUNDS;
+        /* Only the painting ops. A scissor command has no colour, so
+         * its tint fields mean nothing and demanding a live index
+         * there would make a blob of nothing but clips need a tint
+         * table to hold zero entries it never reads. */
+        if (c->op == PS2UI_OP_QUAD || c->op == PS2UI_OP_TEXQUAD) {
+            if (c->tint >= ctx->hdr->n_tint
+                || c->tint_focus >= ctx->hdr->n_tint)
+                return PS2UI_ERR_BOUNDS;
+        }
     }
     for (i = 0; i < ctx->hdr->n_focus; i++) {
         const ps2ui_focus_node *n = &ctx->focus_nodes[i];
@@ -403,6 +438,9 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
         if (s->font >= ctx->hdr->n_font)
             return PS2UI_ERR_BOUNDS;
         if (s->focus != PS2UI_NONE && s->focus >= ctx->hdr->n_focus)
+            return PS2UI_ERR_BOUNDS;
+        if (s->tint_base >= ctx->hdr->n_tint
+            || s->tint_focus >= ctx->hdr->n_tint)
             return PS2UI_ERR_BOUNDS;
         if (s->name_off >= ctx->hdr->blob_len
             || !memchr(ctx->blob + s->name_off, 0, ctx->hdr->blob_len - s->name_off))
@@ -843,6 +881,31 @@ static int cmd_visible(const ps2ui_cmd *c, uint16_t focus)
     return (c->state == PS2UI_STATE_FOCUSED) ? is_focused : !is_focused;
 }
 
+/* The live theme's slice of the tint table. Theme-major, so this is a
+ * pointer add: one theme's colours are contiguous and switching is a
+ * different base, not a strided walk over the whole table. */
+static const ps2ui_tint_entry *tint_row(const ps2ui_ctx *ctx)
+{
+    return ctx->tints + (size_t)ctx->theme * ctx->hdr->n_tint;
+}
+
+/* Which of a command's two tints applies right now.
+ *
+ * A command already has `state`, which decides whether it DRAWS while
+ * focused; tint_focus decides what colour it draws IN. They are not
+ * the same question, and answering the second with the first costs a
+ * duplicated command and its scissor context. The baker currently
+ * writes tint_focus == tint everywhere, which makes this the identity
+ * -- the field is format headroom the freed colour bytes paid for, not
+ * a live authoring path, and test_runtime exercises it by hand so it
+ * is not merely declared. */
+static uint16_t cmd_tint(const ps2ui_cmd *c, uint16_t focus)
+{
+    if (c->focus != PS2UI_NONE && c->focus == focus)
+        return c->tint_focus;
+    return c->tint;
+}
+
 void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
 {
     scissor_rect stack[PS2UI_MAX_SCISSOR_DEPTH];
@@ -877,6 +940,11 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
      * to write a blob this deep, so this is the belt to those braces. */
     int overflow = 0;
     uint32_t i;
+    /* The live theme's row, resolved once. `theme` is bounded by
+     * ps2ui_load (n_theme > 1 is refused outright, so it is 0), which
+     * is why this multiply needs no clamp here. */
+    const ps2ui_tint_entry *row = tint_row(ctx);
+    const ps2ui_tint_entry *tint;
 
     memset(&ctx->stats, 0, sizeof ctx->stats);
     ctx->stats.vram_lost = tex_ok ? 0u : 1u;
@@ -1000,12 +1068,20 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
             continue;
         }
 
+        /* One indirection per painting command, off a row pointer
+         * hoisted out of the loop: an add and a load, not a branch on
+         * whether this blob is themed. The alternative -- inline
+         * colours for unthemed commands and indices for themed ones --
+         * would put that branch on every draw to save four bytes in a
+         * file. */
+        tint = &row[cmd_tint(c, ctx->focus)];
+
         if (c->op == PS2UI_OP_QUAD) {
             ctx->stats.prims++;
             gsKit_prim_sprite(gs,
                 (float)c->x, (float)c->y,
                 (float)(c->x + c->w), (float)(c->y + c->h),
-                0, GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
+                0, GS_SETREG_RGBAQ(tint->r, tint->g, tint->b, tint->a, 0x00));
         } else if (tex_ok) { /* PS2UI_OP_TEXQUAD */
             ctx->stats.prims++;
             /* Re-bind per draw, the way Open-PS2-Loader does. Resident
@@ -1029,7 +1105,7 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
             draw_texquad(gs, &ctx->gs_tex[c->tex],
                 c->x, c->y, c->w, c->h,
                 c->u0, c->v0, c->u1, c->v1,
-                GS_SETREG_RGBAQ(c->r, c->g, c->b, c->a, 0x00));
+                GS_SETREG_RGBAQ(tint->r, tint->g, tint->b, tint->a, 0x00));
         }
         }
     }
@@ -1178,6 +1254,7 @@ static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)
 static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
 {
     const ps2ui_screen_entry *scr = &ctx->screen_table[ctx->screen];
+    const ps2ui_tint_entry *row = tint_row(ctx);
     uint32_t i;
     for (i = scr->slot_first; i < (uint32_t)scr->slot_first + scr->slot_count; i++) {
         const ps2ui_slot_entry *s = &ctx->slots[i];
@@ -1197,7 +1274,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
         int ellipsize;
         int width = slot_measure(ctx, s, font, text, &draw_len, &ellipsize);
         int pen, is_focused;
-        const uint8_t *col;
+        const ps2ui_tint_entry *col;
         const char *p = text;
         const char *end = text + draw_len;
 
@@ -1208,7 +1285,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
             pen += s->w - width;
 
         is_focused = (s->focus != PS2UI_NONE) && (s->focus == ctx->focus);
-        col = is_focused ? s->color_focus : s->color_base;
+        col = &row[is_focused ? s->tint_focus : s->tint_base];
 
         /* One bind per slot, not per glyph: nothing between glyphs can
          * evict, so residency established here covers the whole run,
@@ -1241,7 +1318,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
                     pen + g->bearing_x, s->text_y + g->bearing_y,
                     g->w, g->h,
                     g->u, g->v, g->u + g->w, g->v + g->h,
-                    GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+                    GS_SETREG_RGBAQ(col->r, col->g, col->b, col->a, 0x00));
             }
             pen += g->advance;
             prev = cp;
@@ -1259,7 +1336,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
                     pen + g->bearing_x, s->text_y + g->bearing_y,
                     g->w, g->h,
                     g->u, g->v, g->u + g->w, g->v + g->h,
-                    GS_SETREG_RGBAQ(col[0], col[1], col[2], col[3], 0x00));
+                    GS_SETREG_RGBAQ(col->r, col->g, col->b, col->a, 0x00));
             }
         }
     }
