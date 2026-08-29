@@ -291,7 +291,7 @@ A self-consistency check fell out of the prim count: the first photograph reads 
 
 **Rests on this:** F-036, F-037, F-038, F-039, F-040
 
-Retires the TODO(bench) that has sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
+Retires the bench marker that had sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
 THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch the claim but is worth recording. 8.34 was the true half-period, not what that build would have printed; #64's review said 8.37, which is the half-period through the truncated divisor before the integer print truncates again. The value is 8.36. The finding survives because a factor of two does not care, but a counterfactual nobody evaluated is not evidence, and this one sat in a confirmed finding through a phase.
 
 *#63, #64*
