@@ -337,6 +337,14 @@ def main():
     elif not re.search(r"if\s*\(\s*!\s*missed\s*\)\s*miss_at\s*=", block):
         fail.append("miss_at is not latched to the FIRST miss, so a later "
                     "one overwrites the only evidence about the earliest")
+    elif not re.search(r"\bmiss_at\s*=\s*frame\s*-\s*1\b", block):
+        # `frame`, not `frame - 1`, is the shape this shipped with and
+        # the reason @0 was unreachable while the runbook documented it
+        # as the boot-transient signal. The off-by-one is the entire
+        # meaning of the field, so it is checked rather than remembered.
+        fail.append("miss_at records the raw frame index; `loop` is the "
+                    "PREVIOUS iteration's duration, so the frame that "
+                    "overran is frame - 1 and @0 becomes unreachable")
 
     # EVERY NUMBER HAS TO REACH THE READOUT.
     #
@@ -350,17 +358,28 @@ def main():
     # indistinguishable from the one condition the index was added to
     # detect. The whole value of these numbers is that a person can read
     # them off a photograph.
+    # COUNT the appearances, do not merely find one. A millisecond
+    # figure is printed as two arguments -- `x / 1000` and `(x % 1000)
+    # / 10` -- so replacing just one of them leaves the other to satisfy
+    # a bare search while the screen shows 0.08 for 1.08. Found by
+    # falsifying this very rule one commit after writing it.
     printed = "".join(re.findall(r"sprintf\s*\(\s*telem[^;]*;", block, re.S))
-    for var, role in (("ee_us", "the EE mean"),
-                      ("gs_us", "the GS mean"),
-                      ("ee_pk_us", "the EE peak"),
-                      ("gs_pk_us", "the GS peak"),
-                      ("fld_us", "the frame period"),
-                      ("missed", "the dropped-field count"),
-                      ("miss_at", "the frame index of the first miss")):
-        if not re.search(r"\b%s\b" % var, printed):
+    for var, uses, role in (("ee_us", 2, "the EE mean"),
+                            ("gs_us", 2, "the GS mean"),
+                            ("ee_pk_us", 2, "the EE peak"),
+                            ("gs_pk_us", 2, "the GS peak"),
+                            ("fld_us", 2, "the frame period"),
+                            ("missed", 1, "the dropped-field count"),
+                            ("miss_at", 1, "the frame index of the first miss")):
+        n = len(re.findall(r"\b%s\b" % var, printed))
+        if n == 0:
             fail.append("%s (%s) is computed but never reaches the readout, "
                         "so it cannot be read off a photograph" % (var, role))
+        elif n != uses:
+            fail.append("%s (%s) reaches the readout %d time(s), not %d -- a "
+                        "millisecond figure needs both its whole and "
+                        "fractional argument or the screen shows a wrong "
+                        "number rather than no number" % (var, role, n, uses))
 
     # F-034's falsifier is "any dropped field", and a 60-frame mean can
     # only be read for that indirectly and only while the drop is
