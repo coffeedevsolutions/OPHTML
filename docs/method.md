@@ -322,3 +322,29 @@ The lesson is not "test more". It is:
 The counter-measure that worked was writing down what would falsify the
 claim, and then building the one instrument that could. It took two
 attempts, because the first one could not fail.
+
+## Restoring after a deliberate breakage
+
+`git checkout -- <file>` does not restore the file. It restores HEAD.
+Every uncommitted change in that file is destroyed, silently, with a
+zero exit status.
+
+Deliberate breakage is the only reliable detector this document has to
+offer, so it gets run constantly, usually against a file that is being
+actively edited -- which is the exact condition under which that
+command is destructive. It has now destroyed work four times here:
+`runtime/ps2ui.c`, the opl-env driver, `docs/bench-runbook.md`, and the
+`ticks_to_us` change. Three were caught immediately. One was committed
+and pushed in a failing state before anyone noticed.
+
+The counter-measure is not vigilance, because vigilance is what failed
+four times. It is to keep git out of the restore path entirely:
+
+- `tools/falsify.sh` snapshots the real bytes and puts the real bytes
+  back. Use it rather than hand-rolling a sabotage loop.
+- Commit before falsifying anyway. A snapshot protects against the
+  restore; a commit protects against everything else.
+
+This belongs in a document about checks that pass for the wrong reason
+because it is the same failure in the tooling around the check: a
+restore that reports success while having thrown the work away.
