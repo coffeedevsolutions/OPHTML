@@ -171,6 +171,7 @@ unsigned int gsKit_TexManager_bind(GSGLOBAL *gs, GSTEXTURE *tex)
             g_stub.n_uploads_unflushed++;
         g_stub.n_transfers++;
         g_stub.n_uploads++;   /* the "uploaded once" ledger, unchanged */
+        g_stub.b_texel += (unsigned long)bytes;
         transferred = 1;
     }
     if (tex->Clut && tex->VramClut == 0) {
@@ -178,6 +179,7 @@ unsigned int gsKit_TexManager_bind(GSGLOBAL *gs, GSTEXTURE *tex)
         SyncDCache(tex->Clut, (u8 *)tex->Clut + csize);
         if (!stub_flushed(tex->Clut, 16 * 16 * 4))
             g_stub.n_uploads_unflushed++;
+        g_stub.b_clut += (unsigned long)csize;
         transferred = 1;
     }
     return transferred;

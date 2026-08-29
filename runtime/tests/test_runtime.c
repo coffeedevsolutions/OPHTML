@@ -2613,6 +2613,106 @@ int main(int argc, char **argv)
         free(hblob);
     }
 
+    /* ---------------------------------------------------------------
+     * P3b: a CLUT swap moves a palette and not an atlas.
+     *
+     * The claim is a BYTE claim, so it is checked in bytes. A transfer
+     * COUNT cannot distinguish 1 KiB from 165 -- both are one transfer
+     * -- and a check built on counts would pass either way, which is
+     * the whole reason the stub grew b_texel and b_clut.
+     */
+    {
+        ps2ui_ctx cc;
+        static uint8_t arena[1 << 20];
+        GSGLOBAL cgs;
+        unsigned long texel_before, clut_before;
+        uint8_t pal[16 * 4];
+        unsigned k;
+
+        stub_reset();
+        memset(&cgs, 0, sizeof cgs);
+        cgs.CurrentPointer = 16;
+
+        if (ps2ui_load(&cc, blob, len, arena, sizeof arena) == PS2UI_OK
+            && cc.hdr->n_clut > 0) {
+            CHECK(ps2ui_upload(&cc, &cgs) == PS2UI_OK,
+                  "clut swap: the blob uploads once, cold");
+            CHECK(g_stub.b_texel > 0 && g_stub.b_clut > 0,
+                  "and that first pass moves both texels and palettes");
+
+            texel_before = g_stub.b_texel;
+            clut_before  = g_stub.b_clut;
+
+            for (k = 0; k < sizeof pal; k++) pal[k] = (uint8_t)(k * 7);
+            CHECK(ps2ui_clut_set(&cc, &cgs, 0, pal, 16) == PS2UI_OK,
+                  "clut_set accepts a palette no wider than the baked one");
+
+            /* Re-bind the way a FRAME does. Not ps2ui_upload: that is
+             * the cold path, it memsets every GSTEXTURE and re-permutes
+             * every CLUT from the blob, so calling it here would both
+             * undo the swap and re-send every atlas -- and the test
+             * would fail for a reason that has nothing to do with the
+             * claim. Found by writing this check. */
+            ps2ui_render(&cc, &cgs);
+
+            CHECK(g_stub.b_texel == texel_before,
+                  "A CLUT SWAP MOVES NO TEXELS. This is the whole of P3b: "
+                  "if this ever fails the swap costs an atlas and there is "
+                  "no theming win left to have");
+            CHECK(g_stub.b_clut > clut_before,
+                  "and it does move palette bytes -- a swap that moved "
+                  "nothing at all would satisfy the check above");
+            {
+                /* gsKit gives every GSTEXTURE its own block of
+                 * tsize + csize, so each texture sharing a CLUT index
+                 * keeps its OWN palette copy in VRAM. A swap therefore
+                 * costs 1,024 bytes per TEXTURE that uses the index,
+                 * not 1,024 per index. The first version of this check
+                 * asserted the latter and was wrong -- an error in the
+                 * cost model, caught before anything was built on it. */
+                unsigned users = 0, q;
+                unsigned long moved = g_stub.b_clut - clut_before;
+                for (q = 0; q < cc.hdr->n_tex; q++)
+                    if (cc.tex[q].format != PS2UI_TEXFMT_PSMCT32
+                        && cc.tex[q].clut == 0)
+                        users++;
+                printf("# clut 0: %u texture(s) share it, swap moved "
+                       "%lu bytes = %lu palette(s)\n",
+                       users, moved, moved / (16 * 16 * 4));
+                CHECK(moved % (16 * 16 * 4) == 0 && moved > 0,
+                      "and moves whole CT32 palettes, 1,024 bytes each");
+                CHECK(moved <= (unsigned long)users * 16 * 16 * 4,
+                      "never more than one per texture sharing the index: "
+                      "gsKit keeps a palette copy PER TEXTURE, not per "
+                      "CLUT, so the cost scales with users of the index");
+                CHECK(moved < (unsigned long)users * 16 * 16 * 4,
+                      "and fewer than all of them, because render binds "
+                      "only what it DRAWS -- the rest re-transfer lazily "
+                      "when first drawn, which is the better behaviour "
+                      "and not the one the cost model first assumed");
+            }
+
+            CHECK(ps2ui_clut_set(&cc, &cgs, cc.hdr->n_clut, pal, 16)
+                      == PS2UI_ERR_RANGE,
+                  "an index past n_clut is refused");
+            CHECK(ps2ui_clut_set(&cc, &cgs, 0, pal, 4096) == PS2UI_ERR_SIZE,
+                  "and a palette wider than the baked entry is refused, "
+                  "rather than recolouring indices no texel references");
+        }
+        {
+            /* Before upload it must REFUSE. The header first claimed
+             * this was safe; upload re-permutes from the blob, so the
+             * swap would have been silently overwritten. */
+            ps2ui_ctx uc;
+            static uint8_t uarena[1 << 20];
+            if (ps2ui_load(&uc, blob, len, uarena, sizeof uarena) == PS2UI_OK)
+                CHECK(ps2ui_clut_set(&uc, &cgs, 0, pal, 16)
+                          == PS2UI_ERR_STATE,
+                      "clut_set before upload is refused, not silently "
+                      "overwritten by the upload that follows");
+        }
+    }
+
 report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);

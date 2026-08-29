@@ -12,7 +12,7 @@ prose rots like any other document.
 | status | count |
 |---|---:|
 | provisional | 2 |
-| confirmed | 20 |
+| confirmed | 21 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -411,4 +411,19 @@ THE CORRECTION MOVED THE MECHANISM FROM UNDERSPECIFIED TO SPECIFIED IN THE WRONG
 THE FIX IS ONE LINE AND IT IS ALREADY IN. gsKit_vsync_wait() before t_prev, unconditional -- gsKit_sync_flip would not do it, being guarded by !FirstFrame, which is still set there. Re-run the same five ELFs: misses vanish at every N and this finding dies; misses persist and it stands, still owing a mechanism. Provisional until then, and the phase stays open.
 
 *#69*
+
+### F-041 — gsKit can re-send a CLUT without its texels, at 1,024 bytes per drawn texture
+
+**Measured:** gsKit_TexManager_bind decides the two transfers independently (gsTexManager.c:260-265 at 43122eb): ttransfer on Vram == 0, ctransfer on VramClut == 0. The block is allocated as tsize + csize with the palette at block->iStart + tsize, so a new palette needs no reallocation. Measured over the real blob: ps2ui_clut_set followed by one ps2ui_render moves 0 texel bytes and 7,168 CLUT bytes -- seven whole CT32 palettes.
+
+**Instrument:** `runtime/tests/test_runtime.c`
+
+**Falsifier:** A clut_set whose next render moves any texel byte, or moves palette bytes that are not a whole multiple of 1,024
+
+THIS IS P3B'S PREMISE AND IT WAS WORTH CHECKING BEFORE BUILDING ON IT. The phase promised "instant recolour, same art, ~1 KiB per palette". Had bind coupled the two transfers, a theme swap would have cost the 165 KiB atlas and the item's whole justification with it. gsKit_TexManager_invalidate zeroes BOTH, which is correct for ps2ui_tex_set and would have been the obvious thing to reach for.
+THE COST MODEL WAS WRONG IN THE FIRST DRAFT, in the direction that flatters. "1,024 bytes per CLUT" is what the plan implies and what the first version of the check asserted; gsKit keeps a palette copy PER TEXTURE, so the cost scales with textures sharing the index. opl-env's CLUT 0 has eight.
+Seven moved, not eight, and the difference is the better half of the finding: ps2ui_render binds only what it DRAWS, so a swap is lazy and pay-per-use -- textures not on screen re-transfer when they are first drawn. That was not designed, it falls out of binding at draw time, and it means a theme swap costs in proportion to what is visible rather than to what is baked.
+ORDERING IS ENFORCED RATHER THAN DOCUMENTED. clut_set before ps2ui_upload is refused. The first draft of the header said it was safe; the byte test falsified that immediately, because upload memsets every GSTEXTURE and re-permutes every CLUT from the blob, so an early swap vanishes with no error and the caller sees baked colours. Losing a call silently is the worse failure.
+
+*#70*
 

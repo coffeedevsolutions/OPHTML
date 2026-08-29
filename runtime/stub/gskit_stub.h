@@ -61,6 +61,13 @@ typedef struct stub_state {
     int n_binds;        /* every bind call, resident or not */
     int n_invalidates;  /* residency dropped by hand -- what tex_set does
                          * so a swapped buffer is actually re-read */
+    /* Bytes, split by kind, because P3b's whole claim is that a theme
+     * swap moves a palette and not an atlas. A count of transfers
+     * cannot tell those apart -- both are one transfer -- so a check
+     * built on n_transfers would pass whether 1 KiB moved or 165. */
+    unsigned long b_texel;   /* texel bytes sent */
+    unsigned long b_clut;    /* CLUT bytes sent  */
+
     int n_transfers;    /* pixel transfers only; the "uploaded once" count */
     /* Uploads whose pixel data or CLUT was not fully covered by a
      * preceding writeback. Any value but zero is a console bug. */
