@@ -313,7 +313,16 @@ def main():
                      ("gs_peak", "the worst frame is back to being an ee "
                                  "peak paired with a gs mean, which is a "
                                  "lower bound and not a reading")):
-        if not re.search(r">\s*%s\s*\)" % var, block):
+        # BOTH HALVES, tied by a backreference so it is the same
+        # variable on each side. The rule before this one matched the
+        # assignment and missed the declaration; its replacement matched
+        # the comparison and missed the assignment -- the mirror image,
+        # introduced while fixing the original. `if (gsu > gs_peak)
+        # ee_n++;` and `if (ee > ee_peak) ee_peak = 0;` both compile
+        # clean and both print ^0.00 forever, which is the same
+        # silent-zero failure the fill arm exists to catch on gs.
+        if not re.search(r"if\s*\(\s*(\w+)\s*>\s*%s\s*\)\s*%s\s*=\s*\1\s*;"
+                         % (var, var), block):
             fail.append("no peak-hold on %s; %s" % (var[:2], why))
 
     # miss_at, because `m` alone says how many and never when -- and the
@@ -328,6 +337,30 @@ def main():
     elif not re.search(r"if\s*\(\s*!\s*missed\s*\)\s*miss_at\s*=", block):
         fail.append("miss_at is not latched to the FIRST miss, so a later "
                     "one overwrites the only evidence about the earliest")
+
+    # EVERY NUMBER HAS TO REACH THE READOUT.
+    #
+    # This file checked each figure where it is ACCUMULATED and never
+    # where it is PRINTED, so a value could be computed correctly and
+    # then dropped on the way to the screen with every rule still green.
+    # miss_at is where that bites hardest -- replacing its sprintf
+    # argument with a literal 0 makes the bench read `m1@0` on every
+    # run, which is exactly the string the runbook documents as a boot
+    # transient. A build that silently lost the index would have been
+    # indistinguishable from the one condition the index was added to
+    # detect. The whole value of these numbers is that a person can read
+    # them off a photograph.
+    printed = "".join(re.findall(r"sprintf\s*\(\s*telem[^;]*;", block, re.S))
+    for var, role in (("ee_us", "the EE mean"),
+                      ("gs_us", "the GS mean"),
+                      ("ee_pk_us", "the EE peak"),
+                      ("gs_pk_us", "the GS peak"),
+                      ("fld_us", "the frame period"),
+                      ("missed", "the dropped-field count"),
+                      ("miss_at", "the frame index of the first miss")):
+        if not re.search(r"\b%s\b" % var, printed):
+            fail.append("%s (%s) is computed but never reaches the readout, "
+                        "so it cannot be read off a photograph" % (var, role))
 
     # F-034's falsifier is "any dropped field", and a 60-frame mean can
     # only be read for that indirectly and only while the drop is
@@ -358,6 +391,7 @@ def main():
     print("ok - and the driver does not arm a second FINISH token")
     print("ok - ee and gs both carry a peak-hold beside the mean")
     print("ok - and a dropped field records when, not only how many")
+    print("ok - and every figure computed actually reaches the readout")
     print("ok - and the fill arm still draws what it promises, under the UI")
     print("ok - one FINISH token per frame, on the oneshot queue")
     return 0

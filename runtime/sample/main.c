@@ -1679,7 +1679,18 @@ int main(void)
                  * count. One number, and the next sitting can at least
                  * rule out or confirm the boot transient. */
                 if (loop > EE_HZ / 60u + EE_HZ / 600u) {
-                    if (!missed) miss_at = frame;
+                    /* frame - 1, because `loop` is the duration of the
+                     * PREVIOUS iteration: at frame F it measures frame
+                     * F-1's work. Recording `frame` would have made a
+                     * cold-start overrun print @1, while the runbook
+                     * documents @0 as the boot-transient signal -- so
+                     * the one value the field exists to show would have
+                     * been unreachable, and the bench would have read
+                     * @1 as "not the cold start", the opposite of the
+                     * truth. The check inside `if (frame)` also means
+                     * frame is never 0 here, so the subtraction cannot
+                     * underflow. */
+                    if (!missed) miss_at = frame - 1;
                     missed++;
                 }
             }

@@ -206,7 +206,7 @@ f16.68 p599 up28224 m1@0
 | `ee` | mean EE work per frame, ms |
 | `gs` | **GIF transfer + GS drawing**, ms, measured after `gsKit_finish()` returns |
 | `^` | **peak** of the preceding number over the last second |
-| `m1@0` | one field missed, first at frame 0 |
+| `m1@0` | one field missed; the frame that overran was **0** |
 
 Both numbers carry a peak because **the two spikes coincide**: the
 scroll frame does the bind work on the EE *and* pushes 28,224 bytes
@@ -215,8 +215,13 @@ An `ee` peak paired with a `gs` mean is a lower bound, not a reading.
 
 `m` alone says how many and never when, which is how HW #262's single
 miss got an explanation that was wrong by a factor of seven with
-nothing able to check it. `@` is the frame index of the **first** miss;
-a later one cannot overwrite it.
+nothing able to check it. `@` is the index of the frame **whose work
+overran**, for the first miss only; a later one cannot overwrite it.
+
+The counter measures the period *ending* at frame F, which is frame
+F−1's work, so the driver records `frame - 1`. A cold-start overrun
+therefore prints `@0` — which is what this table says, and would not
+have been reachable at all if the raw index were used.
 
 `gs` is not drawing alone. `dmaKit_send_chain_ucab` programs the DMA
 registers and returns, so the chain is still moving when the clock
