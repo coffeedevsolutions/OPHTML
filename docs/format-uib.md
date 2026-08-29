@@ -6,14 +6,15 @@ parsing, no allocation, and no packing pragmas (every u32 sits at a
 4-aligned offset).
 
 ```
-offset 0            header        76 bytes
-header.off_tex      tex table     n_tex   × 16 bytes
+offset 0            header        84 bytes
+header.off_tex      tex table     n_tex   × 20 bytes
 header.off_clut     clut table    n_clut  ×  8 bytes
 header.off_cmd      command list  n_cmd   × 32 bytes
 header.off_focus    focus table   n_focus × 24 bytes
 header.off_font     font table    n_font  × 24 bytes
-header.off_slot     slot table    n_slot  × 32 bytes
+header.off_slot     slot table    n_slot  × 28 bytes
 header.off_screen   screen table  n_screen × 24 bytes (always ≥ 1)
+header.off_tint     tint table    n_theme × n_tint × 4 bytes (n_theme ≥ 1)
 header.off_blob     blob          header.blob_len bytes
 ```
 
@@ -28,13 +29,13 @@ can rewrite tables without re-basing data pointers.
 > every texture arrives shifted. The runtime refuses such a file with
 > `PS2UI_ERR_ALIGN`; `ps2ui-check` asserts the same property offline.
 
-## Header (76 bytes)
+## Header (84 bytes)
 
 | off | type | field         | notes                          |
 |-----|------|---------------|--------------------------------|
 | 0   | u32  | magic         | `0x31424955` — "UIB1"          |
-| 4   | u16  | version       | 5                              |
-| 6   | u16  | feature_flags | bit 0 = dynamic text, bit 1 = kerning, bit 2 = slot letter-spacing, bit 3 = streamed textures; a reader that sees a bit it does not know MUST reject the file |
+| 4   | u16  | version       | 7                              |
+| 6   | u16  | feature_flags | bit 0 = dynamic text, bit 1 = kerning, bit 2 = slot letter-spacing, bit 3 = streamed textures, bit 4 = role-keyed tints; a reader that sees a bit it does not know MUST reject the file |
 | 8   | u16  | canvas_w      | 640 for NTSC                   |
 | 10  | u16  | canvas_h      | 448 (NTSC) / 512 (PAL)         |
 | 12  | u16  | n_tex         |                                |
@@ -48,10 +49,13 @@ can rewrite tables without re-basing data pointers.
 | 54  | u16  | n_slot        | dynamic-text slots             |
 | 56  | u32×2| off_font, off_slot |
 | 64  | u16  | n_screen      | ≥ 1 — every file has a screen table |
-| 66  | u16  | pad           |                                |
+| 66  | u16  | n_tint        | colours per theme row          |
 | 68  | u32  | off_screen    |                                |
-| 72  | u16  | display_aspect_num | panel aspect numerator, e.g. 16 |
-| 74  | u16  | display_aspect_den | denominator, e.g. 9        |
+| 72  | u32  | off_tint      |                                |
+| 76  | u16  | n_theme       | ≥ 1 — a themeless UI is one row, not zero |
+| 78  | u16  | pad           |                                |
+| 80  | u16  | display_aspect_num | panel aspect numerator, e.g. 16 |
+| 82  | u16  | display_aspect_den | denominator, e.g. 9        |
 
 **Display aspect.** The framebuffer is a pixel grid; the television
 decides how wide it is drawn, and on this hardware the two disagree
@@ -149,10 +153,23 @@ CLUT reads in palette order.
 | 6   | i16  | y       |                                             |
 | 8   | u16  | w       |                                             |
 | 10  | u16  | h       |                                             |
-| 12  | u8×4 | r g b a | vertex color, see domain note below         |
+| 12  | u16  | tint    | index into the live theme's tint row        |
+| 14  | u16  | tint_focus | same, while `focus` is the focused node  |
 | 16  | u16  | tex     | texture index (TEXQUAD), else `0xFFFF`      |
 | 18  | u16×4| u0 v0 u1 v1 | texel source rect, u1/v1 exclusive      |
 | 26  | u8×6 | pad     |                                             |
+
+Both index fields are meaningful only for QUAD and TEXQUAD. A scissor
+command has no colour; readers must not require its indices to be in
+range, and writers should put zero there.
+
+`tint_focus` lets one command change colour when its own node takes
+focus, instead of the UI carrying two commands and their scissor
+context. It is format headroom the two freed colour bytes paid for:
+the current baker writes `tint_focus == tint` everywhere, because no
+CSS path yet expresses it. The runtime honours it regardless, and
+`test_runtime` exercises it against a hand-patched blob rather than
+leaving a field nothing reads.
 
 **Color domain note.** Alpha is always in the GS 0–128 domain (0x80 =
 opaque). RGB depends on the op: a **QUAD** is flat-shaded, so `r g b`
@@ -238,7 +255,7 @@ same string can therefore cut one glyph differently between a baked
 placeholder and the same text set at runtime. Both results fit the box;
 the runtime's version is the one a player sees.
 
-## Slot entry (32 bytes) — dynamic text
+## Slot entry (28 bytes) — dynamic text
 
 | off | type | field           | notes                              |
 |-----|------|-----------------|------------------------------------|
@@ -252,9 +269,9 @@ the runtime's version is the one a player sees.
 | 17  | u8   | flags           | bit 0 = ellipsize overflow         |
 | 18  | u16  | capacity        | max runtime bytes                  |
 | 20  | u16  | focus           | focus index or `0xFFFF`            |
-| 22  | u8×4 | color_base      | modulate domain, like any TEXQUAD  |
-| 26  | u8×4 | color_focus     |                                    |
-| 30  | i16  | letter_spacing  | px per glyph junction; feature bit 2 |
+| 22  | u16  | tint_base       | index into the live theme's tint row |
+| 24  | u16  | tint_focus      | same, while this slot's node is focused |
+| 26  | i16  | letter_spacing  | px per glyph junction; feature bit 2 |
 
 The runtime (`ps2ui_slot_set`) copies app strings into fixed per-slot
 buffers and composes glyph quads per frame: advance walk, optional
@@ -298,11 +315,68 @@ authored as an overlay is an ordinary screen whose background is a
 translucent scrim; the format needs no flag for it and has none. See
 the runtime contract on `ps2ui_render` in `runtime/ps2ui.h`.
 
+## Tint table (n_theme × n_tint × 4 bytes)
+
+| off | type | field   | notes                    |
+|-----|------|---------|--------------------------|
+| 0   | u8   | r       |                          |
+| 1   | u8   | g       |                          |
+| 2   | u8   | b       |                          |
+| 3   | u8   | a       | GS 0–128 domain, always  |
+
+**Theme-major.** One theme's colours are `n_tint` contiguous entries,
+so selecting a theme is a pointer add rather than a strided walk, and
+the row a draw reads is `off_tint + theme × n_tint × 4`.
+
+**A themeless UI has one row, not zero.** Every painting command and
+every slot indexes a tint; a format where some commands carry colour
+inline and others index a table would put a branch on every draw to
+save four bytes in a file. `n_theme == 0` is refused.
+
+**Why a table rather than colour in the command.** A UI's colour is a
+small set repeated thousands of times. Measured on the shipped blobs:
+
+| blob      | painting commands | slots | distinct colours |
+|-----------|-------------------|-------|------------------|
+| opl-env   | 1244              | 127   | 12               |
+| channel6  | 873               | 15    | 33               |
+| memcard   | 776               | 6     | 9                |
+
+So recolouring a UI is rewriting 48 to 132 bytes, not walking a
+thousand primitives. `ps2ui-check` asserts the ratio (`4 × n_tint <
+paintings`) on every blob it validates, because a baker change that
+stopped deduping would leave every other check green: every index
+would still resolve and every colour would still be right.
+
+**Feature bit 4, role-keyed tints.** Indices may be keyed either on the
+resolved colour or on the authored declaration. Value-keying collapses
+two unrelated declarations that happen to share a colour into one
+entry — in opl-env `#7c9be0` is written by nine separate declarations —
+and no second theme can then tell them apart: recolouring the focus
+ring would move eight other things with it, plausibly, with no
+diagnostic. That is harmless with **one** theme, because there is
+nothing to diverge into, and the current baker keys on the value and
+therefore does not set the bit.
+
+So the bit is not "role-keying is nice"; it is the precondition for
+`n_theme > 1`. `ps2ui_load` returns `PS2UI_ERR_TINTS` for more than one
+theme without it, and the Python reader raises. Refusing beats
+documenting here: the wrong render would look deliberate.
+
 ## Versioning
 
 `version` bumps on any incompatible change. Readers must reject unknown
 versions (the runtime and the Python reader both do).
 
+- **v7** — the tint table. Commands and slots hold u16 indices where
+  they held rgba bytes, and the header grew `off_tint`, `n_theme` and
+  `n_tint` (taking the u16 that was already pad after `n_screen`).
+  Feature bit 4 was assigned for role-keyed tints. The command entry
+  did **not** change size: four colour bytes became two indices and the
+  two that freed went into `tint_focus`, inside padding that already
+  existed to reach two qwords. The slot entry **shrank**, 32 → 28,
+  because it carried no padding at all. Neither the stride nor the
+  meaning of a field survives a v6 reader, so this is a version bump.
 - **v6** — texture kinds. The texture entry grew from 16 to 20 bytes
   for `kind` and `name_off`, and feature bit 3 was assigned for
   streamed textures. A v5 reader would have walked the texture table at

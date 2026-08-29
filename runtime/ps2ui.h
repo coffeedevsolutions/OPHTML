@@ -34,7 +34,7 @@ extern "C" {
 /* ---- on-disk layout (little-endian, matches packages/baker/uib.py) ---- */
 
 #define PS2UI_MAGIC   0x31424955u /* "UIB1" */
-#define PS2UI_VERSION 6
+#define PS2UI_VERSION 7
 
 /* Feature bits. Unknown bits in a file are a load error — a blob that
  * needs a capability this runtime lacks must fail loudly, not render
@@ -46,8 +46,23 @@ extern "C" {
  * cannot fill one must refuse the file rather than draw a slot that
  * never receives texels. */
 #define PS2UI_FEAT_STREAMED_TEX (1u << 3)
+/* Tint indices are keyed on the AUTHORED DECLARATION, not on the
+ * resolved colour. Without it, two declarations that happen to share a
+ * value collapse into one entry and can never diverge -- in opl-env
+ * #7c9be0 is written by nine separate declarations, so a light theme
+ * would move the focus ring and eight unrelated things with it, with
+ * no diagnostic either way.
+ *
+ * That is harmless while there is ONE theme, because there is nothing
+ * to diverge into, and the current baker keys on value. So the bit is
+ * not "role-keying is nice"; it is the precondition for n_theme > 1,
+ * and ps2ui_load refuses that combination rather than documenting it.
+ * Role information needs the IR to carry each colour's declaration
+ * site, which is a layout change and not this slice. */
+#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)
 #define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \
-                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX)
+                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX \
+                              | PS2UI_FEAT_ROLE_TINTS)
 
 #define PS2UI_OP_QUAD          0
 #define PS2UI_OP_TEXQUAD       1
@@ -74,8 +89,19 @@ typedef struct ps2ui_header {
     uint32_t crc32;              /* whole file, this field zeroed */
     uint16_t n_font, n_slot;
     uint32_t off_font, off_slot;
-    uint16_t n_screen, pad0;
+    uint16_t n_screen, n_tint;
     uint32_t off_screen;
+    /* The tint table: n_theme x n_tint entries, THEME-MAJOR, so one
+     * theme's colours are contiguous and selecting one is a pointer
+     * add rather than a strided walk. Commands and slots store indices
+     * into a theme's row; ps2ui_theme_set moves which row is live.
+     *
+     * n_theme >= 1 always. A blob with no theming still has a table --
+     * one row, holding the colours the commands used to carry inline
+     * -- because a format where some commands are special is worse
+     * than one extra indirection. */
+    uint32_t off_tint;
+    uint16_t n_theme, pad0;
     /* The aspect the panel shows the framebuffer at, as an exact ratio.
      * The GS framebuffer is not square-pixel here even at 4:3, and PS2
      * widescreen is anamorphic: the same 640x448 grid stretched. Your
@@ -126,6 +152,12 @@ typedef struct ps2ui_tex_entry {
  * and the first string written to a blob lands there. */
 #define PS2UI_NAME_NONE 0xFFFFFFFFu
 
+/* One colour, in the domain the GS wants: alpha 0..128 (F-001),
+ * converted once at bake exactly as the inline bytes were. */
+typedef struct ps2ui_tint_entry {
+    uint8_t r, g, b, a;
+} ps2ui_tint_entry;
+
 typedef struct ps2ui_clut_entry {
     uint16_t ncolors, pad0;
     uint32_t data_off;
@@ -136,7 +168,20 @@ typedef struct ps2ui_cmd {
     uint16_t focus;           /* focus index or PS2UI_NONE */
     int16_t  x, y;
     uint16_t w, h;
-    uint8_t  r, g, b, a;      /* a already in the GS 0..128 domain */
+    /* Was r,g,b,a inline (a in the GS 0..128 domain). Now indices into
+     * the live theme's row of the tint table.
+     *
+     * The struct does not shrink: it is 32 bytes, and the four colour
+     * bytes are replaced by two indices that land in padding which
+     * existed to reach two qwords. That was worth checking rather than
+     * assuming -- an earlier draft of the design claimed 2.4-3.9 KB
+     * off every blob and the padding absorbs all of it.
+     *
+     * What the two freed bytes DO buy is tint_focus, which is why a
+     * focus recolour costs nothing here instead of being a later
+     * format move. ps2ui_slot_entry already had that shape. */
+    uint16_t tint;            /* index into the live theme's row */
+    uint16_t tint_focus;      /* same, while this command's focus is on */
     uint16_t tex;             /* texture index or PS2UI_NONE */
     uint16_t u0, v0, u1, v1;  /* texel rect */
     uint8_t  pad0[6];
@@ -196,8 +241,18 @@ typedef struct ps2ui_slot_entry {
     uint8_t  align, flags;
     uint16_t capacity;           /* max bytes of runtime text          */
     uint16_t focus;              /* focus index or PS2UI_NONE          */
-    uint8_t  color_base[4];      /* modulate domain, like every TEXQUAD */
-    uint8_t  color_focus[4];
+    /* Was color_base[4] and color_focus[4] inline. Indices now -- and
+     * THIS struct really does shrink, 32 to 28, because unlike
+     * ps2ui_cmd it carried no padding at all. Four real bytes per
+     * slot, 508 on opl-env's 127.
+     *
+     * Colour lives here as well as in commands, which the design
+     * missed for a revision: 4 of opl-env's 13 colours appear ONLY in
+     * slots -- every score, every source label, the dialog text. A
+     * theme reaching commands and not slots would leave all the
+     * running text baked. */
+    uint16_t tint_base;
+    uint16_t tint_focus;
     /* Was pad (always zero) until feature bit 2: CSS letter-spacing in
      * px, applied by the pen at every glyph junction alongside the
      * kern. Zero means what the zeros always meant. */
@@ -272,9 +327,19 @@ typedef struct ps2ui_ctx {
     const ps2ui_font_entry *fonts;
     const ps2ui_slot_entry *slots;
     const ps2ui_screen_entry *screen_table;
+    /* n_theme rows of n_tint entries, theme-major, pointing into the
+     * blob rather than the arena: the EE reads a tint at draw time to
+     * build an RGBAQ register, so it is never a DMA source and needs
+     * no permutation, no alignment beyond its own, and no copy. */
+    const ps2ui_tint_entry *tints;
 
     uint16_t  screen;                /* current screen index */
     uint16_t  focus;                 /* current focus index or PS2UI_NONE */
+    /* Which row of the tint table is live. Always 0 for now: a blob
+     * with more than one row is refused (PS2UI_ERR_TINTS) until tint
+     * indices are keyed on the declaration rather than the value, and
+     * the setter that moves this arrives with that. */
+    uint16_t  theme;
 
     /* Everything below points into the caller's arena, carved by
      * ps2ui_load in descending alignment order (see arena_layout in
@@ -328,6 +393,7 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_SIZE       -11 /* tex_set payload is not the reservation */
 #define PS2UI_ERR_RANGE      -12 /* clut_set index past n_clut             */
 #define PS2UI_ERR_STATE      -13 /* clut_set before ps2ui_upload            */
+#define PS2UI_ERR_TINTS      -14 /* n_theme > 1 without PS2UI_FEAT_ROLE_TINTS */
 
 /* The arena's required alignment. The CLUT region at its start is a
  * DMA source, and DMA source addresses truncate silently below qword
