@@ -335,10 +335,16 @@ typedef struct ps2ui_ctx {
 
     uint16_t  screen;                /* current screen index */
     uint16_t  focus;                 /* current focus index or PS2UI_NONE */
-    /* Which row of the tint table is live. Always 0 for now: a blob
-     * with more than one row is refused (PS2UI_ERR_TINTS) until tint
-     * indices are keyed on the declaration rather than the value, and
-     * the setter that moves this arrives with that. */
+    /* Which row of the tint table is live. Read it freely; write it
+     * through ps2ui_theme_set, which is what bounds it against
+     * n_theme -- ps2ui_render indexes the table by this value and
+     * does not re-check, exactly as it does not re-check `screen`.
+     *
+     * Still 0 on every blob this toolchain can currently bake, since
+     * more than one row needs PS2UI_FEAT_ROLE_TINTS and no baker sets
+     * it yet. That is a fact about the baker, not about the runtime:
+     * a hand-written two-row blob loads, switches and renders today,
+     * and test_runtime builds one to prove it. */
     uint16_t  theme;
 
     /* Everything below points into the caller's arena, carved by
@@ -527,6 +533,40 @@ int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
  * PS2UI_ERR_STATE if called before ps2ui_upload. */
 int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,
                    const void *colors, unsigned ncolors);
+
+/* Select which row of the tint table commands and slots index into.
+ *
+ * NO GSGLOBAL, AND THAT ASYMMETRY IS THE POINT. Unlike ps2ui_clut_set
+ * this touches no texture state and schedules no transfer: it moves a
+ * pointer the next ps2ui_render reads while replaying. One of these
+ * two theming calls sends bytes to the GS and the other does not, and
+ * a caller should not have to infer which from the signature alone.
+ *
+ * The consequences of that difference, stated rather than left to be
+ * discovered:
+ *
+ *   - Callable BEFORE ps2ui_upload. clut_set is refused there because
+ *     upload re-permutes every palette from the blob and would
+ *     silently overwrite the swap; there is nothing here for upload to
+ *     overwrite, so selecting a theme at boot is theme_set then
+ *     upload, or upload then theme_set, either way.
+ *   - It SURVIVES an upload, including a second one. clut_set does
+ *     not [F-041]. If an app uses both mechanisms, do the CLUT swap
+ *     last.
+ *   - It takes effect on the next render, not on the next bind.
+ *
+ * MOST BLOBS HAVE EXACTLY ONE ROW, so theme_set(ctx, 0) is the only
+ * legal call and is a no-op. That is not a placeholder API: a blob
+ * with more rows needs PS2UI_FEAT_ROLE_TINTS, which says its indices
+ * are keyed on the authored declaration rather than the resolved
+ * colour, and ps2ui_load refuses the combination without it. The
+ * refusal lives in load so that a UI which cannot be recoloured
+ * correctly fails to open rather than switching to a theme that moves
+ * nine unrelated things together.
+ *
+ * Returns PS2UI_OK, or PS2UI_ERR_RANGE if theme is at or past
+ * n_theme. */
+int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme);
 
 /* Replay the current screen's command list for the current focus state.
  *

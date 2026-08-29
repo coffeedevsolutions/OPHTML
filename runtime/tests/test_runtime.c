@@ -3279,6 +3279,174 @@ int main(int argc, char **argv)
         }
     }
 
+    /* ---- P3b-2: ps2ui_theme_set ----
+     *
+     * The refusals first, on the ordinary one-row blob, then a blob
+     * that actually HAS a second row -- built here by byte surgery,
+     * because no baker can write one yet and a switch nothing can
+     * exercise is a switch nobody has tested. */
+    {
+        CHECK(ps2ui_theme_set(NULL, 0) == PS2UI_ERR_BOUNDS,
+              "theme_set refuses a null context");
+        CHECK(ps2ui_theme_set(&ctx, 0) == PS2UI_OK,
+              "theme 0 is always selectable: every blob has one row");
+        CHECK(ps2ui_theme_set(&ctx, 1) == PS2UI_ERR_RANGE,
+              "and a row past n_theme is refused by name");
+        CHECK(ctx.theme == 0,
+              "a refused theme_set leaves the live row where it was, "
+              "rather than half-applying an index it just rejected");
+    }
+    {
+        /* Callable BEFORE upload, which is the asymmetry with
+         * clut_set worth a check rather than a sentence: that one is
+         * refused early because upload would overwrite the pool, and
+         * this one has nothing for upload to overwrite. A regression
+         * that copied clut_set's guard over would be invisible to
+         * every other check here. */
+        ps2ui_ctx ec;
+        static uint8_t earena[1 << 20];
+        if (ps2ui_load(&ec, blob, len, earena, sizeof earena) == PS2UI_OK)
+            CHECK(ps2ui_theme_set(&ec, 0) == PS2UI_OK,
+                  "theme_set works before ps2ui_upload, where clut_set "
+                  "is refused -- it schedules no transfer, so there is "
+                  "nothing an upload could overwrite");
+        else
+            CHECK(0, "the pre-upload theme fixture loads");
+    }
+    {
+        /* A REAL SECOND ROW. The tint table is the last table before
+         * the blob, so a row can be inserted at its end: everything
+         * after it moves by delta and off_blob is the only offset that
+         * has to follow. delta is padded to a multiple of 16 because
+         * the blob section's file offset is qword-aligned and a DMA
+         * source that loses that alignment is truncated rather than
+         * faulted -- the F-013 fault class, which this test would
+         * otherwise walk straight into.
+         *
+         * Row 1 is row 0 ROTATED BY ONE. Every value is therefore a
+         * colour the blob already contains, so this cannot fail for a
+         * domain reason, and the row differs from row 0 whenever the
+         * table holds two distinct entries -- asserted below rather
+         * than assumed. */
+        uint16_t n_tint = ctx.hdr->n_tint;
+        uint32_t rowb = (uint32_t)n_tint * 4u;
+        uint32_t delta = rowb + ((16u - (rowb % 16u)) % 16u);
+        size_t nlen = len + delta;
+        uint8_t *two = malloc(nlen);
+        uint32_t ins = ctx.hdr->off_tint + rowb;
+        ps2ui_header *h2;
+        const ps2ui_tint_entry *r0 = ctx.tints;
+        int distinct = 0;
+        uint16_t t;
+
+        for (t = 0; t < n_tint; t++) {
+            const ps2ui_tint_entry *a = &r0[t];
+            const ps2ui_tint_entry *b = &r0[(t + 1u) % n_tint];
+            if (a->r != b->r || a->g != b->g || a->b != b->b || a->a != b->a)
+                distinct = 1;
+        }
+        CHECK(n_tint >= 2 && distinct,
+              "the fixture's palette holds at least two different "
+              "colours, so a rotated second row is actually a second "
+              "theme and not a copy");
+
+        memcpy(two, blob, ins);
+        memset(two + ins, 0, delta);
+        for (t = 0; t < n_tint; t++)
+            ((ps2ui_tint_entry *)(two + ins))[t] = r0[(t + 1u) % n_tint];
+        memcpy(two + ins + delta, blob + ins, len - ins);
+
+        h2 = (ps2ui_header *)two;
+        h2->n_theme = 2;
+        h2->off_blob += delta;
+        h2->feature_flags |= PS2UI_FEAT_ROLE_TINTS;
+        recrc(two, nlen);
+
+        {
+            ps2ui_ctx tc;
+            GSGLOBAL tgs;
+            static uint8_t tarena[1 << 20];
+            int loaded;
+
+            memset(&tgs, 0, sizeof tgs);
+            tgs.CurrentPointer = 16;
+            stub_reset();
+            loaded = ps2ui_load(&tc, two, nlen, tarena, sizeof tarena)
+                     == PS2UI_OK
+                     && ps2ui_upload(&tc, &tgs) == PS2UI_OK;
+            CHECK(loaded,
+                  "A TWO-ROW BLOB LOADS when it declares role-keyed "
+                  "tints. The v7 check for this used a blob whose "
+                  "second row did not exist, so it could only assert "
+                  "that ERR_TINTS was not the answer; this one has the "
+                  "row and gets all the way to a frame");
+
+            if (loaded) {
+                u64 sig0 = 0, sig1 = 0, sig0b = 0;
+                int j;
+
+                CHECK(tc.theme == 0,
+                      "and it opens on row 0, not on whichever row the "
+                      "header happens to name last");
+
+                stub_reset_keep_tm();
+                ps2ui_render(&tc, &tgs);
+                for (j = 0; j < g_stub.n_prims; j++)
+                    sig0 ^= g_stub.prims[j].color * (u64)(j + 1);
+
+                CHECK(ps2ui_theme_set(&tc, 1) == PS2UI_OK,
+                      "theme_set reaches the second row");
+                stub_reset_keep_tm();
+                ps2ui_render(&tc, &tgs);
+                for (j = 0; j < g_stub.n_prims; j++)
+                    sig1 ^= g_stub.prims[j].color * (u64)(j + 1);
+
+                CHECK(sig0 != sig1,
+                      "A THEME SWITCH CHANGES WHAT THE GS IS TOLD TO "
+                      "DRAW. The whole point of the table: no upload, "
+                      "no bind, no transfer -- one pointer moves and "
+                      "the next frame is a different colour");
+
+                CHECK(ps2ui_theme_set(&tc, 2) == PS2UI_ERR_RANGE,
+                      "a third row is refused on a two-row blob, so the "
+                      "bound is n_theme and not a constant");
+
+                /* Back again. A switch that only worked forwards would
+                 * pass everything above -- and would be a UI you can
+                 * put into a theme but not out of. */
+                CHECK(ps2ui_theme_set(&tc, 0) == PS2UI_OK,
+                      "and the switch goes back");
+                stub_reset_keep_tm();
+                ps2ui_render(&tc, &tgs);
+                for (j = 0; j < g_stub.n_prims; j++)
+                    sig0b ^= g_stub.prims[j].color * (u64)(j + 1);
+                CHECK(sig0b == sig0,
+                      "returning to row 0 draws exactly what row 0 drew: "
+                      "selecting a theme is a selection, not a mutation");
+            }
+        }
+        {
+            /* THE REFUSAL, against a blob that really has two rows.
+             * Same bytes, bit cleared. This is what the format check
+             * is for and the only version of it that could not pass
+             * for an unrelated reason. */
+            ps2ui_ctx bc;
+            static uint8_t barena[1 << 20];
+            uint8_t *nb = malloc(nlen);
+            memcpy(nb, two, nlen);
+            ((ps2ui_header *)nb)->feature_flags &= (uint16_t)~PS2UI_FEAT_ROLE_TINTS;
+            recrc(nb, nlen);
+            CHECK(ps2ui_load(&bc, nb, nlen, barena, sizeof barena)
+                      == PS2UI_ERR_TINTS,
+                  "and the same two rows without the bit are refused: "
+                  "value-keyed indices cannot tell two declarations "
+                  "that share a colour apart, so a second row would "
+                  "recolour things nobody asked for");
+            free(nb);
+        }
+        free(two);
+    }
+
 report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
