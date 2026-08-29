@@ -127,6 +127,61 @@ unused. F-036.
 
 ---
 
+## P3a — reading the GS's share
+
+Two ELFs from the same run: `oplenv.elf` and `oplenv-fill.elf`. They
+are the same driver; the second adds eight full-screen alpha-blended
+sprites per frame.
+
+The readout gains a second line:
+
+```
+ee2.21^3.94 gs9.12
+f16.68 ms p579 up28224 m0
+```
+
+| field | is |
+|---|---|
+| `ee` | mean EE work per frame |
+| `^` | **peak** EE frame in the last second — the scroll frame, which the mean smears |
+| `gs` | GS draw time, measured after `gsKit_finish()` returns |
+
+**Photograph both ELFs.** One number is not the reading; the pair is.
+
+| | plain | fill | verdict |
+|---|---|---|---|
+| `gs` | *g* | noticeably **higher** | the instrument works, and *g* is the GS's real share |
+| `gs` | *g* | **the same** | **STOP.** The reading is worthless — see below |
+| `gs` | 0.00 | 0.00 | **STOP.** Latched, certainly |
+
+### Why the fill ELF is not optional
+
+`gsKit_finish()` spins on CSR FINISH and does not clear it; gsKit
+clears it on the next frame's kick. If that bit is ever left latched,
+every wait returns instantly and `gs` reads **0.00 ms on every frame,
+forever** — which is indistinguishable from an idle GS.
+
+An idle GS is the answer the plan already expects. So a broken
+instrument here does not produce an obviously wrong number; it produces
+**the number we were expecting**, and Phase 3 gets planned on it. That
+is why the arm exists and why a `gs` reading without its matching fill
+photograph does not go in the ledger.
+
+If both ELFs report the same `gs`, the instrument is latched **or** the
+fill arm is drawing nothing. Those want opposite fixes and the
+photograph cannot tell them apart, which is why
+`tools/check-timing-probe.py` refuses a fill arm that does not loop and
+draw.
+
+### Optional, and worth it
+
+`PS2UI_OPLENV_FILL_N` is overridable at build time. A sweep — 2, 4, 8,
+16 sprites — that moves `gs` roughly proportionally is far stronger
+evidence than a single step: it says the number tracks fill, not that
+it merely changed once.
+
+---
+
 ## What Phase 2 did not measure
 
 **The GS's share of the field.** Not GS time outright: `gsKit_queue_exec`

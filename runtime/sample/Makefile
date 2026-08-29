@@ -68,6 +68,13 @@ endif
 ifdef OPLENV
 EE_CFLAGS += -DPS2UI_SAMPLE_OPLENV
 endif
+# P3a's falsification arm. Paired with OPLENV, never alone: it is the
+# same driver with enough full-screen blending added to force the GS
+# number to move. Two ELFs, one difference, and the pair is the
+# evidence -- a GS reading with no arm that moves it is a hope.
+ifdef FILL
+EE_CFLAGS += -DPS2UI_OPLENV_FILL
+endif
 
 ifdef LADDER2
 EE_CFLAGS += -DPS2UI_SAMPLE_LADDER2
