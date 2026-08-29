@@ -100,6 +100,14 @@ syntax-check:
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL"
+# And one sweep point, so -DPS2UI_OPLENV_FILL_N is not a define only the
+# ps2dev toolchain ever sees. The code path is identical, which is why
+# this is close to noise -- but that is exactly the argument that would
+# have left OPLENV+FILL out of this list too.
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL -DPS2UI_OPLENV_FILL_N=16 \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_OPLENV_FILL_N=16"
 
 # Source-level, because the property it guards is an ORDERING and the
 # compiler has no opinion about it: the opl-env driver's frame timer

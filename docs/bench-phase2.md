@@ -197,15 +197,31 @@ sprites per frame.
 The readout gains a second line:
 
 ```
-ee2.21^3.94 gs9.12
-f16.68 ms p579 up28224 m0
+ee2.41^3.66 gs0.93^1.08
+f16.68 p599 up28224 m1@0
 ```
 
 | field | is |
 |---|---|
-| `ee` | mean EE work per frame |
-| `^` | **peak** EE frame in the last second — the scroll frame, which the mean smears |
-| `gs` | **GIF transfer + GS drawing**, measured after `gsKit_finish()` returns |
+| `ee` | mean EE work per frame, ms |
+| `gs` | **GIF transfer + GS drawing**, ms, measured after `gsKit_finish()` returns |
+| `^` | **peak** of the preceding number over the last second |
+| `m1@0` | one field missed; the frame that overran was **0** |
+
+Both numbers carry a peak because **the two spikes coincide**: the
+scroll frame does the bind work on the EE *and* pushes 28,224 bytes
+through the same chain, so it is the worst frame on both axes at once.
+An `ee` peak paired with a `gs` mean is a lower bound, not a reading.
+
+`m` alone says how many and never when, which is how HW #262's single
+miss got an explanation that was wrong by a factor of seven with
+nothing able to check it. `@` is the index of the frame **whose work
+overran**, for the first miss only; a later one cannot overwrite it.
+
+The counter measures the period *ending* at frame F, which is frame
+F−1's work, so the driver records `frame - 1`. A cold-start overrun
+therefore prints `@0` — which is what this table says, and would not
+have been reachable at all if the raw index were used.
 
 `gs` is not drawing alone. `dmaKit_send_chain_ucab` programs the DMA
 registers and returns, so the chain is still moving when the clock
@@ -245,18 +261,53 @@ photograph cannot tell them apart, which is why
 `tools/check-timing-probe.py` refuses a fill arm that does not loop and
 draw.
 
+### A prediction to falsify, written before the reading
+
+F-037 predicts **`gs^` between 0.95 and 1.15** against a 0.93 mean.
+28,224 bytes is 0.024 ms on the DMA path and 0.188 ms EE-inline, and
+the HW #262 `up0`-vs-`up28224` mean difference implies about 0.3 ms per
+upload frame. That is 2 to 20 print units above the mean — readable.
+
+**A `gs^` sitting on the mean falsifies the upload-cost story**, and
+would say the scroll frame's transfer is not where the time goes.
+
+For `m`, the useful reading is `@`. If the miss is at a low frame
+index it is a boot transient and the steady state is clean; if it is
+mid-run, something in the scroll path occasionally costs a whole field
+and that is a defect, not a curiosity. Either way the count alone could
+not have told you.
+
 ### Optional, and worth it
 
-`PS2UI_OPLENV_FILL_N` is overridable at build time. A sweep — 2, 4, 8,
-16 sprites — that moves `gs` roughly proportionally is far stronger
-evidence than a single step: it says the number tracks fill, not that
-it merely changed once.
+**The sweep ships as ELFs now** — `oplenv-fill2`, `-fill4`,
+`-fill` (8), `-fill16` — so it costs four boots rather than a
+toolchain.
 
-Build it with **both** flags: `make -C runtime/sample OPLENV=1 FILL=1
-PS2UI_OPLENV_FILL_N=16 …`. `FILL=1` alone is refused by the Makefile,
-because without `OPLENV=1` it quietly produces the plain memcard sample
-under the fill ELF's name — a file that boots, shows a UI, and is not
-the arm you think you are holding.
+One step proves the number is not latched. **Proportionality proves it
+is measuring fill**, which is a stronger claim: a latched or
+mis-anchored clock can produce a non-zero constant, but it cannot
+produce a straight line through four points.
+
+Predicted from HW #262's 0.93 ms baseline and its measured 1.002
+Gpix/s, written down before the sitting:
+
+| build | sprites | blended px | predicted `gs` |
+|---|---|---|---|
+| `oplenv` | 0 | 0 | 0.93 |
+| `oplenv-fill2` | 2 | 573,440 | **1.50** |
+| `oplenv-fill4` | 4 | 1,146,880 | **2.07** |
+| `oplenv-fill` | 8 | 2,293,760 | **3.22** |
+| `oplenv-fill16` | 16 | 4,587,520 | **5.51** |
+
+Photograph each. **A reading that lands on the line is the instrument
+confirmed against the hardware four times over.** A curve that flattens
+at the top would say something else is saturating — bus, not fill —
+and is worth having either way.
+
+`FILL=1` alone is refused by the Makefile: without `OPLENV=1` it
+quietly produces the plain memcard sample under the fill ELF's name — a
+file that boots, shows a UI, and is not the arm you think you are
+holding.
 
 ---
 

@@ -414,6 +414,19 @@ jobs:
           make -C runtime/sample objclean
           make -C runtime/sample OPLENV=1 FILL=1 \
             UIB=../../examples/opl-env/build/ui.uib EE_BIN=oplenv-fill.elf
+          # The sweep. One step proves the number is not latched;
+          # PROPORTIONALITY proves it is measuring fill, which a
+          # mis-anchored clock cannot fake. Predicted gs at HW #262's
+          # 0.93 ms baseline, from the measured 1.002 Gpix/s:
+          #   N=2  ~1.50   N=4  ~2.07   N=8  ~3.22   N=16 ~5.51
+          # Written here before the sitting so the bench falsifies a
+          # prediction rather than describing a curve.
+          for n in 2 4 16; do
+            make -C runtime/sample objclean
+            make -C runtime/sample OPLENV=1 FILL=1 FILL_N=$n \
+              UIB=../../examples/opl-env/build/ui.uib \
+              EE_BIN=oplenv-fill$n.elf
+          done
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -423,6 +436,9 @@ jobs:
           test -f runtime/sample/probe6-linear.elf
           test -f runtime/sample/oplenv.elf
           test -f runtime/sample/oplenv-fill.elf
+          test -f runtime/sample/oplenv-fill2.elf
+          test -f runtime/sample/oplenv-fill4.elf
+          test -f runtime/sample/oplenv-fill16.elf
           test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
           test -f runtime/sample/testcard.elf
@@ -459,6 +475,9 @@ jobs:
             runtime/sample/ladder2.elf
             runtime/sample/oplenv.elf
             runtime/sample/oplenv-fill.elf
+            runtime/sample/oplenv-fill2.elf
+            runtime/sample/oplenv-fill4.elf
+            runtime/sample/oplenv-fill16.elf
 
   emulator:
     needs: [bake, elf]

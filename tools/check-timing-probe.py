@@ -294,11 +294,92 @@ def main():
         fail.append("the driver switches to GS_PERSISTENT, which puts a "
                     "second FINISH token per frame in the chain")
 
-    # The peak-hold, which is what makes the scroll frame readable at
-    # all -- the mean is over a 1-in-30 duty cycle and never prints it.
-    if not re.search(r"ee_peak\s*=\s*ee\b|>\s*ee_peak", block):
-        fail.append("no peak-hold on ee; the frame that has to fit inside "
-                    "a field is back to being invisible")
+    # The peak-holds, which are what make the scroll frame readable at
+    # all -- the means are over a 1-in-30 duty cycle and never print it.
+    #
+    # BOTH, because the two spikes coincide: the scroll frame does the
+    # bind work on the EE and pushes 28,224 bytes through the same
+    # chain. An ee peak paired with a gs mean is a lower bound on the
+    # worst frame, which is what F-037's 4.59 ms had to be labelled.
+    # MATCH THE UPDATE, NOT THE DECLARATION. The first version of this
+    # loop tested `\b<var>\s*=`, which `u32 gs_peak = 0;` satisfies --
+    # so deleting the peak-hold entirely left the rule green. The rule
+    # it replaced, `ee_peak\s*=\s*ee\b`, could not have matched a
+    # declaration; generalising it is what introduced the hole. Requiring
+    # the comparison inside a condition cannot be satisfied by a
+    # definition.
+    for var, why in (("ee_peak", "the frame that has to fit inside a field "
+                                 "is back to being invisible"),
+                     ("gs_peak", "the worst frame is back to being an ee "
+                                 "peak paired with a gs mean, which is a "
+                                 "lower bound and not a reading")):
+        # BOTH HALVES, tied by a backreference so it is the same
+        # variable on each side. The rule before this one matched the
+        # assignment and missed the declaration; its replacement matched
+        # the comparison and missed the assignment -- the mirror image,
+        # introduced while fixing the original. `if (gsu > gs_peak)
+        # ee_n++;` and `if (ee > ee_peak) ee_peak = 0;` both compile
+        # clean and both print ^0.00 forever, which is the same
+        # silent-zero failure the fill arm exists to catch on gs.
+        if not re.search(r"if\s*\(\s*(\w+)\s*>\s*%s\s*\)\s*%s\s*=\s*\1\s*;"
+                         % (var, var), block):
+            fail.append("no peak-hold on %s; %s" % (var[:2], why))
+
+    # miss_at, because `m` alone says how many and never when -- and the
+    # first explanation offered for HW #262's single miss was wrong by a
+    # factor of seven with nothing in the readout able to check it.
+    # `= frame` for the same reason as above: `miss_at = 0` is a
+    # declaration and must not count as recording anything.
+    if not re.search(r"\bmiss_at\s*=\s*frame\b", block):
+        fail.append("the dropped-field counter records how many but not "
+                    "when; a miss with no frame index cannot be told from "
+                    "a boot transient")
+    elif not re.search(r"if\s*\(\s*!\s*missed\s*\)\s*miss_at\s*=", block):
+        fail.append("miss_at is not latched to the FIRST miss, so a later "
+                    "one overwrites the only evidence about the earliest")
+    elif not re.search(r"\bmiss_at\s*=\s*frame\s*-\s*1\b", block):
+        # `frame`, not `frame - 1`, is the shape this shipped with and
+        # the reason @0 was unreachable while the runbook documented it
+        # as the boot-transient signal. The off-by-one is the entire
+        # meaning of the field, so it is checked rather than remembered.
+        fail.append("miss_at records the raw frame index; `loop` is the "
+                    "PREVIOUS iteration's duration, so the frame that "
+                    "overran is frame - 1 and @0 becomes unreachable")
+
+    # EVERY NUMBER HAS TO REACH THE READOUT.
+    #
+    # This file checked each figure where it is ACCUMULATED and never
+    # where it is PRINTED, so a value could be computed correctly and
+    # then dropped on the way to the screen with every rule still green.
+    # miss_at is where that bites hardest -- replacing its sprintf
+    # argument with a literal 0 makes the bench read `m1@0` on every
+    # run, which is exactly the string the runbook documents as a boot
+    # transient. A build that silently lost the index would have been
+    # indistinguishable from the one condition the index was added to
+    # detect. The whole value of these numbers is that a person can read
+    # them off a photograph.
+    # COUNT the appearances, do not merely find one. A millisecond
+    # figure is printed as two arguments -- `x / 1000` and `(x % 1000)
+    # / 10` -- so replacing just one of them leaves the other to satisfy
+    # a bare search while the screen shows 0.08 for 1.08. Found by
+    # falsifying this very rule one commit after writing it.
+    printed = "".join(re.findall(r"sprintf\s*\(\s*telem[^;]*;", block, re.S))
+    for var, uses, role in (("ee_us", 2, "the EE mean"),
+                            ("gs_us", 2, "the GS mean"),
+                            ("ee_pk_us", 2, "the EE peak"),
+                            ("gs_pk_us", 2, "the GS peak"),
+                            ("fld_us", 2, "the frame period"),
+                            ("missed", 1, "the dropped-field count"),
+                            ("miss_at", 1, "the frame index of the first miss")):
+        n = len(re.findall(r"\b%s\b" % var, printed))
+        if n == 0:
+            fail.append("%s (%s) is computed but never reaches the readout, "
+                        "so it cannot be read off a photograph" % (var, role))
+        elif n != uses:
+            fail.append("%s (%s) reaches the readout %d time(s), not %d -- a "
+                        "millisecond figure needs both its whole and "
+                        "fractional argument or the screen shows a wrong "
+                        "number rather than no number" % (var, role, n, uses))
 
     # F-034's falsifier is "any dropped field", and a 60-frame mean can
     # only be read for that indirectly and only while the drop is
@@ -327,7 +408,9 @@ def main():
     print("ok - and counts dropped fields cumulatively")
     print("ok - gs is read after gsKit_finish() waited, not after the kick")
     print("ok - and the driver does not arm a second FINISH token")
-    print("ok - ee carries a peak-hold beside the mean")
+    print("ok - ee and gs both carry a peak-hold beside the mean")
+    print("ok - and a dropped field records when, not only how many")
+    print("ok - and every figure computed actually reaches the readout")
     print("ok - and the fill arm still draws what it promises, under the UI")
     print("ok - one FINISH token per frame, on the oneshot queue")
     return 0
