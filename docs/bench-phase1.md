@@ -621,9 +621,10 @@ the `MEMORY CARD` line under the `PS2` title and hold it next to your
   checkers shimmering, so the panel is motion-adaptive — but this
   outcome would be the surprising one.
 - **FAIL (renderer convicted)** — still `MFMORY CARD` at 480p. The
-  fault is in what ps2ui asks the GS for, and the next arm is a
-  `+0.5` texel-centre bias, which `bringup.md` already carries as an
-  unsettled question.
+  fault is in what ps2ui asks the GS for. This branch is now historical:
+  S10 settled the sampling question, and the correction is a `1/16`
+  texel bias [F-021], not the `+0.5` this step once pointed at
+  [F-011:historical].
 - **VOID** — no picture at all. Your television does not sync at 480p.
   Power off, boot anything else, and tell me: we need a different
   discriminator.

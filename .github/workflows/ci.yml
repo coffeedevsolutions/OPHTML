@@ -70,6 +70,21 @@ jobs:
       - name: Channel-6 browser end to end
         run: ./examples/channel6/build.sh
 
+      # The findings graph. A ledger that is only prose rots like any
+      # other document here -- bench-runbook.md stated a disproved
+      # claim as fact for weeks with every check green -- so the
+      # relationships between findings are data and this enforces them:
+      # no confirmed finding may rest on an overturned one, every
+      # finding names what would falsify it, and no document may cite a
+      # dead belief without marking it historical. --render is checked
+      # for drift rather than trusted, since the rendered file is the
+      # one people actually read.
+      - name: Findings graph is consistent
+        run: |
+          python3 tools/check-findings.py
+          python3 tools/check-findings.py --render
+          git diff --exit-code docs/findings.md
+
       # Phase 2's environment, and the blob its baseline numbers are
       # taken from. Built here rather than only by hand: the README's
       # measurements, the no-exemption check-blobs rule and the
