@@ -68,6 +68,30 @@ jobs:
           # four steps had nothing to run at the bench.
           ./examples/channel6/build.sh
           ./examples/opl-env/build.sh
+          # main.c carries a fixed static arena. If opl-env outgrows it
+          # the driver boots to solid red -- a correct signal, but one
+          # that costs a bench sitting to receive, so fail here instead.
+          #
+          # This lives in `bake` and not in `elf` where the ELF is
+          # built, because `elf` runs inside the ps2dev container and
+          # that image has no python3: the first version of this step
+          # exited 127 there. A check placed where it cannot run is
+          # worth nothing, and this one at least had the manners to
+          # error rather than pass.
+          python3 - <<'PY'
+          import re, sys
+          sys.path.insert(0, "packages/baker")
+          from ps2ui_bake.uib import read_uib
+          from ps2ui_bake import arena as A
+          need = A.arena_size(read_uib("examples/opl-env/build/ui.uib"))
+          src = open("runtime/sample/main.c").read()
+          have = eval(re.search(r"static uint8_t arena\[([^\]]+)\]", src).group(1))
+          print(f"oplenv arena: needs {need} B, main.c provides {have} B")
+          if need > have:
+              sys.exit(f"::error::opl-env needs {need} B of arena; main.c "
+                       f"provides {have}. Raise it, or the driver boots to "
+                       f"solid red at the bench.")
+          PY
           # Phase 2's environment. The elf job builds oplenv.elf
           # against THIS blob, so it has to exist here and travel in
           # the `baked` artifact -- a driver built against a missing
@@ -378,23 +402,6 @@ jobs:
           # time, prim count and upload bytes on screen -- the three
           # numbers the Phase 2 exit gate asks for. Built against
           # opl-env's blob rather than memcard's.
-          # main.c carries a fixed static arena. If opl-env outgrows it
-          # the ELF boots to solid red -- a correct signal, but one that
-          # costs a bench sitting to receive. Cheaper to fail here.
-          python3 - <<'PY'
-          import re, sys
-          sys.path.insert(0, "packages/baker")
-          from ps2ui_bake.uib import read_uib
-          from ps2ui_bake import arena as A
-          need = A.arena_size(read_uib("examples/opl-env/build/ui.uib"))
-          src = open("runtime/sample/main.c").read()
-          have = eval(re.search(r"static uint8_t arena\[([^\]]+)\]", src).group(1))
-          print(f"oplenv arena: needs {need} B, main.c provides {have} B")
-          if need > have:
-              sys.exit(f"::error::opl-env needs {need} B of arena; "
-                       f"main.c provides {have}. Raise it or the driver "
-                       f"boots to solid red at the bench.")
-          PY
           make -C runtime/sample objclean
           make -C runtime/sample OPLENV=1 \
             UIB=../../examples/opl-env/build/ui.uib EE_BIN=oplenv.elf
