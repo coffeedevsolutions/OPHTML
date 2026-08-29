@@ -80,9 +80,12 @@ extern unsigned int size_ui_uib;
 /* COP0 Count on the R5900 ticks once per CPU cycle at 294.912 MHz.
  * TODO(bench): confirm on hardware. Several MIPS implementations tick
  * Count at half the core clock, and if the R5900 is one of them every
- * ee_us here is 2x off. The bench session settles it: render a known
- * fixed workload and compare ee_us against a stopwatch over 600
- * frames. Until then treat ee_us as relative, not absolute. */
+ * ee_us here would be 2x off.
+ *
+ * SETTLED, HW #260: it is not. A vsync-locked loop measured with this
+ * constant reported 16.73 ms against a true NTSC field period of
+ * 16.683 ms -- 0.28% error. At half the core clock the same loop would
+ * have reported 8.34 ms. ee_us is absolute (F-035). */
 #define EE_HZ 294912000u
 static inline u32 cop0_count(void)
 {

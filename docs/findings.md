@@ -11,8 +11,7 @@ prose rots like any other document.
 
 | status | count |
 |---|---:|
-| provisional | 1 |
-| confirmed | 14 |
+| confirmed | 17 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -217,7 +216,7 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 **Falsifier:** A realistic environment whose arena exceeds the old fixed ceiling
 
-**Rests on this:** F-032
+**Rests on this:** F-032, F-034
 
 *#48, #60*
 
@@ -237,9 +236,9 @@ This is the first step in the sequence that tested the SHIPPING renderer rather 
 
 ## Phase 2 — Prove it with the OPL-class app (**open**)
 
-### F-032 — Per-row reservations make a one-row scroll re-upload every cover *(provisional)*
+### F-032 — Per-row reservations make a one-row scroll re-upload every cover
 
-**Measured:** Reservations are per ROW, not per item, so scrolling by one row leaves every visible row showing a different title: 9 x 3,136 = 28,224 bytes of upload per scroll step.
+**Measured:** Predicted 9 x 3,136 = 28,224 bytes per scroll step from the reservation model. Measured on a SCPH-50000, HW #260: oplenv.elf reported up28224, unchanged across every photographed scroll step. Exact.
 
 **Instrument:** `examples/opl-env/window.h`
 
@@ -247,7 +246,36 @@ This is the first step in the sequence that tested the SHIPPING renderer rather 
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs a 6,951-byte aren…)
 
-Arithmetic, not yet a measurement -- it needs the driver ELF and a sitting. Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload, and the number exists so that is decided by measurement rather than guessed.
+**Rests on this:** F-034
 
-*#60*
+Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload. The number exists so that is decided by a measurement rather than guessed, and it now is one.
+
+*#60, #63*
+
+### F-034 — The OPL-class environment runs at full field rate on hardware
+
+**Measured:** SCPH-50000, HW #260. oplenv.elf reported 16.73 ms across every photographed frame, against an NTSC field period of 16.683 ms -- 0.28% error, and no frame at a two-field 33.4 ms. 562 to 570 primitives per frame while streaming nine covers per scroll step.
+
+**Instrument:** `runtime/sample/main.c`
+
+**Falsifier:** A reported frame time near 33.4 ms, or any dropped field
+
+**Depends on:** [F-031](#f-031) (An OPL-class environment costs a 6,951-byte aren…), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
+
+WHAT THIS DOES NOT MEASURE: headroom. The timer spans gsKit_sync_flip, which blocks until vsync, so 16.73 ms is dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it says nothing about how much of the field is left. Measuring that needs the clock read before the flip, not another photograph.
+A self-consistency check fell out of the prim count: the first photograph reads p562 and the rest p570, and its visible rows are titles 2 through 10 -- eight single-digit titles against nine double-digit ones in the others. Eight fewer glyph quads, exactly.
+
+*#63*
+
+### F-035 — COP0 Count ticks once per CPU cycle at 294.912 MHz on the R5900
+
+**Measured:** A vsync-locked loop measured with cop0_count and EE_HZ = 294912000 reported 16.73 ms per frame against a true NTSC field period of 16.683 ms. Had Count ticked at half the core clock, as several MIPS implementations do, the same loop would have reported 8.34 ms.
+
+**Instrument:** `runtime/sample/main.c`
+
+**Falsifier:** A known wall-clock interval that ee_us reports at half or double its true length
+
+Retires the TODO(bench) that has sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
+
+*#63*
 
