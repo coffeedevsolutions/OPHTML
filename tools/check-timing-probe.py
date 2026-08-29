@@ -294,11 +294,31 @@ def main():
         fail.append("the driver switches to GS_PERSISTENT, which puts a "
                     "second FINISH token per frame in the chain")
 
-    # The peak-hold, which is what makes the scroll frame readable at
-    # all -- the mean is over a 1-in-30 duty cycle and never prints it.
-    if not re.search(r"ee_peak\s*=\s*ee\b|>\s*ee_peak", block):
-        fail.append("no peak-hold on ee; the frame that has to fit inside "
-                    "a field is back to being invisible")
+    # The peak-holds, which are what make the scroll frame readable at
+    # all -- the means are over a 1-in-30 duty cycle and never print it.
+    #
+    # BOTH, because the two spikes coincide: the scroll frame does the
+    # bind work on the EE and pushes 28,224 bytes through the same
+    # chain. An ee peak paired with a gs mean is a lower bound on the
+    # worst frame, which is what F-037's 4.59 ms had to be labelled.
+    for var, why in (("ee_peak", "the frame that has to fit inside a field "
+                                 "is back to being invisible"),
+                     ("gs_peak", "the worst frame is back to being an ee "
+                                 "peak paired with a gs mean, which is a "
+                                 "lower bound and not a reading")):
+        if not re.search(r"\b%s\s*=|>\s*%s\b" % (var, var), block):
+            fail.append("no peak-hold on %s; %s" % (var[:2], why))
+
+    # miss_at, because `m` alone says how many and never when -- and the
+    # first explanation offered for HW #262's single miss was wrong by a
+    # factor of seven with nothing in the readout able to check it.
+    if not re.search(r"\bmiss_at\s*=", block):
+        fail.append("the dropped-field counter records how many but not "
+                    "when; a miss with no frame index cannot be told from "
+                    "a boot transient")
+    elif not re.search(r"if\s*\(\s*!\s*missed\s*\)\s*miss_at\s*=", block):
+        fail.append("miss_at is not latched to the FIRST miss, so a later "
+                    "one overwrites the only evidence about the earliest")
 
     # F-034's falsifier is "any dropped field", and a 60-frame mean can
     # only be read for that indirectly and only while the drop is
@@ -327,7 +347,8 @@ def main():
     print("ok - and counts dropped fields cumulatively")
     print("ok - gs is read after gsKit_finish() waited, not after the kick")
     print("ok - and the driver does not arm a second FINISH token")
-    print("ok - ee carries a peak-hold beside the mean")
+    print("ok - ee and gs both carry a peak-hold beside the mean")
+    print("ok - and a dropped field records when, not only how many")
     print("ok - and the fill arm still draws what it promises, under the UI")
     print("ok - one FINISH token per frame, on the oneshot queue")
     return 0

@@ -1585,8 +1585,9 @@ int main(void)
         u32 ee_acc = 0, ee_n = 0, ee_us = 0;      /* EE work per frame */
         u32 fld_acc = 0, fld_n = 0, fld_us = 0;   /* wall-clock period  */
         u32 gs_acc = 0, gs_us = 0;                /* GS draw time       */
+        u32 gs_peak = 0, gs_pk_us = 0;            /* worst GS frame     */
         u32 ee_peak = 0, ee_pk_us = 0;            /* worst EE frame     */
-        u32 missed = 0;                           /* dropped fields     */
+        u32 missed = 0, miss_at = 0;              /* dropped fields     */
         u32 t_prev = 0;
         char telem[64];
 
@@ -1661,8 +1662,26 @@ int main(void)
                  * 10%. A true NTSC field is 4,920,115 ticks against an
                  * EE_HZ/60 of 4,915,200, so a healthy frame sits just
                  * over the nominal and nowhere near the trip. */
-                if (loop > EE_HZ / 60u + EE_HZ / 600u)
+                /* The trip is one field plus 10%, and the period is
+                 * VSYNC-LOCKED -- gsKit_sync_flip waits for it -- so
+                 * top-to-top quantises to whole fields and only n >= 2
+                 * can clear 18.33 ms. A miss therefore means one
+                 * frame's work exceeded a WHOLE 16.683 ms field, not
+                 * that it ran a little long. That distinction is worth
+                 * the comment: it turns "a slow frame" into "11 ms
+                 * unaccounted for", which is what HW #262's m1 turned
+                 * out to be once someone priced it.
+                 *
+                 * miss_at records WHERE. `m` alone says how many, and
+                 * the first explanation offered for HW #262's single
+                 * miss -- frame 0's cold start -- was wrong by a factor
+                 * of seven and could not have been checked from the
+                 * count. One number, and the next sitting can at least
+                 * rule out or confirm the boot transient. */
+                if (loop > EE_HZ / 60u + EE_HZ / 600u) {
+                    if (!missed) miss_at = frame;
                     missed++;
+                }
             }
             t_prev = t0;
 
@@ -1747,6 +1766,7 @@ int main(void)
             if (ee_n >= 60) {
                 ee_us = ee_acc / ee_n;
                 gs_us = gs_acc / ee_n;
+                gs_pk_us = gs_peak;
                 /* PEAK-HOLD, and it resets with the window on purpose.
                  * F-036's figure is a 1-in-30 duty-cycle mean: two
                  * frames in sixty do the scroll work and the mean
@@ -1757,24 +1777,27 @@ int main(void)
                  * which `m` already answers better, for the only spike
                  * that matters. */
                 ee_pk_us = ee_peak;
-                ee_acc = 0; gs_acc = 0; ee_n = 0; ee_peak = 0;
+                ee_acc = 0; gs_acc = 0; ee_n = 0;
+                ee_peak = 0; gs_peak = 0;
                 if (fld_n) fld_us = fld_acc / fld_n;
                 fld_acc = 0; fld_n = 0;
             }
             if (ee_us) {
-                sprintf(telem, "ee%lu.%02lu^%lu.%02lu gs%lu.%02lu",
+                sprintf(telem, "ee%lu.%02lu^%lu.%02lu gs%lu.%02lu^%lu.%02lu",
                         (unsigned long)(ee_us / 1000),
                         (unsigned long)((ee_us % 1000) / 10),
                         (unsigned long)(ee_pk_us / 1000),
                         (unsigned long)((ee_pk_us % 1000) / 10),
                         (unsigned long)(gs_us / 1000),
-                        (unsigned long)((gs_us % 1000) / 10));
+                        (unsigned long)((gs_us % 1000) / 10),
+                        (unsigned long)(gs_pk_us / 1000),
+                        (unsigned long)((gs_pk_us % 1000) / 10));
                 ps2ui_slot_set(&ui, "telem", telem);
-                sprintf(telem, "f%lu.%02lu ms p%lu up%u m%lu",
+                sprintf(telem, "f%lu.%02lu p%lu up%u m%lu@%lu",
                         (unsigned long)(fld_us / 1000),
                         (unsigned long)((fld_us % 1000) / 10),
                         (unsigned long)ui.stats.prims, last_upload,
-                        (unsigned long)missed);
+                        (unsigned long)missed, (unsigned long)miss_at);
                 ps2ui_slot_set(&ui, "telem2", telem);
             }
 
@@ -1828,9 +1851,25 @@ int main(void)
 
             {
                 u32 ee = ticks_to_us(t_work - t0);
+                u32 gsu = ticks_to_us(t_gs - t_work);
                 ee_acc += ee;
+                gs_acc += gsu;
+                /* BOTH peaks, because the two spikes coincide. The
+                 * scroll frame does the bind work on the EE and pushes
+                 * 28,224 bytes through the same chain, so it is the
+                 * worst frame on both axes at once -- and an ee peak
+                 * paired with a gs mean is a LOWER bound on the worst
+                 * frame, which is what F-037 had to be labelled.
+                 *
+                 * F-037 predicts gs^ between 0.95 and 1.15 against a
+                 * 0.93 mean: 28,224 bytes is 0.024 ms of GIF DMA and
+                 * 0.188 ms EE-inline, and the up0-vs-up28224 mean
+                 * difference implies about 0.3 ms per upload frame. A
+                 * gs^ sitting on the mean falsifies that story. The
+                 * prediction is written down before the reading on
+                 * purpose. */
                 if (ee > ee_peak) ee_peak = ee;
-                gs_acc += ticks_to_us(t_gs - t_work);
+                if (gsu > gs_peak) gs_peak = gsu;
             }
             ee_n++;
             frame++;
