@@ -455,11 +455,28 @@ below is a guess about which resource is scarce:
 
 Then, in an order P3a decides:
 
-1. **P3b — CLUT-swap theming.** Same PSMT8 art, multiple ~1 KiB
-   palettes; instant recolor for themes and focus states. **Now the
-   phase's lead item**, having been the only one not gated on P3a: it
-   buys capability rather than speed, which is the half of the phase
-   that survived the measurement.
+1. **P3b — theming.** **Now the phase's lead item**, having been the
+   only one not gated on P3a: it buys capability rather than speed,
+   which is the half of the phase that survived the measurement.
+
+   **The plan called this "CLUT-swap theming" and that is the smaller
+   half** — see `docs/design-p3b-theming.md`. The mechanism is real and
+   measured: gsKit re-sends a palette without its texels, 1,024 bytes
+   per drawn texture, lazily [F-041]. But a UI's colour does not live
+   in its palettes. In opl-env, 997 of 1,302 commands carry the
+   identity tint, and every panel, border and background is an
+   untextured quad whose colour is a baked `r,g,b,a`. A CLUT swap
+   cannot reach any of it.
+
+   What the numbers say instead: **nine distinct colours across a
+   six-screen environment**, and 7 to 32 across every blob this repo
+   ships. So a theme is a **tint table** — commands store an index,
+   the table is 36 to 128 bytes, it reaches every command rather than
+   only textured ones, and it makes the blob 2.4 to 3.9 KB *smaller*.
+   The CLUT swap stays alongside it, for palettized art the table
+   cannot reach.
+
+   Design first, as with v6: the format move is not started.
 2. **P3c — page-aware atlas packing.** Pack to 8 KiB page boundaries
    (64×32 CT32, 128×64 T8) to minimise TBP switches and make streamed
    reservations exact. **Gate did not open** [F-037]: the GS is at
