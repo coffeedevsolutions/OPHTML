@@ -468,13 +468,21 @@ Then, in an order P3a decides:
    untextured quad whose colour is a baked `r,g,b,a`. A CLUT swap
    cannot reach any of it.
 
-   What the numbers say instead: **nine distinct colours across a
-   six-screen environment**, and 7 to 32 across every blob this repo
-   ships. So a theme is a **tint table** — commands store an index,
-   the table is 36 to 128 bytes, it reaches every command rather than
-   only textured ones, and it makes the blob 2.4 to 3.9 KB *smaller*.
-   The CLUT swap stays alongside it, for palettized art the table
-   cannot reach.
+   What the numbers say instead: a UI's colour is a tiny set repeated
+   thousands of times. So a theme is a **tint table** — commands store
+   an index, the table is a few hundred bytes, and it reaches every
+   command rather than only textured ones. The CLUT swap stays
+   alongside it, for palettized art the table cannot reach.
+
+   **The design's own adversarial pass then took two claims off it.**
+   The blob does not shrink: `ps2ui_cmd` is 32 bytes with `pad0[6]`,
+   and the freed colour bytes land in padding that exists to reach two
+   qwords. And entries must key on **role**, not value — `#7c9be0` is
+   written by nine separate declarations in opl-env, so deduplicating
+   by colour would silently fuse nine theme slots into one. The count
+   is 81 rather than 9, which is still 324 bytes, and the two bytes the
+   struct frees pay for the focus-recolour index that was an open
+   question.
 
    Design first, as with v6: the format move is not started.
 2. **P3c — page-aware atlas packing.** Pack to 8 KiB page boundaries

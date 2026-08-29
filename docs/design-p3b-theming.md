@@ -10,6 +10,13 @@ beyond §3's mechanism (F-041)*
 >
 > It disagrees with `PLAN.md` about what P3b is, and the disagreement
 > is the point of the document.
+>
+> **Rev 2** is the adversarial pass, run against the draft the same day
+> on two questions: does this make the developer's experience better,
+> and does it optimise for the PS2 at bake time. Four findings are
+> folded in below, marked **[rev 2]**. One of them retracts a headline
+> claim of the draft outright. As with the v6 document, the losing
+> argument is left in place rather than quietly rewritten.
 
 ---
 
@@ -55,13 +62,23 @@ having. It is not theming.**
 
 Distinct colours across every command, in every blob this repo ships:
 
-| blob | commands | distinct colours | table | blob saved |
+| blob | commands | distinct colours | table | ~~blob saved~~ |
 |---|---|---|---|---|
-| `examples/opl-env` | 1,302 | **9** | 36 B | 3,906 B |
-| `examples/channel6` | 913 | **32** | 128 B | 2,739 B |
-| `examples/memcard` | 808 | **10** | 40 B | 2,424 B |
-| `fixtures/bench-stream` | 74 | 8 | 32 B | 222 B |
-| `examples/memcard` testcard | 18 | 7 | 28 B | 54 B |
+| `examples/opl-env` | 1,302 | **9** | 36 B | ~~3,906 B~~ **0** |
+| `examples/channel6` | 913 | **32** | 128 B | ~~2,739 B~~ **0** |
+| `examples/memcard` | 808 | **10** | 40 B | ~~2,424 B~~ **0** |
+| `fixtures/bench-stream` | 74 | 8 | 32 B | ~~222 B~~ **0** |
+| `examples/memcard` testcard | 18 | 7 | 28 B | ~~54 B~~ **0** |
+
+**[rev 2] The blob does not shrink, and the draft was wrong to say so.**
+`ps2ui_cmd` is **32 bytes: 26 used and `pad0[6]`**. Replacing `r,g,b,a`
+with a `uint16_t` frees two bytes into padding that exists precisely to
+reach 32 — two qwords. The next size down is 16, and `u0,v0,u1,v1`
+alone spend 8 of those. The "saved" column came from adding up field
+widths and forgetting the struct.
+
+Retracted rather than deleted, because it was the second-best argument
+for the design and it is worth knowing that it is not available.
 
 Nine colours in a six-screen environment. Thirty-two in the most
 colourful thing here.
@@ -91,8 +108,15 @@ costs the GS nothing (the vertex colour is written either way), and it
 costs the EE one indirection per command on a processor measured at
 14.4% of a field [F-036].
 
-It also makes the blob *smaller*: 3 bytes per command, 3,906 in
-opl-env, which is more than the entire arena.
+~~It also makes the blob *smaller*: 3 bytes per command, 3,906 in
+opl-env, which is more than the entire arena.~~
+
+**[rev 2] False — see §2.** The freed bytes land in existing padding
+and the blob is byte-for-byte the same size. What they are good for is
+different and better: **two spare bytes inside a struct that does not
+grow**, which is exactly what open question 1 needs. `pad0[6]` becomes
+`pad0[4]` plus a second `uint16_t` for a focus-state tint, and the
+focus recolour stops being a future format move at all.
 
 ### 3b. The CLUT swap — for art the tint table cannot reach
 
@@ -123,6 +147,40 @@ of this design with real unknowns.
   a table entry — it simply has the same value in every theme. This
   matters: it means the format is uniform and no command is special.
 
+### [rev 2] Entries key on ROLE, not on value
+
+The draft deduplicated by resolved RGBA, which is where the "9 colours"
+figure comes from. **That is a silent trap and it has to go.** Counted
+over the real stylesheets:
+
+| stylesheet | colour declarations | distinct values | values shared by >1 declaration |
+|---|---|---|---|
+| `opl-env/opl.css` | 81 | 25 | **13** |
+| `channel6.css` | 74 | 38 | 15 |
+| `memcard/library.css` | 36 | 24 | 9 |
+
+In opl-env, **`#7c9be0` is written by nine separate declarations** —
+the focus border, a chip outline, a button edge and six more. Under
+value-dedup those nine collapse into one theme slot. An author writing
+a light theme moves the focus ring and eight unrelated things move with
+it, or writes a rule that cannot take effect, **and nothing tells them
+either happened**: the blob just has 9 entries and no record of why.
+
+That is the worst kind of developer experience — a correct-looking
+input producing a wrong output with no diagnostic — and it was in the
+draft as a *falsifier* when it should have been a defect.
+
+Keying on the declaration site instead: **81 entries, 324 bytes** for
+the most colourful example here. The table was never the expensive
+part, and thanks to §2's retraction the command struct does not grow
+either way. Two declarations that happen to share a hex value stay
+independent, which is what an author means by writing them twice.
+
+The `uint16_t` index the draft picked for future-proofing turns out to
+be the right width for the *present*: role-keying pushes the count from
+9 to 81, and 8 bits would already be uncomfortable at channel6's scale
+plus themes.
+
 **The layout CSS parser has no `var()` support today.** `parseColor`
 is called on a resolved value in `css.js`, and nothing resolves custom
 properties. That is the largest single implementation cost here and it
@@ -130,6 +188,25 @@ should be scoped before anything else, because if `var()` proves
 awkward in this parser the whole authoring story needs a different
 shape and §3a does not depend on it — indices can be assigned from
 literal colours with no CSS change at all.
+
+### [rev 2] Three things the author has to be able to see
+
+The draft described a format and an API and said nothing about how
+anyone would debug a theme. Each of these is cheap and each closes a
+failure that would otherwise be discovered on a television.
+
+1. **`ps2ui-check` prints the tint table with its CSS origin** — index,
+   value per theme, and the declaration that produced it. Without it
+   "why did this not change colour" has no answer short of reading the
+   blob by hand.
+2. **The previewer renders every theme**, one screenshot set each.
+   `ps2ui-bake` already emits screenshots and the drift check already
+   diffs them; a theme nobody can look at without a PS2 is a theme
+   nobody will get right. This also means the *existing* screenshot
+   drift check covers themes for free.
+3. **A theme that omits a key fails `--strict`.** Silently inheriting
+   the root value is the behaviour that ships a half-converted theme
+   and looks fine on the two screens the author happened to open.
 
 **Deliberately not proposed:** a theme that changes anything but
 colour. Sizes, fonts and layout are baked geometry; making those
@@ -178,11 +255,11 @@ because unlike `clut_set` there is nothing for upload to overwrite.
 
 | | tint table | CLUT swap |
 |---|---|---|
-| per theme | 36–128 B | 1,024 B per drawn texture |
+| per theme | 32–324 B *(rev 2: role-keyed)* | 1,024 B per drawn texture |
 | reaches | every command | palettized art only |
 | GS cost | none | one palette transfer |
 | EE cost | one indirection per command | none |
-| blob | **shrinks** 2.4–3.9 KB | grows by each palette |
+| blob | unchanged *(rev 2: padding absorbs it)* | grows by each palette |
 
 ---
 
@@ -192,26 +269,33 @@ because unlike `clut_set` there is nothing for upload to overwrite.
   rests on the set being small, from five blobs that are all this
   project's own. A photographic or gradient-heavy interface is the
   obvious counterexample and none has been baked.
-- **A theme that needs two elements sharing a colour to diverge.** The
-  table deduplicates by value, so two things that are both `#12182a`
-  today become one entry and can never separate. If that turns out to
-  be common, entries must key on *role* rather than value, and the
-  count stops being 9.
+- ~~**A theme that needs two elements sharing a colour to diverge.**~~
+  **[rev 2] Resolved, not falsified: it is common.** Thirteen values in
+  opl-env are shared by more than one declaration and one of them by
+  nine. Entries key on role now, and the count is 81 rather than 9. A
+  falsifier that fires the first time anybody checks was a defect
+  wearing a falsifier's clothes.
 - **`var()` proving structurally awkward** in the layout parser, which
   would not kill §3a but would change §4 entirely.
-- **The EE indirection mattering.** It should not — 14.4% of a field,
-  one lookup per command — but it is measured, not assumed, and the
-  instrument to check it already exists.
+- **The EE indirection mattering.** **[rev 2] Priced, and it is not a
+  cost at all.** 1,302 commands × ~3 cycles is 13.2 µs against an `ee`
+  of 2,410 — 0.55% worst case. More to the point it *replaces* a load
+  rather than adding one: `cmd->r,g,b,a` was a load too. A 324-byte
+  table stays hot while 41 KB of command list streams past it, so the
+  indirect form is plausibly the cheaper of the two. It stays on this
+  list because it is measurable and the instrument exists, not because
+  it is expected.
 
 ---
 
 ## 9. Open questions
 
-1. **Focus states.** The plan lists them beside themes. A focus ring is
-   already a separate command list state, so it may need nothing here —
-   but if focus is meant to *recolour* rather than to swap commands,
-   that is a second index per command and should be designed now rather
-   than bolted on.
+1. ~~**Focus states.**~~ **[rev 2] Closed by §3a's retraction.** A
+   second index per command is what a focus recolour needs, and the two
+   bytes freed from `r,g,b,a` land in `pad0` and pay for exactly that.
+   `pad0[6]` becomes `pad0[4]` plus `uint16_t tint_focus`. No growth,
+   no later format move, and it is only visible as an option because
+   the blob-shrink claim was checked and failed.
 2. **Does anything want a theme that is not global?** One screen dark,
    another light. The table is per-context today. Per-screen is one
    more indirection and no format change; per-element is a different
