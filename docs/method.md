@@ -251,6 +251,18 @@ Sorted by cost, cheapest first. The ordering is the point.
 > the check and confirm it fails.** Everything below it in that table is
 > luck or expense.
 
+And one reading of that detector's output is worth naming, because it
+looks like good news and is not:
+
+> **A 100% pass rate on deliberate breakage is itself a finding.** If
+> every sabotage passes, the likeliest explanation is not that the code
+> is unbreakable — it is that the sabotages did not run.
+
+That inference is what caught the stale-binary case above: three
+sabotages, three passes, and the checks were fine. It generalises well
+past make dependencies, to any apparatus that sits between the change
+and the assertion.
+
 This is now the standing rule. Every fence added to this repository is
 falsified before it ships, and the sabotages are recorded in the commit
 message — not because the record is interesting, but because writing
