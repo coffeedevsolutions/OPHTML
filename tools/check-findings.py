@@ -52,6 +52,14 @@ somebody thought sounded rigorous:
      provisional in the open phase and are promoted when it closes,
      which is the same forcing function as the exit gates in PLAN.md.
 
+  8. Every OVERTURNED finding is cited :historical by at least one
+     document. Rule 6 stops prose repeating a dead claim, but it cannot
+     see prose that states one while citing nothing -- which was the
+     state of every document here when rule 6 shipped, so it guarded
+     its own README and nothing else. This rule means retiring a belief
+     forces someone to go and correct the text that taught it. Findings are born
+     provisional in the open phase and are promoted when it closes,
+
 Usage:
     tools/check-findings.py                 # check, exit 1 on failure
     tools/check-findings.py --impact F-023  # what breaks if this dies
@@ -186,6 +194,23 @@ def check(phases, findings):
 
     for fid in by_id:
         walk(fid)
+
+    # Rule 8 -- retiring a belief must force someone to go and correct
+    # the prose. R6 stops a document REPEATING a dead claim, but it is
+    # blind to a document that states one without citing anything --
+    # which is the state every document in this repo was in when R6
+    # shipped, so R6 guarded its own README and nothing else. Requiring
+    # each overturned finding to be cited :historical somewhere means a
+    # belief cannot be retired in the ledger while the text that taught
+    # it sits unreferenced and unguarded.
+    cited_hist = {fid for _, fid, hist in docs_citing() if hist}
+    for fid, f in by_id.items():
+        if f.get("status") == "overturned" and fid not in cited_hist:
+            errs.append(
+                f"{fid}: overturned, but no document cites it as "
+                f"[{fid}:historical]. Find the prose that still teaches "
+                f"this and correct it, or the belief is retired only in "
+                f"the ledger")
 
     # Rule 6 -- prose may not quietly repeat a dead belief.
     for rel, fid, historical in docs_citing():

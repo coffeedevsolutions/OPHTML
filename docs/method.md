@@ -9,14 +9,14 @@ project has lost, and it is not a bug shape. It is a **test** shape:
 
 > A check whose passing state is reachable without the property holding.
 
-Thirty-odd instances are catalogued below. They were written by people
+Thirty-odd instances are catalogued below. Six shapes were written first; the seventh was found by a reviewer, in the tool built to enforce the other six. They were written by people
 being careful — most were caught by review or by the author before
 shipping, several by a gate, two by a console. What follows is the
 taxonomy, because the instances are varied and the shapes are few.
 
 ---
 
-## The six shapes
+## The seven shapes
 
 ### 1. The guard that skips
 
@@ -183,6 +183,56 @@ memcmp(a, b, n) != 0 || 1
 
 An un-failable check with a `|| 1` on it, written to make it pass after
 a fixture size had been chosen where both sides were identical.
+
+### 7. The rule whose coverage is narrower than its purpose
+
+It runs. It passes. It asserts over a smaller domain than its
+description implies — and the gap is invisible because nothing skips
+and nothing errors.
+
+This shape was added because a review found it in the tool built to
+catch the other six, in the commit that introduced it.
+
+`check-findings.py` rule 6 refuses any document that cites an
+overturned finding without marking it historical. Exact, enforced,
+falsified before shipping. But its coverage is a function of how many
+citations exist, and when it shipped the count was:
+
+```
+docs/method.md         3
+docs/bench-runbook.md  0
+docs/bench-phase1.md   0
+docs/bringup.md        0
+docs/PLAN.md           0
+README.md              0
+```
+
+**So it guarded its own README and nothing else.** The two documents
+named in the pull request as the *motivation* for the rule — one still
+stating a disproved cache fault as fact ten lines below the section
+disproving it, the other still calling a settled question unsettled —
+carried no citations, so the rule could not see either. The rot that
+justified the mechanism was in the tree, and invisible to the
+mechanism.
+
+Nothing was skipped and nothing failed to execute. The rule did exactly
+what it said, over a domain far smaller than the sentence describing it
+suggested.
+
+The repair had two halves, and only the second is durable:
+
+- backfill the citations, so the known-bad passages come under the rule
+- **rule 8**: an overturned finding must be cited `:historical` by at
+  least one document, so a belief cannot be retired in the ledger while
+  the prose that taught it sits unreferenced
+
+The first fixes today's gap. The second makes tomorrow's impossible,
+because retiring a belief now fails CI until someone goes and corrects
+the text.
+
+> **Ask of any check: not "does it fail when broken", but "over what
+> domain does it hold?"** The first question has an easy answer and the
+> second is where the coverage hides.
 
 ---
 

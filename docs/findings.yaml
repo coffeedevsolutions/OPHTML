@@ -243,6 +243,39 @@ findings:
     in four consecutive pull requests. See L-006.
   refs: ["#61"]
 
+- id: F-012
+  phase: 0
+  status: overturned
+  claim: "gsKit_texture_upload does not write the data cache back, so the GS reads stale palette memory"
+  evidence:
+    instrument: docs/bringup.md
+    measurement: >-
+      Believed from reading the narrow symbol. Disproved by reading one
+      line further: gsKit_texture_send opens with an unconditional
+      FlushCache(0) on every path (gsTexture.c:266), so no cache fault
+      ever occurred.
+  falsifier: "A flush on the upload path, which there is"
+  overturned_by: [F-013]
+  note: >-
+    Kept because of HOW it died. The disproving line was in the
+    author's own grep output, one line above the hits quoted -- "I
+    searched for the narrow symbol and stopped reading." The explicit
+    SyncDCache calls stayed as hardening rather than being reverted, so
+    the code no longer depends on that implementation detail either
+    way.
+  refs: ["#41"]
+
+- id: F-013
+  phase: 0
+  status: confirmed
+  claim: "gsKit flushes the whole data cache inside its transfer path"
+  evidence:
+    instrument: runtime/vendor/gsKit/src/gsTexture.c
+    measurement: "gsKit_texture_send opens with an unconditional FlushCache(0) on every path"
+  falsifier: "An upload path in gsKit that reaches the GIF without a flush"
+  overturns: [F-012]
+  refs: ["#41"]
+
 # ------------------------------------------------------------ Phase 1
 - id: F-030
   phase: 1

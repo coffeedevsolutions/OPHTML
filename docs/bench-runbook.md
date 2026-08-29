@@ -148,12 +148,18 @@ sizes checked on the drive.
 
 ---
 
-## Step 3b — nothing to run
+## Step 3b — nothing to run, and nothing was ever wrong
 
-Settled by reading gsKit and Open-PS2-Loader. The upload never wrote the
-CPU's data cache back before handing the GS a palette the CPU had just
-built, so the GS read stale memory. `gsKit_texture_upload` does not
-flush; `gsKit_TexManager_bind` does, and OPL uses that path.
+This section used to say the upload never wrote the CPU's data cache
+back, so the GS read a stale palette [F-012:historical]. **That was
+wrong.** `gsKit_texture_send` opens with an unconditional
+`FlushCache(0)` on every path, so no cache fault ever occurred
+[F-013] — and the disproving line was in the author's own grep output,
+one line above the hits he quoted.
+
+The explicit `SyncDCache` calls stayed anyway, as hardening rather than
+as a fix, so the code no longer depends on that implementation detail
+either way.
 
 There is no ELF and no cell to read. The next `conform.elf` either shows
 legible text or it does not, and that is step 3's reading, not a new

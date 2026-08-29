@@ -12,8 +12,8 @@ prose rots like any other document.
 | status | count |
 |---|---:|
 | provisional | 1 |
-| confirmed | 12 |
-| overturned | 1 |
+| confirmed | 13 |
+| overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
 
@@ -106,6 +106,32 @@ Hence ps2ui keeps an all-or-nothing preflight AND re-checks per frame, because e
 KEPT DELIBERATELY, AND STILL TRUE OF EVERY RENDERER HERE EXCEPT THE ONE THAT MATTERS. The arithmetic is correct for an exact interpolator; the premise -- that the GS is one -- is not. It survived months because at power-of-two spans it is exactly right, and because the previewer and Play! both compute in float with no reciprocal, so every host-side renderer this project owns agreed with it. Nothing off-console could have caught it.
 
 *#36, #57*
+
+### F-012 — gsKit_texture_upload does not write the data cache back, so the GS reads stale palette memory ~~overturned~~
+
+**Measured:** Believed from reading the narrow symbol. Disproved by reading one line further: gsKit_texture_send opens with an unconditional FlushCache(0) on every path (gsTexture.c:266), so no cache fault ever occurred.
+
+**Instrument:** `docs/bringup.md`
+
+**Falsifier:** A flush on the upload path, which there is
+
+**Overturned by:** [F-013](#f-013) (gsKit flushes the whole data cache inside its tr…)
+
+Kept because of HOW it died. The disproving line was in the author's own grep output, one line above the hits quoted -- "I searched for the narrow symbol and stopped reading." The explicit SyncDCache calls stayed as hardening rather than being reverted, so the code no longer depends on that implementation detail either way.
+
+*#41*
+
+### F-013 — gsKit flushes the whole data cache inside its transfer path
+
+**Measured:** gsKit_texture_send opens with an unconditional FlushCache(0) on every path
+
+**Instrument:** `runtime/vendor/gsKit/src/gsTexture.c`
+
+**Falsifier:** An upload path in gsKit that reaches the GIF without a flush
+
+**Overturns:** [F-012](#f-012) (gsKit_texture_upload does not write the data cac…)
+
+*#41*
 
 ## Phase 1 — One resource model (locked)
 
