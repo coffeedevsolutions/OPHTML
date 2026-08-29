@@ -3129,8 +3129,17 @@ int main(int argc, char **argv)
             /* A subject whose two tints are DIFFERENT COLOURS, not
              * merely different indices, and which is focusable at all.
              * Four of this fixture's six slots have base == focus and
-             * no focus node; without this line the check would report
-             * green on one of those. */
+             * no focus node.
+             *
+             * WHAT THIS LINE BUYS IS A NAMED FAILURE, NOT COVERAGE, and
+             * the first version of this comment said otherwise. Review
+             * checked: delete both filters so the search takes slot 0
+             * and 381/382 fail anyway -- a vacuous subject cannot
+             * satisfy a strict inequality in either direction, so the
+             * pair already fails safe. Without this line those two
+             * failures would be true and unreadable, pointing at
+             * colour selection when the fixture is the problem. Worth
+             * having, worth describing accurately. */
             for (si = 0; si < sc.hdr->n_slot && !found; si++) {
                 const ps2ui_slot_entry *sl = &sc.slots[si];
                 const ps2ui_tint_entry *b = &srow[sl->tint_base];
@@ -3160,8 +3169,10 @@ int main(int argc, char **argv)
                                               srow[sl->tint_focus].a, 0x00);
                 int n_on = 0, n_off = 0;
                 int base_on = 0, base_off = 0, foc_on = 0, foc_off = 0;
+                int neighbours = 0, base_unfocusable = 0;
                 uint16_t scr;
                 int j, first;
+                uint32_t k2;
 
                 /* Its screen, or the pen never walks it. */
                 for (scr = 0; scr < sc.hdr->n_screen; scr++) {
@@ -3171,6 +3182,33 @@ int main(int argc, char **argv)
                         sc.screen = scr;
                         break;
                     }
+                }
+
+                /* Neighbours that share the subject's base colour and
+                 * ARE focusable, and the absence of any unfocusable
+                 * slot on this screen that shares it -- otherwise
+                 * base_on > 0 could be satisfied by a slot that has no
+                 * focus state to get wrong. */
+                {
+                    const ps2ui_screen_entry *e = &sc.screen_table[sc.screen];
+                    for (k2 = e->slot_first;
+                         k2 < (uint32_t)e->slot_first + e->slot_count; k2++) {
+                        const ps2ui_slot_entry *o = &sc.slots[k2];
+                        const ps2ui_tint_entry *ob = &srow[o->tint_base];
+                        if (k2 == subject)
+                            continue;
+                        if (ob->r != srow[sl->tint_base].r
+                            || ob->g != srow[sl->tint_base].g
+                            || ob->b != srow[sl->tint_base].b
+                            || ob->a != srow[sl->tint_base].a)
+                            continue;
+                        if (o->focus == PS2UI_NONE)
+                            base_unfocusable++;
+                        else
+                            neighbours++;
+                    }
+                    if (base_unfocusable)
+                        neighbours = 0;
                 }
 
                 sc.focus = sl->focus;
@@ -3206,6 +3244,35 @@ int main(int argc, char **argv)
                       "and its BASE tint while not. Fails if the pen "
                       "reads tint_focus in both branches, which draws "
                       "every row of running text permanently highlighted");
+
+                /* THE PAIR ABOVE IS DIRECTIONAL BUT NOT QUANTITATIVE,
+                 * and one sabotage lives in that gap. Review found it:
+                 *
+                 *   is_focused = (s->focus != PS2UI_NONE)
+                 *                && (ctx->focus != PS2UI_NONE);
+                 *
+                 * Both non-NONE guards kept, only the identity
+                 * comparison gone -- so focusing any row highlights
+                 * EVERY focusable slot at once and the selection is
+                 * invisible on screen. It passes because it satisfies
+                 * foc_on > foc_off and base_off > base_on more
+                 * strongly than the correct build does: foc_on goes
+                 * from 12 to 73, base_on from 61 to 0.
+                 *
+                 * Zero is the tell. With one slot focused its
+                 * focusable neighbours must still be drawing base. */
+                CHECK(neighbours > 0,
+                      "the subject has focusable neighbours sharing its "
+                      "base tint, and no unfocusable slot on the screen "
+                      "shares it -- so the count below can only come "
+                      "from a neighbour");
+                CHECK(base_on > 0,
+                      "AND FOCUSING ONE SLOT DOES NOT RECOLOUR ITS "
+                      "NEIGHBOURS: with the subject focused, the other "
+                      "focusable slots still draw base. Fails if "
+                      "is_focused stops comparing the node identity, "
+                      "which the two checks above pass more strongly "
+                      "than a correct runtime does");
             }
         } else {
             CHECK(0, "the slot tint fixture loads and uploads");
