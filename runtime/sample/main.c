@@ -1608,11 +1608,28 @@ int main(void)
              * flip, so its single number was dominated by the wait and
              * said nothing about headroom. It now reads before.
              *
-             * `ee` is EE-side cost only. gsKit_queue_exec kicks the DMA
-             * and returns; the GS is still drawing. So `f - ee` is an
-             * UPPER BOUND on the headroom available to EE work, not a
-             * measure of how much of the field the GS has left. Do not
-             * quote it as GS occupancy. */
+             * `ee` IS NOT PURELY EE-SIDE, and the first version of
+             * this comment said it was. gsKit_queue_exec is not a
+             * non-blocking kick: gsKit_queue_exec_real appends a FINISH
+             * token (gsCore.c:582 at 43122eb), spins on the PREVIOUS
+             * frame's FINISH (:591), clears CSR (:594), and only then
+             * sends the chain. So `ee` is EE work PLUS any GS overrun
+             * carried from the frame before.
+             *
+             * Today that second term is about zero, because sync_flip
+             * has already given the GS a whole field before anyone
+             * waits on it -- which is why the number looks clean and
+             * why the wrong claim was comfortable. What it means is
+             * that the blind spot is smaller than advertised: a GS
+             * taking longer than a field WOULD appear inside `ee`, and
+             * `m` would trip with it.
+             *
+             * So the honest statement is stronger than "we cannot see
+             * the GS at all". GS time is unknown but bounded above by
+             * roughly a field, and `ee << f` together with `m0`
+             * establishes it is not costing one. What is still unknown
+             * is its SHARE -- 10% and 90% look identical from here.
+             * That is P3a, and it is one gsKit_finish() away. */
             if (frame) {
                 u32 loop = t0 - t_prev;
                 fld_acc += ticks_to_us(loop);

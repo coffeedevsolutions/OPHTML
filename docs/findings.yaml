@@ -17,7 +17,7 @@
 phases:
   0: {title: "Verify the metal", locked: true}
   1: {title: "One resource model", locked: true}
-  2: {title: "Prove it with the OPL-class app", locked: false}
+  2: {title: "Prove it with the OPL-class app", locked: true}
 
 findings:
 
@@ -342,16 +342,34 @@ findings:
 - id: F-031
   phase: 1
   status: confirmed
-  claim: "An OPL-class environment costs a 6,951-byte arena, not a 35,648-byte ceiling"
+  claim: "An OPL-class environment costs a 7,003-byte arena, not a 35,648-byte ceiling"
   evidence:
     instrument: examples/opl-env/README.md
     measurement: >-
-      opl-env: 6 screens, 125 slots, 246,032-byte blob, VRAM 392 KiB of
+      opl-env: 6 screens, 126 slots, 246,096-byte blob, VRAM 392 KiB of
       a 736 KiB budget. The fixed-maxima context charged 35,648 bytes
       on every blob regardless of content; the 121-slot UC-3 fixture
       needs 8,285.
   falsifier: "A realistic environment whose arena exceeds the old fixed ceiling"
-  refs: ["#48", "#60"]
+  note: >-
+    THE NUMBER IN THIS CLAIM WAS WRONG FOR TWO PULL REQUESTS AND A
+    PHASE LOCK. It said 6,951 and 125 slots; the blob says 7,003 and
+    126. #63 added the telem slot to library.html, the library screen
+    went 43 to 44, and every count-derived figure moved with it.
+
+    The finding itself never wavered -- the falsifier is an arena past
+    the old 35,648-byte ceiling and 7,003 is not remotely close, so
+    this was a right conclusion carrying a wrong number, which is the
+    harder kind to notice. Nothing did notice, because `instrument`
+    here names a hand-written README and nothing read the blob header
+    back into it. A figure nobody re-derives is true on the day it is
+    written and unfalsifiable afterwards.
+
+    Corrected in #65, and tools/check-example-figures.py now diffs that
+    README against the committed blob so the next drift fails a build
+    instead of surviving a lock. Locking a phase means the deciding is
+    finished, not that the arithmetic stops being checked.
+  refs: ["#48", "#60", "#65"]
 
 - id: F-032
   phase: 2
@@ -418,10 +436,21 @@ findings:
     one it did not catch until #64's review found it, where the correct
     capture is kept and a second one added after the flip.
 
-    `ee` is EE-side cost only: gsKit_queue_exec returns while the GS is
-    still drawing, so `f - ee` is an upper bound on the headroom
-    available to EE work and NOT a measure of GS occupancy. Nothing
-    here has yet measured GS occupancy.
+    `ee` IS NOT PURELY EE-SIDE, which this note first claimed on a
+    reading of gsKit that was wrong. gsKit_queue_exec_real appends a
+    FINISH token (gsCore.c:582 at 43122eb), spins on the PREVIOUS
+    frame's FINISH (:591) and clears CSR (:594) BEFORE sending the
+    chain, so `ee` is EE work plus any GS overrun carried from the
+    frame before. Today that term is about zero because sync_flip has
+    already given the GS a whole field, which is exactly why the wrong
+    claim was comfortable.
+
+    The correct statement is STRONGER than the one it replaces. GS time
+    is unknown but bounded above by roughly a field, and `ee << f`
+    together with `m0` establishes it is not costing one -- a GS over
+    budget would surface inside `ee` and trip `m` with it. What remains
+    unknown is the GS's SHARE of the field: 10% and 90% are
+    indistinguishable from here. That is P3a.
 
     A self-consistency check fell out of the prim count: the first
     photograph reads p562 and the rest p570, and its visible rows are
@@ -468,3 +497,62 @@ findings:
     counterfactual nobody evaluated is not evidence, and this one sat
     in a confirmed finding through a phase.
   refs: ["#63", "#64"]
+
+- id: F-036
+  phase: 2
+  status: confirmed
+  claim: "The OPL-class environment uses about an eighth of a field on the EE"
+  evidence:
+    instrument: docs/bench-phase2.md
+    measurement: >-
+      Bench S11, SCPH-50000, HW #261, oplenv.elf at 4d351ae. ee 2.12 ms
+      at the top of the list, 2.21 ms once scrolling, 2.25 ms in the
+      hundreds -- 12.7% to 13.5% of a 16.683 ms NTSC field, leaving
+      about 14.4 ms unused on the EE side. f read 16.68 on every frame
+      and m read 0 throughout, held past title 250.
+  falsifier: >-
+    An ee reading approaching f at this content level, or any m above
+    zero
+  depends_on: [F-034, F-035]
+  note: >-
+    WHAT THIS DOES NOT MEASURE: the GS's SHARE of the field. Not GS
+    time outright -- see F-034's note, which corrects the claim that
+    gsKit_queue_exec returns while the GS draws. It does not: it blocks
+    on the previous frame's FINISH first, so a GS over budget would
+    surface inside `ee` and trip `m`. Between them, `ee << f` and `m0`
+    bound GS time below a field. What they cannot do is divide that
+    field: 10% GS and 90% GS look identical from here. Reading the
+    clock after gsKit_finish() rather than after vsync is P3a.
+
+    THIS IS A DUTY-CYCLE MEAN, and the frame that has to fit is not the
+    one printed. Two frames in sixty do the scroll work -- 36 slot_set
+    plus 9 tex_set in oplenv_bind_window -- and a 60-frame mean smears
+    them. Solving mean(11-19) - mean(1-9) = d + u/30 with d from the
+    prim delta puts the scroll frame at roughly 2.4 to 3.9 ms rather
+    than 2.21. The headline survives with room to spare, because m0
+    already proves none of those frames missed a field, but "an eighth
+    of a field" is the average eighth. A peak-hold beside the mean
+    would make this readable directly, which is the same upgrade `m`
+    was for F-034; it ships with P3a rather than costing a sitting of
+    its own.
+
+    THE READOUT IS DRAWN BY THE THING IT MEASURES, which turned the
+    prim count into an exact check for the second time. Between the
+    1-9 window and the 11-19 window the count rises 13: nine from the
+    title digits, one per row, and FOUR from the readout's own text,
+    because "up0" became "up28224". Between 11-19 and 140-148 it rises
+    exactly nine, the digit change alone, because the readout's length
+    did not move. Both worked out before being checked, both exact.
+
+    EE cost is close to linear in prim count with no large fixed term:
+    2.21/579 and 2.25/588 both give 3.8 us per prim (2.12/566 gives
+    3.7, and is the confounded reading anyway), and the
+    marginal cost across the clean pair is 4.4 us [3.3, 5.6]. The
+    interval is wide because ee prints to 0.01 ms, which is 10 us
+    against deltas of 40. Do not quote a per-prim cost from this
+    without widening the print first.
+
+    The 2.12 reading is CONFOUNDED and must not be used for a marginal
+    cost: it is the only one at up0, so it differs from the others in
+    upload state as well as in digits.
+  refs: ["#65"]

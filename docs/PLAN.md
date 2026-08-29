@@ -1,6 +1,10 @@
 # ps2ui Foundation Plan
 
-*rev 1.2 · 2026-08-24 · format v5 shipped, v6 planned · status: bring-up matrix complete — steps 1–7, 9, 10 pass on SCPH-50000; 8 void pending a CRT (panel deinterlacer, with positive field evidence logged)*
+*rev 1.3 · 2026-08-29 · format v6 shipped · **Phases 0, 1 and 2 locked; Phase 3 open at P3a** · bring-up matrix complete — steps 1–7, 9, 10 pass on SCPH-50000; 8 void pending a CRT (panel deinterlacer, with positive field evidence logged)*
+
+*Progress lives in §6. Every phase gate is a measurement with a
+falsifier in [`docs/findings.yaml`](findings.yaml), not a checkbox
+someone ticked.*
 
 What has been built, what it proved, where it stopped being one product —
 and the plan that replaces score-driven feature selection with a sequenced
@@ -38,8 +42,8 @@ making that class of application first-class.
 
 ## §2 Foundation inventory — what exists
 
-Twelve sprints, twenty-six shipped backlog items, sixteen merged PRs, two
-open.
+Twelve sprints, twenty-six shipped backlog items, 44 merged pull
+requests, 20 findings under `tools/check-findings.py`.
 
 **Capabilities (all regression-tested on the host):** hand-written flexbox;
 nine-patch borders/radii; text with wrap, letter-spacing, ellipsis, and
@@ -213,7 +217,8 @@ the loop has been done once end to end.
 > panel whose deinterlacer erases the rule flicker while the 1px-checker
 > shimmer proves the fields differ. The step stays open for a CRT and
 > does not hold the phase: it verifies the CRT linter's hairline advice,
-> not the renderer.
+> not the renderer. **Phase 0 is locked** — six findings, F-001 to
+> F-006, and F-011 kept deliberately as `overturned`.
 
 ### Phase 1 — One resource model
 
@@ -262,17 +267,29 @@ rejected loudly.
 > model; the context contains no ceiling-sized arrays; a demo streams a
 > cover into a reserved slot on hardware; v6 documented with v5's rigor.
 
-All four items above have shipped. The gate's remaining clause is the
-hardware one, and it is the only thing between Phase 1 and Phase 2:
-`docs/bench-phase1.md` is the sitting, `fixtures/bench-stream` is the
-blob and the covers, and `covers.elf` / `covers-nosync.elf` are the
-instruments. Six steps, one photograph each.
+> **Gate met. Phase 1 is locked.** All four items shipped, and the
+> hardware clause closed at bench S9 on a SCPH-50000 (HW #260):
+> `docs/bench-phase1.md`.
 
-Nothing in Phase 1 has been on a console. That is deliberate — the
-host suites and the emulator gate carried it — but `ps2ui_tex_set`
-hands the GS memory the EE wrote through a write-back cache the GIF
-cannot see, which is the fault class #40 was and the one emulators
-model least well.
+The hardware clause was the only thing between Phase 1 and Phase 2, and
+it was not a formality. `ps2ui_tex_set` hands the GS memory the EE
+wrote through a write-back cache the GIF cannot see — the fault class
+#40 was, and the one emulators model least well.
+
+It also closed the sampling defect [F-033], which had survived months,
+four pull requests and every host renderer this project owns. The chain
+that killed it: S7a eliminated both original hypotheses; ladder v1 (S8)
+found the power-of-two signature but its bias arm **could not fail**; a
+`+0.5` fix shipped on that dead arm and was caught by the emulator
+gate; ladder v2 (S10) measured the real magnitude at 1/16; and S9
+confirmed it on the *shipping* renderer rather than a purpose-built
+card [F-019, F-020, F-021].
+
+`+0.5` was the worst possible first guess and not by chance: it is the
+exact tipping point at which `floor(u + b + i + 0.5)` stops equalling
+`u + i`, so it is the one bias value that changes the result on an
+exact interpolator. Every host renderer here is exact. Only the GS is
+not [F-011:historical].
 
 ### Phase 2 — Prove it with the OPL-class app
 
@@ -292,47 +309,163 @@ Broken out, because three of the gate's four clauses are about the
 environment *running* and the first slice only proves it bakes:
 
 1. **The environment exists, bakes and loads.** **[shipped]**
-   `examples/opl-env`: six screens, 125 slots, ten streamed texture
-   slots, one overlay. 246,032-byte blob, 6,951-byte arena for the
+   `examples/opl-env`: six screens, 126 slots, ten streamed texture
+   slots, one overlay. 246,096-byte blob, 7,003-byte arena for the
    whole environment, VRAM 392 KiB inside a 736 KiB budget. Carries the
    `examples/` contract -- warning-free under `--strict`, screenshots
    refreshed by building, `check-blobs` with no exemptions -- and CI
    runs all three, which the first version did not.
-2. **A runtime driver.** An ELF that loads the environment, walks it
-   with the pad, and reports frame time and prim counts on screen.
-   Nothing loads `opl-env` on a console today, so nothing in clauses
-   3 or 4 can be measured.
-3. **The windowed library.** The gate names this explicitly and it is
-   the least-tested thing in the project: scrolling rebinds slot text
-   and streams new covers into the *fixed* reservations as the window
-   moves. Slot text and streaming have each been exercised alone and
-   never together under motion. The nine `data-repeat` rows are static
-   today.
-4. **Measure on hardware.** Frame time at field rate, prim counts,
-   VRAM, with the numbers written down beside the baked ones. Needs a
-   sitting, and needs 2 and 3 first.
-5. **File the gaps.** Ongoing, and the reason the phase exists. Three
+2. **A runtime driver.** **[shipped — #63]** `oplenv.elf`
+   (`PS2UI_SAMPLE_OPLENV`): loads the environment, scrolls the library
+   on a timer, moves focus with the selection, and writes its own
+   measurements to a slot on screen — so a photograph of the screen
+   carries the reading, rather than a serial line nobody at a bench can
+   read.
+3. **The windowed library.** **[shipped — #63]**
+   `examples/opl-env/window.h`, pure C89 with no PS2 headers, so the
+   windowing logic is host-testable and fenced. Scrolling rebinds slot
+   text and streams covers into the fixed reservations under motion —
+   the two mechanisms had each been exercised alone and never together.
+4. **Measure on hardware.** **[shipped — HW #260 and #261]** Two
+   sittings, `docs/bench-phase2.md`. Four findings came out of them:
+
+   | | reading | finding |
+   |---|---|---|
+   | scroll cost | `up28224`, exact against the reservation model | F-032 |
+   | field rate | 16.68 ms, no dropped field past title 250 | F-034 |
+   | COP0 rate | settled at 294.912 MHz as a side effect | F-035 |
+   | EE headroom | 2.2 ms of a field, 13.5% | F-036 |
+
+   The first sitting also produced the phase's sharpest lesson: its
+   16.73 ms reading was the *field period wearing a frame-time label*,
+   because the timer spanned `gsKit_sync_flip`. Stable, plausible,
+   photographed, and unable to tell a saturated EE from an idle one.
+5. **File the gaps.** **[ongoing — the reason the phase exists]** Three
    from the first build: a runtime test harness that segfaulted on any
    blob but one, single-line slots against a two-line dialog body, and
-   `--strict` catching a 12px focusable.
+   `--strict` catching a 12px focusable. Eight more since:
+
+   - a frame timer measuring the wait instead of the work (#64)
+   - `-fsyntax-only` structurally blind to `-Wunused-function`, so the
+     host check could not see a warning class the ELF build treats as
+     fatal (#63)
+   - a fence that never ran, because `window.h` was not a make
+     dependency and three sabotages passed against a stale binary (#63)
+   - `EE_HZ / 1000000u` truncating to 294, a +0.310% bias that had been
+     misfiled as clock error (#64)
+   - `re.search` stopping at the first match, leaving the timing fence
+     open to regression-by-addition (#64)
+   - a README serving as a finding's instrument, with nothing reading
+     the blob header back into it — three figures drifted through two
+     pull requests and a phase lock (#65)
+   - a runbook telling readers to photograph the one reading its own
+     finding says is confounded (#65)
+   - `git checkout -- <file>` destroying uncommitted work four times
+     during falsification, now fixed by keeping git out of the restore
+     path entirely (#64)
+
+> **Gate met.** All five clauses. The skeleton runs at field rate on a
+> SCPH-50000 while streaming covers through a scrolling windowed
+> library, and the measurements are in `docs/findings.yaml` with
+> falsifiers attached. **Phase 2 is locked** (#65).
 
 `position: absolute` (F8) was **not** pulled: the overlay centres with
 flex and needed nothing. It stays in the pull lane.
 
 ### Phase 3 — Spend the hardware
 
-Optimization against Phase 2's numbers, not vibes:
+Optimization against Phase 2's numbers, not vibes. **Phase 2's numbers
+are now in, and they reorder this phase.** [F-036]
 
-- **Precompiled GIF/DMA chains:** bake each screen's static geometry as a
-  ready-to-kick chain; runtime patches the dynamic tail. Frame ≈ one DMA
-  kick — the logical conclusion of "everything at build time."
-- **CLUT-swap theming:** same PSMT8 art, multiple ~1 KiB palettes; instant
-  recolor for themes and focus states.
-- **Page-aware atlas packing:** pack to 8 KiB page boundaries (64×32 CT32,
-  128×64 T8) to minimize TBP switches and make streamed reservations exact.
+The EE spends 2.2 ms of a 16.683 ms field — 13.5%, with about 14.4 ms
+unused and not one dropped field past title 250. Precompiled chains
+optimise EE display-list building. There is no EE display-list problem.
+Best case the headline item of this phase saves two milliseconds out of
+fourteen already idle, on a loop that is vsync-locked and therefore
+cannot go faster.
+
+That does not make chains worthless — they buy headroom for content
+Phase 2 never drew, and the argument for them was never only speed. It
+makes them **unjustified until something is measured that they would
+help**, which is the rule this phase opens with.
+
+What has not been measured is the GS's **share** of the field. Not GS
+time outright: `gsKit_queue_exec` blocks on the previous frame's FINISH
+before sending the chain, so a GS over budget would surface inside `ee`
+and trip `m`, and neither happened [F-034]. Between `ee` at 13.5% and
+`m0`, GS time is bounded below a field. What those readings cannot do
+is divide it — 10% GS and 90% GS are indistinguishable from them, and
+the two lead to opposite plans. Until the share is known, every item
+below is a guess about which resource is scarce:
+
+0. **P3a — the GS's share of the field.** **[in progress]** Read the clock after
+   `gsKit_finish()` rather than after vsync. Smaller than it sounds:
+   `gsKit_queue_exec_real` has *already* appended the FINISH token
+   (`gsCore.c:582` at 43122eb) and cleared CSR (`:594`) before sending
+   the chain, so the instrument is one `gsKit_finish()` and one clock
+   read straight after `gsKit_queue_exec`. **Do not call
+   `gsKit_set_finish` yourself** — that puts two FINISH tokens per
+   frame in the chain.
+
+   **It needs a falsification arm before its number gates anything.**
+   `gsKit_finish()` is `while(!(GS_CSR_FINISH));` (`:124-127`) — it
+   spins and does *not* clear; gsKit clears at `:594`. Any hand-rolled
+   arm/wait that forgets `GS_SETREG_CSR_FINISH(1)` leaves the bit
+   latched, and every later wait returns instantly: a GS occupancy of
+   0.00 ms, every frame, forever. That reads as *"the GS is idle, so
+   chains are pointless"* — which is the conclusion this section
+   already leans toward, reached by an instrument that stopped
+   measuring after frame one. This project's own defect class, aimed
+   at the phase's gating measurement.
+
+   So P3a ships with a fill-heavy arm: a few full-screen alpha-blended
+   quads, and the number is **required to move**. If it does not, the
+   instrument is latched, not the GS idle.
+
+   Ship a peak-hold `ee` alongside it, so the scroll frame is readable
+   rather than smeared into a 1-in-30 mean [F-036] — one sitting, both
+   numbers.
+
+   **It gates the rest of the phase**, because its answer decides
+   whether this phase is about speed at all:
+
+   | GS share | what Phase 3 becomes |
+   |---|---|
+   | high (fill-bound) | page-aware packing and overdraw reduction matter; chains do not |
+   | low | neither matters for frame rate; re-scope toward capability — theming, larger content, more on screen |
+
+Then, in an order P3a decides:
+
+1. **P3b — CLUT-swap theming.** Same PSMT8 art, multiple ~1 KiB
+   palettes; instant recolor for themes and focus states. **Not gated
+   on P3a** — it buys capability rather than speed, so it is worth
+   doing whichever way the GS number lands, and it is the only Phase 3
+   item that is true of both branches.
+2. **P3c — page-aware atlas packing.** Pack to 8 KiB page boundaries
+   (64×32 CT32, 128×64 T8) to minimise TBP switches and make streamed
+   reservations exact. **Gated on P3a showing the GS fill-bound.** If
+   the GS is idle, this is a VRAM-tidiness change wearing a performance
+   argument, and should be justified as the former or not at all.
+3. **P3d — precompiled GIF/DMA chains.** Bake each screen's static
+   geometry as a ready-to-kick chain; runtime patches the dynamic tail.
+   Frame ≈ one DMA kick — the logical conclusion of "everything at
+   build time." **Gated on P3a showing an EE cost worth removing, which
+   Phase 2 says it will not** [F-036]: the EE is at 13.5% and this
+   removes EE work. It stays on the list because it buys headroom for
+   content Phase 2 never drew, but that is a different argument from
+   the one originally written here and has to be made on its own.
+
+The ordering is deliberate: the ungated item first, then the two whose
+justification does not exist yet. A phase that opens "optimization
+against Phase 2's numbers, not vibes" should not begin with the item
+those numbers argue against.
 
 > **Exit gate:** measured frame CPU time published before/after; chains
 > are opt-in per blob via a feature bit and degrade to the replay path.
+> **Amended:** "frame CPU time" was the gate written before anyone knew
+> CPU time was 13% of a field. The gate is now GS *and* EE time,
+> published before/after, and an item that improves neither does not
+> ship on the grounds that it is clever. [F-036]
 
 ### Phase 4 — Make it a product
 

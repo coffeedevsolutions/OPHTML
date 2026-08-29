@@ -2,7 +2,7 @@
 
 The Phase 2 skeleton (`docs/PLAN.md` §6): a game-launcher environment
 built out of the same six mechanisms Phase 1 shipped, at the scale a
-real one runs at. Six screens, 125 slots, ten streamed texture slots,
+real one runs at. Six screens, 126 slots, ten streamed texture slots,
 one overlay composited over whichever screen is beneath it.
 
 It lives in `examples/`, not `fixtures/`, and carries what that
@@ -19,23 +19,30 @@ this blob, and an exemption here would be an exemption on them.
 
 | mechanism | where |
 |---|---|
-| blob-declared working set | 6,951-byte arena for the whole environment |
+| blob-declared working set | 7,003-byte arena for the whole environment |
 | streamed texture slots | nine list thumbnails + one detail cover |
-| slot text at scale | 125 slots, none of them a fixed ceiling |
+| slot text at scale | 126 slots, none of them a fixed ceiling |
 | composition | `confirm` drawn over `library` or `detail`, no clear between |
 | focus routing | 51 nodes, per-screen graphs |
 | repeats | nine library rows, six detail fields, three recent tiles |
 
 ## Measurements
 
-Taken from the blob, not estimated. These are the Phase 2 baseline;
-Phase 3 optimises against them.
+Taken from the blob, not estimated -- and since #65, CHECKED against
+it. `tools/check-example-figures.py` reads the committed blob header
+and diffs it against the block below, because this sentence was true
+when it was written and then silently stopped being true: #63 added the
+telem slot, the library screen went 43 to 44, and three of these
+figures drifted through two pull requests and a phase lock with nobody
+re-deriving them.
+
+These are the Phase 2 baseline; Phase 3 optimises against them.
 
 ```
-blob            246,032 bytes
-arena             6,951 bytes      (the whole six-screen environment)
+blob            246,096 bytes
+arena             7,003 bytes      (the whole six-screen environment)
 screens                   6
-slots                   125
+slots                   126
 focus nodes              51
 textures                 28        (10 streamed)
 fonts                     6
