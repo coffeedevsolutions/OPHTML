@@ -144,9 +144,20 @@ f16.68 ms p579 up28224 m0
 |---|---|
 | `ee` | mean EE work per frame |
 | `^` | **peak** EE frame in the last second — the scroll frame, which the mean smears |
-| `gs` | GS draw time, measured after `gsKit_finish()` returns |
+| `gs` | **GIF transfer + GS drawing**, measured after `gsKit_finish()` returns |
+
+`gs` is not drawing alone. `dmaKit_send_chain_ucab` programs the DMA
+registers and returns, so the chain is still moving when the clock
+starts. For *"does the frame fit in a field"* that is the right
+quantity. For deciding what Phase 3 optimises it is not — a large
+number could be transfer-bound rather than fill-bound, and those want
+opposite work. The fill arm separates them too: its sprites are one
+prim each and carry almost no transfer, so a `gs` that climbs under
+fill is climbing on rasterisation.
 
 **Photograph both ELFs.** One number is not the reading; the pair is.
+The fill build stays legible — the sprites are drawn *before* the UI,
+so the telemetry composites on top of them.
 
 | | plain | fill | verdict |
 |---|---|---|---|
@@ -179,6 +190,12 @@ draw.
 16 sprites — that moves `gs` roughly proportionally is far stronger
 evidence than a single step: it says the number tracks fill, not that
 it merely changed once.
+
+Build it with **both** flags: `make -C runtime/sample OPLENV=1 FILL=1
+PS2UI_OPLENV_FILL_N=16 …`. `FILL=1` alone is refused by the Makefile,
+because without `OPLENV=1` it quietly produces the plain memcard sample
+under the fill ELF's name — a file that boots, shows a UI, and is not
+the arm you think you are holding.
 
 ---
 

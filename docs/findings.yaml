@@ -381,7 +381,7 @@ findings:
     That does not move when someone adds a slot. The exact byte count
     now lives in evidence, where the check guards it, and the claim
     says the thing that stays true.
-  refs: ["#48", "#60", "#65"]
+  refs: ["#48", "#60", "#65", "#66"]
 
 - id: F-032
   phase: 2

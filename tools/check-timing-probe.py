@@ -62,9 +62,11 @@ def strip_comments(text):
     that `gsKit_queue_exec_real` appends the FINISH token contains the
     string "gsKit_queue_exec", so an rfind for the DMA kick landed on
     the sentence ABOUT the kick rather than the kick, put the anchor
-    ~1.7 kB late, and reported a correctly placed capture as outside
+    246 bytes late, and reported a correctly placed capture as outside
     the window. The comment that documents the mechanism broke the
-    check on the mechanism.
+    check on the mechanism. (The commit that fixed it said "~1.7 kB",
+    which was a guess written as a measurement in the account of a bug
+    about text being read as code. It is 246.)
 
     Offsets are preserved (comments become spaces) so every position
     computed here still indexes the real source.
@@ -233,7 +235,21 @@ def main():
     # reads as alarm rather than as confidence -- but "the alarm and the
     # real fault are indistinguishable" is not a good place to leave a
     # falsifier, because the bench cannot tell which it is looking at.
-    if "PS2UI_OPLENV_FILL" in block:
+    #
+    # AND ABSENCE IS THE FAILURE. The first version gated these rules on
+    # `if "PS2UI_OPLENV_FILL" in block:`, so deleting the arm outright
+    # made both rules evaporate and the check printed "ok - and the fill
+    # arm still draws what it promises" over a tree that had none. It
+    # caught an arm that was weakened and passed an arm that was gone,
+    # while asserting the opposite -- in a file whose sibling check
+    # already carries the words "a checker that quietly passes when its
+    # subject is absent is worse than no checker". Written twice, in
+    # consecutive pull requests.
+    if "PS2UI_OPLENV_FILL" not in block:
+        fail.append("the fill arm is gone; gs has no falsifier, and a "
+                    "reading with no arm to move it cannot be told from a "
+                    "latched CSR FINISH")
+    else:
         loop = re.search(r"for\s*\(\s*\w+\s*=\s*0\s*;\s*\w+\s*<\s*"
                          r"PS2UI_OPLENV_FILL_N\s*;", block)
         if not loop:
@@ -243,6 +259,21 @@ def main():
             fail.append("the fill arm loops but draws nothing; a `gs` that "
                         "refuses to move would then be unreadable -- dead arm "
                         "and latched instrument look identical")
+
+    # The one-token invariant rests on GS_ONESHOT, not on the driver's
+    # restraint. With the oneshot queue, queue_exec finds Per_Queue empty
+    # and returns before appending; under GS_PERSISTENT gsKit appends a
+    # second token of its own and gsKit_finish() would return on the
+    # wrong one. Forbidding gsKit_set_finish in the driver does not cover
+    # that, because the extra token would not be the driver's.
+    whole = strip_comments(open(SRC).read())
+    if not re.search(r"GS_ONESHOT", whole):
+        fail.append("GS_ONESHOT is gone; under GS_PERSISTENT gsKit appends "
+                    "its own second FINISH token and gsKit_finish() can "
+                    "return on the wrong one")
+    if re.search(r"gsKit_mode_switch\s*\([^)]*GS_PERSISTENT", whole):
+        fail.append("the driver switches to GS_PERSISTENT, which puts a "
+                    "second FINISH token per frame in the chain")
 
     # The peak-hold, which is what makes the scroll frame readable at
     # all -- the mean is over a 1-in-30 duty cycle and never prints it.
@@ -279,6 +310,7 @@ def main():
     print("ok - and the driver does not arm a second FINISH token")
     print("ok - ee carries a peak-hold beside the mean")
     print("ok - and the fill arm still draws what it promises")
+    print("ok - one FINISH token per frame, on the oneshot queue")
     return 0
 
 

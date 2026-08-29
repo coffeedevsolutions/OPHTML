@@ -1694,8 +1694,6 @@ int main(void)
             }
 
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
-            ps2ui_render(&ui, gs);
-
 #ifdef PS2UI_OPLENV_FILL
             /* THE FALSIFICATION ARM FOR gs, AND IT IS NOT OPTIONAL.
              *
@@ -1716,6 +1714,18 @@ int main(void)
              * `gs` must climb. If `gs` does NOT climb, the reading is
              * latched and no conclusion may be drawn from any of it.
              *
+             * BEFORE ps2ui_render, NOT AFTER, and this is not a style
+             * preference. ZBuffering is off and paint order is strict,
+             * so sprites drawn after the UI paint over it -- including
+             * both telemetry lines. The blend ps2ui_render asserts is
+             * As=0x40, exactly half retention per pass, so eight passes
+             * leave the destination 0.0039 of itself: at the default
+             * FILL_N the screen is a flat rectangle and the numbers
+             * this arm exists to make trustworthy cannot be read at
+             * all. Drawn here the GS does identical work -- same
+             * rasterisation, same blended pixels, same prim count --
+             * and the UI composites on top.
+             *
              * Run it at the bench alongside the plain build. Two
              * photographs, and the pair is the evidence: one number
              * with a fill arm that moves it is a measurement, one
@@ -1728,6 +1738,8 @@ int main(void)
                                                       0x40, 0x00));
             }
 #endif
+            ps2ui_render(&ui, gs);
+
 
             /* Rolling mean over a second, so the numbers are steady
              * enough to photograph. Both are absolute microseconds --
@@ -1779,7 +1791,17 @@ int main(void)
              * cleared CSR FINISH (:594) before sending it, so the token
              * is in flight and the bit is low. gsKit_finish() spins
              * until the GS raises it, which is this frame's drawing
-             * complete. t_gs - t_work is the GS's time.
+             * complete.
+             *
+             * t_gs - t_work is GIF TRANSFER PLUS GS DRAWING, not
+             * drawing alone: dmaKit_send_chain_ucab programs CHCR and
+             * returns, so the chain is still moving when the clock
+             * starts. For "does the frame fit in a field" that is the
+             * right quantity. For deciding what Phase 3 optimises it
+             * is not, because a large number could be transfer-bound
+             * rather than fill-bound and those want opposite work --
+             * which is a third thing the fill arm settles, since its
+             * sprites are one prim each and carry almost no transfer.
              *
              * DO NOT call gsKit_set_finish here. queue_exec already
              * appended the token; arming a second one puts two FINISH

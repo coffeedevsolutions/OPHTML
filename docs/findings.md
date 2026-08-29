@@ -223,7 +223,7 @@ The finding itself never wavered -- the falsifier is an arena past the old 35,64
 Corrected in #65, and tools/check-example-figures.py now diffs that README against the committed blob so the next drift fails a build instead of surviving a lock. Locking a phase means the deciding is finished, not that the arithmetic stops being checked.
 AND THE NEXT DRIFT WAS THE VERY NEXT CHANGE. P3a split the readout into two slots, the count went 126 to 127, and the new check caught it in the same commit that caused it -- which is the check working, but three drifts in three consecutive changes says the fault is not only that nobody re-derived the number. It is that a DURABLE claim was carrying a VOLATILE one. The finding is about an order of magnitude: single-digit KiB against a 35,648-byte fixed ceiling. That does not move when someone adds a slot. The exact byte count now lives in evidence, where the check guards it, and the claim says the thing that stays true.
 
-*#48, #60, #65*
+*#48, #60, #65, #66*
 
 ### F-033 — The sampling defect is closed on hardware, on both axes, through the shipping renderer
 
