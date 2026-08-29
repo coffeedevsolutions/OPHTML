@@ -12,6 +12,11 @@ role-keying feature bit's producer have not*
 > It disagrees with `PLAN.md` about what P3b is, and the disagreement
 > is the point of the document.
 >
+> **Rev 5** overturns §9.1's answer to "what is a role", which rev 2
+> introduced and rev 4 shipped the refusal for. The role is **the name
+> the author chose**, not the site the colour was written at. §9.1 is
+> marked historical below; the argument is in §9.2.
+>
 > **Rev 4** is the implementation (P3b-1, v7). Every count in §2 and
 > §3a-ii was one too high: the script behind them counted the colour
 > field of *every* command, and a scissor command carries `(0,0,0,0)`
@@ -239,6 +244,10 @@ That is the worst kind of developer experience — a correct-looking
 input producing a wrong output with no diagnostic — and it was in the
 draft as a *falsifier* when it should have been a defect.
 
+**[rev 5 — HISTORICAL. This section's conclusion is overturned; see
+§9.2. The problem it identifies is real and unchanged, and only the
+proposed key is wrong.]**
+
 Keying on the declaration site instead: **81 entries, 324 bytes** for
 the most colourful example here. The table was never the expensive
 part, and thanks to §2's retraction the command struct does not grow
@@ -413,3 +422,57 @@ a second one [F-041]. If both are in play, do the CLUT swap last.
    32 → 28. Whether this rides with anything else in Phase 3 depends on
    what P3c turns into now that its performance argument is gone
    [F-037].
+
+---
+
+### 9.2 [rev 5] What a role actually is — the name, not the site
+
+§9.1 asked how to key an entry so two themes can tell two declarations
+apart, and answered "the declaration site". The problem it found is
+real: `#7c9be0` is written by nine separate declarations in opl-env, and
+value-keyed indices fuse them. **The answer is wrong**, and the way it
+is wrong is instructive, because it is right about the runtime and
+silent about the author.
+
+Measured on the shipped CSS:
+
+| file | colour declarations | distinct literals | baked entries (v7) |
+|---|---|---|---|
+| `opl.css` | 82 | 26 | 12 |
+| `channel6.css` | 74 | 41 | 33 |
+| `library.css` | 36 | 24 | 9 |
+
+Declaration-site keying turns opl-env's 12 entries into **82**, each
+identified by a file and a line. Every property §9.1 wanted holds: two
+themes can diverge anywhere, nothing fuses, the table is 328 bytes.
+And a theme file for it is **82 anonymous positions**. There is no
+name to write, no way to say "the focus ring", and inserting a rule at
+the top of the stylesheet renumbers the theme.
+
+**A role is a thing the author named.** `var(--focus-ring)` is a role.
+`#7c9be0` typed nine times is nine coincidences that happen to agree,
+and no amount of provenance turns a coincidence into an intention. So
+`var()` is not the authoring sugar §4 filed it as — it is the
+mechanism, and it moves from last in the slice order to next.
+
+The restricted form is enough and is a fraction of CSS custom
+properties: `:root { --name: #hex }` for the definitions, `var(--name)`
+at use sites, no fallback syntax, no per-element override, no computed
+inheritance. Theming needs a namespace, not the cascade.
+
+**Bare literals keep collapsing, and that is a feature.** A colour the
+author did not name is a colour the author did not offer to a theme.
+It stays value-keyed, shared across the UI exactly as it is today, and
+no row can move it. The blob renders correctly under every theme; it
+simply does not recolour those pixels. Nothing is silently wrong, which
+is the property §9.1 was protecting and the only one that mattered.
+
+That sharpens `PS2UI_FEAT_ROLE_TINTS` from "indices are keyed on the
+declaration" to a claim worth making:
+
+> **Every tint a theme can move is keyed on a name the author wrote.**
+
+And it hands `--strict` (§4.3) its real job. A UI declaring two themes
+while still painting with literals is not malformed and must not be
+refused — but it is almost certainly a half-converted stylesheet, and
+that is exactly what a strict pass exists to say.
