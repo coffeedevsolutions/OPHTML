@@ -405,6 +405,15 @@ jobs:
           make -C runtime/sample objclean
           make -C runtime/sample OPLENV=1 \
             UIB=../../examples/opl-env/build/ui.uib EE_BIN=oplenv.elf
+          # P3a's falsification arm, and it ships as its own ELF rather
+          # than a runtime toggle so the bench cannot accidentally read
+          # one build and think it read the other. gs is only a
+          # measurement if this one moves it; if both ELFs report the
+          # same gs, the instrument is latched and no conclusion may be
+          # drawn from either.
+          make -C runtime/sample objclean
+          make -C runtime/sample OPLENV=1 FILL=1 \
+            UIB=../../examples/opl-env/build/ui.uib EE_BIN=oplenv-fill.elf
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -412,6 +421,8 @@ jobs:
           test -f runtime/sample/probe.elf
           test -f runtime/sample/probe6.elf
           test -f runtime/sample/probe6-linear.elf
+          test -f runtime/sample/oplenv.elf
+          test -f runtime/sample/oplenv-fill.elf
           test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
           test -f runtime/sample/testcard.elf
@@ -447,6 +458,7 @@ jobs:
             runtime/sample/ladder.elf
             runtime/sample/ladder2.elf
             runtime/sample/oplenv.elf
+            runtime/sample/oplenv-fill.elf
 
   emulator:
     needs: [bake, elf]

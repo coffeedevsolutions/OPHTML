@@ -54,22 +54,98 @@ def frame_loop(text):
     raise SystemExit("check-timing-probe: no OPLENV block contains a frame loop")
 
 
+def strip_comments(text):
+    """Blank out comments and string literals, preserving offsets.
+
+    A source-level check that reads prose as code is a check with a
+    silent false answer, and this one had it: the comment explaining
+    that `gsKit_queue_exec_real` appends the FINISH token contains the
+    string "gsKit_queue_exec", so an rfind for the DMA kick landed on
+    the sentence ABOUT the kick rather than the kick, put the anchor
+    246 bytes late, and reported a correctly placed capture as outside
+    the window. The comment that documents the mechanism broke the
+    check on the mechanism. (The commit that fixed it said "~1.7 kB",
+    which was a guess written as a measurement in the account of a bug
+    about text being read as code. It is 246.)
+
+    Offsets are preserved (comments become spaces) so every position
+    computed here still indexes the real source.
+    """
+    out, i, n = [], 0, len(text)
+    while i < n:
+        two = text[i:i + 2]
+        if two == "/*":
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append("".join(" " if c != "\n" else "\n" for c in text[i:j]))
+            i = j
+        elif two == "//":
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append(" " * (j - i))
+            i = j
+        elif text[i] in "\"'":
+            q, j = text[i], i + 1
+            while j < n and text[j] != q:
+                j += 2 if text[j] == "\\" else 1
+            j = min(j + 1, n)
+            out.append(" " * (j - i))
+            i = j
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
+
+
+def accumulation(block, acc_name):
+    """Where the value fed to `<acc_name> +=` was captured.
+
+    Two spellings reach the same place, and a check that knew only one
+    would report "no accumulation found" for the other -- which reads
+    as a missing measurement rather than an unrecognised one, and is
+    the wrong alarm:
+
+        ee_acc += ticks_to_us(t_work - t0);        direct
+        u32 ee = ticks_to_us(t_work - t0);         via a local, which
+        ee_acc += ee;                              peak-hold needs
+
+    Returns (end_name, position_of_the_accumulation), or (None, None).
+    The `(?:\(\))?` keeps the regression form -- reading the clock
+    inline at the accumulation -- CAUGHT rather than merely unmatched.
+    """
+    direct = re.search(r"\b%s\s*\+=\s*(?:ticks_to_us)?\s*\(\s*"
+                       r"([A-Za-z_][A-Za-z0-9_]*(?:\(\))?)\s*-" % acc_name,
+                       block)
+    if direct:
+        return direct.group(1), direct.start()
+    via = re.search(r"\b%s\s*\+=\s*([A-Za-z_][A-Za-z0-9_]*)\s*;" % acc_name,
+                    block)
+    if not via:
+        return None, None
+    local = re.search(r"\b%s\s*=\s*(?:ticks_to_us)?\s*\(\s*"
+                      r"([A-Za-z_][A-Za-z0-9_]*(?:\(\))?)\s*-"
+                      % re.escape(via.group(1)), block)
+    if not local:
+        return None, None
+    return local.group(1), via.start()
+
+
 def main():
     text = open(SRC).read()
-    block = frame_loop(text)
+    block = strip_comments(frame_loop(text))
     fail = []
 
     # Anchor on the accumulation and work backwards. The block also
     # holds the "instrument broken" olive loop, which kicks and flips
     # too, so anything anchored on the FIRST kick would measure that
     # one and pass no matter what the real loop did.
-    # `(?:\(\))?` so the regression form -- reading the clock inline at
-    # the accumulation, which is where it sat through HW #260 -- is
-    # CAUGHT rather than merely unmatched. A pattern that only knew the
-    # correct shape would report "no accumulation found" for the one
-    # case this check exists to name.
-    acc = re.search(r"ee_acc\s*\+=\s*(?:ticks_to_us)?\s*\(\s*"
-                    r"([A-Za-z_][A-Za-z0-9_]*(?:\(\))?)\s*-", block)
+    end_name, acc_at = accumulation(block, "ee_acc")
+
+    class _A:  # keep the existing shape below readable
+        def __init__(self, g, p): self._g, self._p = g, p
+        def group(self, _): return self._g
+        def start(self): return self._p
+    acc = _A(end_name, acc_at) if end_name is not None else None
     flip = kick = -1
     if not acc:
         fail.append("no `ee_acc += (<end> - ...)` accumulation found")
@@ -114,6 +190,116 @@ def main():
         fail.append("the wall-clock frame period is no longer accumulated; "
                     "F-034's falsifier has nothing to read")
 
+    # P3a's gs capture. Same shape of rule as the ee one, because it
+    # has the same shape of failure: the number is only a measurement
+    # if the clock is read AFTER gsKit_finish() has actually waited.
+    # Read it before, and gs is whatever the DMA kick cost -- small,
+    # stable, and indistinguishable from an idle GS, which is the
+    # answer the plan already expects.
+    gend0, gacc_at = accumulation(block, "gs_acc")
+    gacc = _A(gend0, gacc_at) if gend0 is not None else None
+    if not gacc:
+        fail.append("no `gs_acc += (<end> - ...)` accumulation; the GS's "
+                    "share of the field is no longer measured")
+    else:
+        gend = gend0
+        wait = block.rfind("gsKit_finish()", 0, gacc.start())
+        if wait < 0:
+            fail.append("gs_acc accumulates without a gsKit_finish() before "
+                        "it, so nothing waited for the GS")
+        elif gend == "cop0_count()":
+            fail.append("gs_acc reads the clock inline at the accumulation, "
+                        "which is after the flip rather than after the wait")
+        else:
+            gcaps = [m for m in
+                     re.finditer(r"\b%s\s*=\s*cop0_count\(\)" % re.escape(gend),
+                                 block)
+                     if m.start() < gacc.start()]
+            if not gcaps:
+                fail.append("`%s` is never assigned from cop0_count()" % gend)
+            elif not all(m.start() > wait for m in gcaps):
+                fail.append("`%s` is captured before gsKit_finish() returns, "
+                            "so it measures the DMA kick and not the GS"
+                            % gend)
+        # Arming a second FINISH token puts two per frame in the chain.
+        if re.search(r"\bgsKit_set_finish\s*\(", block):
+            fail.append("the driver arms its own FINISH token; "
+                        "gsKit_queue_exec_real already appended one")
+
+    # The fill arm has to actually fill.
+    #
+    # Falsification found this hole: setting the loop bound to zero
+    # compiles clean and passes every other rule here, leaving an arm
+    # that draws nothing. That failure is less dangerous than the latch
+    # it guards against -- a dead arm makes `gs` refuse to move, which
+    # reads as alarm rather than as confidence -- but "the alarm and the
+    # real fault are indistinguishable" is not a good place to leave a
+    # falsifier, because the bench cannot tell which it is looking at.
+    #
+    # AND ABSENCE IS THE FAILURE. The first version gated these rules on
+    # `if "PS2UI_OPLENV_FILL" in block:`, so deleting the arm outright
+    # made both rules evaporate and the check printed "ok - and the fill
+    # arm still draws what it promises" over a tree that had none. It
+    # caught an arm that was weakened and passed an arm that was gone,
+    # while asserting the opposite -- in a file whose sibling check
+    # already carries the words "a checker that quietly passes when its
+    # subject is absent is worse than no checker". Written twice, in
+    # consecutive pull requests.
+    if "PS2UI_OPLENV_FILL" not in block:
+        fail.append("the fill arm is gone; gs has no falsifier, and a "
+                    "reading with no arm to move it cannot be told from a "
+                    "latched CSR FINISH")
+    else:
+        loop = re.search(r"for\s*\(\s*\w+\s*=\s*0\s*;\s*\w+\s*<\s*"
+                         r"PS2UI_OPLENV_FILL_N\s*;", block)
+        if not loop:
+            fail.append("the fill arm no longer loops to PS2UI_OPLENV_FILL_N, "
+                        "so it can draw a fixed count -- including zero")
+        elif not re.search(r"gsKit_prim_sprite\s*\(", block[loop.end():]):
+            fail.append("the fill arm loops but draws nothing; a `gs` that "
+                        "refuses to move would then be unreadable -- dead arm "
+                        "and latched instrument look identical")
+        else:
+            # AND IT HAS TO PAINT UNDER THE UI, NOT OVER IT.
+            #
+            # ZBuffering is off and paint order is strict. Drawn after
+            # ps2ui_render, the sprites cover the telemetry they exist
+            # to make trustworthy: the blend is As=0x40, half retention
+            # per pass, so the default eight passes leave 0.0039 of the
+            # destination -- under half a level of contrast. The arm
+            # still measures correctly and the screen is a flat
+            # rectangle, so the bench is told to photograph a build
+            # with nothing on it. Every other rule here passed that.
+            paint = re.search(r"ps2ui_render\s*\(", block)
+            late = [m for m in re.finditer(r"gsKit_prim_sprite\s*\(", block)
+                    if paint and m.start() > paint.start()]
+            if late:
+                fail.append("the fill arm draws after ps2ui_render, so it "
+                            "paints over the readout -- at the default "
+                            "FILL_N the screen is blank and the fill ELF "
+                            "cannot be photographed")
+
+    # The one-token invariant rests on GS_ONESHOT, not on the driver's
+    # restraint. With the oneshot queue, queue_exec finds Per_Queue empty
+    # and returns before appending; under GS_PERSISTENT gsKit appends a
+    # second token of its own and gsKit_finish() would return on the
+    # wrong one. Forbidding gsKit_set_finish in the driver does not cover
+    # that, because the extra token would not be the driver's.
+    whole = strip_comments(open(SRC).read())
+    if not re.search(r"GS_ONESHOT", whole):
+        fail.append("GS_ONESHOT is gone; under GS_PERSISTENT gsKit appends "
+                    "its own second FINISH token and gsKit_finish() can "
+                    "return on the wrong one")
+    if re.search(r"gsKit_mode_switch\s*\([^)]*GS_PERSISTENT", whole):
+        fail.append("the driver switches to GS_PERSISTENT, which puts a "
+                    "second FINISH token per frame in the chain")
+
+    # The peak-hold, which is what makes the scroll frame readable at
+    # all -- the mean is over a 1-in-30 duty cycle and never prints it.
+    if not re.search(r"ee_peak\s*=\s*ee\b|>\s*ee_peak", block):
+        fail.append("no peak-hold on ee; the frame that has to fit inside "
+                    "a field is back to being invisible")
+
     # F-034's falsifier is "any dropped field", and a 60-frame mean can
     # only be read for that indirectly and only while the drop is
     # inside the window. The counter that reads it directly has to
@@ -139,6 +325,11 @@ def main():
     print("ok - on every capture that reaches the accumulation, not just the first")
     print("ok - and still reports the wall-clock frame period beside it")
     print("ok - and counts dropped fields cumulatively")
+    print("ok - gs is read after gsKit_finish() waited, not after the kick")
+    print("ok - and the driver does not arm a second FINISH token")
+    print("ok - ee carries a peak-hold beside the mean")
+    print("ok - and the fill arm still draws what it promises, under the UI")
+    print("ok - one FINISH token per frame, on the oneshot queue")
     return 0
 
 

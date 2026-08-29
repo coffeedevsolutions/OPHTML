@@ -1,7 +1,7 @@
 # Bench runbook — Phase 2, the OPL-class environment
 
 Phase 2 asks one question: does a real OPL-class front end — 412
-titles, nine covers streamed per scroll step, six screens, 126 slots —
+titles, nine covers streamed per scroll step, six screens, 127 slots —
 run at field rate on a PlayStation 2, and what does it cost?
 
 Unlike Phase 1 this is not a bring-up. The renderer is known good on
@@ -124,6 +124,78 @@ F-032, F-034, F-035.
 `m` 0 held past title 250, `ee` 2.12 → 2.21 → 2.25 ms as the list
 deepened. About an eighth of a field on the EE, roughly 14.4 ms
 unused. F-036.
+
+---
+
+## P3a — reading the GS's share
+
+Two ELFs from the same run: `oplenv.elf` and `oplenv-fill.elf`. They
+are the same driver; the second adds eight full-screen alpha-blended
+sprites per frame.
+
+The readout gains a second line:
+
+```
+ee2.21^3.94 gs9.12
+f16.68 ms p579 up28224 m0
+```
+
+| field | is |
+|---|---|
+| `ee` | mean EE work per frame |
+| `^` | **peak** EE frame in the last second — the scroll frame, which the mean smears |
+| `gs` | **GIF transfer + GS drawing**, measured after `gsKit_finish()` returns |
+
+`gs` is not drawing alone. `dmaKit_send_chain_ucab` programs the DMA
+registers and returns, so the chain is still moving when the clock
+starts. For *"does the frame fit in a field"* that is the right
+quantity. For deciding what Phase 3 optimises it is not — a large
+number could be transfer-bound rather than fill-bound, and those want
+opposite work. The fill arm separates them too: its sprites are one
+prim each and carry almost no transfer, so a `gs` that climbs under
+fill is climbing on rasterisation.
+
+**Photograph both ELFs.** One number is not the reading; the pair is.
+The fill build stays legible — the sprites are drawn *before* the UI,
+so the telemetry composites on top of them.
+
+| | plain | fill | verdict |
+|---|---|---|---|
+| `gs` | *g* | noticeably **higher** | the instrument works, and *g* is the GS's real share |
+| `gs` | *g* | **the same** | **STOP.** The reading is worthless — see below |
+| `gs` | 0.00 | 0.00 | **STOP.** Latched, certainly |
+
+### Why the fill ELF is not optional
+
+`gsKit_finish()` spins on CSR FINISH and does not clear it; gsKit
+clears it on the next frame's kick. If that bit is ever left latched,
+every wait returns instantly and `gs` reads **0.00 ms on every frame,
+forever** — which is indistinguishable from an idle GS.
+
+An idle GS is the answer the plan already expects. So a broken
+instrument here does not produce an obviously wrong number; it produces
+**the number we were expecting**, and Phase 3 gets planned on it. That
+is why the arm exists and why a `gs` reading without its matching fill
+photograph does not go in the ledger.
+
+If both ELFs report the same `gs`, the instrument is latched **or** the
+fill arm is drawing nothing. Those want opposite fixes and the
+photograph cannot tell them apart, which is why
+`tools/check-timing-probe.py` refuses a fill arm that does not loop and
+draw.
+
+### Optional, and worth it
+
+`PS2UI_OPLENV_FILL_N` is overridable at build time. A sweep — 2, 4, 8,
+16 sprites — that moves `gs` roughly proportionally is far stronger
+evidence than a single step: it says the number tracks fill, not that
+it merely changed once.
+
+Build it with **both** flags: `make -C runtime/sample OPLENV=1 FILL=1
+PS2UI_OPLENV_FILL_N=16 …`. `FILL=1` alone is refused by the Makefile,
+because without `OPLENV=1` it quietly produces the plain memcard sample
+under the fill ELF's name — a file that boots, shows a UI, and is not
+the arm you think you are holding.
 
 ---
 

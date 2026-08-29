@@ -316,10 +316,25 @@ h1 {
 
 /* The driver's on-screen readout. Right-aligned in the footer so it
  * cannot be confused with the button hints beside it. */
+/* Two lines, not one. The single-line version reserved 46 characters
+   in a 314px box that fits about 39 at this face, so it carried a
+   latent overflow before P3a needed to add anything to it.
+
+   No align-items here, deliberately. With flex-end the two <p> boxes
+   shrank to their PLACEHOLDERS -- 128px and 76px for capacities of 34
+   -- so by the very measure the paragraph above uses, the split made
+   the ratio worse. It only looked fine because the text is right
+   aligned into empty footer space, i.e. by clearance rather than by
+   fitting, and nothing checks clearance. Stretching the children to
+   the column instead gives each line the full width it is declared
+   for, so the two numbers agree again. */
 .telem {
+  flex-direction: column;
+  flex-grow: 1;
+}
+.telem-l {
   font-size: 14px;
   color: #6b7488;
-  flex-grow: 1;
   text-align: right;
-  height: 20px;
+  height: 18px;
 }

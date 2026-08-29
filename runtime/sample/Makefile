@@ -68,6 +68,21 @@ endif
 ifdef OPLENV
 EE_CFLAGS += -DPS2UI_SAMPLE_OPLENV
 endif
+# P3a's falsification arm. Paired with OPLENV, never alone: it is the
+# same driver with enough full-screen blending added to force the GS
+# number to move. Two ELFs, one difference, and the pair is the
+# evidence -- a GS reading with no arm that moves it is a hope.
+ifdef FILL
+ifndef OPLENV
+# Enforced, not just documented. `make FILL=1 EE_BIN=oplenv-fill.elf`
+# builds the plain memcard sample under the fill ELF's name -- a file
+# that boots, shows a UI, and is not the arm anyone thinks they are
+# holding. hw.yml passes both flags so CI never sees it; bringup.md
+# drives builds by hand, which is where it would bite, at a bench.
+$(error FILL=1 requires OPLENV=1: the fill arm is the opl-env driver with extra blending, not a build of its own)
+endif
+EE_CFLAGS += -DPS2UI_OPLENV_FILL
+endif
 
 ifdef LADDER2
 EE_CFLAGS += -DPS2UI_SAMPLE_LADDER2
