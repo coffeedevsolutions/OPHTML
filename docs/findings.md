@@ -262,7 +262,9 @@ Phase 3's likely answer is to rotate which reservation a row draws from rather t
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs a 6,951-byte aren…), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
 
-WHAT THIS DOES NOT MEASURE: headroom. The timer spans gsKit_sync_flip, which blocks until vsync, so 16.73 ms is dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it says nothing about how much of the field is left. Measuring that needs the clock read before the flip, not another photograph.
+WHAT THIS MEASUREMENT DID NOT MEASURE: headroom. The HW #260 build read the clock after gsKit_sync_flip, which blocks until vsync, so 16.73 ms was dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it said nothing about how much of the field was left. A number that stable, that plausible and that mislabelled is the same shape of defect as the rest of this project, arrived at with a stopwatch instead of a renderer.
+THE INSTRUMENT HAS SINCE CHANGED. The driver now reports two numbers: `f`, the wall-clock frame period, which is the quantity this finding claims and the one its falsifier reads; and `ee`, the EE's own work, stopping at the DMA kick before the flip. So this finding stays falsifiable against the shipping build -- read `f`, not `ee`. The ordering is asserted by tools/check-timing-probe.py, which fails on all five ways of reinstating the old shape.
+`ee` is EE-side cost only: gsKit_queue_exec returns while the GS is still drawing, so `f - ee` is an upper bound on the headroom available to EE work and NOT a measure of GS occupancy. Nothing here has yet measured GS occupancy.
 A self-consistency check fell out of the prim count: the first photograph reads p562 and the rest p570, and its visible rows are titles 2 through 10 -- eight single-digit titles against nine double-digit ones in the others. Eight fewer glyph quads, exactly.
 
 *#63*
@@ -273,7 +275,7 @@ A self-consistency check fell out of the prim count: the first photograph reads 
 
 **Instrument:** `runtime/sample/main.c`
 
-**Falsifier:** A known wall-clock interval that ee_us reports at half or double its true length
+**Falsifier:** A known wall-clock interval that the driver reports at half or double its true length. Read `f` for this, not `ee`: since the headroom change `ee` is the EE's work and is not vsync-locked, so it is not a clock against a known interval.
 
 Retires the TODO(bench) that has sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
 
