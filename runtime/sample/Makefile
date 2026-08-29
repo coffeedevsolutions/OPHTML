@@ -82,6 +82,13 @@ ifndef OPLENV
 $(error FILL=1 requires OPLENV=1: the fill arm is the opl-env driver with extra blending, not a build of its own)
 endif
 EE_CFLAGS += -DPS2UI_OPLENV_FILL
+# FILL_N sweeps the sprite count. A gs that rises roughly in proportion
+# to fill is much stronger evidence than one that merely moved once:
+# proportionality is a property a latched or mis-anchored instrument
+# cannot fake, where a single step only has to be non-zero.
+ifdef FILL_N
+EE_CFLAGS += -DPS2UI_OPLENV_FILL_N=$(FILL_N)
+endif
 endif
 
 ifdef LADDER2

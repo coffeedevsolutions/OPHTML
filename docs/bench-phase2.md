@@ -274,16 +274,35 @@ not have told you.
 
 ### Optional, and worth it
 
-`PS2UI_OPLENV_FILL_N` is overridable at build time. A sweep — 2, 4, 8,
-16 sprites — that moves `gs` roughly proportionally is far stronger
-evidence than a single step: it says the number tracks fill, not that
-it merely changed once.
+**The sweep ships as ELFs now** — `oplenv-fill2`, `-fill4`,
+`-fill` (8), `-fill16` — so it costs four boots rather than a
+toolchain.
 
-Build it with **both** flags: `make -C runtime/sample OPLENV=1 FILL=1
-PS2UI_OPLENV_FILL_N=16 …`. `FILL=1` alone is refused by the Makefile,
-because without `OPLENV=1` it quietly produces the plain memcard sample
-under the fill ELF's name — a file that boots, shows a UI, and is not
-the arm you think you are holding.
+One step proves the number is not latched. **Proportionality proves it
+is measuring fill**, which is a stronger claim: a latched or
+mis-anchored clock can produce a non-zero constant, but it cannot
+produce a straight line through four points.
+
+Predicted from HW #262's 0.93 ms baseline and its measured 1.002
+Gpix/s, written down before the sitting:
+
+| build | sprites | blended px | predicted `gs` |
+|---|---|---|---|
+| `oplenv` | 0 | 0 | 0.93 |
+| `oplenv-fill2` | 2 | 573,440 | **1.50** |
+| `oplenv-fill4` | 4 | 1,146,880 | **2.07** |
+| `oplenv-fill` | 8 | 2,293,760 | **3.22** |
+| `oplenv-fill16` | 16 | 4,587,520 | **5.51** |
+
+Photograph each. **A reading that lands on the line is the instrument
+confirmed against the hardware four times over.** A curve that flattens
+at the top would say something else is saturating — bus, not fill —
+and is worth having either way.
+
+`FILL=1` alone is refused by the Makefile: without `OPLENV=1` it
+quietly produces the plain memcard sample under the fill ELF's name — a
+file that boots, shows a UI, and is not the arm you think you are
+holding.
 
 ---
 
