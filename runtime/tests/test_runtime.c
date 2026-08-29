@@ -1512,6 +1512,82 @@ int main(int argc, char **argv)
         }
     }
 
+    /* ---- what the Phase 2 driver binds per scroll step -------------
+     * The driver reports an upload figure on screen and the Phase 2
+     * gate rests on it, so the arithmetic behind it is fenced here
+     * rather than trusted. F-032 predicts 9 x 3136 = 28,224 bytes per
+     * scroll step, and a number a bench photograph carries had better
+     * be one the host agrees with. */
+    {
+        oplenv_window w;
+        int step, rows_bound, k;
+        const int ART_B = 28 * 28 * 4;
+
+        oplenv_window_init(&w, 412, 9);
+        CHECK(ART_B == 3136, "a 28x28 CT32 cover is 3136 bytes");
+
+        /* Every visible row shows a different title after a scroll, so
+         * every reservation needs refilling. This is the claim that
+         * makes the cost per step 9 covers rather than 1, and it is
+         * the whole reason the number is worth measuring. */
+        {
+            int before[9], after[9], all_changed = 1;
+            for (k = 0; k < 9; k++) before[k] = oplenv_window_row_item(&w, k);
+            CHECK(oplenv_window_move(&w, 9) == 1, "moving a full page scrolls");
+            for (k = 0; k < 9; k++) after[k] = oplenv_window_row_item(&w, k);
+            for (k = 0; k < 9; k++) if (before[k] == after[k]) all_changed = 0;
+            CHECK(all_changed,
+                  "after a page scroll every row shows a different title, so "
+                  "every per-row reservation needs refilling");
+        }
+
+        /* One row is the ordinary case, and it is no cheaper: with
+         * reservations bound to ROWS rather than to items, shifting by
+         * one still renames all nine. */
+        oplenv_window_init(&w, 412, 9);
+        for (k = 0; k < 8; k++) oplenv_window_move(&w, 1);   /* into the window */
+        {
+            int before[9], after[9], all_changed = 1;
+            for (k = 0; k < 9; k++) before[k] = oplenv_window_row_item(&w, k);
+            CHECK(oplenv_window_move(&w, 1) == 1, "the ninth move scrolls");
+            for (k = 0; k < 9; k++) after[k] = oplenv_window_row_item(&w, k);
+            for (k = 0; k < 9; k++) if (before[k] == after[k]) all_changed = 0;
+            CHECK(all_changed && 9 * ART_B == 28224,
+                  "and a ONE-row scroll costs the same 28,224 bytes, which is "
+                  "the cost F-032 records and the driver reports");
+        }
+
+        /* The driver blanks rows past the end rather than leaving stale
+         * titles, and it must not upload a cover for them either --
+         * counting those would inflate the figure a sitting reads. */
+        oplenv_window_init(&w, 4, 9);
+        rows_bound = 0;
+        for (k = 0; k < 9; k++)
+            if (oplenv_window_row_item(&w, k) >= 0) rows_bound++;
+        CHECK(rows_bound == 4,
+              "a 4-title library binds four covers, not nine, so a short "
+              "list cannot inflate the upload figure");
+
+        /* Walking the whole library must never bind a row twice in one
+         * frame, which would double-count the upload. */
+        oplenv_window_init(&w, 412, 9);
+        for (step = 0; step < 200; step++) {
+            int seen_dup = 0;
+            int a, b;
+            oplenv_window_move(&w, 1);
+            for (a = 0; a < 9; a++)
+                for (b = a + 1; b < 9; b++)
+                    if (oplenv_window_row_item(&w, a) >= 0
+                        && oplenv_window_row_item(&w, a)
+                           == oplenv_window_row_item(&w, b))
+                        seen_dup = 1;
+            if (seen_dup) break;
+        }
+        CHECK(step == 200,
+              "no visible row ever shows the same title as another, over 200 "
+              "scroll steps -- a duplicate would double-count the upload");
+    }
+
     /* ---- ladder v2 (bench step S10) ---------------------------------
      * v1's third arm could not fail: its texture was uniform, so a
      * bias that shifted sampling by a whole texel looked exactly like

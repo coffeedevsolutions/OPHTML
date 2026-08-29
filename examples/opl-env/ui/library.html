@@ -41,6 +41,12 @@
     <p class="hint">○ LAUNCH</p>
     <p class="hint">△ DETAILS</p>
     <p class="hint">✕ BACK</p>
+    <!-- The Phase 2 gate wants frame time, prim counts and the cost of
+         a scroll step written down. The driver ELF reports them here
+         rather than over a serial line nobody at a bench can read, so
+         a photograph of this screen carries its own measurement. It is
+         a slot, so it costs nothing when the app leaves it unset. -->
+    <p class="telem" data-slot="telem" data-slot-capacity="46">telemetry: waiting</p>
   </div>
 
 </div>

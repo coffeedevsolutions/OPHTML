@@ -37,7 +37,7 @@ test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test
 # newlib port rejects at the header, so covers.elf had never built for
 # a target while this said ok. hw.yml's elf job is the arbiter for
 # anything touching PS2SDK; see runtime/vendor/README.md.
-SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS -DPS2UI_SAMPLE_PROGRESSIVE -DPS2UI_SAMPLE_LADDER -DPS2UI_SAMPLE_LADDER2
+SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS -DPS2UI_SAMPLE_PROGRESSIVE -DPS2UI_SAMPLE_LADDER -DPS2UI_SAMPLE_LADDER2 -DPS2UI_SAMPLE_OPLENV
 
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \
@@ -144,6 +144,7 @@ build/gsKit_texture_size.o: vendor/gsKit/src/gsTexture.c
 build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h \
                     stub/gskit_stub.h sample/probe6_pattern.h \
                     sample/cover_pattern.h sample/ladder_pattern.h sample/ladder2_pattern.h \
+                    ../examples/opl-env/window.h \
                     build/gsKit_texture_size.o
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c build/gsKit_texture_size.o -o $@

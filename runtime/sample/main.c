@@ -76,7 +76,7 @@ extern unsigned int size_ui_uib;
  * time. prims/slotg report the interval's peak, which is the number
  * that matters for budgeting.
  */
-#ifdef PS2UI_SAMPLE_TELEMETRY
+#if defined(PS2UI_SAMPLE_TELEMETRY) || defined(PS2UI_SAMPLE_OPLENV)
 /* COP0 Count on the R5900 ticks once per CPU cycle at 294.912 MHz.
  * TODO(bench): confirm on hardware. Several MIPS implementations tick
  * Count at half the core clock, and if the R5900 is one of them every
@@ -951,6 +951,118 @@ static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
 }
 #endif /* PS2UI_SAMPLE_LADDER2 */
 
+#ifdef PS2UI_SAMPLE_OPLENV
+/* ---------------------------------------------------------------------
+ * The Phase 2 driver (docs/PLAN.md Phase 2, clause 2).
+ *
+ * Everything before this proved the OPL-class environment BAKES. The
+ * exit gate is about it RUNNING: "at full field rate on hardware,
+ * streaming covers while scrolling a windowed library; measurements
+ * written down." Nothing loaded opl-env on a console until this.
+ *
+ * It drives itself rather than waiting for a pad. A bench measurement
+ * wants to be repeatable and to need no controller, and an auto-driven
+ * scroll produces the same workload every run -- which is what makes
+ * the frame time comparable between sittings. The cost of that choice
+ * is that it does not prove input works; focus routing is fenced on
+ * the host, and a pad build can be added when something needs it.
+ *
+ * WHAT IT MEASURES, on screen, because a photograph should carry its
+ * own numbers rather than depend on a serial line nobody at a bench is
+ * reading:
+ *
+ *   ms     frame time, rolling over 60 frames
+ *   p      primitives submitted last frame
+ *   up     bytes uploaded on the last scroll step
+ *
+ * The `up` figure is what this ELF exists to turn from arithmetic into
+ * a measurement. window.h records that reservations are per ROW, so a
+ * one-row scroll leaves every visible row showing a different title
+ * and all nine covers need refilling -- 28,224 bytes per step on
+ * paper (F-032, provisional). Phase 3's likely answer is to rotate
+ * which reservation a row draws from instead of re-uploading, and this
+ * number exists so that is decided by measurement rather than guessed.
+ */
+#include "../../examples/opl-env/window.h"
+
+#define OPLENV_ROWS      9
+#define OPLENV_TITLES  412        /* what the library screen claims */
+#define OPLENV_ART_W    28
+#define OPLENV_ART_H    28
+#define OPLENV_ART_B    (OPLENV_ART_W * OPLENV_ART_H * 4)
+/* Frames between scroll steps. Slow enough that a photograph catches a
+ * settled screen, fast enough that a sitting sees many steps. */
+#define OPLENV_SCROLL_EVERY 30
+
+static unsigned char oplenv_art[OPLENV_ROWS][OPLENV_ART_B]
+    __attribute__((aligned(16)));
+
+/* A cover distinct per title, so a scroll is visibly a scroll rather
+ * than a redraw of the same picture. Cheap on purpose: this ELF
+ * measures the upload and the frame, not a decoder. */
+static void oplenv_fill_art(unsigned char *dst, int title)
+{
+    int x, y;
+    for (y = 0; y < OPLENV_ART_H; y++) {
+        for (x = 0; x < OPLENV_ART_W; x++) {
+            unsigned char *p = dst + ((y * OPLENV_ART_W) + x) * 4;
+            int band = ((x + y + title) >> 2) & 3;
+            p[0] = (unsigned char)(40 + band * 55 + (title * 37 & 63));
+            p[1] = (unsigned char)(50 + band * 40 + (title * 17 & 63));
+            p[2] = (unsigned char)(90 + band * 30 + (title * 61 & 63));
+            p[3] = 0x80;          /* opaque in the GS domain, not 0xFF */
+        }
+    }
+}
+
+/* Bind the nine visible rows to the window's current position: text
+ * first, then the covers. Returns bytes handed to ps2ui_tex_set, which
+ * is the number F-032 predicts. */
+static unsigned oplenv_bind_window(ps2ui_ctx *ctx, GSGLOBAL *gs,
+                                   const oplenv_window *w)
+{
+    unsigned uploaded = 0;
+    char name[24], text[48];
+    int row;
+
+    for (row = 0; row < OPLENV_ROWS; row++) {
+        int item = oplenv_window_row_item(w, row);
+
+        /* A row past the end of a short list is blanked, not left
+         * showing the last title it held -- the case window.h returns
+         * -1 for and the host suite fences. */
+        if (item < 0) {
+            sprintf(name, "row-%d-title", row); ps2ui_slot_set(ctx, name, "");
+            sprintf(name, "row-%d-sub",   row); ps2ui_slot_set(ctx, name, "");
+            sprintf(name, "row-%d-score", row); ps2ui_slot_set(ctx, name, "");
+            sprintf(name, "row-%d-src",   row); ps2ui_slot_set(ctx, name, "");
+            continue;
+        }
+
+        sprintf(text, "Title of a Game %d", item + 1);
+        sprintf(name, "row-%d-title", row); ps2ui_slot_set(ctx, name, text);
+        sprintf(text, "%d - Action", 1998 + (item % 8));
+        sprintf(name, "row-%d-sub", row);   ps2ui_slot_set(ctx, name, text);
+        sprintf(text, "%d", 60 + (item * 7) % 40);
+        sprintf(name, "row-%d-score", row); ps2ui_slot_set(ctx, name, text);
+        sprintf(name, "row-%d-src", row);
+        ps2ui_slot_set(ctx, name, (item & 1) ? "USB" : "HDD");
+
+        /* SyncDCache because ps2ui_tex_set BORROWS this pointer -- it
+         * copies nothing, so the GIF must be able to see what the EE
+         * just wrote through a write-back cache it cannot snoop. This
+         * is the fault class #40 was. */
+        oplenv_fill_art(oplenv_art[row], item);
+        SyncDCache(oplenv_art[row], oplenv_art[row] + OPLENV_ART_B);
+        sprintf(name, "row-%d-art", row);
+        if (ps2ui_tex_set(ctx, gs, name, oplenv_art[row], OPLENV_ART_B)
+            == PS2UI_OK)
+            uploaded += OPLENV_ART_B;
+    }
+    return uploaded;
+}
+#endif /* PS2UI_SAMPLE_OPLENV */
+
 #ifdef PS2UI_SAMPLE_COVERS
 /* ---------------------------------------------------------------------
  * Phase 1 streaming bench (docs/bench-phase1.md).
@@ -1424,6 +1536,70 @@ int main(void)
             gsKit_sync_flip(gs);
         }
     }
+#ifdef PS2UI_SAMPLE_OPLENV
+    /* The Phase 2 driver's frame loop. Scrolls the library on a timer,
+     * rebinds the window, and reports what it cost on screen. */
+    {
+        oplenv_window w;
+        unsigned last_upload = 0;
+        u32 frame = 0, acc = 0, samples = 0, shown_us = 0;
+        char telem[64];
+
+        if (ps2ui_screen_set(&ui, "library") != 1) {
+            /* Solid olive, the "instrument broken" colour every other
+             * card here uses, rather than a blank screen that looks
+             * like a working console with nothing to draw. */
+            while (1) {
+                gsKit_clear(gs, GS_SETREG_RGBAQ(0x80, 0x80, 0x00, 0x80, 0x00));
+                gsKit_queue_exec(gs);
+                gsKit_sync_flip(gs);
+            }
+        }
+        ps2ui_slot_set(&ui, "lib-count", "412 titles");
+        oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
+        last_upload = oplenv_bind_window(&ui, gs, &w);
+
+        while (1) {
+            u32 t0 = cop0_count();
+
+            if (frame && frame % OPLENV_SCROLL_EVERY == 0) {
+                /* window.h reports whether that actually scrolled --
+                 * moving inside the window costs nothing, and
+                 * conflating the two would make `up` meaningless. */
+                if (oplenv_window_move(&w, 1))
+                    last_upload = oplenv_bind_window(&ui, gs, &w);
+                else
+                    last_upload = 0;
+                if (w.sel >= OPLENV_TITLES - 1)
+                    oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
+            }
+
+            gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
+            ps2ui_render(&ui, gs);
+
+            /* Rolling mean over a second, so the number is steady
+             * enough to photograph. ee_us is RELATIVE until the COP0
+             * tick rate is confirmed -- see the EE_HZ comment. */
+            if (samples >= 60) { shown_us = acc / samples; acc = 0; samples = 0; }
+            if (shown_us) {
+                sprintf(telem, "%lu.%02lu ms  p%lu  up%u",
+                        (unsigned long)(shown_us / 1000),
+                        (unsigned long)((shown_us % 1000) / 10),
+                        (unsigned long)ui.stats.prims, last_upload);
+                ps2ui_slot_set(&ui, "telem", telem);
+            }
+
+            gsKit_queue_exec(gs);
+            gsKit_sync_flip(gs);
+            gsKit_TexManager_nextFrame(gs);
+
+            acc += (cop0_count() - t0) / (EE_HZ / 1000000u);
+            samples++;
+            frame++;
+        }
+    }
+#endif
+
 #ifdef PS2UI_SAMPLE_COVERS
 #ifdef PS2UI_SAMPLE_USB
     cover_gs = gs;
