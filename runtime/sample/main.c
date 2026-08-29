@@ -80,9 +80,17 @@ extern unsigned int size_ui_uib;
 /* COP0 Count on the R5900 ticks once per CPU cycle at 294.912 MHz.
  * TODO(bench): confirm on hardware. Several MIPS implementations tick
  * Count at half the core clock, and if the R5900 is one of them every
- * ee_us here is 2x off. The bench session settles it: render a known
- * fixed workload and compare ee_us against a stopwatch over 600
- * frames. Until then treat ee_us as relative, not absolute. */
+ * ee_us here would be 2x off.
+ *
+ * SETTLED, HW #260: it is not. A vsync-locked loop measured with this
+ * constant reported 16.73 ms against a true NTSC field period of
+ * 16.683 ms. At half the core clock the same loop would have reported
+ * about half that, which is the whole of the argument. ee_us is
+ * absolute (F-035).
+ *
+ * The 0.05 ms the reading sat above the field period was NOT clock
+ * error. It was ticks_to_us below, in the form every call site used
+ * until PR #64 -- see that comment. The console was exact. */
 #define EE_HZ 294912000u
 static inline u32 cop0_count(void)
 {
@@ -93,6 +101,26 @@ static inline u32 cop0_count(void)
      * underscored form is available in every mode. */
     __asm__ __volatile__("mfc0 %0, $9" : "=r"(v));
     return v;
+}
+
+/* Ticks to microseconds. NOT `ticks / (EE_HZ / 1000000u)`, which is how
+ * all five call sites spelled it until PR #64's review took the
+ * residual apart.
+ *
+ * EE_HZ / 1000000 is 294 in integer arithmetic, not 294.912, so that
+ * form carries a systematic +0.310% bias. That bias is the entirety of
+ * what F-034 first recorded as "0.28% error": one NTSC field is
+ * 4,920,115 ticks, which through the truncated divisor prints 16.73 ms
+ * and through this prints 16.68 against a true 16.683. The console was
+ * not 0.28% off. It was exact, and the arithmetic downstream of it was
+ * not -- the second number on this screen to carry a label it had not
+ * earned, found the same way as the first.
+ *
+ * u64 because ticks * 1000000 overflows 32 bits at 4.3 ms. The fps
+ * math below already reaches for u64 for the same reason. */
+static u32 ticks_to_us(u32 ticks)
+{
+    return (u32)(((u64)ticks * 1000000u) / EE_HZ);
 }
 #endif
 
@@ -1542,7 +1570,11 @@ int main(void)
     {
         oplenv_window w;
         unsigned last_upload = 0;
-        u32 frame = 0, acc = 0, samples = 0, shown_us = 0;
+        u32 frame = 0;
+        u32 ee_acc = 0, ee_n = 0, ee_us = 0;      /* EE work per frame */
+        u32 fld_acc = 0, fld_n = 0, fld_us = 0;   /* wall-clock period  */
+        u32 missed = 0;                           /* dropped fields     */
+        u32 t_prev = 0;
         char telem[64];
 
         if (ps2ui_screen_set(&ui, "library") != 1) {
@@ -1558,9 +1590,51 @@ int main(void)
         ps2ui_slot_set(&ui, "lib-count", "412 titles");
         oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
         last_upload = oplenv_bind_window(&ui, gs, &w);
+        t_prev = cop0_count();
 
         while (1) {
-            u32 t0 = cop0_count();
+            u32 t0 = cop0_count(), t_work;
+
+            /* Two numbers, because one cannot answer both questions.
+             *
+             * `f` is the wall-clock frame period, top of loop to top of
+             * loop. It answers "does the frame fit in a field" -- the
+             * Phase 2 gate -- and it is the number HW #260 photographed
+             * at 16.73 ms against a 16.683 ms NTSC field.
+             *
+             * `ee` is the EE's own work: everything from here to the
+             * DMA kick, stopping BEFORE gsKit_sync_flip blocks on
+             * vsync. Through HW #260 this loop read the clock after the
+             * flip, so its single number was dominated by the wait and
+             * said nothing about headroom. It now reads before.
+             *
+             * `ee` is EE-side cost only. gsKit_queue_exec kicks the DMA
+             * and returns; the GS is still drawing. So `f - ee` is an
+             * UPPER BOUND on the headroom available to EE work, not a
+             * measure of how much of the field the GS has left. Do not
+             * quote it as GS occupancy. */
+            if (frame) {
+                u32 loop = t0 - t_prev;
+                fld_acc += ticks_to_us(loop);
+                fld_n++;
+                /* F-034's falsifier is "any dropped field", and until
+                 * this counter existed the only thing on screen to
+                 * read it from was a 60-frame MEAN. One drop moves
+                 * that mean by 16.68/60 = 0.28 ms, which is visible at
+                 * the printed resolution but only while the drop is
+                 * inside the window; a drop a second before the
+                 * photograph moves it not at all. So `m` is cumulative
+                 * since boot and never resets. A drop that happened is
+                 * a drop the photograph still shows.
+                 *
+                 * Same threshold the covers build uses: one field plus
+                 * 10%. A true NTSC field is 4,920,115 ticks against an
+                 * EE_HZ/60 of 4,915,200, so a healthy frame sits just
+                 * over the nominal and nowhere near the trip. */
+                if (loop > EE_HZ / 60u + EE_HZ / 600u)
+                    missed++;
+            }
+            t_prev = t0;
 
             if (frame && frame % OPLENV_SCROLL_EVERY == 0) {
                 /* window.h reports whether that actually scrolled --
@@ -1592,24 +1666,37 @@ int main(void)
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
             ps2ui_render(&ui, gs);
 
-            /* Rolling mean over a second, so the number is steady
-             * enough to photograph. ee_us is RELATIVE until the COP0
-             * tick rate is confirmed -- see the EE_HZ comment. */
-            if (samples >= 60) { shown_us = acc / samples; acc = 0; samples = 0; }
-            if (shown_us) {
-                sprintf(telem, "%lu.%02lu ms  p%lu  up%u",
-                        (unsigned long)(shown_us / 1000),
-                        (unsigned long)((shown_us % 1000) / 10),
-                        (unsigned long)ui.stats.prims, last_upload);
+            /* Rolling mean over a second, so the numbers are steady
+             * enough to photograph. Both are absolute microseconds --
+             * the COP0 tick rate is settled, see the EE_HZ comment. */
+            if (ee_n >= 60) {
+                ee_us = ee_acc / ee_n;
+                ee_acc = 0; ee_n = 0;
+                if (fld_n) fld_us = fld_acc / fld_n;
+                fld_acc = 0; fld_n = 0;
+            }
+            if (ee_us) {
+                sprintf(telem, "ee%lu.%02lu f%lu.%02lu ms p%lu up%u m%lu",
+                        (unsigned long)(ee_us / 1000),
+                        (unsigned long)((ee_us % 1000) / 10),
+                        (unsigned long)(fld_us / 1000),
+                        (unsigned long)((fld_us % 1000) / 10),
+                        (unsigned long)ui.stats.prims, last_upload,
+                        (unsigned long)missed);
                 ps2ui_slot_set(&ui, "telem", telem);
             }
 
             gsKit_queue_exec(gs);
+
+            /* The EE's work ends at the DMA kick. Everything past this
+             * point is waiting. */
+            t_work = cop0_count();
+
             gsKit_sync_flip(gs);
             gsKit_TexManager_nextFrame(gs);
 
-            acc += (cop0_count() - t0) / (EE_HZ / 1000000u);
-            samples++;
+            ee_acc += ticks_to_us(t_work - t0);
+            ee_n++;
             frame++;
         }
     }
@@ -1846,9 +1933,9 @@ int main(void)
                        "ee_us(min/avg/max)=%u/%u/%u "
                        "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u vramlost=%u\n",
                        frame, fps10 / 10u, fps10 % 10u, missed,
-                       t_min / (EE_HZ / 1000000u),
-                       (t_sum / sec_frames) / (EE_HZ / 1000000u),
-                       t_max / (EE_HZ / 1000000u),
+                       ticks_to_us(t_min),
+                       ticks_to_us(t_sum / sec_frames),
+                       ticks_to_us(t_max),
                        a_prims, a_hidden, a_slotg, a_slothid, a_sciov,
                        /* uint32_t is long on the EE toolchain; %u is not */
                        (unsigned)a_vramlost);

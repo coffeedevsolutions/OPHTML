@@ -20,7 +20,7 @@ STREAM_UIB = build/streamed.uib
 WIDE_UIB = build/wide.uib
 HUGE_UIB = build/huge.uib
 
-test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test-narrow
+test: syntax-check timing-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test-narrow
 	./build/test_runtime $(UIB) $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) $(HUGE_UIB)
 
 # The sample is the bring-up instrument -- the ELF that goes on a
@@ -91,6 +91,19 @@ syntax-check:
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_SKIP_SYNCDCACHE -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_SKIP_SYNCDCACHE"
+
+# Source-level, because the property it guards is an ORDERING and the
+# compiler has no opinion about it: the opl-env driver's frame timer
+# has to stop counting before gsKit_sync_flip blocks on vsync. Through
+# HW #260 it did not, and the field period it printed instead was
+# stable, plausible and photographed. See tools/check-timing-probe.py.
+#
+# Deliberately not folded into syntax-check: that target runs inside
+# the ps2dev container in hw.yml, which has no python3, and moving a
+# python step in there is a mistake this repo has already made once.
+timing-check:
+	@python3 ../tools/check-timing-probe.py
+
 
 # The fixture exists so the runtime tests track the compiler that
 # produced their blob, which only holds if a compiler change rebuilds
@@ -167,4 +180,4 @@ build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h \
 clean:
 	rm -rf build
 
-.PHONY: test test-narrow syntax-check clean
+.PHONY: test test-narrow syntax-check timing-check clean

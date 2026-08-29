@@ -11,8 +11,7 @@ prose rots like any other document.
 
 | status | count |
 |---|---:|
-| provisional | 1 |
-| confirmed | 13 |
+| confirmed | 17 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -143,7 +142,7 @@ Kept because of HOW it died. The disproving line was in the author's own grep ou
 
 **Falsifier:** A non-power-of-two span that keeps its last texel row with no bias, or an untextured stack that loses one
 
-**Rests on this:** F-020, F-021, F-022
+**Rests on this:** F-020, F-021, F-022, F-033
 
 The mechanism -- a reciprocal in the per-scanline UV step -- remains a HYPOTHESIS. The correction is measured; the explanation is not.
 
@@ -161,7 +160,7 @@ The mechanism -- a reciprocal in the per-scanline UV step -- remains a HYPOTHESI
 
 **Overturns:** [F-011](#f-011) (A +0.5 UV bias is wrong: under NEAREST at 1:1 it…)
 
-**Rests on this:** F-021, F-022
+**Rests on this:** F-021, F-022, F-033
 
 Nothing before S10 could see the U axis: every earlier instrument was a power of two wide, which is the one span that cannot trigger the fault.
 
@@ -177,7 +176,9 @@ Nothing before S10 could see the U axis: every earlier instrument was a power of
 
 **Depends on:** [F-020](#f-020) (Both texture axes lose their last texel independ…)
 
-U is INFERRED, NOT MEASURED, at widths other than 100. Bench step S9 re-runs the real UI across dozens of genuine glyph widths and is the U sweep; it is also the only step that closes the defect, since everything so far tests the card rather than the shipping renderer.
+**Rests on this:** F-033
+
+U WAS inferred rather than measured at widths other than 100. Bench step S9 settled it: see F-033.
 
 *#61*
 
@@ -215,15 +216,31 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 **Falsifier:** A realistic environment whose arena exceeds the old fixed ceiling
 
-**Rests on this:** F-032
+**Rests on this:** F-032, F-034
 
 *#48, #60*
 
+### F-033 — The sampling defect is closed on hardware, on both axes, through the shipping renderer
+
+**Measured:** Bench S9, SCPH-50000, HW #260. The title reads PS2UI PHASE 1 STREAM BENCH rather than PS2UI PHASF 1 STRFAM BFNCH, and the S7 line reads E L 2 rather than F I ?. Every capital on the screen is intact. The bench face carries 113 inked glyphs of which 78 are non-power-of-two WIDTH, and 19 distinct ones appear on that screen -- A B C H M N R T U Y e g m o r t v w x, spans 6 to 13 -- all rendering correctly. That is the U sweep the ladder could not perform, because every arm it had was a power of two wide.
+Re-measured off the shipped blob rather than counted off the photograph, which is the stronger form and gives both axes: the covers screen draws 37 static glyph quads across two atlases, at U spans 3 5 8 9 10 11 12 -- six of the seven non-power-of-two, 32 of the 37 quads -- and V spans 1 11 12, 27 of 37 non-power-of- two. Runtime slot text adds more on top of that, from the font tables.
+
+**Instrument:** `docs/bench-phase1.md`
+
+**Falsifier:** A capital or a non-power-of-two-width glyph still losing its edge row or column with PS2UI_TEXEL_BIAS applied
+
+**Depends on:** [F-021](#f-021) (A 1/16 texel bias fixes the console and is a no-…)
+
+This is the first step in the sequence that tested the SHIPPING renderer rather than a purpose-built card. S8 and S10 both measured ladder.elf and ladder2.elf, which draw directly and carry no blob; a fix demonstrated there is a fix demonstrated on an instrument. S9 is the one that closes the defect.
+TWO NUMBERS ABOVE MEAN LESS THAN THEY LOOK, and PR #64's review was right to say so. "113 inked glyphs of which 78 are non-power-of-two WIDTH" is a statistic of ONE FACE'S GLYPH TABLE -- the 15px face -- not of anything on the screen; do not try to count 113 things in the photograph. And the 19 is a hybrid: the set of letters visible on the face, measured against that one table. The title is set at 17px and comes off its own atlas with no font record, at spans as narrow as 3, so several of its glyphs were never in the 113 and never in the 19. The blob measurement added above has no such seam -- it counts what is actually drawn.
+
+*#61, #64*
+
 ## Phase 2 — Prove it with the OPL-class app (**open**)
 
-### F-032 — Per-row reservations make a one-row scroll re-upload every cover *(provisional)*
+### F-032 — Per-row reservations make a one-row scroll re-upload every cover
 
-**Measured:** Reservations are per ROW, not per item, so scrolling by one row leaves every visible row showing a different title: 9 x 3,136 = 28,224 bytes of upload per scroll step.
+**Measured:** Predicted 9 x 3,136 = 28,224 bytes per scroll step from the reservation model. Measured on a SCPH-50000, HW #260: oplenv.elf reported up28224, unchanged across every photographed scroll step. Exact.
 
 **Instrument:** `examples/opl-env/window.h`
 
@@ -231,7 +248,40 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs a 6,951-byte aren…)
 
-Arithmetic, not yet a measurement -- it needs the driver ELF and a sitting. Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload, and the number exists so that is decided by measurement rather than guessed.
+**Rests on this:** F-034
 
-*#60*
+Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload. The number exists so that is decided by a measurement rather than guessed, and it now is one.
+
+*#60, #63*
+
+### F-034 — The OPL-class environment runs at full field rate on hardware
+
+**Measured:** SCPH-50000, HW #260. oplenv.elf reported 16.73 ms across every photographed frame, against an NTSC field period of 16.683 ms, and no frame at a two-field 33.4 ms. 562 to 570 primitives per frame while streaming nine covers per scroll step.
+The 0.05 ms gap was first written down here as "0.28% error". It was not error. `EE_HZ / 1000000u` is 294 in integer arithmetic, not 294.912 -- a systematic +0.310% bias that accounts for the whole of it. One field is 4,920,115 ticks, which through the truncated divisor prints exactly 16.73. The console was reporting a perfect measurement through an imperfect conversion. Fixed in #64; the same build now prints 16.68.
+
+**Instrument:** `runtime/sample/main.c`
+
+**Falsifier:** A reported frame time near 33.4 ms, or any dropped field -- read `m`, the cumulative drop count, not `f`. `f` is a 60-frame mean, in which one drop shows as 0.28 ms and only while it is inside the window.
+
+**Depends on:** [F-031](#f-031) (An OPL-class environment costs a 6,951-byte aren…), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
+
+WHAT THIS MEASUREMENT DID NOT MEASURE: headroom. The HW #260 build read the clock after gsKit_sync_flip, which blocks until vsync, so 16.73 ms was dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it said nothing about how much of the field was left. A number that stable, that plausible and that mislabelled is the same shape of defect as the rest of this project, arrived at with a stopwatch instead of a renderer.
+THE INSTRUMENT HAS SINCE CHANGED. The driver now reports `f`, the wall-clock frame period, which is the quantity this finding claims; `ee`, the EE's own work, stopping at the DMA kick before the flip; and `m`, a count of dropped fields cumulative since boot, because a falsifier reading "any dropped field" cannot be served by a rolling mean. So this finding stays falsifiable against the shipping build. The ordering is asserted by tools/check-timing-probe.py, which fails on all eight ways of reinstating the old shape -- including one it did not catch until #64's review found it, where the correct capture is kept and a second one added after the flip.
+`ee` is EE-side cost only: gsKit_queue_exec returns while the GS is still drawing, so `f - ee` is an upper bound on the headroom available to EE work and NOT a measure of GS occupancy. Nothing here has yet measured GS occupancy.
+A self-consistency check fell out of the prim count: the first photograph reads p562 and the rest p570, and its visible rows are titles 2 through 10 -- eight single-digit titles against nine double-digit ones in the others. Eight fewer glyph quads, exactly. Confirmed exhaustively in #64's review against the blob: between those two window states exactly eight slots change inked-glyph count, row-0-title through row-7-title, each by one digit. The -sub, -score and -src slots are fixed width. It is not a story that fits the number; it is the only difference that exists.
+
+*#63, #64*
+
+### F-035 — COP0 Count ticks once per CPU cycle at 294.912 MHz on the R5900
+
+**Measured:** A vsync-locked loop measured with cop0_count and EE_HZ = 294912000 reported 16.73 ms per frame against a true NTSC field period of 16.683 ms. Had Count ticked at half the core clock, as several MIPS implementations do, that build would have reported 8.36 ms and the build after #64 reports 8.34. Either way it is a factor of two away from a field, which is the whole argument.
+
+**Instrument:** `runtime/sample/main.c`
+
+**Falsifier:** A known wall-clock interval that the driver reports at half or double its true length. Read `f` for this, not `ee`: since the headroom change `ee` is the EE's work and is not vsync-locked, so it is not a clock against a known interval.
+
+Retires the TODO(bench) that has sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
+THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch the claim but is worth recording. 8.34 was the true half-period, not what that build would have printed; #64's review said 8.37, which is the half-period through the truncated divisor before the integer print truncates again. The value is 8.36. The finding survives because a factor of two does not care, but a counterfactual nobody evaluated is not evidence, and this one sat in a confirmed finding through a phase.
+
+*#63, #64*
 

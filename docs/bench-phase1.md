@@ -605,6 +605,29 @@ S7 - - - - - - - - - -  E L 2
 Every capital on the screen is a sample. `EMPTY` in the `state:` line
 is the easiest one to check at a glance.
 
+#### S9 has been read: PASS. SCPH-50000, sitting 5, HW #260
+
+The title reads `PS2UI PHASE 1 STREAM BENCH`. The S7 line reads
+`E L 2`. **The defect is closed** [F-033].
+
+It is also the U sweep the ladders could not perform, because every arm
+either of them had was a power of two wide. The bench face carries 113
+inked glyphs of which **78 are non-power-of-two width**, and nineteen
+distinct ones appear on that screen — `A B C H M N R T U Y e g m o r t
+v w x`, spanning 6 to 13 texels — all rendering correctly. `F-021`'s
+"inferred, not measured" caveat on the U axis is discharged.
+
+Worth recording separately: this is the first step in the sequence that
+tested the **shipping renderer**. S8 and S10 measured `ladder.elf` and
+`ladder2.elf`, which draw directly and carry no blob — a fix
+demonstrated on an instrument is a fix demonstrated on an instrument.
+
+The `src:` line also earned its keep on its first outing:
+`SYNTHETIC (mass up, no /ps2ui/cover0.raw)`. The drive enumerated and
+the folder was not on it — the exact discrimination the old message
+could not make, and the answer to the question sitting 3 could not
+resolve.
+
 ### S7b — 480p, only if S8 is inconclusive
 
 **Boot `ps2ui_sample_480p.elf`.** It is the memcard UI, identical in
