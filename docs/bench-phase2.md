@@ -197,15 +197,26 @@ sprites per frame.
 The readout gains a second line:
 
 ```
-ee2.21^3.94 gs9.12
-f16.68 ms p579 up28224 m0
+ee2.41^3.66 gs0.93^1.08
+f16.68 p599 up28224 m1@0
 ```
 
 | field | is |
 |---|---|
-| `ee` | mean EE work per frame |
-| `^` | **peak** EE frame in the last second — the scroll frame, which the mean smears |
-| `gs` | **GIF transfer + GS drawing**, measured after `gsKit_finish()` returns |
+| `ee` | mean EE work per frame, ms |
+| `gs` | **GIF transfer + GS drawing**, ms, measured after `gsKit_finish()` returns |
+| `^` | **peak** of the preceding number over the last second |
+| `m1@0` | one field missed, first at frame 0 |
+
+Both numbers carry a peak because **the two spikes coincide**: the
+scroll frame does the bind work on the EE *and* pushes 28,224 bytes
+through the same chain, so it is the worst frame on both axes at once.
+An `ee` peak paired with a `gs` mean is a lower bound, not a reading.
+
+`m` alone says how many and never when, which is how HW #262's single
+miss got an explanation that was wrong by a factor of seven with
+nothing able to check it. `@` is the frame index of the **first** miss;
+a later one cannot overwrite it.
 
 `gs` is not drawing alone. `dmaKit_send_chain_ucab` programs the DMA
 registers and returns, so the chain is still moving when the clock
@@ -244,6 +255,22 @@ fill arm is drawing nothing. Those want opposite fixes and the
 photograph cannot tell them apart, which is why
 `tools/check-timing-probe.py` refuses a fill arm that does not loop and
 draw.
+
+### A prediction to falsify, written before the reading
+
+F-037 predicts **`gs^` between 0.95 and 1.15** against a 0.93 mean.
+28,224 bytes is 0.024 ms on the DMA path and 0.188 ms EE-inline, and
+the HW #262 `up0`-vs-`up28224` mean difference implies about 0.3 ms per
+upload frame. That is 2 to 20 print units above the mean — readable.
+
+**A `gs^` sitting on the mean falsifies the upload-cost story**, and
+would say the scroll frame's transfer is not where the time goes.
+
+For `m`, the useful reading is `@`. If the miss is at a low frame
+index it is a boot transient and the steady state is clean; if it is
+mid-run, something in the scroll path occasionally costs a whole field
+and that is a defect, not a curiosity. Either way the count alone could
+not have told you.
 
 ### Optional, and worth it
 

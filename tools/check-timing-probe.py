@@ -301,18 +301,27 @@ def main():
     # bind work on the EE and pushes 28,224 bytes through the same
     # chain. An ee peak paired with a gs mean is a lower bound on the
     # worst frame, which is what F-037's 4.59 ms had to be labelled.
+    # MATCH THE UPDATE, NOT THE DECLARATION. The first version of this
+    # loop tested `\b<var>\s*=`, which `u32 gs_peak = 0;` satisfies --
+    # so deleting the peak-hold entirely left the rule green. The rule
+    # it replaced, `ee_peak\s*=\s*ee\b`, could not have matched a
+    # declaration; generalising it is what introduced the hole. Requiring
+    # the comparison inside a condition cannot be satisfied by a
+    # definition.
     for var, why in (("ee_peak", "the frame that has to fit inside a field "
                                  "is back to being invisible"),
                      ("gs_peak", "the worst frame is back to being an ee "
                                  "peak paired with a gs mean, which is a "
                                  "lower bound and not a reading")):
-        if not re.search(r"\b%s\s*=|>\s*%s\b" % (var, var), block):
+        if not re.search(r">\s*%s\s*\)" % var, block):
             fail.append("no peak-hold on %s; %s" % (var[:2], why))
 
     # miss_at, because `m` alone says how many and never when -- and the
     # first explanation offered for HW #262's single miss was wrong by a
     # factor of seven with nothing in the readout able to check it.
-    if not re.search(r"\bmiss_at\s*=", block):
+    # `= frame` for the same reason as above: `miss_at = 0` is a
+    # declaration and must not count as recording anything.
+    if not re.search(r"\bmiss_at\s*=\s*frame\b", block):
         fail.append("the dropped-field counter records how many but not "
                     "when; a miss with no frame index cannot be told from "
                     "a boot transient")
