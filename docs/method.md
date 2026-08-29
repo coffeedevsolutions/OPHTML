@@ -38,6 +38,27 @@ The fix is instructive. It was **not** fixed by reordering the workflow:
 It was fixed twice instead — the test builds the object itself, and
 `PS2UI_REQUIRE_CROSSCHECK=1` turns a skip into a failure in CI.
 
+**And then the lesson was applied to one test and not generalised**,
+which is how the same defect ran for months two hundred lines further
+down the same file. Four `TestS7Discriminator` tests skipped with
+*"bench fixture not built; ci.yml builds it"* — true of the workflow,
+false of the moment: `ci.yml` built that fixture ninety-six lines after
+the step that ran them. They had never executed in CI, and a skip
+reports as `OK`, so nothing said so. Found in review of the v7 format
+change, in a diff that did not touch them.
+
+`unavailable()` is now a helper the whole file shares rather than a
+closure inside the one test that needed it first, and the variable
+means the broader thing: under it, **every** fixture the suite reaches
+for must exist. The workflow was reordered as well — the reorder is the
+fix, the failure is the tripwire, and shipping only the first is what
+invites being reordered back.
+
+The general form, since it has now caught two tests and will catch a
+third: *a skip message may cite a workflow step as the reason the skip
+is safe only if that step has already run.* Coverage that exists later
+in the file is not coverage.
+
 Others: a `argc == 3` guard that silently skipped eighteen checks when
 a fourth fixture was added, leaving the suite green *and smaller*; and
 `opl-env` registered in `check-blobs.sh`'s `ALL` list while `ci.yml`

@@ -54,6 +54,24 @@ jobs:
         # explained.
         run: npm test
 
+      # The Phase 1 streaming bench. Built here as well as in hw.yml so
+      # a change to the layout compiler or the baker that breaks the
+      # only blob with streamed slots in it fails on every push, not
+      # when someone next sits down at a console with a camera.
+      #
+      # BEFORE THE BAKER TESTS, NOT NINETY-SIX LINES AFTER THEM. Four
+      # TestS7Discriminator tests read this fixture, and with it absent
+      # they skipped -- reported as OK -- on every CI run since both
+      # existed. Their skip message named this workflow as the reason
+      # the skip was safe, which was true of the file and false of the
+      # moment. The suite now FAILS rather than skipping when the
+      # fixture is missing (unavailable() in test_baker.py), so this
+      # step cannot drift back down the file without CI saying so.
+      - name: Streaming bench fixture still bakes
+        run: |
+          python3 tools/make_cover_raw.py --self-test
+          ./fixtures/bench-stream/build.sh
+
       - name: Baker tests
         working-directory: packages/baker
         # The arena's cross-language check compares Python's
@@ -145,15 +163,6 @@ jobs:
           git diff --exit-code examples/memcard/screenshots \
                                examples/channel6/screenshots \
                                examples/opl-env/screenshots
-
-      # The Phase 1 streaming bench. Built here as well as in hw.yml so
-      # a change to the layout compiler or the baker that breaks the
-      # only blob with streamed slots in it fails on every push, not
-      # when someone next sits down at a console with a camera.
-      - name: Streaming bench fixture still bakes
-        run: |
-          python3 tools/make_cover_raw.py --self-test
-          ./fixtures/bench-stream/build.sh
 
       - name: Test card still tests what its reading table claims
         run: |
