@@ -68,8 +68,8 @@ def main():
     # CAUGHT rather than merely unmatched. A pattern that only knew the
     # correct shape would report "no accumulation found" for the one
     # case this check exists to name.
-    acc = re.search(r"ee_acc\s*\+=\s*\(\s*([A-Za-z_][A-Za-z0-9_]*(?:\(\))?)\s*-",
-                    block)
+    acc = re.search(r"ee_acc\s*\+=\s*(?:ticks_to_us)?\s*\(\s*"
+                    r"([A-Za-z_][A-Za-z0-9_]*(?:\(\))?)\s*-", block)
     flip = kick = -1
     if not acc:
         fail.append("no `ee_acc += (<end> - ...)` accumulation found")
@@ -85,10 +85,26 @@ def main():
             fail.append("ee_acc reads the clock inline at the accumulation, "
                         "which is after the flip")
         else:
-            capture = re.search(r"\b%s\s*=\s*cop0_count\(\)" % re.escape(end), block)
-            if not capture:
+            # EVERY assignment before the accumulation, not the first.
+            #
+            # re.search stops at the first match, and PR #64's review
+            # found the hole that leaves: keep the correct capture and
+            # ADD a second one after the flip. ee_acc then holds the
+            # post-flip value -- exactly the HW #260 defect -- while
+            # this check reports ok, because it had already stopped
+            # looking. Reproduced before fixing: syntax-check green,
+            # timing-check green, the regression live.
+            #
+            # A check that passes because it stopped looking is the
+            # fault class this file exists to prevent. It is not much
+            # of a defence against it to contain one.
+            caps = [m for m in
+                    re.finditer(r"\b%s\s*=\s*cop0_count\(\)" % re.escape(end),
+                                block)
+                    if m.start() < acc.start()]
+            if not caps:
                 fail.append("`%s` is never assigned from cop0_count()" % end)
-            elif not kick < capture.start() < flip:
+            elif not all(kick < m.start() < flip for m in caps):
                 fail.append("`%s` is captured outside the window between "
                             "gsKit_queue_exec and gsKit_sync_flip" % end)
 
@@ -98,12 +114,31 @@ def main():
         fail.append("the wall-clock frame period is no longer accumulated; "
                     "F-034's falsifier has nothing to read")
 
+    # F-034's falsifier is "any dropped field", and a 60-frame mean can
+    # only be read for that indirectly and only while the drop is
+    # inside the window. The counter that reads it directly has to
+    # survive, and it has to be cumulative -- a reset would put it back
+    # to answering "was a field dropped recently", which is a different
+    # question from the one the finding asks.
+    if not re.search(r"\bmissed\+\+", block):
+        fail.append("no dropped-field counter; F-034's falsifier is back to "
+                    "being inferred from a rolling mean")
+    elif re.search(r"\bmissed\s*=\s*0\s*;",
+                   # rindex: the block's FIRST `while (1)` is the olive
+                   # "instrument broken" loop, same hazard as the kick.
+                   block[block.rindex("while (1)"):] if "while (1)" in block
+                   else ""):
+        fail.append("the dropped-field counter resets inside the frame loop, "
+                    "so it only reports drops in the current window")
+
     for f in fail:
         print("not ok - %s: %s" % (REL, f))
     if fail:
         return 1
     print("ok - opl-env frame timer reads the clock before gsKit_sync_flip")
+    print("ok - on every capture that reaches the accumulation, not just the first")
     print("ok - and still reports the wall-clock frame period beside it")
+    print("ok - and counts dropped fields cumulatively")
     return 0
 
 
