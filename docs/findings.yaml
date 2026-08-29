@@ -867,6 +867,14 @@ findings:
     it used first had no lower anchor and an incomplete marking loop
     satisfied every assertion in the suite.
 
+    WHAT THE CHECK CANNOT SEE: the memcard blob has one CLUT, so a
+    marking loop ignoring clut_index marks the same set and passes.
+    Over-marking is wasteful rather than wrong -- each texture re-sends
+    its own unchanged palette -- but the per-CLUT half of the cost
+    claim is untested and needs a two-CLUT fixture. opl-env has two and
+    is not a blob this suite loads. Asserted as a blind spot in the
+    test rather than left to be discovered.
+
     THE SWAP IS ALSO CACHE-COHERENT WITHOUT THE CALLER DOING ANYTHING:
     gsKit issues SyncDCache(tex->Clut, ...) immediately before the
     palette send. Recorded because it is invisible from outside and is

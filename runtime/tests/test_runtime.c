@@ -2722,6 +2722,20 @@ int main(int argc, char **argv)
                       "some but not all of the CLUT's textures are drawn "
                       "here, or the equality below proves only one of the "
                       "two things it is meant to");
+                /* WHAT THIS PAIR CANNOT SEE, stated rather than left
+                 * for someone to discover. The memcard blob has ONE
+                 * CLUT, so a marking loop that ignored clut_index
+                 * entirely would mark exactly the same set and pass --
+                 * verified by sabotage. Over-marking is wasteful
+                 * rather than wrong (each texture re-sends its own
+                 * unchanged palette), but the per-CLUT half of the
+                 * cost claim is untested here and needs a fixture with
+                 * two. opl-env has two and is not a blob this suite
+                 * loads. */
+                CHECK(cc.hdr->n_clut == 1,
+                      "this fixture has a single CLUT, so the check below "
+                      "bounds under-marking only -- over-marking is "
+                      "indistinguishable and stays untested");
                 CHECK(moved == (unsigned long)drawn * 16 * 16 * 4,
                       "A SWAP MOVES ONE PALETTE PER DRAWN TEXTURE, EXACTLY. "
                       "An equality, not a bound: it proves completeness -- "
