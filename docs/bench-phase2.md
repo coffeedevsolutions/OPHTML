@@ -311,6 +311,61 @@ holding.
 
 ---
 
+## Reading history, continued
+
+**HW #263 (S13)** — five ELFs at `085b409`. The sweep, against
+predictions written down before the sitting:
+
+| build | N | predicted | measured | error |
+|---|---|---|---|---|
+| `oplenv` | 0 | 0.93 | **0.92** | −0.01 |
+| `-fill2` | 2 | 1.50 | **1.49** | −0.01 |
+| `-fill4` | 4 | 2.07 | **2.07** | 0.00 |
+| `-fill` | 8 | 3.22 | **3.21** | −0.01 |
+| `-fill16` | 16 | 5.51 | **5.50** | −0.01 |
+
+**One print unit, every point.** Least squares through all five:
+**1.002 Gpix/s**, r² = **0.999998**, intercept **0.9205 ms**. F-039.
+
+The intercept is the finding: the UI's own GS cost extrapolated to zero
+fill, from five points rather than one, agreeing with the directly
+measured 0.92 to within half a print unit.
+
+**`gs^` landed at 1.15** against a 0.92 mean — the exact top of the
+predicted [0.95, 1.15] band. The scroll frame costs ~0.23 ms more GS
+time than the mean.
+
+The gap holds at 0.21–0.23 on four of five builds; **`-fill2` read
+0.08** and does not fit. The `up0`-window explanation is ruled out by
+the photograph, which reads `up28224` — and with `SCROLL_EVERY` at 30
+against a 60-frame peak window, an actively scrolling run has two
+scroll frames in every window. Unexplained, for a documented reason.
+
+**`m@` located the dropped field but not its cause.** `m0` at N=0 and
+N=2, `m1` at N=4, 8 and 16, every miss at `@0` — frame 0 is the frame
+that overran.
+
+The bracket that followed, "frame 0 costs 15.5–16.1 ms", was **wrong**,
+and F-040 is provisional because of it. Frame 0's period was the only
+one in the run not bounded by two vsyncs: nothing between
+`gsKit_init_screen` and `t_prev` waited for one, so the clock started
+at an arbitrary phase φ into a field and the sweep bracketed **C + φ**,
+not C. An ordinary 3.5 ms frame 0 with φ ≈ 12.3 fits the same five
+photographs exactly as well, and it is the reading the code supports —
+the VRAM allocation and CLUT work all happen in `ps2ui_upload`, before
+the clock starts.
+
+**Fixed in the driver**: `gsKit_vsync_wait()` before `t_prev`, so
+frame 0's period is a true multiple of the field. Re-run the same five
+ELFs — if the misses vanish, the bracket was measuring boot phase.
+
+**And the readout audited itself a fourth time.** Line 1 gained `^1.15`
+(+5 glyphs); line 2 gained `@0` and lost ` ms`, cancelling exactly. `p`
+went 590 → **595**. All five photos read p595 on five different
+nine-double-digit windows.
+
+---
+
 ## What Phase 2 did not measure
 
 **The GS's share of the field.** Not GS time outright: `gsKit_queue_exec`
