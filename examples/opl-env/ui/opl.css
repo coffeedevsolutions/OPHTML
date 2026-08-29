@@ -313,3 +313,13 @@ h1 {
 }
 .dlg-btn:focus { background: #27406b; border-color: #7c9be0; color: #ffffff; }
 .dlg-danger:focus { background: #5c2430; border-color: #c86a78; }
+
+/* The driver's on-screen readout. Right-aligned in the footer so it
+ * cannot be confused with the button hints beside it. */
+.telem {
+  font-size: 14px;
+  color: #6b7488;
+  flex-grow: 1;
+  text-align: right;
+  height: 20px;
+}

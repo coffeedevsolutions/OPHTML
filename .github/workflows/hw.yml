@@ -67,6 +67,35 @@ jobs:
           # ci.yml built it before, and ci.yml produces no ELF, so those
           # four steps had nothing to run at the bench.
           ./examples/channel6/build.sh
+          ./examples/opl-env/build.sh
+          # main.c carries a fixed static arena. If opl-env outgrows it
+          # the driver boots to solid red -- a correct signal, but one
+          # that costs a bench sitting to receive, so fail here instead.
+          #
+          # This lives in `bake` and not in `elf` where the ELF is
+          # built, because `elf` runs inside the ps2dev container and
+          # that image has no python3: the first version of this step
+          # exited 127 there. A check placed where it cannot run is
+          # worth nothing, and this one at least had the manners to
+          # error rather than pass.
+          python3 - <<'PY'
+          import re, sys
+          sys.path.insert(0, "packages/baker")
+          from ps2ui_bake.uib import read_uib
+          from ps2ui_bake import arena as A
+          need = A.arena_size(read_uib("examples/opl-env/build/ui.uib"))
+          src = open("runtime/sample/main.c").read()
+          have = eval(re.search(r"static uint8_t arena\[([^\]]+)\]", src).group(1))
+          print(f"oplenv arena: needs {need} B, main.c provides {have} B")
+          if need > have:
+              sys.exit(f"::error::opl-env needs {need} B of arena; main.c "
+                       f"provides {have}. Raise it, or the driver boots to "
+                       f"solid red at the bench.")
+          PY
+          # Phase 2's environment. The elf job builds oplenv.elf
+          # against THIS blob, so it has to exist here and travel in
+          # the `baked` artifact -- a driver built against a missing
+          # blob is a build failure at best and a stale one at worst.
           # The Phase 1 streaming bench: a blob with four streamed
           # slots, the covers that fill them, and the three reference
           # pictures a sitting is read against. Its own artifact, not
@@ -111,6 +140,7 @@ jobs:
             examples/memcard/build/ui.uib
             examples/memcard/build/preview.png
             examples/memcard/build/testcard.uib
+            examples/opl-env/build/ui.uib
             examples/memcard/build/testcard-expected.png
             examples/channel6/build/ui.uib
       - uses: actions/upload-artifact@v7
@@ -153,6 +183,7 @@ jobs:
           test -f examples/memcard/build/ui.uib
           test -f examples/memcard/build/testcard.uib
           test -f examples/channel6/build/ui.uib
+          test -f examples/opl-env/build/ui.uib
           test -f fixtures/bench-stream/build/bench.uib
       - name: gsKit still has no per-texture TFX field
         continue-on-error: true
@@ -365,6 +396,15 @@ jobs:
           # per-column detail v1 lacked. v1's bias arm could not fail.
           make -C runtime/sample objclean
           make -C runtime/sample LADDER2=1 EE_BIN=ladder2.elf
+          # The Phase 2 driver. Loads the OPL-class environment, scrolls
+          # its windowed library, streams a cover into each of the nine
+          # per-row reservations as the window moves, and reports frame
+          # time, prim count and upload bytes on screen -- the three
+          # numbers the Phase 2 exit gate asks for. Built against
+          # opl-env's blob rather than memcard's.
+          make -C runtime/sample objclean
+          make -C runtime/sample OPLENV=1 \
+            UIB=../../examples/opl-env/build/ui.uib EE_BIN=oplenv.elf
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -384,6 +424,7 @@ jobs:
           test -f runtime/sample/ps2ui_sample_480p.elf
           test -f runtime/sample/ladder.elf
           test -f runtime/sample/ladder2.elf
+          test -f runtime/sample/oplenv.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf
@@ -405,6 +446,7 @@ jobs:
             runtime/sample/ps2ui_sample_480p.elf
             runtime/sample/ladder.elf
             runtime/sample/ladder2.elf
+            runtime/sample/oplenv.elf
 
   emulator:
     needs: [bake, elf]

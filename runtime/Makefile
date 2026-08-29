@@ -37,11 +37,26 @@ test: syntax-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test
 # newlib port rejects at the header, so covers.elf had never built for
 # a target while this said ok. hw.yml's elf job is the arbiter for
 # anything touching PS2SDK; see runtime/vendor/README.md.
-SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS -DPS2UI_SAMPLE_PROGRESSIVE -DPS2UI_SAMPLE_LADDER -DPS2UI_SAMPLE_LADDER2
+SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS -DPS2UI_SAMPLE_PROGRESSIVE -DPS2UI_SAMPLE_LADDER -DPS2UI_SAMPLE_LADDER2 -DPS2UI_SAMPLE_OPLENV
 
+# `-S`, NOT `-fsyntax-only`, and NOT `-c`.
+#
+# GCC emits -Wunused-function and friends during CODE GENERATION, which
+# -fsyntax-only never reaches -- so for the life of this target the host
+# check was structurally blind to a whole warning class the ps2dev
+# toolchain treats as fatal. It cost a red `elf` job on a static helper
+# that the host suite called and the ELF did not. The target's name was
+# honest; the reliance placed on it was not.
+#
+# `-c` would be the obvious upgrade and does not work: main.c carries
+# MIPS inline asm (mfc0) that an x86 assembler cannot encode, which is
+# why -fsyntax-only was chosen in the first place. `-S` generates code
+# and stops before the assembler, so the warnings appear and the asm is
+# never encoded. Verified by injecting an unused static: -fsyntax-only
+# passes it, -S rejects it.
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \
-		$(CC) -std=c99 -Wall -Werror -fsyntax-only $$v \
+		$(CC) -std=c99 -Wall -Werror -S -o /dev/null $$v \
 			-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c || exit 1; \
 		echo "ok - sample compiles: $$v"; \
 	done
@@ -49,7 +64,7 @@ syntax-check:
 # not survive `for v in $(SAMPLE_VARIANTS)`: the shell strips one layer
 # at expansion and the compiler would be handed a bare identifier.
 # Paired with STATIC, which is how CI builds conform.elf.
-	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
 		-DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_SCREEN='"probe"' \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_SCREEN"
@@ -144,6 +159,7 @@ build/gsKit_texture_size.o: vendor/gsKit/src/gsTexture.c
 build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h \
                     stub/gskit_stub.h sample/probe6_pattern.h \
                     sample/cover_pattern.h sample/ladder_pattern.h sample/ladder2_pattern.h \
+                    ../examples/opl-env/window.h \
                     build/gsKit_texture_size.o
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c build/gsKit_texture_size.o -o $@
