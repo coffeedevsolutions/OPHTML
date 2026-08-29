@@ -11,8 +11,8 @@ prose rots like any other document.
 
 | status | count |
 |---|---:|
-| provisional | 1 |
-| confirmed | 21 |
+| provisional | 2 |
+| confirmed | 20 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -337,7 +337,8 @@ The peak-hold checked itself as a side effect: on the fill build's up0 window th
 AND THE READOUT AUDITED ITSELF ACROSS A CODE CHANGE. Between HW #261 and #262 the readout split from one line into two, growing from 27 inked glyphs to 17+21 = 38, a rise of 11. On both windows photographed at matched shape, p rose by exactly 11: 579 to 590 for nine double-digit titles, 588 to 599 for nine triple-digit ones. Third time this instrument has audited itself on prim count, and the first across two pull requests and two sittings rather than within a single screen.
 WHAT IS STILL SMEARED: gs has no peak-hold. The sharper reason is not the smearing but that THE TWO SPIKES COINCIDE -- the scroll frame does the bind work on the EE and pushes 28,224 bytes through the same chain, so it is the worst frame on both axes at once. A real worst-frame figure needs gs^ beside ee^, and until it exists the 4.59 ms above is a lower bound.
 THE PEAK-HOLD HAS A PREDICTION, so the next sitting can falsify it rather than merely observe it. 28,224 bytes is 0.024 ms on the DMA path and 0.188 ms EE-inline; the up0-vs-up28224 mean difference of 0.01 ms over a 1-in-30 duty cycle implies about 0.3 ms per upload frame, the same order as the inline figure. So predict gs^ between 0.95 and 1.15 against a 0.93 mean -- 2 to 20 print units, readable. A gs^ sitting on the mean would falsify the upload-cost story.
-THE gs^ PREDICTION LANDED. HW #263 read gs^ 1.15 against a gs of 0.92 on the plain build -- the exact top of the predicted [0.95, 1.15] band. The scroll frame costs about 0.23 ms more GS time than the mean, and the upload-cost story survives the test that was set up to falsify it. Across the sweep the gap holds at 0.21 to 0.23 ms on four of five builds; -fill2 read 0.08 and is the one point that does not fit, recorded rather than explained.
+THE gs^ PREDICTION LANDED. HW #263 read gs^ 1.15 against a gs of 0.92 on the plain build -- the exact top of the predicted [0.95, 1.15] band. The scroll frame costs about 0.23 ms more GS time than the mean, and the upload-cost story survives the test that was set up to falsify it. Across the sweep the gap holds at 0.21 to 0.23 ms on four of five builds; -fill2 read 0.08 and is the one point that does not fit.
+The obvious explanation is ruled out by the photograph itself. #69's review proposed the up0 window -- the first eight scroll steps after boot, where oplenv_window_move returns 0 and no bind happens, which is what produced ee2.28^2.29 at HW #262. But the -fill2 photograph reads up28224, and with SCROLL_EVERY at 30 and a 60-frame peak window, an actively scrolling run has exactly two scroll frames in every window. So the window did contain scroll frames and the peak should have caught one. Still unexplained, and now unexplained for a documented reason rather than an unexamined one.
 THE m1 CAUSE IS SETTLED, AND IT IS THE COLD START AFTER ALL -- see F-040. This note previously said unknown, which was right at the time: the mechanism had been named and its pricing was wrong.
 THE FILL BUILD REPORTED m1 AND THE CAUSE WAS UNKNOWN. The frame period is vsync-locked, so top-to-top quantises to whole fields and the 18.33 ms trip can only be cleared by two of them: one frame's work exceeded a WHOLE 16.683 ms field. This finding first offered frame 0's cold start, and that does not survive being priced. For the fill build's extra 2.29 ms to be what tipped it, plain frame 0 must have landed in [14.39, 16.68) ms -- 11.05 ms above plain steady state. The blob's entire texture payload is 233,660 bytes: 0.19 ms of GIF DMA, and 1.56 ms even at an EE-inline 150 MB/s. Short by a factor of seven. And FirstFrame argues the wrong way, since queue_exec_real SKIPS its wait on frame 0, making that frame shorter. Nothing identified accounts for 11 ms. `m` records how many, never when; a frame index on the first miss answers "when" and leaves "why" open.
 
@@ -384,25 +385,30 @@ Linearity to r^2 = 0.999998 across an 8x range of fill also says nothing else sa
 
 *#69*
 
-### F-040 — Frame 0 costs about 15.5 to 16.1 ms, and it is what drops a field
+### F-040 — Frame 0 spills a field once fill exceeds about 1 ms, for a reason not yet isolated *(provisional)*
 
 **Measured:** Bench S13, HW #263. The sweep brackets it. m0 at N=0 and N=2, m1 at N=4, N=8 and N=16, and every miss reads @0 -- the frame that overran is frame 0 on all three. Since frame 0 costs C plus the fill work f(N), and a miss needs C + f(N) > 16.683:
 
   N=2  m0  ->  C + 0.57 <= 16.683  ->  C <= 16.11
   N=4  m1  ->  C + 1.14 >  16.683  ->  C >  15.54
 
-So C is between 15.54 and 16.11 ms, against a steady-state frame of 3.30. The plain build's frame 0 sits just inside a field, which is why it has never missed one.
+So C + PHI is between 15.54 and 16.11 ms -- where PHI is the boot phase, NOT zero at the time of this reading. See the note. The plain build's frame 0 stays inside a field, which is why it has never missed one.
 
 **Instrument:** `docs/bench-phase2.md`
 
-**Falsifier:** A miss at an index other than 0, or a build whose fill work puts C + f(N) below a field while still reporting m1
+**Falsifier:** Re-running the same five ELFs with the boot phase zeroed. If the misses vanish at every N, the bracket was measuring boot phase and this finding dies. If they persist, it stands and still needs a mechanism.
 
 **Depends on:** [F-039](#f-039) (The GS instrument is linear in fill at 1.002 Gpi…)
 
-THE HYPOTHESIS WAS RIGHT AND ITS PRICING WAS WRONG, which are different failures and only one of them was mine to defend. F-037 first attributed HW #262's m1 to frame 0's cold start; #67's review priced that against the blob's 233,660-byte texture payload -- 0.19 ms of GIF DMA, 1.56 ms even EE-inline -- and found it short by a factor of seven, so the cause was recorded as unknown. That arithmetic was correct for the mechanism as I had named it.
-The mechanism was underspecified. "Cold start" is not "move 233 KB once": frame 0 is the first ps2ui_render, so it is where gsKit allocates VRAM for 28 textures, builds and uploads every CLUT, swizzles every atlas and constructs the per-texture GIF packets for the first time. That path is setup-bound, not bandwidth-bound, and a bandwidth estimate cannot bound it.
-WHAT SETTLED IT WAS THE INSTRUMENT, NOT A BETTER ARGUMENT. Neither side of that exchange could have reached 15.5 ms from first principles. Two numbers did: an index saying WHICH frame, and a sweep whose steps are small enough to bracket WHEN it crosses. The bracket is a side effect -- the sweep was built to validate gs and it measured the boot cost by accident, to within 0.6 ms.
-NOT A DEFECT, BUT WORTH KNOWING. It costs one field, once, before anything is on screen. It also means an OPL-class app has about a millisecond of margin at boot, so a heavier first screen -- a background image, more art -- could push it to two fields. Nothing downstream depends on it; the steady state is 3.30 ms of a 16.683 ms field.
+THIS FINDING FIRST CLAIMED C ALONE, AND THE SWEEP CANNOT SEE C ALONE. Frame 0's period is the only one in the run not bounded by two vsyncs: nothing between gsKit_init_screen and t_prev waited for one, verified -- zero gsKit_sync_flip outside the error loops that never return, zero gsKit_vsync_wait. So t_prev landed at an arbitrary phase PHI into a field, and frame 0 spilled when its work exceeded 16.683 - PHI. PHI is identical across the five builds, so the bracket's WIDTH is sound and its POSITION is not. What was measured is C + PHI.
+Two readings fit the same five photographs and the bracket is only 0.57 ms wide, so neither is favoured:
+
+  C ~ 15.8 with PHI ~ 0        -- what this finding claimed
+  C ~ 3.5  with PHI ~ 12.3     -- an ordinary frame 0
+
+AND THE MECHANISM NAMED HAPPENS BEFORE THE CLOCK STARTS. The VRAM allocation, CLUT permutation and static texel transfer are all in ps2ui_upload (ps2ui.c:529-609), called at main.c:1570 -- before t_prev. ps2ui_tex_set sets Mem and calls TexManager_invalidate; it does not bind. So what actually remains inside frame 0 is the first transfer of the nine covers: 28,224 bytes, one scroll frame's worth, which this same sweep measured at about 0.23 ms as gs^ - gs. That is the second reading, and it is the one the code supports.
+THE CORRECTION MOVED THE MECHANISM FROM UNDERSPECIFIED TO SPECIFIED IN THE WRONG PLACE, which is worse: the first version was vague enough to be unfalsifiable, the second was precise and pointed at code outside the measured window. Third pass at the same explanation, and the first two both read as settled when written.
+THE FIX IS ONE LINE AND IT IS ALREADY IN. gsKit_vsync_wait() before t_prev, unconditional -- gsKit_sync_flip would not do it, being guarded by !FirstFrame, which is still set there. Re-run the same five ELFs: misses vanish at every N and this finding dies; misses persist and it stands, still owing a mechanism. Provisional until then, and the phase stays open.
 
 *#69*
 

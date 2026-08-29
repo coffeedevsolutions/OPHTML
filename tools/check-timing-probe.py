@@ -279,6 +279,26 @@ def main():
                             "FILL_N the screen is blank and the fill ELF "
                             "cannot be photographed")
 
+    # The boot phase has to be zeroed before the clock starts.
+    #
+    # Frame 0's period is the only one not bounded by two vsyncs, so
+    # without a wait here t_prev lands at an arbitrary phase into a
+    # field and frame 0 "misses" when its work exceeds 16.683 minus
+    # that phase. HW #263 bracketed frame 0's cost at 15.5-16.1 ms and
+    # what it had actually bracketed was cost PLUS phase -- a finding
+    # that survived a whole pull request before review caught it.
+    if not re.search(r"gsKit_vsync_wait\s*\(\s*\)\s*;\s*\n\s*t_prev\s*=",
+                     block):
+        fail.append("t_prev is set without an unconditional vsync wait "
+                    "before it, so frame 0's period carries an unzeroed "
+                    "boot phase and any bracket on its cost is really a "
+                    "bracket on cost plus phase")
+    if re.search(r"gsKit_sync_flip\s*\(\s*\w+\s*\)\s*;\s*\n\s*t_prev\s*=",
+                 block):
+        fail.append("gsKit_sync_flip cannot zero the boot phase: it is "
+                    "guarded by !FirstFrame, which is still set here, so "
+                    "it skips the wait entirely")
+
     # The one-token invariant rests on GS_ONESHOT, not on the driver's
     # restraint. With the oneshot queue, queue_exec finds Per_Queue empty
     # and returns before appending; under GS_PERSISTENT gsKit appends a
@@ -413,6 +433,7 @@ def main():
     print("ok - and every figure computed actually reaches the readout")
     print("ok - and the fill arm still draws what it promises, under the UI")
     print("ok - one FINISH token per frame, on the oneshot queue")
+    print("ok - and the boot phase is zeroed before the clock starts")
     return 0
 
 

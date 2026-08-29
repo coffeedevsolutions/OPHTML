@@ -1604,6 +1604,31 @@ int main(void)
         ps2ui_slot_set(&ui, "lib-count", "412 titles");
         oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
         last_upload = oplenv_bind_window(&ui, gs, &w);
+
+        /* ZERO THE BOOT PHASE before starting the clock.
+         *
+         * Every other frame's period is vsync-quantised, because both
+         * ends sit after a gsKit_sync_flip. Frame 0's was not: nothing
+         * between gsKit_init_screen and this line waits for vsync --
+         * gsKit_init_screen only sets FirstFrame (gsInit.c:282), and
+         * the sync_flips above are inside error loops that never
+         * return. So t_prev landed at an arbitrary phase PHI into
+         * whatever field the console was in, and frame 0 spilled to a
+         * second field when its work exceeded 16.683 - PHI rather than
+         * 16.683.
+         *
+         * That is not a rounding detail. HW #263's sweep bracketed
+         * "frame 0 costs 15.5 to 16.1 ms" and the quantity it actually
+         * bracketed was C + PHI. An ordinary frame 0 of about 3.5 ms
+         * with PHI near 12.3 fits the same five photographs exactly as
+         * well, and the code supports the second reading: F-040.
+         *
+         * gsKit_vsync_wait, NOT gsKit_sync_flip. sync_flip is
+         * `if(!gsGlobal->FirstFrame) { gsKit_vsync_wait(); ... }` and
+         * FirstFrame is only cleared at the end of the first
+         * queue_exec, so here it would skip the wait and change
+         * nothing. vsync_wait is unconditional. */
+        gsKit_vsync_wait();
         t_prev = cop0_count();
 
         while (1) {
