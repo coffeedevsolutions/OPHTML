@@ -321,11 +321,42 @@ flex and needed nothing. It stays in the pull lane.
 
 ### Phase 3 — Spend the hardware
 
-Optimization against Phase 2's numbers, not vibes:
+Optimization against Phase 2's numbers, not vibes. **Phase 2's numbers
+are now in, and they reorder this phase.** [F-036]
+
+The EE spends 2.2 ms of a 16.683 ms field — 13.5%, with about 14.4 ms
+unused and not one dropped field past title 250. Precompiled chains
+optimise EE display-list building. There is no EE display-list problem.
+Best case the headline item of this phase saves two milliseconds out of
+fourteen already idle, on a loop that is vsync-locked and therefore
+cannot go faster.
+
+That does not make chains worthless — they buy headroom for content
+Phase 2 never drew, and the argument for them was never only speed. It
+makes them **unjustified until something is measured that they would
+help**, which is the rule this phase opens with.
+
+The thing that has not been measured is the GS. Every number in Phase 2
+stops at the DMA kick or at vsync, neither of which is the GS finishing
+its drawing [F-036]. The EE is at 13.5% and the GS is at an unknown
+share of the same field. Until that share is known, every item below is
+a guess about which resource is scarce:
+
+0. **P3a — a GS occupancy instrument.** Read the clock after a
+   drawing-finished sync rather than after vsync. `gsKit_finish()`
+   blocks on the GS FINISH event, so this is a small change to the
+   driver, not a new ELF. **It gates the rest of the phase**, because
+   its answer decides whether this phase is about speed at all:
+
+   | GS occupancy | what Phase 3 becomes |
+   |---|---|
+   | high (fill-bound) | page-aware packing and overdraw reduction matter; chains do not |
+   | low | neither matters for frame rate; re-scope toward capability — theming, larger content, more on screen |
 
 - **Precompiled GIF/DMA chains:** bake each screen's static geometry as a
   ready-to-kick chain; runtime patches the dynamic tail. Frame ≈ one DMA
-  kick — the logical conclusion of "everything at build time."
+  kick — the logical conclusion of "everything at build time." **Gated on
+  P3a showing an EE cost worth removing, which Phase 2 says it will not.**
 - **CLUT-swap theming:** same PSMT8 art, multiple ~1 KiB palettes; instant
   recolor for themes and focus states.
 - **Page-aware atlas packing:** pack to 8 KiB page boundaries (64×32 CT32,
@@ -333,6 +364,10 @@ Optimization against Phase 2's numbers, not vibes:
 
 > **Exit gate:** measured frame CPU time published before/after; chains
 > are opt-in per blob via a feature bit and degrade to the replay path.
+> **Amended:** "frame CPU time" was the gate written before anyone knew
+> CPU time was 13% of a field. The gate is now GS *and* EE time,
+> published before/after, and an item that improves neither does not
+> ship on the grounds that it is clever. [F-036]
 
 ### Phase 4 — Make it a product
 
