@@ -11,7 +11,8 @@ prose rots like any other document.
 
 | status | count |
 |---|---:|
-| confirmed | 18 |
+| provisional | 1 |
+| confirmed | 19 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -216,7 +217,7 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 **Falsifier:** A realistic environment whose arena exceeds the old fixed ceiling
 
-**Rests on this:** F-032, F-034, F-036
+**Rests on this:** F-032, F-034, F-036, F-037, F-038
 
 THE NUMBER IN THIS CLAIM WAS WRONG FOR TWO PULL REQUESTS AND A PHASE LOCK. It said 6,951 and 125 slots; the blob says 7,003 and 126. #63 added the telem slot to library.html, the library screen went 43 to 44, and every count-derived figure moved with it.
 The finding itself never wavered -- the falsifier is an arena past the old 35,648-byte ceiling and 7,003 is not remotely close, so this was a right conclusion carrying a wrong number, which is the harder kind to notice. Nothing did notice, because `instrument` here names a hand-written README and nothing read the blob header back into it. A figure nobody re-derives is true on the day it is written and unfalsifiable afterwards.
@@ -253,7 +254,7 @@ TWO NUMBERS ABOVE MEAN LESS THAN THEY LOOK, and PR #64's review was right to say
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …)
 
-**Rests on this:** F-034, F-036
+**Rests on this:** F-034, F-036, F-037, F-038
 
 Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload. The number exists so that is decided by a measurement rather than guessed, and it now is one.
 
@@ -270,7 +271,7 @@ The 0.05 ms gap was first written down here as "0.28% error". It was not error. 
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
 
-**Rests on this:** F-036
+**Rests on this:** F-036, F-037, F-038
 
 WHAT THIS MEASUREMENT DID NOT MEASURE: headroom. The HW #260 build read the clock after gsKit_sync_flip, which blocks until vsync, so 16.73 ms was dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it said nothing about how much of the field was left. A number that stable, that plausible and that mislabelled is the same shape of defect as the rest of this project, arrived at with a stopwatch instead of a renderer.
 THE INSTRUMENT HAS SINCE CHANGED. The driver now reports `f`, the wall-clock frame period, which is the quantity this finding claims; `ee`, the EE's own work, stopping at the DMA kick before the flip; and `m`, a count of dropped fields cumulative since boot, because a falsifier reading "any dropped field" cannot be served by a rolling mean. So this finding stays falsifiable against the shipping build. The ordering is asserted by tools/check-timing-probe.py, which fails on all eight ways of reinstating the old shape -- including one it did not catch until #64's review found it, where the correct capture is kept and a second one added after the flip.
@@ -288,7 +289,7 @@ A self-consistency check fell out of the prim count: the first photograph reads 
 
 **Falsifier:** A known wall-clock interval that the driver reports at half or double its true length. Read `f` for this, not `ee`: since the headroom change `ee` is the EE's work and is not vsync-locked, so it is not a clock against a known interval.
 
-**Rests on this:** F-036
+**Rests on this:** F-036, F-037, F-038
 
 Retires the TODO(bench) that has sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
 THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch the claim but is worth recording. 8.34 was the true half-period, not what that build would have printed; #64's review said 8.37, which is the half-period through the truncated divisor before the integer print truncates again. The value is 8.36. The finding survives because a factor of two does not care, but a counterfactual nobody evaluated is not evidence, and this one sat in a confirmed finding through a phase.
@@ -305,6 +306,8 @@ THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch
 
 **Depends on:** [F-034](#f-034) (The OPL-class environment runs at full field rat…), [F-035](#f-035) (COP0 Count ticks once per CPU cycle at 294.912 M…)
 
+**Rests on this:** F-037, F-038
+
 WHAT THIS DOES NOT MEASURE: the GS's SHARE of the field. Not GS time outright -- see F-034's note, which corrects the claim that gsKit_queue_exec returns while the GS draws. It does not: it blocks on the previous frame's FINISH first, so a GS over budget would surface inside `ee` and trip `m`. Between them, `ee << f` and `m0` bound GS time below a field. What they cannot do is divide that field: 10% GS and 90% GS look identical from here. Reading the clock after gsKit_finish() rather than after vsync is P3a.
 THIS IS A DUTY-CYCLE MEAN, and the frame that has to fit is not the one printed. Two frames in sixty do the scroll work -- 36 slot_set plus 9 tex_set in oplenv_bind_window -- and a 60-frame mean smears them. Solving mean(11-19) - mean(1-9) = d + u/30 with d from the prim delta puts the scroll frame at roughly 2.4 to 3.9 ms rather than 2.21. The headline survives with room to spare, because m0 already proves none of those frames missed a field, but "an eighth of a field" is the average eighth. A peak-hold beside the mean would make this readable directly, which is the same upgrade `m` was for F-034; it ships with P3a rather than costing a sitting of its own.
 THE READOUT IS DRAWN BY THE THING IT MEASURES, which turned the prim count into an exact check for the second time. Between the 1-9 window and the 11-19 window the count rises 13: nine from the title digits, one per row, and FOUR from the readout's own text, because "up0" became "up28224". Between 11-19 and 140-148 it rises exactly nine, the digit change alone, because the readout's length did not move. Both worked out before being checked, both exact.
@@ -312,4 +315,44 @@ EE cost is close to linear in prim count with no large fixed term: 2.21/579 and 
 The 2.12 reading is CONFOUNDED and must not be used for a marginal cost: it is the only one at up0, so it differs from the others in upload state as well as in digits.
 
 *#65*
+
+## Phase 3 — Spend the hardware (**open**)
+
+### F-037 — The GS spends about a twentieth of a field on an OPL-class screen
+
+**Measured:** Bench S12, SCPH-50000, HW #262, oplenv.elf at 5ea02ae. gs 0.91 to 0.93 ms against a 16.683 ms NTSC field -- 5.6% at the top of the range, the convention used throughout. With ee at 2.41 ms the two together are 3.34 ms, 20.0% of a field, leaving 13.34 ms unused.
+4.59 ms (27.5%) is the worst frame photographed, but it is an EE PEAK paired with a GS MEAN and is therefore a LOWER BOUND, not the worst frame. gs has no peak-hold yet.
+
+**Instrument:** `docs/bench-phase2.md`
+
+**Falsifier:** A gs reading approaching f on this content, or a gs that does not move when oplenv-fill.elf draws over it
+
+**Depends on:** [F-036](#f-036) (The OPL-class environment uses about an eighth o…)
+
+**Rests on this:** F-038
+
+THE ARM IS WHY THIS IS A MEASUREMENT, and it checks against the PART rather than against itself. gs read 0.92 on the plain build and 3.21 on oplenv-fill.elf, so the CSR FINISH bit is not latched. It moved 2.29 ms for 2,293,760 blended pixels: 1.002 Gpix/s. The GS is 16 pixel pipelines at 147.456 MHz -- 2.359 Gpix/s unblended, halved to 1.180 when a blend forces a framebuffer read-modify-write -- so the arm landed at 84.9% of the part's blended peak, and 85.7%/84.2% across the reading's 2.27-2.31 ms spread. 85% of theoretical on real silicon with page breaks is where it belongs. A latched instrument reads 0.00 forever; a broken one does not land within 15% of a spec sheet.
+AND IT MOVED NOTHING ELSE. ee was 2.41 on both builds at p599 and 2.37 on both at p590 -- +0.00 twice. One prim per sprite, so the EE has nothing extra to build. A `gs` that rose while `ee` rose with it would have been measuring the wrong thing.
+The peak-hold checked itself as a side effect: on the fill build's up0 window the readout is ee2.28^2.29, the peak collapsing onto the mean because that window contains no scroll frame. That is what it should do and nobody had to arrange it.
+AND THE READOUT AUDITED ITSELF ACROSS A CODE CHANGE. Between HW #261 and #262 the readout split from one line into two, growing from 27 inked glyphs to 17+21 = 38, a rise of 11. On both windows photographed at matched shape, p rose by exactly 11: 579 to 590 for nine double-digit titles, 588 to 599 for nine triple-digit ones. Third time this instrument has audited itself on prim count, and the first across two pull requests and two sittings rather than within a single screen.
+WHAT IS STILL SMEARED: gs has no peak-hold. The sharper reason is not the smearing but that THE TWO SPIKES COINCIDE -- the scroll frame does the bind work on the EE and pushes 28,224 bytes through the same chain, so it is the worst frame on both axes at once. A real worst-frame figure needs gs^ beside ee^, and until it exists the 4.59 ms above is a lower bound.
+THE PEAK-HOLD HAS A PREDICTION, so the next sitting can falsify it rather than merely observe it. 28,224 bytes is 0.024 ms on the DMA path and 0.188 ms EE-inline; the up0-vs-up28224 mean difference of 0.01 ms over a 1-in-30 duty cycle implies about 0.3 ms per upload frame, the same order as the inline figure. So predict gs^ between 0.95 and 1.15 against a 0.93 mean -- 2 to 20 print units, readable. A gs^ sitting on the mean would falsify the upload-cost story.
+THE FILL BUILD REPORTED m1 AND THE CAUSE IS UNKNOWN. The frame period is vsync-locked, so top-to-top quantises to whole fields and the 18.33 ms trip can only be cleared by two of them: one frame's work exceeded a WHOLE 16.683 ms field. This finding first offered frame 0's cold start, and that does not survive being priced. For the fill build's extra 2.29 ms to be what tipped it, plain frame 0 must have landed in [14.39, 16.68) ms -- 11.05 ms above plain steady state. The blob's entire texture payload is 233,660 bytes: 0.19 ms of GIF DMA, and 1.56 ms even at an EE-inline 150 MB/s. Short by a factor of seven. And FirstFrame argues the wrong way, since queue_exec_real SKIPS its wait on frame 0, making that frame shorter. Nothing identified accounts for 11 ms. `m` records how many, never when; a frame index on the first miss answers "when" and leaves "why" open.
+
+*#67*
+
+### F-038 — Neither processor is the constraint on an OPL-class screen *(provisional)*
+
+**Measured:** EE 14.4% and GS 5.6% of a field, measured independently and on the same build (F-036, F-037). Phase 3's headline item was precompiled DMA chains, which remove EE work; its second was page-aware packing, argued on fill. Neither resource is close to its limit, so neither item can improve a vsync-locked frame rate.
+
+**Instrument:** `docs/PLAN.md`
+
+**Falsifier:** A content shape inside the Phase 2 envelope -- 412 titles, nine rows, one scroll step -- that pushes ee or gs past about half a field
+
+**Depends on:** [F-036](#f-036) (The OPL-class environment uses about an eighth o…), [F-037](#f-037) (The GS spends about a twentieth of a field on an…)
+
+PROVISIONAL, and the phase stays open, because this is a claim about a CONTENT SHAPE rather than about the console. It is true of nine rows of text with 28x28 covers and one scroll step at a time. A grid view, larger art, a background image, or a transition that composites two full screens are all outside what has been measured, and the second of those is the one most likely to move gs, since fill scales with area and this screen is mostly flat panels.
+What it does settle is that no Phase 3 item may be justified by frame rate without first showing content that threatens one of these two numbers. That is a higher bar than the phase opened with and it is the point of having measured.
+
+*#67*
 

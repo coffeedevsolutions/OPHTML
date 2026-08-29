@@ -125,6 +125,67 @@ F-032, F-034, F-035.
 deepened. About an eighth of a field on the EE, roughly 14.4 ms
 unused. F-036.
 
+**HW #262 (S12)** — `oplenv.elf` *and* `oplenv-fill.elf` at `5ea02ae`.
+The pair, which is the whole point:
+
+| build | `ee` | peak | `gs` |
+|---|---|---|---|
+| plain | 2.31 → 2.41 | 3.53 → 3.66 | **0.91 → 0.93** |
+| fill | 2.28 → 2.41 | 2.29 → 3.66 | **3.20 → 3.22** |
+
+`gs` moved 2.29 ms for 2,293,760 blended pixels — **1.002 Gpix/s**.
+The GS is 16 pixel pipelines at 147.456 MHz, so 2.359 Gpix/s unblended
+and **1.180 blended**, a blend forcing a framebuffer read-modify-write.
+The arm landed at **84.9% of the part's blended peak** — 85% of
+theoretical on real silicon with page breaks is where it belongs.
+
+`ee` moved **+0.00** at matched prim counts (2.41 vs 2.41 at p599, 2.37
+vs 2.37 at p590), so the arm moved the GS number and nothing else. Not
+latched: a latched instrument reads 0.00 forever, and a broken one does
+not land within 15% of a spec sheet.
+
+So: **EE 14.4%, GS 5.6%, together 20.0% of a field**, 13.34 ms unused.
+F-037, F-038.
+
+4.59 ms (27.5%) is the worst frame *photographed*, but it pairs an EE
+peak with a GS **mean**, so it is a lower bound. The two spikes are not
+independent: the scroll frame does the bind work on the EE *and* pushes
+28,224 bytes through the same chain, making it the worst frame on both
+axes at once. A real worst-frame figure needs `gs^` beside `ee^`.
+
+Two things worth noticing in that table. The fill build's `up0` window
+reads `ee2.28^2.29` — the peak collapsing onto the mean, because a
+window with no scroll frame has no spike to hold. Nobody arranged that;
+it is the peak-hold checking its own semantics.
+
+And the fill build reports **`m1`** where the plain build held `m0`.
+One field, early, never climbing across a run spanning titles 1 to 130.
+
+**The cause is unknown, and the obvious explanation is wrong.** The
+frame period is vsync-locked, so top-to-top quantises to whole fields
+and the 18.33 ms trip can only be cleared by two of them — meaning one
+frame's work exceeded a **whole 16.683 ms field**, not that it ran a
+little long.
+
+Priced against that, "frame 0's cold start" fails. For the fill build's
+extra 2.29 ms to be what tipped it, plain frame 0 must have landed in
+[14.39, 16.68) ms — 11.05 ms above plain steady state. The blob's
+entire texture payload is 233,660 bytes:
+
+| path | cold upload of all of it |
+|---|---|
+| GIF DMA, 1.2 GB/s | 0.19 ms |
+| 300 MB/s | 0.78 ms |
+| EE inline, 150 MB/s | 1.56 ms |
+
+Short by a factor of seven at best. And `FirstFrame` argues the wrong
+way: `gsKit_queue_exec_real` *skips* its wait on frame 0, making that
+frame shorter.
+
+So: one field was lost, nothing identified accounts for 11 ms of it,
+and `m` records *how many* but never *when*. A frame index on the first
+miss answers "when"; "why" stays open.
+
 ---
 
 ## P3a — reading the GS's share
