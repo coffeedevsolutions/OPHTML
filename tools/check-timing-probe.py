@@ -259,6 +259,25 @@ def main():
             fail.append("the fill arm loops but draws nothing; a `gs` that "
                         "refuses to move would then be unreadable -- dead arm "
                         "and latched instrument look identical")
+        else:
+            # AND IT HAS TO PAINT UNDER THE UI, NOT OVER IT.
+            #
+            # ZBuffering is off and paint order is strict. Drawn after
+            # ps2ui_render, the sprites cover the telemetry they exist
+            # to make trustworthy: the blend is As=0x40, half retention
+            # per pass, so the default eight passes leave 0.0039 of the
+            # destination -- under half a level of contrast. The arm
+            # still measures correctly and the screen is a flat
+            # rectangle, so the bench is told to photograph a build
+            # with nothing on it. Every other rule here passed that.
+            paint = re.search(r"ps2ui_render\s*\(", block)
+            late = [m for m in re.finditer(r"gsKit_prim_sprite\s*\(", block)
+                    if paint and m.start() > paint.start()]
+            if late:
+                fail.append("the fill arm draws after ps2ui_render, so it "
+                            "paints over the readout -- at the default "
+                            "FILL_N the screen is blank and the fill ELF "
+                            "cannot be photographed")
 
     # The one-token invariant rests on GS_ONESHOT, not on the driver's
     # restraint. With the oneshot queue, queue_exec finds Per_Queue empty
@@ -309,7 +328,7 @@ def main():
     print("ok - gs is read after gsKit_finish() waited, not after the kick")
     print("ok - and the driver does not arm a second FINISH token")
     print("ok - ee carries a peak-hold beside the mean")
-    print("ok - and the fill arm still draws what it promises")
+    print("ok - and the fill arm still draws what it promises, under the UI")
     print("ok - one FINISH token per frame, on the oneshot queue")
     return 0
 
