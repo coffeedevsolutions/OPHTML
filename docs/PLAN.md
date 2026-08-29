@@ -442,6 +442,11 @@ below is a guess about which resource is scarce:
    | **together** | **20.0%**, 13.34 ms unused |
    | worst photographed frame | 27.5% |
 
+   **Confirmed at HW #263 by a five-point sweep** [F-039]: predicted
+   from a single delta, measured to one print unit on every point,
+   1.002 Gpix/s with r² = 0.999998. A mis-anchored clock cannot draw a
+   straight line whose slope is the part's fill rate.
+
    **So Phase 3 is not about speed.** The branch that said "re-scope
    toward capability" is the one that fired, and the items below are
    re-ordered accordingly. This is the outcome the phase was written to

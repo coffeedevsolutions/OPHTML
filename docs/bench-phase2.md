@@ -311,6 +311,45 @@ holding.
 
 ---
 
+## Reading history, continued
+
+**HW #263 (S13)** — five ELFs at `085b409`. The sweep, against
+predictions written down before the sitting:
+
+| build | N | predicted | measured | error |
+|---|---|---|---|---|
+| `oplenv` | 0 | 0.93 | **0.92** | −0.01 |
+| `-fill2` | 2 | 1.50 | **1.49** | −0.01 |
+| `-fill4` | 4 | 2.07 | **2.07** | 0.00 |
+| `-fill` | 8 | 3.22 | **3.21** | −0.01 |
+| `-fill16` | 16 | 5.51 | **5.50** | −0.01 |
+
+**One print unit, every point.** Least squares through all five:
+**1.002 Gpix/s**, r² = **0.999998**, intercept **0.9205 ms**. F-039.
+
+The intercept is the finding: the UI's own GS cost extrapolated to zero
+fill, from five points rather than one, agreeing with the directly
+measured 0.92 to within half a print unit.
+
+**`gs^` landed at 1.15** against a 0.92 mean — the exact top of the
+predicted [0.95, 1.15] band. The scroll frame costs ~0.23 ms more GS
+time than the mean. The gap holds at 0.21–0.23 on four of five builds;
+`-fill2` read 0.08 and is the one point that does not fit, recorded
+rather than explained.
+
+**`m@` settled the dropped field.** `m0` at N=0 and N=2, `m1` at N=4, 8
+and 16 — and every miss reads `@0`. Frame 0 is the frame that overran,
+and the sweep brackets its cost: F-040, **15.5 to 16.1 ms**, against a
+3.30 ms steady state. It costs one field, once, before anything is on
+screen.
+
+**And the readout audited itself a fourth time.** Line 1 gained `^1.15`
+(+5 glyphs); line 2 gained `@0` and lost ` ms`, cancelling exactly. `p`
+went 590 → **595**. All five photos read p595 on five different
+nine-double-digit windows.
+
+---
+
 ## What Phase 2 did not measure
 
 **The GS's share of the field.** Not GS time outright: `gsKit_queue_exec`
