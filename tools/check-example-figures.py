@@ -15,10 +15,17 @@ F-031's falsifier (an arena past the old 35,648-byte ceiling) was never
 close to threatened, so the FINDING was right the whole time and its
 CLAIM still carried a wrong number. That is the failure this closes.
 
-WHAT THIS DOES NOT VOUCH FOR. That the blob is current. It reads the
-committed build/, so a stale build with a matching README passes. The
-screenshot drift check in ci.yml is what keeps build/ honest; this
-keeps the prose honest about build/.
+WHAT THIS DOES NOT VOUCH FOR. That the blob is current. It reads
+whatever build/ holds and does not bake, so a stale local build with a
+matching README passes. In CI that cannot happen -- examples/*/build/
+is gitignored, so the blob only exists because the step before this one
+made it -- but on a workstation it can, and the failure is silent.
+Rebuild before trusting a pass.
+
+(The first version of this file said "reads the committed build/". It
+is not committed. The step was also placed before the build that
+creates it, on a comment asserting it ran after. Both were written with
+the same confidence as the figures they exist to check.)
 """
 import os
 import re
@@ -54,6 +61,14 @@ def documented(readme):
 
 def actual(dirpath):
     blob = os.path.join(ROOT, dirpath, "build", "ui.uib")
+    if not os.path.exists(blob):
+        # FAIL, never skip. A checker that quietly passes when its
+        # subject is absent is worse than no checker: it reports green
+        # for the one state in which it has verified nothing.
+        raise SystemExit(
+            "not ok - %s: no blob at %s. Run its build.sh first; this "
+            "check does not bake, and passing it by not running is not "
+            "passing it." % (dirpath, os.path.relpath(blob, ROOT)))
     u = read_uib(blob)
     return {
         "blob": os.path.getsize(blob),

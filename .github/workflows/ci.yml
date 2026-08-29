@@ -84,14 +84,6 @@ jobs:
           python3 tools/check-findings.py
           python3 tools/check-findings.py --render
 
-      # A shipped example's README opens "Taken from the blob, not
-      # estimated". They were, once. Then a slot was added and three
-      # figures drifted through two pull requests and a phase lock,
-      # because F-031 names that README as its instrument and nothing
-      # read the header back into it. Runs after the example builds, so
-      # it reads a blob this job just regenerated.
-      - name: Example figures match their blobs
-        run: python3 tools/check-example-figures.py
           git diff --exit-code docs/findings.md
 
       # Phase 2's environment, and the blob its baseline numbers are
@@ -104,6 +96,19 @@ jobs:
       # cannot drift apart.
       - name: OPL environment end to end
         run: ./examples/opl-env/build.sh
+
+      # A shipped example's README opens "Taken from the blob, not
+      # estimated". They were, once. Then a slot was added and three
+      # figures drifted through two pull requests and a phase lock,
+      # because F-031 names that README as its instrument and nothing
+      # read the header back into it.
+      #
+      # MUST FOLLOW the build above. examples/*/build/ is gitignored,
+      # so there is no blob until that step runs -- which is how the
+      # first version of this failed CI, having been placed eleven
+      # steps too early on a comment that asserted the opposite.
+      - name: Example figures match their blobs
+        run: python3 tools/check-example-figures.py
 
       # The scoping fixture is Phase 1 input and its only value is
       # being comparable later, so the number it reports is a
