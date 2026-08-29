@@ -292,8 +292,8 @@ Broken out, because three of the gate's four clauses are about the
 environment *running* and the first slice only proves it bakes:
 
 1. **The environment exists, bakes and loads.** **[shipped]**
-   `examples/opl-env`: six screens, 125 slots, ten streamed texture
-   slots, one overlay. 246,032-byte blob, 6,951-byte arena for the
+   `examples/opl-env`: six screens, 126 slots, ten streamed texture
+   slots, one overlay. 246,096-byte blob, 7,003-byte arena for the
    whole environment, VRAM 392 KiB inside a 736 KiB budget. Carries the
    `examples/` contract -- warning-free under `--strict`, screenshots
    refreshed by building, `check-blobs` with no exemptions -- and CI
@@ -336,19 +336,47 @@ Phase 2 never drew, and the argument for them was never only speed. It
 makes them **unjustified until something is measured that they would
 help**, which is the rule this phase opens with.
 
-The thing that has not been measured is the GS. Every number in Phase 2
-stops at the DMA kick or at vsync, neither of which is the GS finishing
-its drawing [F-036]. The EE is at 13.5% and the GS is at an unknown
-share of the same field. Until that share is known, every item below is
-a guess about which resource is scarce:
+What has not been measured is the GS's **share** of the field. Not GS
+time outright: `gsKit_queue_exec` blocks on the previous frame's FINISH
+before sending the chain, so a GS over budget would surface inside `ee`
+and trip `m`, and neither happened [F-034]. Between `ee` at 13.5% and
+`m0`, GS time is bounded below a field. What those readings cannot do
+is divide it — 10% GS and 90% GS are indistinguishable from them, and
+the two lead to opposite plans. Until the share is known, every item
+below is a guess about which resource is scarce:
 
-0. **P3a — a GS occupancy instrument.** Read the clock after a
-   drawing-finished sync rather than after vsync. `gsKit_finish()`
-   blocks on the GS FINISH event, so this is a small change to the
-   driver, not a new ELF. **It gates the rest of the phase**, because
-   its answer decides whether this phase is about speed at all:
+0. **P3a — the GS's share of the field.** Read the clock after
+   `gsKit_finish()` rather than after vsync. Smaller than it sounds:
+   `gsKit_queue_exec_real` has *already* appended the FINISH token
+   (`gsCore.c:582` at 43122eb) and cleared CSR (`:594`) before sending
+   the chain, so the instrument is one `gsKit_finish()` and one clock
+   read straight after `gsKit_queue_exec`. **Do not call
+   `gsKit_set_finish` yourself** — that puts two FINISH tokens per
+   frame in the chain.
 
-   | GS occupancy | what Phase 3 becomes |
+   **It needs a falsification arm before its number gates anything.**
+   `gsKit_finish()` is `while(!(GS_CSR_FINISH));` (`:124-127`) — it
+   spins and does *not* clear; gsKit clears at `:594`. Any hand-rolled
+   arm/wait that forgets `GS_SETREG_CSR_FINISH(1)` leaves the bit
+   latched, and every later wait returns instantly: a GS occupancy of
+   0.00 ms, every frame, forever. That reads as *"the GS is idle, so
+   chains are pointless"* — which is the conclusion this section
+   already leans toward, reached by an instrument that stopped
+   measuring after frame one. This project's own defect class, aimed
+   at the phase's gating measurement.
+
+   So P3a ships with a fill-heavy arm: a few full-screen alpha-blended
+   quads, and the number is **required to move**. If it does not, the
+   instrument is latched, not the GS idle.
+
+   Ship a peak-hold `ee` alongside it, so the scroll frame is readable
+   rather than smeared into a 1-in-30 mean [F-036] — one sitting, both
+   numbers.
+
+   **It gates the rest of the phase**, because its answer decides
+   whether this phase is about speed at all:
+
+   | GS share | what Phase 3 becomes |
    |---|---|
    | high (fill-bound) | page-aware packing and overdraw reduction matter; chains do not |
    | low | neither matters for frame rate; re-scope toward capability — theming, larger content, more on screen |
