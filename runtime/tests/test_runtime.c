@@ -1513,6 +1513,15 @@ int main(int argc, char **argv)
     }
 
     /* ---- what the Phase 2 driver binds per scroll step -------------
+     * On the durability of these: the naive sabotage of
+     * oplenv_window_move -- returning a constant 0 -- is refused by
+     * -Werror for an unused variable before any check runs, which
+     * initially read as "the compiler catches this, not the fence".
+     * It is not so: silencing the warning with (void)was leaves the
+     * sabotage compiling cleanly and three checks below still fire.
+     * The fence stands on its own and -Werror is a redundant second
+     * catch, which is worth knowing, because the two have very
+     * different lifetimes under a flag change.
      * The driver reports an upload figure on screen and the Phase 2
      * gate rests on it, so the arithmetic behind it is fenced here
      * rather than trusted. F-032 predicts 9 x 3136 = 28,224 bytes per
