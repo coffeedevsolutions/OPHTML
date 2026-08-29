@@ -1545,7 +1545,10 @@ int main(void)
     {
         oplenv_window w;
         unsigned last_upload = 0;
-        u32 frame = 0, acc = 0, samples = 0, shown_us = 0;
+        u32 frame = 0;
+        u32 ee_acc = 0, ee_n = 0, ee_us = 0;      /* EE work per frame */
+        u32 fld_acc = 0, fld_n = 0, fld_us = 0;   /* wall-clock period  */
+        u32 t_prev = 0;
         char telem[64];
 
         if (ps2ui_screen_set(&ui, "library") != 1) {
@@ -1561,9 +1564,34 @@ int main(void)
         ps2ui_slot_set(&ui, "lib-count", "412 titles");
         oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
         last_upload = oplenv_bind_window(&ui, gs, &w);
+        t_prev = cop0_count();
 
         while (1) {
-            u32 t0 = cop0_count();
+            u32 t0 = cop0_count(), t_work;
+
+            /* Two numbers, because one cannot answer both questions.
+             *
+             * `f` is the wall-clock frame period, top of loop to top of
+             * loop. It answers "does the frame fit in a field" -- the
+             * Phase 2 gate -- and it is the number HW #260 photographed
+             * at 16.73 ms against a 16.683 ms NTSC field.
+             *
+             * `ee` is the EE's own work: everything from here to the
+             * DMA kick, stopping BEFORE gsKit_sync_flip blocks on
+             * vsync. Through HW #260 this loop read the clock after the
+             * flip, so its single number was dominated by the wait and
+             * said nothing about headroom. It now reads before.
+             *
+             * `ee` is EE-side cost only. gsKit_queue_exec kicks the DMA
+             * and returns; the GS is still drawing. So `f - ee` is an
+             * UPPER BOUND on the headroom available to EE work, not a
+             * measure of how much of the field the GS has left. Do not
+             * quote it as GS occupancy. */
+            if (frame) {
+                fld_acc += (t0 - t_prev) / (EE_HZ / 1000000u);
+                fld_n++;
+            }
+            t_prev = t0;
 
             if (frame && frame % OPLENV_SCROLL_EVERY == 0) {
                 /* window.h reports whether that actually scrolled --
@@ -1595,24 +1623,36 @@ int main(void)
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
             ps2ui_render(&ui, gs);
 
-            /* Rolling mean over a second, so the number is steady
-             * enough to photograph. ee_us is RELATIVE until the COP0
-             * tick rate is confirmed -- see the EE_HZ comment. */
-            if (samples >= 60) { shown_us = acc / samples; acc = 0; samples = 0; }
-            if (shown_us) {
-                sprintf(telem, "%lu.%02lu ms  p%lu  up%u",
-                        (unsigned long)(shown_us / 1000),
-                        (unsigned long)((shown_us % 1000) / 10),
+            /* Rolling mean over a second, so the numbers are steady
+             * enough to photograph. Both are absolute microseconds --
+             * the COP0 tick rate is settled, see the EE_HZ comment. */
+            if (ee_n >= 60) {
+                ee_us = ee_acc / ee_n;
+                ee_acc = 0; ee_n = 0;
+                if (fld_n) fld_us = fld_acc / fld_n;
+                fld_acc = 0; fld_n = 0;
+            }
+            if (ee_us) {
+                sprintf(telem, "ee%lu.%02lu f%lu.%02lu ms p%lu up%u",
+                        (unsigned long)(ee_us / 1000),
+                        (unsigned long)((ee_us % 1000) / 10),
+                        (unsigned long)(fld_us / 1000),
+                        (unsigned long)((fld_us % 1000) / 10),
                         (unsigned long)ui.stats.prims, last_upload);
                 ps2ui_slot_set(&ui, "telem", telem);
             }
 
             gsKit_queue_exec(gs);
+
+            /* The EE's work ends at the DMA kick. Everything past this
+             * point is waiting. */
+            t_work = cop0_count();
+
             gsKit_sync_flip(gs);
             gsKit_TexManager_nextFrame(gs);
 
-            acc += (cop0_count() - t0) / (EE_HZ / 1000000u);
-            samples++;
+            ee_acc += (t_work - t0) / (EE_HZ / 1000000u);
+            ee_n++;
             frame++;
         }
     }
