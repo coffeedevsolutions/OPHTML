@@ -224,6 +224,26 @@ def main():
             fail.append("the driver arms its own FINISH token; "
                         "gsKit_queue_exec_real already appended one")
 
+    # The fill arm has to actually fill.
+    #
+    # Falsification found this hole: setting the loop bound to zero
+    # compiles clean and passes every other rule here, leaving an arm
+    # that draws nothing. That failure is less dangerous than the latch
+    # it guards against -- a dead arm makes `gs` refuse to move, which
+    # reads as alarm rather than as confidence -- but "the alarm and the
+    # real fault are indistinguishable" is not a good place to leave a
+    # falsifier, because the bench cannot tell which it is looking at.
+    if "PS2UI_OPLENV_FILL" in block:
+        loop = re.search(r"for\s*\(\s*\w+\s*=\s*0\s*;\s*\w+\s*<\s*"
+                         r"PS2UI_OPLENV_FILL_N\s*;", block)
+        if not loop:
+            fail.append("the fill arm no longer loops to PS2UI_OPLENV_FILL_N, "
+                        "so it can draw a fixed count -- including zero")
+        elif not re.search(r"gsKit_prim_sprite\s*\(", block[loop.end():]):
+            fail.append("the fill arm loops but draws nothing; a `gs` that "
+                        "refuses to move would then be unreadable -- dead arm "
+                        "and latched instrument look identical")
+
     # The peak-hold, which is what makes the scroll frame readable at
     # all -- the mean is over a 1-in-30 duty cycle and never prints it.
     if not re.search(r"ee_peak\s*=\s*ee\b|>\s*ee_peak", block):
@@ -258,6 +278,7 @@ def main():
     print("ok - gs is read after gsKit_finish() waited, not after the kick")
     print("ok - and the driver does not arm a second FINISH token")
     print("ok - ee carries a peak-hold beside the mean")
+    print("ok - and the fill arm still draws what it promises")
     return 0
 
 
