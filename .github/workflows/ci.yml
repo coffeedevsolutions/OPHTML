@@ -43,9 +43,15 @@ jobs:
         # developer actually types crashed while CI stayed green. A
         # check that passes because it is not the check anyone runs.
         #
-        # The script itself is unquoted for the same reason this line
-        # used to be — the shell expands the glob; Node only learned to
-        # glob --test arguments after Node 20.
+        # The script behind it takes NO argument. Review caught the
+        # first fix here: `test/*.test.js` matches one directory level,
+        # so a failing test in `test/parse/` was skipped and the suite
+        # reported 83/83 green. Bare `node --test` recurses, needs no
+        # shell to expand anything, and excludes node_modules by
+        # default since Node 18 — which `engines` already requires. The
+        # careful glob reasoning that used to sit here is exactly what
+        # created that gap, so the argument is gone rather than
+        # explained.
         run: npm test
 
       - name: Baker tests
