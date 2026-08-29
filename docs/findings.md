@@ -208,9 +208,9 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 *#55*
 
-### F-031 — An OPL-class environment costs a 7,003-byte arena, not a 35,648-byte ceiling
+### F-031 — An OPL-class environment costs single-digit KiB of arena, not a 35,648-byte ceiling
 
-**Measured:** opl-env: 6 screens, 126 slots, 246,096-byte blob, VRAM 392 KiB of a 736 KiB budget. The fixed-maxima context charged 35,648 bytes on every blob regardless of content; the 121-slot UC-3 fixture needs 8,285.
+**Measured:** opl-env: 6 screens, 127 slots, a 7,031-byte arena and a 246,144-byte blob, VRAM 392 KiB of a 736 KiB budget. The fixed-maxima context charged 35,648 bytes on every blob regardless of content; the 121-slot UC-3 fixture needs 8,285.
 
 **Instrument:** `examples/opl-env/README.md`
 
@@ -221,6 +221,7 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 THE NUMBER IN THIS CLAIM WAS WRONG FOR TWO PULL REQUESTS AND A PHASE LOCK. It said 6,951 and 125 slots; the blob says 7,003 and 126. #63 added the telem slot to library.html, the library screen went 43 to 44, and every count-derived figure moved with it.
 The finding itself never wavered -- the falsifier is an arena past the old 35,648-byte ceiling and 7,003 is not remotely close, so this was a right conclusion carrying a wrong number, which is the harder kind to notice. Nothing did notice, because `instrument` here names a hand-written README and nothing read the blob header back into it. A figure nobody re-derives is true on the day it is written and unfalsifiable afterwards.
 Corrected in #65, and tools/check-example-figures.py now diffs that README against the committed blob so the next drift fails a build instead of surviving a lock. Locking a phase means the deciding is finished, not that the arithmetic stops being checked.
+AND THE NEXT DRIFT WAS THE VERY NEXT CHANGE. P3a split the readout into two slots, the count went 126 to 127, and the new check caught it in the same commit that caused it -- which is the check working, but three drifts in three consecutive changes says the fault is not only that nobody re-derived the number. It is that a DURABLE claim was carrying a VOLATILE one. The finding is about an order of magnitude: single-digit KiB against a 35,648-byte fixed ceiling. That does not move when someone adds a slot. The exact byte count now lives in evidence, where the check guards it, and the claim says the thing that stays true.
 
 *#48, #60, #65*
 
@@ -250,7 +251,7 @@ TWO NUMBERS ABOVE MEAN LESS THAN THEY LOOK, and PR #64's review was right to say
 
 **Falsifier:** A scroll step measured on hardware that uploads less than every row
 
-**Depends on:** [F-031](#f-031) (An OPL-class environment costs a 7,003-byte aren…)
+**Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …)
 
 **Rests on this:** F-034, F-036
 
@@ -267,7 +268,7 @@ The 0.05 ms gap was first written down here as "0.28% error". It was not error. 
 
 **Falsifier:** A reported frame time near 33.4 ms, or any dropped field -- read `m`, the cumulative drop count, not `f`. `f` is a 60-frame mean, in which one drop shows as 0.28 ms and only while it is inside the window.
 
-**Depends on:** [F-031](#f-031) (An OPL-class environment costs a 7,003-byte aren…), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
+**Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
 
 **Rests on this:** F-036
 

@@ -91,6 +91,15 @@ syntax-check:
 	@$(CC) -std=c99 -Wall -Werror -fsyntax-only \
 		-DPS2UI_SKIP_SYNCDCACHE -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c
 	@echo "ok - runtime compiles: -DPS2UI_SKIP_SYNCDCACHE"
+# P3a's falsification arm pairs two defines the loop above never
+# combines, same reason as PROBE6's. It matters more than most: the arm
+# is what makes the GS number a measurement rather than a hope, and an
+# arm that quietly stopped building would be discovered at a bench with
+# the console already on.
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL"
 
 # Source-level, because the property it guards is an ORDERING and the
 # compiler has no opinion about it: the opl-env driver's frame timer

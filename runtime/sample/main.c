@@ -1022,6 +1022,17 @@ static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
  * settled screen, fast enough that a sitting sees many steps. */
 #define OPLENV_SCROLL_EVERY 30
 
+/* How many full-screen alpha-blended sprites the falsification arm
+ * draws. Eight is chosen to be unmissable rather than realistic: at
+ * 640x448 that is 2.3 million blended pixels a frame, so if `gs` does
+ * not move the instrument is broken, not the console fast. Overridable
+ * so a bench can sweep it and see the number scale -- a reading that
+ * moves proportionally with fill is much stronger evidence than one
+ * that merely moves. */
+#ifndef PS2UI_OPLENV_FILL_N
+#define PS2UI_OPLENV_FILL_N 8
+#endif
+
 static unsigned char oplenv_art[OPLENV_ROWS][OPLENV_ART_B]
     __attribute__((aligned(16)));
 
@@ -1573,6 +1584,8 @@ int main(void)
         u32 frame = 0;
         u32 ee_acc = 0, ee_n = 0, ee_us = 0;      /* EE work per frame */
         u32 fld_acc = 0, fld_n = 0, fld_us = 0;   /* wall-clock period  */
+        u32 gs_acc = 0, gs_us = 0;                /* GS draw time       */
+        u32 ee_peak = 0, ee_pk_us = 0;            /* worst EE frame     */
         u32 missed = 0;                           /* dropped fields     */
         u32 t_prev = 0;
         char telem[64];
@@ -1593,7 +1606,7 @@ int main(void)
         t_prev = cop0_count();
 
         while (1) {
-            u32 t0 = cop0_count(), t_work;
+            u32 t0 = cop0_count(), t_work, t_gs;
 
             /* Two numbers, because one cannot answer both questions.
              *
@@ -1683,24 +1696,74 @@ int main(void)
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
             ps2ui_render(&ui, gs);
 
+#ifdef PS2UI_OPLENV_FILL
+            /* THE FALSIFICATION ARM FOR gs, AND IT IS NOT OPTIONAL.
+             *
+             * The failure mode of a FINISH-based timer is not a wrong
+             * number, it is 0.00 ms forever: if CSR FINISH is ever left
+             * latched, gsKit_finish() returns without waiting and every
+             * frame reads as an idle GS. That is the answer PLAN.md
+             * already expects, so the instrument would confirm the
+             * project's prior while measuring nothing -- this codebase's
+             * defining failure, aimed at the measurement that decides
+             * a whole phase.
+             *
+             * A number cannot be trusted until it has been made to
+             * move. These are PS2UI_OPLENV_FILL_N full-screen
+             * alpha-blended sprites: 640x448 of blending per pass, far
+             * more fill than the UI asks for, and nothing the EE has to
+             * think about -- one prim each, so `ee` barely stirs while
+             * `gs` must climb. If `gs` does NOT climb, the reading is
+             * latched and no conclusion may be drawn from any of it.
+             *
+             * Run it at the bench alongside the plain build. Two
+             * photographs, and the pair is the evidence: one number
+             * with a fill arm that moves it is a measurement, one
+             * number alone is a hope. */
+            {
+                int fi;
+                for (fi = 0; fi < PS2UI_OPLENV_FILL_N; fi++)
+                    gsKit_prim_sprite(gs, 0.0f, 0.0f, 640.0f, 448.0f, 0,
+                                      GS_SETREG_RGBAQ(0x20, 0x10, 0x30,
+                                                      0x40, 0x00));
+            }
+#endif
+
             /* Rolling mean over a second, so the numbers are steady
              * enough to photograph. Both are absolute microseconds --
              * the COP0 tick rate is settled, see the EE_HZ comment. */
             if (ee_n >= 60) {
                 ee_us = ee_acc / ee_n;
-                ee_acc = 0; ee_n = 0;
+                gs_us = gs_acc / ee_n;
+                /* PEAK-HOLD, and it resets with the window on purpose.
+                 * F-036's figure is a 1-in-30 duty-cycle mean: two
+                 * frames in sixty do the scroll work and the mean
+                 * smears them, so the frame that actually has to fit
+                 * inside a field was never the one printed. `^` is
+                 * that frame. A peak held since boot would answer a
+                 * different question -- "did anything ever spike" --
+                 * which `m` already answers better, for the only spike
+                 * that matters. */
+                ee_pk_us = ee_peak;
+                ee_acc = 0; gs_acc = 0; ee_n = 0; ee_peak = 0;
                 if (fld_n) fld_us = fld_acc / fld_n;
                 fld_acc = 0; fld_n = 0;
             }
             if (ee_us) {
-                sprintf(telem, "ee%lu.%02lu f%lu.%02lu ms p%lu up%u m%lu",
+                sprintf(telem, "ee%lu.%02lu^%lu.%02lu gs%lu.%02lu",
                         (unsigned long)(ee_us / 1000),
                         (unsigned long)((ee_us % 1000) / 10),
+                        (unsigned long)(ee_pk_us / 1000),
+                        (unsigned long)((ee_pk_us % 1000) / 10),
+                        (unsigned long)(gs_us / 1000),
+                        (unsigned long)((gs_us % 1000) / 10));
+                ps2ui_slot_set(&ui, "telem", telem);
+                sprintf(telem, "f%lu.%02lu ms p%lu up%u m%lu",
                         (unsigned long)(fld_us / 1000),
                         (unsigned long)((fld_us % 1000) / 10),
                         (unsigned long)ui.stats.prims, last_upload,
                         (unsigned long)missed);
-                ps2ui_slot_set(&ui, "telem", telem);
+                ps2ui_slot_set(&ui, "telem2", telem);
             }
 
             gsKit_queue_exec(gs);
@@ -1709,10 +1772,44 @@ int main(void)
              * point is waiting. */
             t_work = cop0_count();
 
+            /* P3a: the GS's share of the field.
+             *
+             * gsKit_queue_exec_real has ALREADY appended a FINISH token
+             * to this frame's chain (gsCore.c:582 at 43122eb) and
+             * cleared CSR FINISH (:594) before sending it, so the token
+             * is in flight and the bit is low. gsKit_finish() spins
+             * until the GS raises it, which is this frame's drawing
+             * complete. t_gs - t_work is the GS's time.
+             *
+             * DO NOT call gsKit_set_finish here. queue_exec already
+             * appended the token; arming a second one puts two FINISH
+             * tokens per frame in the chain.
+             *
+             * DO NOT clear CSR here either, and note WHY it is safe not
+             * to: gsKit clears at :594 on the next frame's kick. That
+             * is the whole reason this instrument can be four lines.
+             * A hand-rolled arm/wait that took clearing into its own
+             * hands and got it wrong would leave the bit latched, and
+             * gsKit_finish() -- which spins on the bit and does NOT
+             * clear it (:124-127) -- would return instantly forever.
+             * The reading would be 0.00 ms on every frame, which is
+             * indistinguishable from an idle GS and is exactly the
+             * answer this project's plan already expects. That is why
+             * PS2UI_OPLENV_FILL exists: it draws enough to make the
+             * number move, and if it does not move, the instrument is
+             * latched rather than the GS idle. */
+            gsKit_finish();
+            t_gs = cop0_count();
+
             gsKit_sync_flip(gs);
             gsKit_TexManager_nextFrame(gs);
 
-            ee_acc += ticks_to_us(t_work - t0);
+            {
+                u32 ee = ticks_to_us(t_work - t0);
+                ee_acc += ee;
+                if (ee > ee_peak) ee_peak = ee;
+                gs_acc += ticks_to_us(t_gs - t_work);
+            }
             ee_n++;
             frame++;
         }

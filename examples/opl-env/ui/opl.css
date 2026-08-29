@@ -317,9 +317,17 @@ h1 {
 /* The driver's on-screen readout. Right-aligned in the footer so it
  * cannot be confused with the button hints beside it. */
 .telem {
+  flex-direction: column;
+  flex-grow: 1;
+  align-items: flex-end;
+}
+/* Two lines, not one. The single-line version reserved 46 characters
+   in a 314px box that fits about 39 at this face, so it carried a
+   latent overflow before P3a needed to add anything to it. Splitting
+   the readout in two removes that and leaves room for the GS number. */
+.telem-l {
   font-size: 14px;
   color: #6b7488;
-  flex-grow: 1;
   text-align: right;
-  height: 20px;
+  height: 18px;
 }

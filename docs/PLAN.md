@@ -309,8 +309,8 @@ Broken out, because three of the gate's four clauses are about the
 environment *running* and the first slice only proves it bakes:
 
 1. **The environment exists, bakes and loads.** **[shipped]**
-   `examples/opl-env`: six screens, 126 slots, ten streamed texture
-   slots, one overlay. 246,096-byte blob, 7,003-byte arena for the
+   `examples/opl-env`: six screens, 127 slots, ten streamed texture
+   slots, one overlay. 246,144-byte blob, 7,031-byte arena for the
    whole environment, VRAM 392 KiB inside a 736 KiB budget. Carries the
    `examples/` contract -- warning-free under `--strict`, screenshots
    refreshed by building, `check-blobs` with no exemptions -- and CI

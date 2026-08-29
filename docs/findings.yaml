@@ -342,11 +342,12 @@ findings:
 - id: F-031
   phase: 1
   status: confirmed
-  claim: "An OPL-class environment costs a 7,003-byte arena, not a 35,648-byte ceiling"
+  claim: "An OPL-class environment costs single-digit KiB of arena, not a 35,648-byte ceiling"
   evidence:
     instrument: examples/opl-env/README.md
     measurement: >-
-      opl-env: 6 screens, 126 slots, 246,096-byte blob, VRAM 392 KiB of
+      opl-env: 6 screens, 127 slots, a 7,031-byte arena and a
+      246,144-byte blob, VRAM 392 KiB of
       a 736 KiB budget. The fixed-maxima context charged 35,648 bytes
       on every blob regardless of content; the 121-slot UC-3 fixture
       needs 8,285.
@@ -369,6 +370,17 @@ findings:
     README against the committed blob so the next drift fails a build
     instead of surviving a lock. Locking a phase means the deciding is
     finished, not that the arithmetic stops being checked.
+
+    AND THE NEXT DRIFT WAS THE VERY NEXT CHANGE. P3a split the readout
+    into two slots, the count went 126 to 127, and the new check caught
+    it in the same commit that caused it -- which is the check working,
+    but three drifts in three consecutive changes says the fault is not
+    only that nobody re-derived the number. It is that a DURABLE claim
+    was carrying a VOLATILE one. The finding is about an order of
+    magnitude: single-digit KiB against a 35,648-byte fixed ceiling.
+    That does not move when someone adds a slot. The exact byte count
+    now lives in evidence, where the check guards it, and the claim
+    says the thing that stays true.
   refs: ["#48", "#60", "#65"]
 
 - id: F-032

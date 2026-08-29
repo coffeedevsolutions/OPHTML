@@ -1,7 +1,7 @@
 # Bench runbook — Phase 2, the OPL-class environment
 
 Phase 2 asks one question: does a real OPL-class front end — 412
-titles, nine covers streamed per scroll step, six screens, 126 slots —
+titles, nine covers streamed per scroll step, six screens, 127 slots —
 run at field rate on a PlayStation 2, and what does it cost?
 
 Unlike Phase 1 this is not a bring-up. The renderer is known good on
