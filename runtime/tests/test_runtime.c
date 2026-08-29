@@ -2692,6 +2692,32 @@ int main(int argc, char **argv)
                       "and not the one the cost model first assumed");
             }
 
+            /* THE PERMUTATION IS PART OF THE CONTRACT, and nothing
+             * above would notice its absence: a raw memcpy moves the
+             * same byte count, touches no texels, and passes every
+             * check so far. What it produces is scrambled colour on a
+             * console and nothing at all on a host -- a defect that
+             * can only surface at a bench, which is exactly the kind
+             * this suite exists to catch first. F-018. */
+            {
+                const uint8_t *pool = cc.clut_pool;
+                int permuted = 1, moved = 0, q;
+                for (q = 0; q < 16; q++) {
+                    uint32_t j = ps2ui_clut_csm1((uint32_t)q);
+                    if (memcmp(pool + j * 4, pal + q * 4, 4) != 0)
+                        permuted = 0;
+                    if (j != (uint32_t)q)
+                        moved = 1;
+                }
+                CHECK(moved,
+                      "the CSM1 order actually differs from linear over "
+                      "these indices, or the check below proves nothing");
+                CHECK(permuted,
+                      "clut_set writes the palette in CSM1 order, not "
+                      "linear: a memcpy moves the same bytes and yields "
+                      "scrambled colour that only a console would show");
+            }
+
             CHECK(ps2ui_clut_set(&cc, &cgs, cc.hdr->n_clut, pal, 16)
                       == PS2UI_ERR_RANGE,
                   "an index past n_clut is refused");
