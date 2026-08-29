@@ -11,6 +11,10 @@ beyond §3's mechanism (F-041)*
 > It disagrees with `PLAN.md` about what P3b is, and the disagreement
 > is the point of the document.
 >
+> **Rev 3** folds in review: colour also lives in `ps2ui_slot_entry`,
+> which §3a missed — 4 of opl-env's 13 colours are slot-only — and that
+> is where the shrink rev 2 retracted turns out to be real.
+>
 > **Rev 2** is the adversarial pass, run against the draft the same day
 > on two questions: does this make the developer's experience better,
 > and does it optimise for the PS2 at bake time. Four findings are
@@ -118,6 +122,48 @@ grow**, which is exactly what open question 1 needs. `pad0[6]` becomes
 `pad0[4]` plus a second `uint16_t` for a focus-state tint, and the
 focus recolour stops being a future format move at all.
 
+### [rev 3] 3a-ii. Slots carry colour too, and §3a stopped at commands
+
+§1's case against `PLAN.md` is that colour does not live where the plan
+assumed. **The same is true one level up from where §3a stopped.**
+`ps2ui_slot_entry` carries `color_base[4]` and `color_focus[4]`, and
+re-indexing only `ps2ui_cmd` leaves every one of them baked.
+
+| blob | cmd colours | slot colours | union | **only in slots** |
+|---|---|---|---|---|
+| opl-env | 9 | 8 | 13 | **4** |
+| channel6 | 32 | 6 | 34 | 2 |
+| bench-stream | 8 | 2 | 10 | 2 |
+| memcard | 10 | 3 | 10 | 0 |
+
+On this document's own worked example, **4 of the 13 colours are
+unreachable by the table §3a proposes**, and they are not obscure:
+
+```
+(110,113,119,128)   74 slot fields   the source labels
+( 50, 93, 69,128)   36 slot fields   every score
+( 77, 83, 95,128)    4 slot fields   the dialog body
+(119,122,128,128)    2 slot fields   the dialog title
+```
+
+opl-env has 127 slots. Every title, subtitle, score, source label and
+the telemetry take their colour from the slot table. A theme that
+recolours panels and borders and leaves all the running text at its
+baked colour is the same half-measure §1 accuses the CLUT swap of
+being — and the argument was in this document the whole time, one
+struct short of being applied.
+
+**And here the retracted shrink claim is true.** `ps2ui_slot_entry` is
+32 bytes with **no padding at all** — 4+4+2+2+2+2+1+1+2+2+4+4+2 — and
+`test_runtime.c:176` already asserts the 32. Replacing the two RGBA
+quads with two `uint16_t` indices frees **4 real bytes**: 127 × 4 =
+**508 bytes** on opl-env. Unlike `ps2ui_cmd`, this one shrinks.
+
+It also closes §9.1 by symmetry rather than by argument.
+`color_base`/`color_focus` is *already* the two-index focus-recolour
+pattern §3a wants to add to commands. Slots get it for free, and the
+two structs end up carrying the same shape.
+
 ### 3b. The CLUT swap — for art the tint table cannot reach
 
 Palettized art whose colour is in its texels, not in a vertex tint.
@@ -222,8 +268,13 @@ typedef struct ps2ui_tint_entry { uint8_t r, g, b, a; } ps2ui_tint_entry;
 ```
 
 Header gains `n_tint`, `n_theme`, `off_tint`. The table is
-`n_theme x n_tint` entries, theme-major. `ps2ui_cmd` loses `r,g,b,a`
-and gains `uint16_t tint`.
+`n_theme x n_tint` entries, theme-major.
+
+- `ps2ui_cmd` loses `r,g,b,a`, gains `uint16_t tint` — and, from the
+  two bytes that frees, `uint16_t tint_focus`. Struct unchanged at 32.
+- **[rev 3]** `ps2ui_slot_entry` loses `color_base[4]` and
+  `color_focus[4]`, gains `uint16_t tint_base` and
+  `uint16_t tint_focus`. Struct **shrinks** 32 → 28.
 
 Sized from the blob, not from a ceiling — P1i removed the last of those
 and this must not add one back. 32 colours is the highest count
@@ -248,6 +299,13 @@ functions schedules a transfer and the other does not.
 
 Returns `PS2UI_ERR_RANGE` past `n_theme`. Callable before `ps2ui_upload`,
 because unlike `clut_set` there is nothing for upload to overwrite.
+
+**[rev 3] The asymmetry, stated once and here rather than inferred from
+two headers.** A UI using both mechanisms has one theming call that
+survives an upload and one that does not: `theme_set` lives in the
+context, `clut_set` writes a pool that upload re-derives from the blob.
+`clut_set` is refused *before* an upload and silently reverted *after*
+a second one [F-041]. If both are in play, do the CLUT swap last.
 
 ---
 
@@ -300,6 +358,9 @@ because unlike `clut_set` there is nothing for upload to overwrite.
    another light. The table is per-context today. Per-screen is one
    more indirection and no format change; per-element is a different
    design.
-3. **Migration.** `ps2ui_cmd` shrinking by 2 bytes is a v7 format move.
-   Whether it rides with anything else in Phase 3 depends on what P3c
-   turns into now that its performance argument is gone [F-037].
+3. **Migration.** ~~`ps2ui_cmd` shrinking by 2 bytes~~ **[rev 3]** —
+   rev 2 retracted that; `ps2ui_cmd` is unchanged at 32 and the v7 move
+   is the *field layout*, not the size. `ps2ui_slot_entry` does shrink,
+   32 → 28. Whether this rides with anything else in Phase 3 depends on
+   what P3c turns into now that its performance argument is gone
+   [F-037].

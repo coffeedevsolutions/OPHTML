@@ -707,14 +707,14 @@ int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,
 
     if (ctx == NULL || colors == NULL)
         return PS2UI_ERR_BOUNDS;
-    if (clut_index >= ctx->hdr->n_clut)
-        return PS2UI_ERR_RANGE;
-    /* Refused, not documented. ps2ui_upload memsets every GSTEXTURE and
-     * re-permutes every CLUT from the blob, so a swap made before it
-     * vanishes with no error and the caller sees baked colours it did
-     * not ask for. Losing a call silently is the worse failure. */
+    /* State BEFORE the header dereference. The guard exists to catch
+     * "called too early", so putting it behind a read that assumes
+     * "not too early" is backwards -- review's point, and true even
+     * though ps2ui_tex_set has the same shape via tex_index_by_name. */
     if (!ctx->uploaded)
         return PS2UI_ERR_STATE;
+    if (clut_index >= ctx->hdr->n_clut)
+        return PS2UI_ERR_RANGE;
     c = &ctx->clut[clut_index];
     /* The pool slot is 256 entries wide whatever the entry declares, but
      * refusing anything past the BAKED width keeps a caller from

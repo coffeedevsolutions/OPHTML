@@ -2629,6 +2629,11 @@ int main(int argc, char **argv)
         uint8_t pal[16 * 4];
         unsigned k;
 
+        /* Filled here, not inside the branch below: the second block
+         * reads it and is outside that branch, so a skipped load left
+         * it indeterminate. */
+        for (k = 0; k < sizeof pal; k++) pal[k] = (uint8_t)(k * 7);
+
         stub_reset();
         memset(&cgs, 0, sizeof cgs);
         cgs.CurrentPointer = 16;
@@ -2643,7 +2648,6 @@ int main(int argc, char **argv)
             texel_before = g_stub.b_texel;
             clut_before  = g_stub.b_clut;
 
-            for (k = 0; k < sizeof pal; k++) pal[k] = (uint8_t)(k * 7);
             CHECK(ps2ui_clut_set(&cc, &cgs, 0, pal, 16) == PS2UI_OK,
                   "clut_set accepts a palette no wider than the baked one");
 
@@ -2670,26 +2674,60 @@ int main(int argc, char **argv)
                  * not 1,024 per index. The first version of this check
                  * asserted the latter and was wrong -- an error in the
                  * cost model, caught before anything was built on it. */
-                unsigned users = 0, q;
+                /* THE EXACT NUMBER IS COMPUTABLE, so this is an
+                 * equality. The first version asserted only
+                 * `moved < users * 1024`, offered as evidence of
+                 * laziness -- and that inequality has no lower anchor,
+                 * so it is satisfied just as well by clut_set failing
+                 * to mark everything. Those want opposite fixes, and
+                 * skipping one texture in the marking loop passed the
+                 * entire suite: an atlas left drawing from the stale
+                 * palette in VRAM, wrong on a console and invisible
+                 * here. Same shape as #66's dead arm versus latched
+                 * instrument, from the other side.
+                 *
+                 * Reachable = every texture this screen's commands
+                 * name, plus the atlas behind every font its slots
+                 * use. */
+                unsigned users = 0, drawn = 0, q;
                 unsigned long moved = g_stub.b_clut - clut_before;
-                for (q = 0; q < cc.hdr->n_tex; q++)
-                    if (cc.tex[q].format != PS2UI_TEXFMT_PSMCT32
-                        && cc.tex[q].clut == 0)
-                        users++;
-                printf("# clut 0: %u texture(s) share it, swap moved "
-                       "%lu bytes = %lu palette(s)\n",
-                       users, moved, moved / (16 * 16 * 4));
-                CHECK(moved % (16 * 16 * 4) == 0 && moved > 0,
-                      "and moves whole CT32 palettes, 1,024 bytes each");
-                CHECK(moved <= (unsigned long)users * 16 * 16 * 4,
-                      "never more than one per texture sharing the index: "
-                      "gsKit keeps a palette copy PER TEXTURE, not per "
-                      "CLUT, so the cost scales with users of the index");
-                CHECK(moved < (unsigned long)users * 16 * 16 * 4,
-                      "and fewer than all of them, because render binds "
-                      "only what it DRAWS -- the rest re-transfer lazily "
-                      "when first drawn, which is the better behaviour "
-                      "and not the one the cost model first assumed");
+                uint8_t reach[256];
+                const ps2ui_screen_entry *sc0 = &cc.screen_table[cc.screen];
+                memset(reach, 0, sizeof reach);
+                for (q = 0; q < sc0->cmd_count; q++) {
+                    const ps2ui_cmd *cm = &cc.cmd[sc0->cmd_first + q];
+                    if (cm->tex != PS2UI_NONE && cm->tex < sizeof reach)
+                        reach[cm->tex] = 1;
+                }
+                for (q = 0; q < sc0->slot_count; q++) {
+                    const ps2ui_slot_entry *sl =
+                        &cc.slots[sc0->slot_first + q];
+                    if (sl->font < cc.hdr->n_font) {
+                        uint16_t ft = cc.fonts[sl->font].tex;
+                        if (ft < sizeof reach) reach[ft] = 1;
+                    }
+                }
+                for (q = 0; q < cc.hdr->n_tex; q++) {
+                    if (cc.tex[q].format == PS2UI_TEXFMT_PSMCT32
+                        || cc.tex[q].clut != 0)
+                        continue;
+                    users++;
+                    if (q < sizeof reach && reach[q]) drawn++;
+                }
+                printf("# clut 0: %u share it, %u reachable on screen %u; "
+                       "swap moved %lu bytes = %lu palette(s)\n",
+                       users, drawn, cc.screen, moved,
+                       moved / (16 * 16 * 4));
+                CHECK(drawn > 0 && drawn < users,
+                      "some but not all of the CLUT's textures are drawn "
+                      "here, or the equality below proves only one of the "
+                      "two things it is meant to");
+                CHECK(moved == (unsigned long)drawn * 16 * 16 * 4,
+                      "A SWAP MOVES ONE PALETTE PER DRAWN TEXTURE, EXACTLY. "
+                      "An equality, not a bound: it proves completeness -- "
+                      "every drawn texture moved -- and laziness -- only "
+                      "the drawn ones did -- at once, and an incomplete "
+                      "marking loop fails it");
             }
 
             /* THE PERMUTATION IS PART OF THE CONTRACT, and nothing

@@ -437,6 +437,22 @@ int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
  * an upload would need an override bit per CLUT and is not in this
  * slice.
  *
+ * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.
+ * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
+ * upload re-permutes every CLUT from the blob and reverts a swap just
+ * as silently as an early one would have been overwritten -- same
+ * failure, opposite direction, and only one side is refused. Nothing
+ * in this repo calls upload twice, which is why it is documented here
+ * rather than turned into a contract change inside a CLUT pull
+ * request. A swap does not survive an upload, before or after.
+ *
+ * A SHORT PALETTE BLANKS THE TAIL. permute_clut opens with
+ * memset(out, 0, 256*4), so passing ncolors < the baked width leaves
+ * the remaining entries transparent black rather than at their
+ * previous values. Consistent with ps2ui_upload, and worth stating: a
+ * caller handing a 16-entry palette to a 256-entry CLUT gets an erased
+ * atlas, not a partial recolour.
+ *
  * The swap takes effect on the next bind, which is what ps2ui_render
  * does for every texture it draws. clut_set does not bind by itself.
  *
