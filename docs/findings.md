@@ -12,7 +12,7 @@ prose rots like any other document.
 | status | count |
 |---|---:|
 | provisional | 1 |
-| confirmed | 13 |
+| confirmed | 14 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -143,7 +143,7 @@ Kept because of HOW it died. The disproving line was in the author's own grep ou
 
 **Falsifier:** A non-power-of-two span that keeps its last texel row with no bias, or an untextured stack that loses one
 
-**Rests on this:** F-020, F-021, F-022
+**Rests on this:** F-020, F-021, F-022, F-033
 
 The mechanism -- a reciprocal in the per-scanline UV step -- remains a HYPOTHESIS. The correction is measured; the explanation is not.
 
@@ -161,7 +161,7 @@ The mechanism -- a reciprocal in the per-scanline UV step -- remains a HYPOTHESI
 
 **Overturns:** [F-011](#f-011) (A +0.5 UV bias is wrong: under NEAREST at 1:1 it…)
 
-**Rests on this:** F-021, F-022
+**Rests on this:** F-021, F-022, F-033
 
 Nothing before S10 could see the U axis: every earlier instrument was a power of two wide, which is the one span that cannot trigger the fault.
 
@@ -177,7 +177,9 @@ Nothing before S10 could see the U axis: every earlier instrument was a power of
 
 **Depends on:** [F-020](#f-020) (Both texture axes lose their last texel independ…)
 
-U is INFERRED, NOT MEASURED, at widths other than 100. Bench step S9 re-runs the real UI across dozens of genuine glyph widths and is the U sweep; it is also the only step that closes the defect, since everything so far tests the card rather than the shipping renderer.
+**Rests on this:** F-033
+
+U WAS inferred rather than measured at widths other than 100. Bench step S9 settled it: see F-033.
 
 *#61*
 
@@ -218,6 +220,20 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 **Rests on this:** F-032
 
 *#48, #60*
+
+### F-033 — The sampling defect is closed on hardware, on both axes, through the shipping renderer
+
+**Measured:** Bench S9, SCPH-50000, HW #260. The title reads PS2UI PHASE 1 STREAM BENCH rather than PS2UI PHASF 1 STRFAM BFNCH, and the S7 line reads E L 2 rather than F I ?. Every capital on the screen is intact. The bench face carries 113 inked glyphs of which 78 are non-power-of-two WIDTH, and 19 distinct ones appear on that screen -- A B C H M N R T U Y e g m o r t v w x, spans 6 to 13 -- all rendering correctly. That is the U sweep the ladder could not perform, because every arm it had was a power of two wide.
+
+**Instrument:** `docs/bench-phase1.md`
+
+**Falsifier:** A capital or a non-power-of-two-width glyph still losing its edge row or column with PS2UI_TEXEL_BIAS applied
+
+**Depends on:** [F-021](#f-021) (A 1/16 texel bias fixes the console and is a no-…)
+
+This is the first step in the sequence that tested the SHIPPING renderer rather than a purpose-built card. S8 and S10 both measured ladder.elf and ladder2.elf, which draw directly and carry no blob; a fix demonstrated there is a fix demonstrated on an instrument. S9 is the one that closes the defect.
+
+*#61*
 
 ## Phase 2 — Prove it with the OPL-class app (**open**)
 

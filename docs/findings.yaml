@@ -220,10 +220,8 @@ findings:
     still loses its last texel with it applied
   depends_on: [F-020]
   note: >-
-    U is INFERRED, NOT MEASURED, at widths other than 100. Bench step
-    S9 re-runs the real UI across dozens of genuine glyph widths and is
-    the U sweep; it is also the only step that closes the defect, since
-    everything so far tests the card rather than the shipping renderer.
+    U WAS inferred rather than measured at widths other than 100. Bench
+    step S9 settled it: see F-033.
   refs: ["#61"]
 
 - id: F-022
@@ -275,6 +273,33 @@ findings:
   falsifier: "An upload path in gsKit that reaches the GIF without a flush"
   overturns: [F-012]
   refs: ["#41"]
+
+- id: F-033
+  phase: 1
+  status: confirmed
+  claim: "The sampling defect is closed on hardware, on both axes, through the shipping renderer"
+  evidence:
+    instrument: docs/bench-phase1.md
+    measurement: >-
+      Bench S9, SCPH-50000, HW #260. The title reads PS2UI PHASE 1
+      STREAM BENCH rather than PS2UI PHASF 1 STRFAM BFNCH, and the S7
+      line reads E L 2 rather than F I ?. Every capital on the screen
+      is intact. The bench face carries 113 inked glyphs of which 78
+      are non-power-of-two WIDTH, and 19 distinct ones appear on that
+      screen -- A B C H M N R T U Y e g m o r t v w x, spans 6 to 13 --
+      all rendering correctly. That is the U sweep the ladder could not
+      perform, because every arm it had was a power of two wide.
+  falsifier: >-
+    A capital or a non-power-of-two-width glyph still losing its edge
+    row or column with PS2UI_TEXEL_BIAS applied
+  depends_on: [F-021]
+  note: >-
+    This is the first step in the sequence that tested the SHIPPING
+    renderer rather than a purpose-built card. S8 and S10 both measured
+    ladder.elf and ladder2.elf, which draw directly and carry no blob;
+    a fix demonstrated there is a fix demonstrated on an instrument.
+    S9 is the one that closes the defect.
+  refs: ["#61"]
 
 # ------------------------------------------------------------ Phase 1
 - id: F-030
