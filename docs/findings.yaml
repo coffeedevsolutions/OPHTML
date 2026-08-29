@@ -816,3 +816,83 @@ findings:
     persist and it stands, still owing a mechanism. Provisional until
     then, and the phase stays open.
   refs: ["#69"]
+
+- id: F-041
+  phase: 3
+  status: confirmed
+  claim: "gsKit can re-send a CLUT without its texels, at 1,024 bytes per drawn texture"
+  evidence:
+    instrument: runtime/tests/test_runtime.c
+    measurement: >-
+      gsKit_TexManager_bind decides the two transfers independently
+      (gsTexManager.c:260-265 at 43122eb): ttransfer on Vram == 0,
+      ctransfer on VramClut == 0. The block is allocated as
+      tsize + csize with the palette at block->iStart + tsize, so a new
+      palette needs no reallocation. Measured over the real blob:
+      ps2ui_clut_set followed by one ps2ui_render moves 0 texel bytes
+      and 7,168 CLUT bytes -- seven whole CT32 palettes, over the
+      MEMCARD example, which is the blob the runtime suite loads.
+  falsifier: >-
+    A clut_set whose next render moves any texel byte, or moves palette
+    bytes that are not a whole multiple of 1,024
+  note: >-
+    THIS IS P3B'S PREMISE AND IT WAS WORTH CHECKING BEFORE BUILDING ON
+    IT. The phase promised "instant recolour, same art, ~1 KiB per
+    palette". Had bind coupled the two transfers, a theme swap would
+    have cost the 165 KiB atlas and the item's whole justification with
+    it. gsKit_TexManager_invalidate zeroes BOTH, which is correct for
+    ps2ui_tex_set and would have been the obvious thing to reach for.
+
+    THE COST MODEL WAS WRONG IN THE FIRST DRAFT, in the direction that
+    flatters. "1,024 bytes per CLUT" is what the plan implies and what
+    the first version of the check asserted; gsKit keeps a palette copy
+    PER TEXTURE, so the cost scales with textures sharing the index.
+
+    THE EIGHT ARE THE MEMCARD EXAMPLE'S, not opl-env's, and the first
+    version of this note said opl-env. runtime/Makefile:6 loads
+    memcard's blob and the suite refuses any other by name; memcard has
+    {clut 0: 8 textures} and opl-env has {0: 1, 1: 6}. The design doc
+    added in the same pull request states opl-env's split correctly,
+    so the two disagreed three files apart with the ledger holding the
+    wrong one -- the F-031 shape again, and not covered by
+    check-example-figures.
+
+    Seven moved, not eight, and the difference is the better half of
+    the finding: ps2ui_render binds only what it DRAWS, so a swap is
+    lazy and pay-per-use -- textures not on screen re-transfer when
+    they are first drawn. That was not designed, it falls out of
+    binding at draw time, and it means a theme swap costs in proportion
+    to what is visible rather than to what is baked. The check asserts
+    it as an EQUALITY against the drawn count, because the inequality
+    it used first had no lower anchor and an incomplete marking loop
+    satisfied every assertion in the suite.
+
+    WHAT THE CHECK CANNOT SEE: the memcard blob has one CLUT, so a
+    marking loop ignoring clut_index marks the same set and passes.
+    Over-marking is wasteful rather than wrong -- each texture re-sends
+    its own unchanged palette -- but the per-CLUT half of the cost
+    claim is untested and needs a two-CLUT fixture. opl-env has two and
+    is not a blob this suite loads. Asserted as a blind spot in the
+    test rather than left to be discovered.
+
+    THE SWAP IS ALSO CACHE-COHERENT WITHOUT THE CALLER DOING ANYTHING:
+    gsKit issues SyncDCache(tex->Clut, ...) immediately before the
+    palette send. Recorded because it is invisible from outside and is
+    exactly the #40-shaped bug someone would reintroduce by
+    "optimising" the pool.
+
+    THE ORDERING HAZARD IS SYMMETRIC AND ONLY ONE SIDE IS ENFORCED.
+    clut_set before ps2ui_upload is refused. The first draft of the header said it was
+    safe; the byte test falsified that immediately, because upload
+    memsets every GSTEXTURE and re-permutes every CLUT from the blob,
+    so an early swap vanishes with no error and the caller sees baked
+    colours. Losing a call silently is the worse failure.
+
+    But ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
+    upload reverts a swap just as silently -- same failure, opposite
+    direction, and the standard above applies to it identically.
+    Documented in the header rather than fixed, because nothing in this
+    repo calls upload twice and changing upload's contract inside a
+    CLUT pull request is the wrong place for it. A swap does not
+    survive an upload, before or after.
+  refs: ["#70"]

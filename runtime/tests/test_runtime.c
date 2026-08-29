@@ -2613,6 +2613,184 @@ int main(int argc, char **argv)
         free(hblob);
     }
 
+    /* ---------------------------------------------------------------
+     * P3b: a CLUT swap moves a palette and not an atlas.
+     *
+     * The claim is a BYTE claim, so it is checked in bytes. A transfer
+     * COUNT cannot distinguish 1 KiB from 165 -- both are one transfer
+     * -- and a check built on counts would pass either way, which is
+     * the whole reason the stub grew b_texel and b_clut.
+     */
+    {
+        ps2ui_ctx cc;
+        static uint8_t arena[1 << 20];
+        GSGLOBAL cgs;
+        unsigned long texel_before, clut_before;
+        uint8_t pal[16 * 4];
+        unsigned k;
+
+        /* Filled here, not inside the branch below: the second block
+         * reads it and is outside that branch, so a skipped load left
+         * it indeterminate. */
+        for (k = 0; k < sizeof pal; k++) pal[k] = (uint8_t)(k * 7);
+
+        stub_reset();
+        memset(&cgs, 0, sizeof cgs);
+        cgs.CurrentPointer = 16;
+
+        if (ps2ui_load(&cc, blob, len, arena, sizeof arena) == PS2UI_OK
+            && cc.hdr->n_clut > 0) {
+            CHECK(ps2ui_upload(&cc, &cgs) == PS2UI_OK,
+                  "clut swap: the blob uploads once, cold");
+            CHECK(g_stub.b_texel > 0 && g_stub.b_clut > 0,
+                  "and that first pass moves both texels and palettes");
+
+            texel_before = g_stub.b_texel;
+            clut_before  = g_stub.b_clut;
+
+            CHECK(ps2ui_clut_set(&cc, &cgs, 0, pal, 16) == PS2UI_OK,
+                  "clut_set accepts a palette no wider than the baked one");
+
+            /* Re-bind the way a FRAME does. Not ps2ui_upload: that is
+             * the cold path, it memsets every GSTEXTURE and re-permutes
+             * every CLUT from the blob, so calling it here would both
+             * undo the swap and re-send every atlas -- and the test
+             * would fail for a reason that has nothing to do with the
+             * claim. Found by writing this check. */
+            ps2ui_render(&cc, &cgs);
+
+            CHECK(g_stub.b_texel == texel_before,
+                  "A CLUT SWAP MOVES NO TEXELS. This is the whole of P3b: "
+                  "if this ever fails the swap costs an atlas and there is "
+                  "no theming win left to have");
+            CHECK(g_stub.b_clut > clut_before,
+                  "and it does move palette bytes -- a swap that moved "
+                  "nothing at all would satisfy the check above");
+            {
+                /* gsKit gives every GSTEXTURE its own block of
+                 * tsize + csize, so each texture sharing a CLUT index
+                 * keeps its OWN palette copy in VRAM. A swap therefore
+                 * costs 1,024 bytes per TEXTURE that uses the index,
+                 * not 1,024 per index. The first version of this check
+                 * asserted the latter and was wrong -- an error in the
+                 * cost model, caught before anything was built on it. */
+                /* THE EXACT NUMBER IS COMPUTABLE, so this is an
+                 * equality. The first version asserted only
+                 * `moved < users * 1024`, offered as evidence of
+                 * laziness -- and that inequality has no lower anchor,
+                 * so it is satisfied just as well by clut_set failing
+                 * to mark everything. Those want opposite fixes, and
+                 * skipping one texture in the marking loop passed the
+                 * entire suite: an atlas left drawing from the stale
+                 * palette in VRAM, wrong on a console and invisible
+                 * here. Same shape as #66's dead arm versus latched
+                 * instrument, from the other side.
+                 *
+                 * Reachable = every texture this screen's commands
+                 * name, plus the atlas behind every font its slots
+                 * use. */
+                unsigned users = 0, drawn = 0, q;
+                unsigned long moved = g_stub.b_clut - clut_before;
+                uint8_t reach[256];
+                const ps2ui_screen_entry *sc0 = &cc.screen_table[cc.screen];
+                memset(reach, 0, sizeof reach);
+                for (q = 0; q < sc0->cmd_count; q++) {
+                    const ps2ui_cmd *cm = &cc.cmd[sc0->cmd_first + q];
+                    if (cm->tex != PS2UI_NONE && cm->tex < sizeof reach)
+                        reach[cm->tex] = 1;
+                }
+                for (q = 0; q < sc0->slot_count; q++) {
+                    const ps2ui_slot_entry *sl =
+                        &cc.slots[sc0->slot_first + q];
+                    if (sl->font < cc.hdr->n_font) {
+                        uint16_t ft = cc.fonts[sl->font].tex;
+                        if (ft < sizeof reach) reach[ft] = 1;
+                    }
+                }
+                for (q = 0; q < cc.hdr->n_tex; q++) {
+                    if (cc.tex[q].format == PS2UI_TEXFMT_PSMCT32
+                        || cc.tex[q].clut != 0)
+                        continue;
+                    users++;
+                    if (q < sizeof reach && reach[q]) drawn++;
+                }
+                printf("# clut 0: %u share it, %u reachable on screen %u; "
+                       "swap moved %lu bytes = %lu palette(s)\n",
+                       users, drawn, cc.screen, moved,
+                       moved / (16 * 16 * 4));
+                CHECK(drawn > 0 && drawn < users,
+                      "some but not all of the CLUT's textures are drawn "
+                      "here, or the equality below proves only one of the "
+                      "two things it is meant to");
+                /* WHAT THIS PAIR CANNOT SEE, stated rather than left
+                 * for someone to discover. The memcard blob has ONE
+                 * CLUT, so a marking loop that ignored clut_index
+                 * entirely would mark exactly the same set and pass --
+                 * verified by sabotage. Over-marking is wasteful
+                 * rather than wrong (each texture re-sends its own
+                 * unchanged palette), but the per-CLUT half of the
+                 * cost claim is untested here and needs a fixture with
+                 * two. opl-env has two and is not a blob this suite
+                 * loads. */
+                CHECK(cc.hdr->n_clut == 1,
+                      "this fixture has a single CLUT, so the check below "
+                      "bounds under-marking only -- over-marking is "
+                      "indistinguishable and stays untested");
+                CHECK(moved == (unsigned long)drawn * 16 * 16 * 4,
+                      "A SWAP MOVES ONE PALETTE PER DRAWN TEXTURE, EXACTLY. "
+                      "An equality, not a bound: it proves completeness -- "
+                      "every drawn texture moved -- and laziness -- only "
+                      "the drawn ones did -- at once, and an incomplete "
+                      "marking loop fails it");
+            }
+
+            /* THE PERMUTATION IS PART OF THE CONTRACT, and nothing
+             * above would notice its absence: a raw memcpy moves the
+             * same byte count, touches no texels, and passes every
+             * check so far. What it produces is scrambled colour on a
+             * console and nothing at all on a host -- a defect that
+             * can only surface at a bench, which is exactly the kind
+             * this suite exists to catch first. F-018. */
+            {
+                const uint8_t *pool = cc.clut_pool;
+                int permuted = 1, moved = 0, q;
+                for (q = 0; q < 16; q++) {
+                    uint32_t j = ps2ui_clut_csm1((uint32_t)q);
+                    if (memcmp(pool + j * 4, pal + q * 4, 4) != 0)
+                        permuted = 0;
+                    if (j != (uint32_t)q)
+                        moved = 1;
+                }
+                CHECK(moved,
+                      "the CSM1 order actually differs from linear over "
+                      "these indices, or the check below proves nothing");
+                CHECK(permuted,
+                      "clut_set writes the palette in CSM1 order, not "
+                      "linear: a memcpy moves the same bytes and yields "
+                      "scrambled colour that only a console would show");
+            }
+
+            CHECK(ps2ui_clut_set(&cc, &cgs, cc.hdr->n_clut, pal, 16)
+                      == PS2UI_ERR_RANGE,
+                  "an index past n_clut is refused");
+            CHECK(ps2ui_clut_set(&cc, &cgs, 0, pal, 4096) == PS2UI_ERR_SIZE,
+                  "and a palette wider than the baked entry is refused, "
+                  "rather than recolouring indices no texel references");
+        }
+        {
+            /* Before upload it must REFUSE. The header first claimed
+             * this was safe; upload re-permutes from the blob, so the
+             * swap would have been silently overwritten. */
+            ps2ui_ctx uc;
+            static uint8_t uarena[1 << 20];
+            if (ps2ui_load(&uc, blob, len, uarena, sizeof uarena) == PS2UI_OK)
+                CHECK(ps2ui_clut_set(&uc, &cgs, 0, pal, 16)
+                          == PS2UI_ERR_STATE,
+                      "clut_set before upload is refused, not silently "
+                      "overwritten by the upload that follows");
+        }
+    }
+
 report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);

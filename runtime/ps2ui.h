@@ -326,6 +326,8 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_ARENA      -9  /* arena smaller than ps2ui_arena_size() */
 #define PS2UI_ERR_NOT_STREAMED -10 /* tex_set on a baked or unknown slot  */
 #define PS2UI_ERR_SIZE       -11 /* tex_set payload is not the reservation */
+#define PS2UI_ERR_RANGE      -12 /* clut_set index past n_clut             */
+#define PS2UI_ERR_STATE      -13 /* clut_set before ps2ui_upload            */
 
 /* The arena's required alignment. The CLUT region at its start is a
  * DMA source, and DMA source addresses truncate silently below qword
@@ -394,6 +396,71 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs);
  * which is what scrolling a list does. */
 int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
                   const void *texels, size_t len);
+
+/* Repoint one CLUT at a different palette, without touching a texel.
+ *
+ * THE MECHANISM, verified in gsKit rather than assumed. Bind decides
+ * the two transfers independently (gsTexManager.c:260-265 at 43122eb):
+ *
+ *     if (tex->Vram == 0)                      ttransfer = 1;
+ *     if (tex->Clut && tex->VramClut == 0)     ctransfer = 1;
+ *
+ * and the block was allocated as tsize + csize with the palette living
+ * inside it at block->iStart + tsize, so a new palette needs no
+ * reallocation. Zeroing VramClut alone therefore re-sends 16x16 CT32 =
+ * 1,024 bytes and nothing else.
+ *
+ * gsKit_TexManager_invalidate zeroes BOTH, which is right for
+ * ps2ui_tex_set and wrong here: it would drag the atlas along and cost
+ * the swap its entire reason for existing. This function does not call
+ * it.
+ *
+ * `colors` is LINEAR, as the blob stores palettes; the CSM1 permutation
+ * is applied on the way into the pool, exactly as ps2ui_upload does, so
+ * a caller never has to know the convention (F-018).
+ *
+ * Every texture sharing this CLUT index changes together. That is the
+ * point -- one palette recolours every atlas drawn from it -- and it is
+ * also the constraint: a theme that needs two of them to diverge needs
+ * two CLUTs at bake time.
+ *
+ * MUST FOLLOW ps2ui_upload, and is refused before it. The first draft
+ * of this comment said the opposite -- "safe before upload, the pool is
+ * written and the next upload sends it" -- which the byte test
+ * immediately falsified: ps2ui_upload memsets every GSTEXTURE and
+ * re-permutes every CLUT straight from the blob, so a swap made before
+ * it is silently overwritten and the caller sees the baked colours with
+ * no error. Refusing is better than documenting, so it refuses.
+ *
+ * Selecting a theme AT BOOT therefore means upload, then clut_set,
+ * then the first render -- not clut_set first. Making the pool survive
+ * an upload would need an override bit per CLUT and is not in this
+ * slice.
+ *
+ * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.
+ * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
+ * upload re-permutes every CLUT from the blob and reverts a swap just
+ * as silently as an early one would have been overwritten -- same
+ * failure, opposite direction, and only one side is refused. Nothing
+ * in this repo calls upload twice, which is why it is documented here
+ * rather than turned into a contract change inside a CLUT pull
+ * request. A swap does not survive an upload, before or after.
+ *
+ * A SHORT PALETTE BLANKS THE TAIL. permute_clut opens with
+ * memset(out, 0, 256*4), so passing ncolors < the baked width leaves
+ * the remaining entries transparent black rather than at their
+ * previous values. Consistent with ps2ui_upload, and worth stating: a
+ * caller handing a 16-entry palette to a 256-entry CLUT gets an erased
+ * atlas, not a partial recolour.
+ *
+ * The swap takes effect on the next bind, which is what ps2ui_render
+ * does for every texture it draws. clut_set does not bind by itself.
+ *
+ * Returns PS2UI_OK, PS2UI_ERR_RANGE if the index is past n_clut,
+ * PS2UI_ERR_SIZE if ncolors exceeds what the entry was baked for, or
+ * PS2UI_ERR_STATE if called before ps2ui_upload. */
+int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,
+                   const void *colors, unsigned ncolors);
 
 /* Replay the current screen's command list for the current focus state.
  *

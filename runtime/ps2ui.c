@@ -695,6 +695,50 @@ int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,
     return PS2UI_OK;
 }
 
+/* See ps2ui.h. The mechanism is gsKit's, not ours: bind decides the
+ * texel and palette transfers independently, so zeroing VramClut alone
+ * re-sends 1,024 bytes of CT32 and leaves the atlas resident. */
+int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,
+                   const void *colors, unsigned ncolors)
+{
+    const ps2ui_clut_entry *c;
+    uint8_t *buf;
+    unsigned i;
+
+    if (ctx == NULL || colors == NULL)
+        return PS2UI_ERR_BOUNDS;
+    /* State BEFORE the header dereference. The guard exists to catch
+     * "called too early", so putting it behind a read that assumes
+     * "not too early" is backwards -- review's point, and true even
+     * though ps2ui_tex_set has the same shape via tex_index_by_name. */
+    if (!ctx->uploaded)
+        return PS2UI_ERR_STATE;
+    if (clut_index >= ctx->hdr->n_clut)
+        return PS2UI_ERR_RANGE;
+    c = &ctx->clut[clut_index];
+    /* The pool slot is 256 entries wide whatever the entry declares, but
+     * refusing anything past the BAKED width keeps a caller from
+     * quietly recolouring indices no texel references -- which would
+     * look like it worked and change nothing on screen. */
+    if (ncolors > c->ncolors)
+        return PS2UI_ERR_SIZE;
+
+    buf = ctx->clut_pool + (size_t)clut_index * 256 * 4;
+    permute_clut((const uint8_t *)colors, (uint16_t)ncolors, buf);
+
+    /* Mark ONLY the palette stale, on every texture that shares this
+     * CLUT. gsKit_TexManager_invalidate would zero Vram too and drag
+     * the atlas along; that is the one line that would cost this the
+     * property it exists for. */
+    for (i = 0; i < ctx->hdr->n_tex; i++) {
+        const ps2ui_tex_entry *t = &ctx->tex[i];
+        if (t->format != PS2UI_TEXFMT_PSMCT32 && t->clut == clut_index)
+            ctx->gs_tex[i].VramClut = 0;
+    }
+    (void)gs;
+    return PS2UI_OK;
+}
+
 /* ------------------------------------------------------------- render */
 
 typedef struct scissor_rect { int x0, y0, x1, y1; } scissor_rect;

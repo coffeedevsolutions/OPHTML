@@ -455,11 +455,36 @@ below is a guess about which resource is scarce:
 
 Then, in an order P3a decides:
 
-1. **P3b — CLUT-swap theming.** Same PSMT8 art, multiple ~1 KiB
-   palettes; instant recolor for themes and focus states. **Now the
-   phase's lead item**, having been the only one not gated on P3a: it
-   buys capability rather than speed, which is the half of the phase
-   that survived the measurement.
+1. **P3b — theming.** **Now the phase's lead item**, having been the
+   only one not gated on P3a: it buys capability rather than speed,
+   which is the half of the phase that survived the measurement.
+
+   **The plan called this "CLUT-swap theming" and that is the smaller
+   half** — see `docs/design-p3b-theming.md`. The mechanism is real and
+   measured: gsKit re-sends a palette without its texels, 1,024 bytes
+   per drawn texture, lazily [F-041]. But a UI's colour does not live
+   in its palettes. In opl-env, 997 of 1,302 commands carry the
+   identity tint, and every panel, border and background is an
+   untextured quad whose colour is a baked `r,g,b,a`. A CLUT swap
+   cannot reach any of it.
+
+   What the numbers say instead: a UI's colour is a tiny set repeated
+   thousands of times. So a theme is a **tint table** — commands store
+   an index, the table is a few hundred bytes, and it reaches every
+   command rather than only textured ones. The CLUT swap stays
+   alongside it, for palettized art the table cannot reach.
+
+   **The design's own adversarial pass then took two claims off it.**
+   The blob does not shrink: `ps2ui_cmd` is 32 bytes with `pad0[6]`,
+   and the freed colour bytes land in padding that exists to reach two
+   qwords. And entries must key on **role**, not value — `#7c9be0` is
+   written by nine separate declarations in opl-env, so deduplicating
+   by colour would silently fuse nine theme slots into one. The count
+   is 81 rather than 9, which is still 324 bytes, and the two bytes the
+   struct frees pay for the focus-recolour index that was an open
+   question.
+
+   Design first, as with v6: the format move is not started.
 2. **P3c — page-aware atlas packing.** Pack to 8 KiB page boundaries
    (64×32 CT32, 128×64 T8) to minimise TBP switches and make streamed
    reservations exact. **Gate did not open** [F-037]: the GS is at
