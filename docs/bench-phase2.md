@@ -480,9 +480,83 @@ So the expectation is not "flat". It is:
 > N × 0.2861 ms the fill model predicts for the same passes drawn for
 > real.
 
-That is a better check than flatness ever was, because the model
-supplies the number it must come in under. If `gs` rises *at* the fill
-rate, the alpha test is not discarding and the arm is measuring
-nothing — which is the same class of trap as the latched-CSR one P3a
-was built around, and it is caught the same way: by predicting the
-number before the sitting.
+### What was built, and why it touches no GS state at all
+
+Neither the scissor nor the alpha test survived contact with the tree.
+The scissor is discarded by `ps2ui_render` four lines in. The alpha
+test looked sound — `ps2ui_render` does leave TEST inherited, and says
+so — but `gsKit_set_test` takes a **preset**, `gsCore.c` is *not*
+vendored here, and `GS_ATEST_ON` is documented only as *"Turns on Alpha
+Testing (Source)"*. Nothing in this tree says it encodes `ATST = NEVER`.
+Building the instrument that settles half of F-038 on top of a GS
+register whose semantics this repo cannot pin down is the exact hazard
+`ps2ui.c:999-1010` declines to take on, and it would make the
+instrument's own trustworthiness the thing in question.
+
+**So the arm touches no GS state: `PS2UI_OPLENV_EE` renders the whole
+UI N extra times and nothing else.** `gs` rises too, and that costs
+nothing — `ee` is read across the kick window and `gs` after
+`gsKit_finish` returns, by separate clocks, so GS scaling never enters
+the EE number. It becomes a free cross-check instead.
+
+### The predictions, before the sitting
+
+**`gs` has no free parameter and is the strongest of the three.** The
+extra passes are identical draws, so:
+
+| N | gs predicted |
+|---|---|
+| 0 | 0.92 |
+| 1 | 1.84 |
+| 2 | 2.76 |
+| 3 | 3.68 |
+| 4 | 4.60 |
+
+If `gs` does not follow that, **the extra passes are not happening**
+and nothing else on the sitting means anything. Check it first.
+
+**`ee` is the measurement, and the sweep exists to split one number
+into two.** `ee(N) = base + (N+1) × render`, where `base` is the
+driver's own per-frame work (scroll logic, `sprintf`, telemetry) which
+does *not* repeat. One point cannot separate them; five can. The two
+extreme branches both pass through the measured 2.41 at N=0:
+
+| N | if base ≈ 0 (all of it is render) | if base ≈ 1.0 |
+|---|---|---|
+| 0 | 2.41 | 2.41 |
+| 1 | 4.82 | 3.82 |
+| 2 | 7.23 | 5.23 |
+| 3 | 9.64 | 6.64 |
+| 4 | 12.05 | 8.05 |
+
+**And `m` reads the same question a second way.** EE and GS work are
+sequential in a frame, so the field needs `ee + gs`. On the upper
+branch N=4 is 12.05 + 4.60 = **16.65 ms against a 16.683 ms field** —
+at the edge, and predicted to miss on the scroll frames that carry the
+peak. On the lower branch it is 12.65 ms and comfortable. So the miss
+counter discriminates between the branches independently of the fitted
+line, which is the property F-039's sweep had and the reason it was
+worth five ELFs rather than two.
+
+The range stops at N=4 for that reason: past it the loop stops being
+vsync-locked and the frame period stops being a clean 16.683.
+
+### `p` does not scale, and that is a third cross-check
+
+`ps2ui_render` opens with `memset(&ctx->stats, 0, ...)` (`ps2ui.c:973`),
+so the readout's `p` reports **the last pass only** — one (N+1)th of
+what the frame actually drew. The prim count has been this project's
+free self-audit four times; a photograph from an EE build will not
+reconcile against a plain one unless you multiply.
+
+So it joins the other two rather than being a caveat:
+
+| N | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| `p` printed | 590 | 590 | 590 | 590 | 590 |
+| prims actually drawn | 590 | 1,180 | 1,770 | 2,360 | 2,950 |
+
+**`p` staying at 590 while `gs` scales is the pair that says the extra
+passes are real and the counter is per-render.** If `p` scales, stats
+are accumulating across passes and something else in the readout is
+suspect too.

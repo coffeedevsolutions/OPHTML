@@ -279,6 +279,56 @@ def main():
                             "FILL_N the screen is blank and the fill ELF "
                             "cannot be photographed")
 
+    # THE EE ARM, held to the same three rules, and to one it does not
+    # share with the fill arm.
+    #
+    # Absence is the failure here for the same reason: this is the
+    # instrument P3d's gate rests on [F-042], and a check that passes
+    # over a tree with no arm asserts the opposite of what it prints.
+    if "PS2UI_OPLENV_EE" not in block:
+        fail.append("the EE arm is gone; ee has one number and no model, "
+                    "so half of F-038 goes back to being asserted rather "
+                    "than measured")
+    else:
+        eloop = re.search(r"for\s*\(\s*\w+\s*=\s*0\s*;\s*\w+\s*<\s*"
+                          r"PS2UI_OPLENV_EE_N\s*;", block)
+        if not eloop:
+            fail.append("the EE arm no longer loops to PS2UI_OPLENV_EE_N, so "
+                        "it can run a fixed number of passes -- including "
+                        "zero, which is a sweep with one point")
+        elif not re.search(r"ps2ui_render\s*\(", block[eloop.end():]):
+            fail.append("the EE arm loops but renders nothing; ee would then "
+                        "refuse to move and a dead arm is indistinguishable "
+                        "from an EE that does not scale with work")
+        elif not re.search(
+                r"for\s*\(\s*\w+\s*=\s*0\s*;\s*\w+\s*<\s*"
+                r"PS2UI_OPLENV_EE_N\s*;[^)]*\)\s*\{?\s*ps2ui_render\s*\(",
+                block):
+            # AND IT MUST BE ps2ui_render THE LOOP CALLS, asserted
+            # POSITIVELY. The whole claim is that the extra passes are
+            # WHOLE RENDERS -- same command walk, same slot pen -- so
+            # the fitted slope is the per-render EE cost. A loop calling
+            # gsKit_prim_sprite instead would move `ee` a little and
+            # `gs` a lot, and the slope would be neither quantity: the
+            # fill arm wearing this arm's name.
+            #
+            # THE FIRST VERSION SCANNED FOR THE PRIM CALL IN A 400-BYTE
+            # WINDOW AFTER THE LOOP, AND THAT IS ESCAPABLE. strip_comments
+            # blanks comments while PRESERVING OFFSETS, so a comment
+            # inside the loop body spends the window as spaces -- and the
+            # comment on this very arm runs about 1,800 bytes, so the
+            # distance is not hypothetical here. Review moved the prim
+            # call past 420 bytes of comment and all thirteen checks
+            # passed.
+            #
+            # Matching what MUST be there has no window to escape, which
+            # is the same correction the peak-hold rule took in #68:
+            # assert the thing that must happen, not the absence of one
+            # that must not.
+            fail.append("the EE arm's loop does not call ps2ui_render "
+                        "directly, so its slope is not the per-render EE "
+                        "cost it is fitted as")
+
     # The boot phase has to be zeroed before the clock starts.
     #
     # Frame 0's period is the only one not bounded by two vsyncs, so
@@ -432,6 +482,7 @@ def main():
     print("ok - and a dropped field records when, not only how many")
     print("ok - and every figure computed actually reaches the readout")
     print("ok - and the fill arm still draws what it promises, under the UI")
+    print("ok - and the EE arm runs whole renders, not primitives")
     print("ok - one FINISH token per frame, on the oneshot queue")
     print("ok - and the boot phase is zeroed before the clock starts")
     return 0

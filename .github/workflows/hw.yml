@@ -427,6 +427,32 @@ jobs:
               UIB=../../examples/opl-env/build/ui.uib \
               EE_BIN=oplenv-fill$n.elf
           done
+          # P3a3's EE sweep. gs got five points, a fitted line and
+          # r^2 = 0.999998; ee has one number and nothing to
+          # extrapolate with, which is the asymmetry P3d's gate is now
+          # deferred on [F-042]. These four ELFs plus the plain
+          # oplenv.elf at N=0 are what close it.
+          #
+          # Predicted before the sitting, from ee(0) = 2.41 and
+          # gs(0) = 0.92:
+          #   gs   1.84 / 2.76 / 3.68 / 4.60   -- no free parameter;
+          #        if gs does not follow, the extra passes are not
+          #        happening and nothing else here means anything
+          #   ee   the sweep splits 2.41 into base + render. Upper
+          #        branch (base ~ 0): 4.82 / 7.23 / 9.64 / 12.05.
+          #        Lower (base ~ 1.0): 3.82 / 5.23 / 6.64 / 8.05.
+          #   m    at N=4, 12.05 + 4.60 = 16.65 vs a 16.683 ms field on
+          #        the upper branch and 12.65 on the lower -- so a
+          #        clean m0 there is the INFORMATIVE result, not a
+          #        failed prediction.
+          #   p    stays at 590 on every one: ps2ui_render memsets its
+          #        stats, so the readout counts the last pass only.
+          for n in 1 2 3 4; do
+            make -C runtime/sample objclean
+            make -C runtime/sample OPLENV=1 EE=1 EE_N=$n \
+              UIB=../../examples/opl-env/build/ui.uib \
+              EE_BIN=oplenv-ee$n.elf
+          done
           # All must survive; the artifact is useless with any one
           # missing, and a missing ELF shows up downstream as a boot
           # failure rather than as a build error.
@@ -439,6 +465,10 @@ jobs:
           test -f runtime/sample/oplenv-fill2.elf
           test -f runtime/sample/oplenv-fill4.elf
           test -f runtime/sample/oplenv-fill16.elf
+          test -f runtime/sample/oplenv-ee1.elf
+          test -f runtime/sample/oplenv-ee2.elf
+          test -f runtime/sample/oplenv-ee3.elf
+          test -f runtime/sample/oplenv-ee4.elf
           test -f runtime/sample/minimal.elf
           test -f runtime/sample/telemetry.elf
           test -f runtime/sample/testcard.elf
@@ -478,6 +508,10 @@ jobs:
             runtime/sample/oplenv-fill2.elf
             runtime/sample/oplenv-fill4.elf
             runtime/sample/oplenv-fill16.elf
+            runtime/sample/oplenv-ee1.elf
+            runtime/sample/oplenv-ee2.elf
+            runtime/sample/oplenv-ee3.elf
+            runtime/sample/oplenv-ee4.elf
 
   emulator:
     needs: [bake, elf]
