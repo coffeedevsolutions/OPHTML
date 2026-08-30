@@ -2549,14 +2549,26 @@ class TestCheck(unittest.TestCase):
         root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "..", "..", "..")
         seen = 0
-        for rel in ("examples/memcard/build/ui.uib",
-                    "examples/channel6/build/ui.uib"):
+        rels = ("examples/memcard/build/ui.uib",
+                "examples/channel6/build/ui.uib")
+        for rel in rels:
             path = os.path.normpath(os.path.join(root, rel))
             if not os.path.exists(path):
                 continue  # not built in this checkout
             seen += 1
             rep = check_blob(read_uib(path))
             self.assertEqual(rep.errors, 0, f"{rel}: {self.failures(rep)}")
+        # HALF THE CORPUS IS NOT THE CORPUS. seen == 1 means one blob
+        # was built and the other was not, and the loop above would
+        # check half the regression set and report OK with nothing
+        # said -- the same shape as everything else this change is
+        # about, one notch smaller. CI never hits it (the baker step
+        # runs before both example builds, so seen is always 0); a
+        # developer who has built memcard and not channel6 does.
+        self.assertIn(seen, (0, len(rels)),
+                      f"{seen} of {len(rels)} example blobs are built: this "
+                      "test covers the corpus or it covers none of it, "
+                      "never part of it")
         if seen == 0:
             # Not the treatment the arena cross-check got. That one
             # could build what it needed in a second; these blobs need

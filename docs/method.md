@@ -86,6 +86,16 @@ because the condition it skipped on **was** the failure it existed to
 detect. A skip on a missing fixture is a coverage gap; a skip on your
 own assertion is a test that reports `OK` for the bug.
 
+And a third size below both: a loop that iterates a corpus, skips the
+members it cannot find, and reports on the rest without saying how many
+it saw. `test_the_shipped_examples_pass` checked two example blobs and
+handled *zero* built and *two* built; with one built it covered half
+the regression set and returned `OK` in silence. Never in CI — the
+baker step runs before both example builds, so the count is always
+zero there — and every time for a developer who had baked one of them.
+**A count that is neither all nor none is the answer, not a case to
+fall through.**
+
 Others: a `argc == 3` guard that silently skipped eighteen checks when
 a fourth fixture was added, leaving the suite green *and smaller*; and
 `opl-env` registered in `check-blobs.sh`'s `ALL` list while `ci.yml`
