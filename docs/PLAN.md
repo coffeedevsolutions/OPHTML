@@ -490,10 +490,34 @@ Then, in an order P3a decides:
    |---|---|---|
    | P3b-0 | the CLUT-swap mechanism: `ps2ui_clut_set`, measured | **done** (#70, F-041) |
    | P3b-1 | the tint table format (v7) | **done** |
-   | P3b-2 | `ps2ui_theme_set` and a second row a baker can write | next |
-   | P3b-3 | role-keyed indices: the IR carries each colour's declaration site (a layout-package change), which is what `PS2UI_FEAT_ROLE_TINTS` gates | after P3b-2 |
-   | P3b-4 | DX: `ps2ui-check` prints the table with CSS origin; the previewer renders every theme; `--strict` fails a theme missing a key | after P3b-3 |
-   | P3b-5 | `var()` in the CSS parser, so a theme is authored rather than hand-indexed | last |
+   | P3b-2 | `ps2ui_theme_set`, and a hand-built two-row blob to exercise it | **done** |
+   | P3b-3 | `var()` in the CSS parser, and tints keyed on the **name** | next |
+   | P3b-4 | the baker writes a second row; `PS2UI_FEAT_ROLE_TINTS` is finally set | after P3b-3 |
+   | P3b-5 | DX: `ps2ui-check` prints the palette with each entry's var name; the previewer renders every theme; `--strict` on a bare literal in a themed UI | last |
+
+   **P3b-3 and P3b-5 swapped, and the old P3b-3 is gone.** The plan
+   said role-keying meant "the IR carries each colour's declaration
+   site". That is sound for the runtime and unusable for an author.
+   Measured on `opl.css`: **82 colour declarations, 26 distinct
+   literals, 12 baked entries.** Declaration-site keying makes that 82
+   table slots addressed by file and line, so a theme file is 82
+   anonymous positions — correct, and nobody can write one.
+
+   **The role is the name the author chose.** `var(--focus-ring)` is a
+   role; `#7c9be0` written in nine places is nine coincidences. So
+   `var()` is not the authoring sugar the plan filed it as, it is the
+   mechanism: a restricted form (`:root { --name: #hex }` plus
+   `var(--name)` at use sites, no fallbacks, no per-element override)
+   is what makes a second row sound.
+
+   **Bare literals stay value-keyed, and that is the author declining
+   to theme them.** They collapse across the UI exactly as they do
+   today, no theme can move them, and the blob renders correctly under
+   every row — it simply does not recolour those pixels. That turns
+   `PS2UI_FEAT_ROLE_TINTS` into a sharper claim than the plan had:
+   *every tint a theme can move is keyed on an authored name.* And it
+   gives `--strict` a real job in P3b-5, which is to say so when a
+   multi-theme UI is still painting with literals.
 
    **P3b-1 shipped the format and one correction to the design.** Every
    colour count in the design doc was one too high: the script behind

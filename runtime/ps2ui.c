@@ -777,6 +777,22 @@ int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,
     return PS2UI_OK;
 }
 
+int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme)
+{
+    if (ctx == NULL)
+        return PS2UI_ERR_BOUNDS;
+    /* Range against n_theme, which ps2ui_load has already refused to
+     * leave at zero -- so this cannot admit an index into a table with
+     * no rows. No GSGLOBAL, no upload check, no invalidation: the row
+     * is read by the EE at draw time, so the next ps2ui_render is
+     * where it takes effect and nothing between here and there needs
+     * telling. */
+    if (theme >= ctx->hdr->n_theme)
+        return PS2UI_ERR_RANGE;
+    ctx->theme = (uint16_t)theme;
+    return PS2UI_OK;
+}
+
 /* ------------------------------------------------------------- render */
 
 typedef struct scissor_rect { int x0, y0, x1, y1; } scissor_rect;
@@ -940,9 +956,17 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
      * to write a blob this deep, so this is the belt to those braces. */
     int overflow = 0;
     uint32_t i;
-    /* The live theme's row, resolved once. `theme` is bounded by
-     * ps2ui_load (n_theme > 1 is refused outright, so it is 0), which
-     * is why this multiply needs no clamp here. */
+    /* The live theme's row, resolved once per frame rather than per
+     * command. `theme` is bounded by ps2ui_theme_set, which range-
+     * checks it against n_theme, and by ps2ui_load's memset, which
+     * starts it at 0 -- so the multiply needs no clamp of its own.
+     *
+     * The first version of this comment said the bound came from load
+     * refusing n_theme > 1 outright. That was true when the setter did
+     * not exist and is not any more: a role-keyed blob can legitimately
+     * have several rows. Same conclusion, different reason, and a
+     * comment carrying the dead one is how a future edit talks itself
+     * into removing the wrong guard. */
     const ps2ui_tint_entry *row = tint_row(ctx);
     const ps2ui_tint_entry *tint;
 
