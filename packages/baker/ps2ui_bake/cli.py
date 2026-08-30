@@ -139,6 +139,7 @@ def main(argv=None) -> int:
         args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
         flat.focus_nodes, initial, flat.fonts, flat.slots, flat.screens,
         tuple(ir["canvas"].get("displayAspect", (4, 3))),
+        len(ir.get("themes") or ["root"]),
     )
 
     n_tex_bytes = sum(len(t.data) for t in flat.textures)

@@ -111,9 +111,13 @@ def _align16(buf: bytearray):
 
 def write_uib(path, canvas, records, textures, cluts, focus_nodes,
               initial_focus, fonts=(), slots=(), screens=None,
-              display_aspect=(4, 3)):
+              display_aspect=(4, 3), n_theme=1):
     """focus_nodes: IR focus graph nodes (document order == table order).
     initial_focus: focus-table index or None.
+    n_theme: how many rows the tint table has, root included. The
+    colours themselves arrive on the records (`rgba_themes`) and slots
+    (`color_base_themes` / `color_focus_themes`) rather than being
+    derived here -- see _tint.
     display_aspect: (num, den) the panel shows the framebuffer at. The
     framebuffer is not square-pixel on this hardware even at 4:3, so
     this travels with the blob for the previewer and the video setup.
@@ -179,7 +183,31 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     tint_index = {}
     tint_entries = []
 
-    def _tint(rgba, var=None):
+    def _vector(rgba, themes):
+        """One tuple per theme, index 0 being this colour's own value.
+
+        A colour with no vector is the SAME in every theme and is
+        widened here rather than stored short. Two shapes for one
+        concept is how a consumer ends up handling only the one it was
+        written against -- the nine-patch identity tint has no vector
+        because it has no declaration, and it is identity in every
+        theme, which is a fact about it and not a gap in it."""
+        base = tuple(int(v) & 0xFF for v in rgba)
+        if not themes:
+            return (base,) * n_theme
+        out = tuple(tuple(int(v) & 0xFF for v in c) for c in themes)
+        if len(out) != n_theme:
+            raise ValueError(f"tint vector has {len(out)} themes, "
+                             f"expected {n_theme}")
+        if out[0] != base:
+            # The default row IS the colour every other consumer sees.
+            # If they ever disagree, the blob would render one thing and
+            # every host-side check would agree with the other.
+            raise ValueError(f"tint vector row 0 {out[0]} does not match "
+                             f"the colour it belongs to {base}")
+        return out
+
+    def _tint(rgba, var=None, themes=None):
         # KEYED ON THE NAME WHEN THERE IS ONE. A role is what the author
         # called a colour, so two use sites of var(--focus-ring) are one
         # entry however they resolve, and two literals that happen to
@@ -202,14 +230,21 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         # What it is not is "one name, one entry" -- do not write code
         # that assumes the mapping is a function of the name alone.
         #
-        # It bites at P3b-4, where the row-writer fills a theme's row.
-        # Each entry has to be recomputed from that theme's literal
-        # THROUGH ITS OWN FOLD; a writer that looks up the name and
-        # copies would move whichever entry it found and leave the rest
-        # baked, so half the panels change and half do not. A silent
-        # half-move, through the exact door role-keying exists to close.
-        key = ((var, tuple(int(v) & 0xFF for v in rgba)) if var
-               else (None, tuple(int(v) & 0xFF for v in rgba)))
+        # SO THE KEY IS THE NAME PLUS THE WHOLE VECTOR, not the name
+        # plus the default row. P3b-4 makes that literal: an entry is a
+        # role and every colour it takes across every theme, and two use
+        # sites are one entry exactly when a theme can never tell them
+        # apart. The opacity pair above has two vectors and stays two
+        # entries; a single-theme blob degenerates to the v7 key, which
+        # is why nothing about the one-theme output moved.
+        #
+        # Nothing here recomputes a theme's colour from another theme's.
+        # The vector arrives already folded, all rows at once, from
+        # paint.js -- see foldAlpha there. A row-writer that looked a
+        # theme's literal up by name and reapplied the fold is the
+        # half-move this key exists to make unrepresentable.
+        vec = _vector(rgba, themes)
+        key = (var, vec)
         i = tint_index.get(key)
         if i is None:
             i = len(tint_entries)
@@ -225,7 +260,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     cmd_tints = []
     for r in records:
         if r.op in (OP_QUAD, OP_TEXQUAD):
-            t = _tint(r.rgba, getattr(r, "var", None))
+            t = _tint(r.rgba, getattr(r, "var", None),
+                      getattr(r, "rgba_themes", None))
             cmd_tints.append((t, t))
         else:
             cmd_tints.append((0, 0))
@@ -234,8 +270,10 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     # check missed it. Colour lives in two tables; a theme keyed on names
     # in one and values in the other would recolour every panel and leave
     # every score, label and dialog line baked.
-    slot_tints = [(_tint(sl["color_base"], sl.get("color_base_var")),
-                   _tint(sl["color_focus"], sl.get("color_focus_var")))
+    slot_tints = [(_tint(sl["color_base"], sl.get("color_base_var"),
+                         sl.get("color_base_themes")),
+                   _tint(sl["color_focus"], sl.get("color_focus_var"),
+                         sl.get("color_focus_themes")))
                   for sl in slots]
 
     id_to_index = {n["id"]: i for i, n in enumerate(focus_nodes)}
@@ -319,6 +357,14 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         feature_flags |= FEAT_SLOT_SPACING
     if any(e[1] == TEXKIND_STREAMED for e in tex_entries):
         feature_flags |= FEAT_STREAMED_TEX
+    # THE BIT AND THE ROW THAT NEEDS IT, TOGETHER. Set from n_theme
+    # rather than from "this writer keys on names", even though both are
+    # now true, because the runtime consults it only to decide whether
+    # n_theme > 1 is trustworthy -- tying it to the row count is tying
+    # it to the question it answers. A one-theme blob keeps the bit
+    # clear and stays byte-identical to what v7 wrote.
+    if n_theme > 1:
+        feature_flags |= FEAT_ROLE_TINTS
 
     off = _HEADER.size
     off_tex = off
@@ -338,7 +384,7 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     # Last table before the blob, and 4 bytes wide, so it needs no
     # alignment of its own: every table above it is a multiple of four.
     off_tint = off
-    off += _TINT.size * len(tint_entries)
+    off += _TINT.size * len(tint_entries) * n_theme
     # The blob section must start on a 16-byte file offset. Texture
     # data_offs are 16-aligned relative to the blob and bin2c places the
     # whole file 16-aligned in memory, so this padding is the one link
@@ -365,9 +411,7 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         0,  # crc32, patched below
         len(font_entries), len(slot_entries), off_font, off_slot,
         len(screen_entries), len(tint_entries), off_screen,
-        # One theme, and so no FEAT_ROLE_TINTS: the bit and the second
-        # row land together at P3b-4. See FEAT_ROLE_TINTS above.
-        off_tint, 1, 0,
+        off_tint, n_theme, 0,
         int(display_aspect[0]), int(display_aspect[1]),
     )
     for e in tex_entries:
@@ -388,8 +432,13 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         out += _SLOT.pack(*e)
     for e in screen_entries:
         out += _SCREEN.pack(*e)
-    for _var, rgba in tint_entries:
-        out += _TINT.pack(*rgba)
+    # THEME-MAJOR: all of row 0, then all of row 1. The runtime's
+    # ps2ui_theme_set changes a base pointer and nothing else, which is
+    # what makes selecting a theme a selection rather than a rewrite --
+    # entry-major would make it a stride.
+    for t in range(n_theme):
+        for _var, vec in tint_entries:
+            out += _TINT.pack(*vec[t])
     out += bytes(blob_pad)
     assert len(out) == off_blob, "layout arithmetic and bytes written disagree"
     out += blob
