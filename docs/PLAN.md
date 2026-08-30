@@ -684,10 +684,42 @@ Then, in an order P3a decides:
    agreement in the fourth digit, and a fill rate of 0.999 Gpix/s. The
    instrument was sound at S13; the inference drawn beside it was not.
 
-   **Sitting B is blocked on a driver change, not on the blob.** P3b-4
-   made the blob two-row, but nothing in `runtime/sample/main.c` ever
-   calls `ps2ui_theme_set` — there is no button to press. A pad binding
-   plus a hw run is what unblocks it.
+   **Sitting B is unblocked.** `oplenv-theme.elf` cycles the tint rows
+   on a 240-frame timer, so a photograph shows a theme chosen at
+   *runtime* rather than baked in — which is the whole of the claim a
+   host cannot check.
+
+   Self-driven rather than pad-driven, and not for convenience: this
+   sample loads no IOP service at all, and adding padman would change
+   the boot path the timing arms exist to measure. A timer proves
+   runtime selection exactly as well as a button. Behind its own flag,
+   so the theme switch is not in the measured path — F-044's lines were
+   fitted without it.
+
+   **The next sitting's numbers will not match F-044's, and that is
+   P3b-6 rather than a regression.** It took the library screen — the
+   one every timing arm renders — from 414 records to 694. So the
+   clear-arm prediction is written as a **difference**: photograph
+   `oplenv.elf` and `oplenv-clearopaque.elf` in the same sitting and
+   subtract, expecting ~0.14 ms. An absolute "0.78 or 0.92" is anchored
+   to a blob that no longer exists and would read as *neither* even if
+   the mechanism is exactly as described — the cleanest experiment in
+   the queue returning a null result for a bookkeeping reason. `p`
+   announces it on the first photograph: S14 recorded `p595`, and 595
+   is unreachable on a screen that gained 280 records.
+
+   **The readout gained the two fields the last sitting proved it
+   needed.** `gs^` now carries `@frame`, which is the instrument F-045
+   named as its own next step — its one surviving explanation is that
+   the peak-hold is not catching a scroll frame, and that cannot be
+   tested without knowing which frame it caught. And line 2 gained
+   `n`, the run's frame count, without which `m29@270` divides
+   nothing: 29 misses fits *every scroll frame from 270 on* and fits
+   *near-margin jitter* equally well, and only `29 ≈ (n − 270)/30 + 1`
+   tells them apart.
+
+   Three sittings running, three arguments settled by an instrument
+   rather than a theory. That is now the phase's most reliable move.
 
    **P3b-3 and P3b-5 swapped, and the old P3b-3 is gone.** The plan
    said role-keying meant "the IR carries each colour's declaration

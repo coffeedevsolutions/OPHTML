@@ -433,15 +433,48 @@ jobs:
           # ABE-on sprite, which this same sitting prices at 0.2869 ms.
           # It costs about half that, and 0.2869/0.1450 = 1.98 on a
           # part whose opaque fill rate is twice its blended one.
-          # This ELF turns ABE off for that one draw. Predicted:
-          #   gs ~0.78 -> the clear was paying the blended rate
-          #   gs  0.92 -> it was not, and 0.145 is something else
+          # This ELF turns ABE off for that one draw.
+          #
+          # PREDICTED AS A DIFFERENCE, NOT AN ABSOLUTE, because the
+          # absolute is anchored to a blob that no longer exists.
+          # 0.9220 + N x 0.7770 was fitted at S14 on 914e20c, before
+          # P3b-6 took the library screen from 414 records to 694. So
+          # gs(N=0) is not 0.92 on today's build, and a prediction of
+          # "0.78 or 0.92" would read as neither even if the mechanism
+          # is exactly as described -- the cleanest experiment in the
+          # queue returning a null result for a bookkeeping reason.
+          # The readout says so itself: S14 recorded p595, and p cannot
+          # still be 595 on a screen that gained 280 records.
+          #
+          # Photograph oplenv.elf and oplenv-clearopaque.elf in the
+          # SAME sitting and subtract:
+          #   gs drops ~0.14  -> the clear was paying the blended rate
+          #   gs unchanged    -> it was not, and 0.145 is something else
+          # oplenv.elf is already in the artifact list; it is the
+          # control, and this is what makes it one.
+          #
           # It cannot change a pixel either way: the blend is already
           # the identity at vertex alpha 0x80.
           make -C runtime/sample objclean
           make -C runtime/sample OPLENV=1 CLEAR_OPAQUE=1 \
             UIB=../../examples/opl-env/build/ui.uib \
             EE_BIN=oplenv-clearopaque.elf
+          # P3b's EXIT GATE. The one claim in the phase a host cannot
+          # check: that a UI recolours every colour it draws from a
+          # theme chosen at RUNTIME. The host stub counts primitives
+          # and the previewer renders from the same values the baker
+          # wrote, so both would agree with a runtime that recoloured
+          # nothing on a television. Two photographs settle it.
+          #
+          # Self-driven on a 240-frame timer rather than a pad: this
+          # sample loads no IOP service at all, and adding padman would
+          # change the boot path the timing arms measure. Behind its
+          # own flag so the plain builds stay comparable with the
+          # sittings already taken.
+          make -C runtime/sample objclean
+          make -C runtime/sample OPLENV=1 THEME_CYCLE=1 \
+            UIB=../../examples/opl-env/build/ui.uib \
+            EE_BIN=oplenv-theme.elf
           # P3a3's EE sweep. gs got five points, a fitted line and
           # r^2 = 0.999998; ee has one number and nothing to
           # extrapolate with, which is the asymmetry P3d's gate is now
@@ -480,6 +513,7 @@ jobs:
           test -f runtime/sample/oplenv-fill2.elf
           test -f runtime/sample/oplenv-fill4.elf
           test -f runtime/sample/oplenv-fill16.elf
+          test -f runtime/sample/oplenv-theme.elf
           test -f runtime/sample/oplenv-clearopaque.elf
           test -f runtime/sample/oplenv-ee1.elf
           test -f runtime/sample/oplenv-ee2.elf
@@ -524,6 +558,7 @@ jobs:
             runtime/sample/oplenv-fill2.elf
             runtime/sample/oplenv-fill4.elf
             runtime/sample/oplenv-fill16.elf
+            runtime/sample/oplenv-theme.elf
             runtime/sample/oplenv-clearopaque.elf
             runtime/sample/oplenv-ee1.elf
             runtime/sample/oplenv-ee2.elf

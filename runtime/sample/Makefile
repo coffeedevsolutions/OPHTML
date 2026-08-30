@@ -123,6 +123,16 @@ endif
 EE_CFLAGS += -DPS2UI_OPLENV_CLEAR_OPAQUE
 endif
 
+# P3b's exit gate. The opl-env driver cycling its tint rows on a timer,
+# so a photograph shows a theme chosen at RUNTIME rather than baked in.
+# Paired with OPLENV for the same reason FILL, EE and CLEAR_OPAQUE are.
+ifdef THEME_CYCLE
+ifndef OPLENV
+$(error THEME_CYCLE=1 requires OPLENV=1: the arm is the opl-env driver switching its own theme, not a build of its own)
+endif
+EE_CFLAGS += -DPS2UI_OPLENV_THEME_CYCLE
+endif
+
 ifdef LADDER2
 EE_CFLAGS += -DPS2UI_SAMPLE_LADDER2
 endif

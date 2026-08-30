@@ -730,3 +730,11 @@ No mechanism is proposed. The instrument fix is the one that killed
 F-040: **`gs^` needs an `@` the way `m` got one.** Which frame holds the
 peak at N=2, and whether the peak-hold is catching the scroll frame at
 all, is one sitting away.
+
+**Built.** `gs^` now prints `@frame`, absolute, so `@ % 30 == 0` reads
+directly as "the peak was a scroll frame". Line 2 also gained `n`, the
+run's frame count, because `m29@270` divides nothing without it — 29
+fits *every scroll frame from 270 on* and fits *near-margin jitter*
+equally well, and only `29 ≈ (n − 270)/30 + 1` separates them. Both
+land in the next sitting alongside `oplenv-clearopaque` and
+`oplenv-theme`.

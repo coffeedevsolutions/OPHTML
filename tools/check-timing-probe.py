@@ -391,9 +391,58 @@ def main():
         # ee_n++;` and `if (ee > ee_peak) ee_peak = 0;` both compile
         # clean and both print ^0.00 forever, which is the same
         # silent-zero failure the fill arm exists to catch on gs.
-        if not re.search(r"if\s*\(\s*(\w+)\s*>\s*%s\s*\)\s*%s\s*=\s*\1\s*;"
-                         % (var, var), block):
+        # The brace was added when gs's peak gained a frame index and
+        # the body became two statements, and the assignment may sit
+        # anywhere inside it -- a correct peak-hold with its two lines
+        # swapped is not a defect and must not be a false alarm. The
+        # first version of this widening required the assignment to be
+        # FIRST after `{` and did exactly that.
+        #
+        # It does NOT loosen what this catches. Without a brace the
+        # optional group matches empty, so the assignment must follow
+        # `)` immediately and `if (gsu > gs_peak) ee_n++;` still fails.
+        # With one, `[^}]` cannot cross the closing brace, so the search
+        # stays inside the body and cannot reach an unrelated line
+        # further down. And the backreference still demands the same
+        # variable on both sides, so `{ gs_peak = 0; }` fails as before.
+        if not re.search(r"if\s*\(\s*(\w+)\s*>\s*%s\s*\)\s*"
+                         r"(?:\{[^}]*?)?%s\s*=\s*\1\s*;" % (var, var),
+                         block):
             fail.append("no peak-hold on %s; %s" % (var[:2], why))
+
+    # WHICH frame held the gs peak, and it has to be INSIDE the
+    # peak-hold body -- adjacency is the whole rule, not a detail.
+    #
+    # The first version searched the block for `gs_pk_at = frame`
+    # anywhere. Review moved it one line out of the `if`:
+    #
+    #     if (gsu > gs_peak) { gs_peak = gsu; }
+    #     gs_pk_at = frame;
+    #
+    # Both rules passed. And the build that produces is worse than a
+    # broken one: gs_pk_at_us is latched when the window flushes at
+    # ee_n >= 60, so it would report the FLUSH frame -- always a
+    # multiple of 60, therefore always a multiple of
+    # OPLENV_SCROLL_EVERY. `@ % 30 == 0` would read true on every
+    # photograph at every fill level: a stable, plausible, entirely
+    # constructed confirmation that the peak is a scroll frame, handed
+    # to the one finding this field was added to unstick. The fill
+    # arm's own comment names that failure -- "the instrument would
+    # confirm the project's prior while measuring nothing" -- and this
+    # is it, aimed at F-045.
+    #
+    # Structural rather than one larger regex, so the two assignments
+    # may appear in either order: a correct peak-hold with the lines
+    # swapped is not a defect and must not be a false alarm.
+    m = re.search(r"if\s*\(\s*(\w+)\s*>\s*gs_peak\s*\)\s*\{([^}]*)\}",
+                  block)
+    body = m.group(2) if m else ""
+    if not (m and re.search(r"\bgs_peak\s*=\s*%s\s*;" % m.group(1), body)
+            and re.search(r"\bgs_pk_at\s*=\s*frame\s*;", body)):
+        fail.append("the gs peak's frame index is not recorded inside the "
+                    "peak-hold; outside it, it latches the window-flush "
+                    "frame -- a multiple of 60, so `@ % 30 == 0` reads "
+                    "true always and manufactures F-045's answer")
 
     # miss_at, because `m` alone says how many and never when -- and the
     # first explanation offered for HW #262's single miss was wrong by a
