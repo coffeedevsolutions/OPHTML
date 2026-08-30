@@ -57,6 +57,13 @@ class DrawRecord:
     v0: int = 0
     u1: int = 0
     v1: int = 0
+    # The var() name behind this record's colour, or None when the
+    # author wrote a literal. It is what the tint table keys on: a role
+    # is the name someone chose, and two literals that happen to agree
+    # are two coincidences, not one role. None is therefore not a
+    # missing value -- it is the author declining to offer this colour
+    # to a theme, and it collapses by value exactly as it did at v7.
+    var: str = None
     # data-keep: exempt from the dead-geometry trim. Build-time only --
     # it never reaches the .uib, because the runtime draws whatever
     # records it is given and has no notion of a record it should have
@@ -197,10 +204,15 @@ class Flattener:
         if fill:
             self.records.append(DrawRecord(
                 OP_QUAD, state, focus, x, y, w, h, self._gs_color(fill),
-                keep=keep,
+                keep=keep, var=cmd.get("fillVar"),
             ))
         if bw > 0 and bc:
             c = self._gs_color(bc)
+            # The border's own name, not the fill's. One element can
+            # carry two roles -- `background: var(--panel); border: 1px
+            # solid var(--edge)` -- and reusing fillVar here would fuse
+            # them into whichever the theme moved first.
+            bvar = cmd.get("borderColorVar")
             edges = (
                 (x, y, w, bw),                    # top
                 (x, y + h - bw, w, bw),           # bottom
@@ -211,6 +223,7 @@ class Flattener:
                 if ew > 0 and eh > 0:
                     self.records.append(DrawRecord(
                         OP_QUAD, state, focus, ex, ey, ew, eh, c, keep=keep,
+                        var=bvar,
                     ))
 
     # -------------------------------------------------------------- images
@@ -380,6 +393,7 @@ class Flattener:
         focus = self._focus_of(cmd)
         builder, tex = self._atlas_for(cmd["weight"], cmd["size"])
         tint = self._gs_modulate_color(cmd["color"])
+        tint_var = cmd.get("colorVar")
         pen_x = cmd["x"]
         top_y = cmd["y"]
         spacing = cmd.get("letterSpacing", 0)
@@ -399,6 +413,7 @@ class Flattener:
                     pen_x + glyph.bearing_x, top_y + glyph.bearing_y,
                     glyph.w, glyph.h, tint,
                     tex, glyph.u, glyph.v, glyph.u + glyph.w, glyph.v + glyph.h,
+                    var=tint_var,
                 ))
             pen_x += glyph.advance
             prev_cp = cp
@@ -583,6 +598,8 @@ class Flattener:
                 if sl.get("focusId") is not None else FOCUS_NONE,
                 "color_base": self._gs_modulate_color(sl["colorBase"]),
                 "color_focus": self._gs_modulate_color(sl["colorFocus"]),
+                "color_base_var": sl.get("colorBaseVar"),
+                "color_focus_var": sl.get("colorFocusVar"),
             })
 
     def _finish_slots(self):

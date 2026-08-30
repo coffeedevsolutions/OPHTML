@@ -144,6 +144,13 @@ export function buildDisplayList(root) {
         focusId: box.focusId,
         colorBase: base.color,
         colorFocus: foc.color,
+        // With their names. A slot is text, so this is `color` and its
+        // colorVar -- the same pair the static text commands carry, and
+        // for the same reason: a theme keyed on names in the command
+        // list and on values in the slot table would recolour every
+        // panel and leave every score, label and dialog line baked.
+        colorBaseVar: base.colorVar ?? null,
+        colorFocusVar: foc.colorVar ?? null,
       });
       return; // no static commands for slot text
     }

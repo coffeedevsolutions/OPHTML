@@ -491,8 +491,8 @@ Then, in an order P3a decides:
    | P3b-0 | the CLUT-swap mechanism: `ps2ui_clut_set`, measured | **done** (#70, F-041) |
    | P3b-1 | the tint table format (v7) | **done** |
    | P3b-2 | `ps2ui_theme_set`, and a hand-built two-row blob to exercise it | **done** |
-   | P3b-3 | `var()` in the CSS parser, and tints keyed on the **name** | next |
-   | P3b-4 | the baker writes a second row; `PS2UI_FEAT_ROLE_TINTS` is finally set | after P3b-3 |
+   | P3b-3 | `var()` in the CSS parser, and tints keyed on the **name** | **done** |
+   | P3b-4 | the baker writes a second row; `PS2UI_FEAT_ROLE_TINTS` is finally set | next |
    | P3b-5 | DX: `ps2ui-check` prints the palette with each entry's var name; the previewer renders every theme; `--strict` on a bare literal in a themed UI | last |
 
    **P3b-3 and P3b-5 swapped, and the old P3b-3 is gone.** The plan
@@ -518,6 +518,25 @@ Then, in an order P3a decides:
    *every tint a theme can move is keyed on an authored name.* And it
    gives `--strict` a real job in P3b-5, which is to say so when a
    multi-theme UI is still painting with literals.
+
+   **P3b-3 measured what role-keying actually separates, and it was not
+   what the design predicted.** `opl.css` was converted to `var()` as a
+   pure refactor — 82 tokens, 27 names, and not one pixel moved. The
+   table went **12 → 13**, and the split was *not* `#0b0f16`, the
+   two-role literal the design pointed at. That one was already two
+   entries: a background is a QUAD and takes flat shading,
+   `(11,15,22,128)`, while the same literal as text is a TEXQUAD and
+   takes the modulate domain, `(6,8,11,128)`. **The GS colour-domain
+   split had been holding the two roles apart by accident** — value
+   keying was right there for a reason that has nothing to do with
+   roles, which is this project's own defining failure mode wearing a
+   friendly face.
+
+   What role-keying did separate is a role from a **non-role**:
+   `#ffffff` as text modulates to `(128,128,128,128)`, exactly the
+   identity tint the nine-patch emitter uses on untinted art. Fused,
+   a theme touching `--ink-max` would have tinted every nine-patch in
+   the environment.
 
    **P3b-1 shipped the format and one correction to the design.** Every
    colour count in the design doc was one too high: the script behind

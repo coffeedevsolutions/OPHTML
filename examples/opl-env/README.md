@@ -39,7 +39,7 @@ re-deriving them.
 These are the Phase 2 baseline; Phase 3 optimises against them.
 
 ```
-blob            245,680 bytes
+blob            245,696 bytes
 arena             7,031 bytes      (the whole six-screen environment)
 screens                   6
 slots                   127

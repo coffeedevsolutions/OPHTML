@@ -174,8 +174,22 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     tint_index = {}
     tint_entries = []
 
-    def _tint(rgba):
-        key = tuple(int(v) & 0xFF for v in rgba)
+    def _tint(rgba, var=None):
+        # KEYED ON THE NAME WHEN THERE IS ONE. A role is what the author
+        # called a colour, so two use sites of var(--focus-ring) are one
+        # entry however they resolve, and two literals that happen to
+        # agree are still one entry -- because nobody named them, so
+        # nobody offered them to a theme. That is the whole of
+        # design-p3b-theming.md 9.2 in one dictionary key.
+        #
+        # The value rides along in the key for named entries too, and
+        # deliberately: a name can only resolve one way (definitions are
+        # :root-only and the parser refuses fallbacks), so including it
+        # cannot split a role -- but if that ever stopped being true,
+        # this would produce two entries rather than silently picking
+        # whichever declaration the walk reached first.
+        key = ((var, tuple(int(v) & 0xFF for v in rgba)) if var
+               else (None, tuple(int(v) & 0xFF for v in rgba)))
         i = tint_index.get(key)
         if i is None:
             i = len(tint_entries)
@@ -191,11 +205,17 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     cmd_tints = []
     for r in records:
         if r.op in (OP_QUAD, OP_TEXQUAD):
-            t = _tint(r.rgba)
+            t = _tint(r.rgba, getattr(r, "var", None))
             cmd_tints.append((t, t))
         else:
             cmd_tints.append((0, 0))
-    slot_tints = [(_tint(sl["color_base"]), _tint(sl["color_focus"]))
+    # SLOTS TOO, and this seam has been the gap three times -- the design
+    # missed it, the v7 fence missed it, and ps2ui_theme_set's first
+    # check missed it. Colour lives in two tables; a theme keyed on names
+    # in one and values in the other would recolour every panel and leave
+    # every score, label and dialog line baked.
+    slot_tints = [(_tint(sl["color_base"], sl.get("color_base_var")),
+                   _tint(sl["color_focus"], sl.get("color_focus_var")))
                   for sl in slots]
 
     id_to_index = {n["id"]: i for i, n in enumerate(focus_nodes)}
@@ -349,8 +369,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         out += _SLOT.pack(*e)
     for e in screen_entries:
         out += _SCREEN.pack(*e)
-    for e in tint_entries:
-        out += _TINT.pack(*e)
+    for _var, rgba in tint_entries:
+        out += _TINT.pack(*rgba)
     out += bytes(blob_pad)
     assert len(out) == off_blob, "layout arithmetic and bytes written disagree"
     out += blob

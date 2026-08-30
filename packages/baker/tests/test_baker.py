@@ -2063,6 +2063,163 @@ class TestTintTable(unittest.TestCase):
         self.assertEqual(len(u.themes[0]), 1)
         self.assertEqual(u.themes[0][0], (1, 2, 3, 0x80))
 
+    def test_a_name_is_a_role_and_a_literal_is_not(self):
+        """Two records with the same colour: named ones share an entry,
+        an unnamed one gets its own.
+
+        This is the whole of the keying rule. A role is what somebody
+        called a colour; two literals that happen to agree are two
+        coincidences that nobody offered to a theme, and they still
+        collapse -- but they must not collapse INTO a named entry, or a
+        theme moving the name would move them too.
+        """
+        rgba = (0x40, 0x50, 0x60, 0x80)
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4, rgba,
+                       var="--panel"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4, rgba,
+                       var="--panel"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 8, 0, 4, 4, rgba),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 12, 0, 4, 4, rgba),
+        ]
+        u = self.write(recs)
+        # Two entries, not one and not four: the pair of --panel records
+        # share, the pair of literals share, and the two groups do not.
+        self.assertEqual(len(u.themes[0]), 2)
+        # Both groups still resolve to the same colour, which is what
+        # makes this a keying test rather than a colour test.
+        for r in u.records:
+            self.assertEqual(r.rgba, rgba)
+
+    def test_two_names_on_one_value_are_two_entries(self):
+        """The case role-keying exists for: same colour, different roles.
+
+        Under value-keying these fuse and no theme can tell them apart.
+        """
+        rgba = (0x11, 0x22, 0x33, 0x80)
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4, rgba,
+                       var="--bg-page"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4, rgba,
+                       var="--ink-on-accent"),
+        ]
+        u = self.write(recs)
+        self.assertEqual(len(u.themes[0]), 2)
+        self.assertEqual(u.themes[0][0], u.themes[0][1],
+                         "and they hold the SAME colour -- the split is by "
+                         "name, which is the only thing that distinguishes "
+                         "them")
+
+    def test_a_slot_keys_on_its_name_too(self):
+        """COLOUR LIVES IN TWO TABLES AND THIS SEAM HAS BEEN THE GAP
+        THREE TIMES -- the design missed slots, the v7 tint_focus fence
+        missed them, and ps2ui_theme_set's first check missed them.
+
+        A fourth: stripping the slot's var names from write_uib passed
+        every test in this file and rebuilt opl-env clean, because
+        nothing there happened to collide. This is the case that cannot
+        pass without it -- a slot and a command holding the same colour
+        under different names. Value-keyed, they fuse into one entry and
+        a theme moving either moves both.
+        """
+        # THE DISCRIMINATOR IS SHARING, NOT SPLITTING, and the first
+        # version of this test got that backwards. It gave the command
+        # --panel and the slot --ink and asserted two entries -- which
+        # holds with the slot keyed on the value too, since (None, rgba)
+        # and ("--panel", rgba) are different keys either way. It passed
+        # the sabotage.
+        #
+        # One name on both sides is the case that cannot: keyed on the
+        # name they are ONE entry, and a slot keyed on the value falls
+        # out to (None, rgba) and makes two.
+        rgba = (0x30, 0x40, 0x50, 0x80)
+        recs = [DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                           rgba, var="--ink")]
+        fonts = [{"tex": 0, "size": 12, "weight": 400, "ascent": 10,
+                  "line_height": 14, "glyphs": [], "kerns": []}]
+        slots = [{
+            "name": "s", "placeholder": "", "x": 0, "text_y": 0, "w": 32,
+            "font": 0, "align": 0, "ellipsis": False, "capacity": 8,
+            "focus": FOCUS_NONE,
+            "color_base": rgba, "color_focus": rgba,
+            "color_base_var": "--ink", "color_focus_var": "--ink",
+        }]
+        u = self.write(recs, slots=slots, fonts=fonts)
+        self.assertEqual(
+            len(u.themes[0]), 1,
+            "one name across a command and a slot is ONE role and one "
+            "entry; two means the slot table was keyed on the value while "
+            "the command list was keyed on the name, so a theme would "
+            "recolour the panel and leave the label behind")
+        self.assertEqual(u.slots[0]["tint_base"], 0)
+
+    def test_opl_env_slots_share_roles_with_commands(self):
+        """The IR half of the two-table seam, over the real blob.
+
+        A slot's colour and a command's colour that carry the SAME var
+        name are one role and must be one entry. Four of opl-env's slot
+        tints are shared with commands that way -- every one of them a
+        case where a theme moving that name has to move both.
+
+        This is the check the synthetic test cannot make. Stripping
+        colorBaseVar/colorFocusVar out of paint.js leaves the baker
+        keying correctly on names it never receives, and the synthetic
+        slots in this file set those fields directly, so they never
+        notice. On the real blob it takes n_tint from 13 to 16: three
+        roles split in half because the slot side lost its name.
+        """
+        import os, struct
+        from ps2ui_bake.uib import _HEADER, _CMD
+        root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "..", "..", "..")
+        path = os.path.normpath(
+            os.path.join(root, "examples/opl-env/build/ui.uib"))
+        if not os.path.exists(path):
+            unavailable(self, "opl-env is not built "
+                              "(examples/opl-env/build.sh)")
+        u = read_uib(path)
+        with open(path, "rb") as fh:
+            data = fh.read()
+        h = _HEADER.unpack_from(data, 0)
+        n_cmd, off_cmd = h[7], h[12]
+        cmd = set()
+        for i in range(n_cmd):
+            e = _CMD.unpack_from(data, off_cmd + i * _CMD.size)
+            if e[0] in (OP_QUAD, OP_TEXQUAD):
+                cmd.add(e[7])
+        slot = ({s["tint_base"] for s in u.slots}
+                | {s["tint_focus"] for s in u.slots})
+        self.assertGreaterEqual(
+            len(cmd & slot), 4,
+            "slot text and commands must share the tint entries whose var "
+            "names they share; fewer means one side stopped keying on the "
+            "name and a theme would recolour the panels and leave the "
+            "labels baked")
+
+    def test_opl_env_separates_a_role_from_the_ninepatch_identity(self):
+        """The measured consequence on the shipped example.
+
+        #ffffff as text modulates to (128,128,128,128), which is exactly
+        the identity tint the nine-patch emitter uses on untinted art.
+        Value-keying made those one entry, so a theme touching --ink-max
+        would have tinted every nine-patch in the environment.
+        """
+        import os
+        root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "..", "..", "..")
+        path = os.path.normpath(
+            os.path.join(root, "examples/opl-env/build/ui.uib"))
+        if not os.path.exists(path):
+            unavailable(self, "opl-env is not built "
+                              "(examples/opl-env/build.sh)")
+        row = read_uib(path).themes[0]
+        ident = (128, 128, 128, 128)
+        self.assertEqual(
+            row.count(ident), 2,
+            "two entries must hold the identity tint: --ink-max, and the "
+            "nine-patch emitter's untinted art. One entry means they fused "
+            "and a theme would tint every panel")
+
     def patched(self, path, mutate):
         """Apply `mutate(bytearray)` to a written blob and re-CRC it."""
         with open(path, "rb") as fh:
