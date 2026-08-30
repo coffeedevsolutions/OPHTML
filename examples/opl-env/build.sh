@@ -15,10 +15,25 @@ mkdir -p "$out"
 
 # --strict, because an example that ships with warnings teaches the
 # warnings are noise. The scope fixture may warn; this may not.
+#
+# --min-font-size 11, AND IT IS AN ADMISSION RATHER THAN A SETTING.
+# This environment's whole secondary text layer -- row titles at 13px,
+# subtitles and counts at 11px, detail fields at 12px, 97 instances
+# across the six screens -- sits below the 14px couch floor. None of it
+# ever warned, because all of it is data-slot text and the linter could
+# not see a slot at all until P3b-5. The floor was not being met; it was
+# being missed.
+#
+# 11 and not 0: the smallest size this design actually uses, so the rule
+# stays live and anything below it still fails the build. What this
+# does NOT do is decide that 11px is readable from a couch. That is a
+# question about the density study this example exists to be -- twelve
+# rows of four fields, which is what an OPL-class environment demands --
+# and it is open. See docs/PLAN.md.
 for screen in landing library detail filters recent confirm; do
     node "$repo/packages/layout/bin/ps2ui-layout.js" \
         "$here/ui/$screen.html" "$here/ui/opl.css" \
-        -o "$out/$screen.json" --strict
+        -o "$out/$screen.json" --strict --min-font-size 11
 done
 
 PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \

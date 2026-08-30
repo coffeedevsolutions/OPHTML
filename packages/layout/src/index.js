@@ -103,7 +103,8 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   layoutTree(root, canvasW, canvasH, ctx);
 
   const themeNames = sheet.themeNames ?? ['root'];
-  const { commands, focusables, slots } = buildDisplayList(root, themeNames.length);
+  const { commands, focusables, slots, forLint } = buildDisplayList(
+    root, themeNames.length);
   const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });
   for (const w of checkReachability(focus)) warnings.push(w);
 
@@ -118,21 +119,44 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   // of defect this phase exists to close, arriving through the feature
   // built to close it.
   //
-  // Deduplicated by exact message against row 0. The geometry lints
-  // produce byte-identical strings in every theme and would otherwise
-  // be reported n_theme times, which teaches people to skim the list --
-  // the same argument data-nocontrast makes in lint.js. A colour lint
-  // that fires in two themes carries a different ratio in each, so it
-  // survives the dedup and is reported for both, correctly.
+  // Deduplicated BY RULE, not by message. The geometry lints produce
+  // byte-identical strings in every row and would otherwise be
+  // reported n_theme times, which teaches people to skim the list --
+  // the same argument data-nocontrast makes in lint.js. The colour
+  // lints are never deduplicated at all.
+  //
+  // The first version deduplicated by message and justified it with
+  // "a colour lint that fires in two themes carries a different ratio
+  // in each, so it survives". That is not a truth about contrast.
+  // contrastRatio is SYMMETRIC in (foreground, background), so two
+  // themes that swap the pair produce the identical string:
+  //
+  //     :root        { --panel: #808080; --ink: #858585 }
+  //     @theme light { --panel: #858585; --ink: #808080 }
+  //
+  // Both fail at 1.07:1, one message, and nothing names the light
+  // theme. Rounding to two decimals widens it well past the symmetric
+  // case -- any two pairs landing on the same 2dp ratio collapse.
+  //
+  // Not silent, since row 0 still reports it, but it costs a round
+  // trip: fix :root, rebuild, and only then discover light was broken
+  // too. The lint's own `rule` field already carries the distinction
+  // this comment was drawing in prose, so use it.
   const lintOpts = { canvasW, canvasH, par, ...options.lint };
-  const lints = lintDocument(commands, focus, lintOpts)
+  // forLint, not commands: it is the same list with slot text spliced
+  // in at the index it would have painted at. A data-slot draws no
+  // static command, so linting `commands` checked every colour in the
+  // document EXCEPT the dynamic text -- 127 of them in opl-env.
+  const lints = lintDocument(forLint, focus, lintOpts)
     .map((l) => `${l.rule}: ${l.message}`);
   const seen = new Set(lints);
   for (let t = 1; t < themeNames.length; t++) {
-    for (const l of lintDocument(commandsInTheme(commands, t), focus, lintOpts)) {
+    for (const l of lintDocument(commandsInTheme(forLint, t), focus, lintOpts)) {
       const line = `${l.rule}: ${l.message}`;
-      if (seen.has(line)) continue;
-      seen.add(line);
+      if (!COLOUR_LINTS.has(l.rule)) {
+        if (seen.has(line)) continue;
+        seen.add(line);
+      }
       lints.push(`@theme ${themeNames[t]}: ${line}`);
     }
   }
@@ -167,6 +191,12 @@ export function compile(htmlSrc, cssSrc, options = {}) {
 
 /** Convenience: compile from file paths. <img> src attributes resolve
  * relative to the HTML file unless options.assetDir overrides. */
+// The lints that read colour. A theme moves colour and nothing else,
+// so these are exactly the ones whose result can differ per row -- and
+// exactly the ones that must never be deduplicated against row 0,
+// because two rows can fail identically for different reasons.
+const COLOUR_LINTS = new Set(['contrast', 'ntsc-red-bleed']);
+
 /** The display list as theme `t` paints it.
  *
  * Colour only: a theme cannot move geometry, so x/y/w/h and every

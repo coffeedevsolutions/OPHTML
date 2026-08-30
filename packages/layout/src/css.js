@@ -354,14 +354,38 @@ const COLOUR_PROPS = new Set(['color', 'background', 'background-color',
  * matching twelve library rows would otherwise warn twelve times about
  * one line of CSS.
  */
+function splitOutsideParens(value) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of value) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    if (depth === 0 && /\s/.test(ch)) {
+      if (cur) out.push(cur);
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
 function warnUnthemedLiterals(rules, warnings) {
   const seen = new Set();
   for (const rule of rules) {
     for (const d of rule.declarations) {
       if (!COLOUR_PROPS.has(d.prop)) continue;
       if (d.value === 'none' || d.value === 'transparent') continue;
-      // The border shorthand carries a colour among other tokens.
-      const tokens = d.prop === 'border' ? d.value.split(/\s+/) : [d.value];
+      // The border shorthand carries a colour among other tokens --
+      // split OUTSIDE parentheses only. Splitting on plain whitespace
+      // tore `rgb(255, 0, 0)` into three fragments, none of which
+      // parse as a colour, so the canonical spelling of the one
+      // notation people actually write by hand was the single form
+      // that escaped this warning. `rgb(255,0,0)` warned; the same
+      // colour with spaces did not.
+      const tokens = d.prop === 'border' ? splitOutsideParens(d.value) : [d.value];
       for (const tok of tokens) {
         if (tok.startsWith('var(')) continue;
         if (!parseColor(tok)) continue;

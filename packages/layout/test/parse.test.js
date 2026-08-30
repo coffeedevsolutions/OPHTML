@@ -374,3 +374,19 @@ test('@theme: one warning per authored line, not per matching element', () => {
   );
   assert.equal(sheet.warnings.filter((w) => w.includes('is a literal')).length, 1);
 });
+
+test('@theme: the border shorthand finds a colour with spaces inside its parens', () => {
+  // `d.value.split(/\s+/)` tore `rgb(255, 0, 0)` into three fragments,
+  // none of which parse as a colour -- so the canonical spelling of the
+  // one notation people write by hand was the single form that escaped
+  // this warning. `rgb(255,0,0)` warned; the same colour with spaces
+  // did not, and the border painted red either way.
+  const spellings = ['#ff0000', 'red', 'rgb(255,0,0)', 'rgb(255, 0, 0)'];
+  for (const c of spellings) {
+    const sheet = parseStylesheet(
+      `:root{--a:#111}\n@theme light{--a:#eee}\n.x{border:2px solid ${c}}`);
+    const lit = sheet.warnings.filter((w) => w.includes('is a literal'));
+    assert.equal(lit.length, 1, `border: 2px solid ${c} should warn`);
+    assert.ok(lit[0].includes(c), `the warning should name ${c}`);
+  }
+});

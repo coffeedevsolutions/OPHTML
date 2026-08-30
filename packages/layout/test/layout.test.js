@@ -1033,3 +1033,62 @@ test('theme: a geometry lint is not repeated once per theme', () => {
   assert.equal(small.length, 1);
   assert.ok(!small[0].startsWith('@theme'), 'reported once, unprefixed');
 });
+
+test('theme: slot text is linted, because a data-slot draws no command', () => {
+  // PRE-EXISTING AND INVISIBLE. paint.js returns before emitting
+  // anything for slot text, and compile() only ever handed `commands`
+  // to lintDocument -- so contrast and min-font-size never ran on
+  // dynamic text at all. Same colour, same background, same geometry as
+  // static text; the only difference was the attribute. opl-env is 127
+  // slots, which is every title, count and telemetry line in it.
+  const css = ':root{--panel:#101623;--ink:#f2f5fa}\n'
+    + '@theme light{--panel:#f4f6fa;--ink:#ffffff}\n'
+    + '#w{flex-direction:column;width:400px;height:40px;'
+    + 'background:var(--panel);padding:8px}\n'
+    + '#t{color:var(--ink);font-size:16px}';
+  const contrast = (ir) => ir.warnings.filter((w) => w.includes('contrast:'));
+
+  const staticIr = compileCss('<div id="w"><span id="t">hello there</span></div>', css);
+  const slotIr = compileCss(
+    '<div id="w"><span id="t" data-slot="s">hello there</span></div>', css);
+
+  assert.equal(contrast(staticIr).length, 1);
+  assert.equal(contrast(slotIr).length, 1,
+    'the same text behind data-slot must not become invisible to the linter');
+  assert.match(contrast(slotIr)[0], /^@theme light: contrast:/);
+
+  // AND ROW 0, WHICH IS A SEPARATE CALL. The check above only reaches
+  // the per-theme loop; the default row goes through its own
+  // lintDocument, and pointing that one back at `commands` passed
+  // every test here. A sheet with no @theme at all is what covers it.
+  const plain = ':root{--x:#808080}\n'
+    + '#w{flex-direction:column;width:400px;height:40px;'
+    + 'background:#808080;padding:8px}\n'
+    + '#t{color:#858585;font-size:16px}';
+  const plainStatic = compileCss(
+    '<div id="w"><span id="t">hello there</span></div>', plain);
+  const plainSlot = compileCss(
+    '<div id="w"><span id="t" data-slot="s">hello there</span></div>', plain);
+  assert.equal(contrast(plainStatic).length, 1);
+  assert.equal(contrast(plainSlot).length, 1,
+    'unreadable in row 0 and behind a data-slot: still a warning');
+  assert.ok(!contrast(plainSlot)[0].startsWith('@theme'));
+});
+
+test('theme: a colour lint is reported per theme even when the message is identical', () => {
+  // contrastRatio is SYMMETRIC in (foreground, background), so two
+  // themes that swap the pair fail identically. Deduplicating colour
+  // lints by message hid the second one entirely -- and 2dp rounding
+  // widens that well past the symmetric case.
+  const ir = compileCss(
+    '<div id="w"><span id="t">hello there</span></div>',
+    ':root{--panel:#808080;--ink:#858585}\n'
+    + '@theme light{--panel:#858585;--ink:#808080}\n'
+    + '#w{flex-direction:column;width:400px;height:40px;'
+    + 'background:var(--panel);padding:8px}\n'
+    + '#t{color:var(--ink);font-size:16px}',
+  );
+  const contrast = ir.warnings.filter((w) => w.includes('contrast:'));
+  assert.equal(contrast.length, 2, 'both themes fail and both must be named');
+  assert.ok(contrast.some((w) => w.startsWith('@theme light:')));
+});
