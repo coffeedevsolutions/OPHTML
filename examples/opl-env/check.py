@@ -60,16 +60,23 @@ def command_tints(path):
 
 
 def art_tints(path, u):
-    """Tint entries used by TEXQUADs that are not glyphs.
+    """Tint entries used by TEXQUADs whose colour is in their TEXELS.
 
-    Nine-patches and images carry their colour in their TEXELS, so
-    their vertex colour is the modulate identity and has to stay that
-    way in every theme. Glyph atlases are coverage-only and their tint
-    IS the text colour, so they are excluded by texture rather than by
-    value -- a glyph tint that happens to equal the identity (white
-    text) is a themeable colour that merely looks like one.
+    Since P3b-6 that is images and only images: glyph atlases and the
+    rounded-box coverage patches both carry coverage in the texels and
+    take their colour from the tint, so both are identified here by the
+    thing that makes them so -- they share the one coverage CLUT.
+
+    Excluded by TEXTURE rather than by value, deliberately. A glyph
+    tinted white modulates to (128,128,128,128), which is byte-for-byte
+    the identity an image carries; telling those apart by looking at
+    the number is impossible, and getting it wrong means either
+    freezing a themeable colour or letting a theme multiply a
+    photograph.
     """
-    font_texs = {f["tex"] for f in u.fonts}
+    cov = {t.clut for i, t in enumerate(u.textures)
+           if i in {f["tex"] for f in u.fonts}}
+    font_texs = {i for i, t in enumerate(u.textures) if t.clut in cov}
     with open(path, "rb") as fh:
         data = fh.read()
     h = _HEADER.unpack_from(data, 0)
@@ -89,15 +96,16 @@ def main(path: str) -> int:
     # ---- the tint table is role-keyed, and that is visible in it ----
     #
     # #ffffff as text modulates to (128,128,128,128), which is exactly
-    # the identity tint the nine-patch emitter uses on untinted art. A
+    # the identity tint the emitter uses on untinted art -- images,
+    # since P3b-6 moved the rounded boxes onto coverage masks. A
     # value-keyed table fuses them, and a theme touching --ink-max then
-    # tints every nine-patch in the environment. Two entries holding
-    # the same four bytes is something only role-keying can produce.
+    # tints every image in the environment. Two entries holding the
+    # same four bytes is something only role-keying can produce.
     ident = (128, 128, 128, 128)
     check(row.count(ident) == 2,
-          f"--ink-max and the nine-patch identity tint are separate "
-          f"entries holding the same bytes ({row.count(ident)} found); one "
-          f"means they fused and a theme would tint every panel")
+          f"--ink-max and the untinted-art identity are separate entries "
+          f"holding the same bytes ({row.count(ident)} found); one means "
+          f"they fused and a theme would tint every image")
 
     # ---- colour lives in two tables and both key the same way ----
     #
@@ -139,7 +147,7 @@ def main(path: str) -> int:
         moved = [i for i in range(len(base)) if base[i] != light[i]]
         check(len(moved) == len(base) - 1,
               f"{len(moved)} of {len(base)} entries differ between the two "
-              f"themes; every entry but the nine-patch identity should, and "
+              f"themes; every entry but the untinted-art identity should, and "
               f"a row that mostly matches row 0 means the theme's values "
               f"were not carried rather than that the palettes agree")
 
@@ -153,9 +161,10 @@ def main(path: str) -> int:
         art = art_tints(path, u)
         check(bool(art) and all(light[i] == ident for i in art),
               f"the {len(art)} entry/entries the premixed art points at "
-              f"(nine-patches and images) hold the identity in every theme; "
-              f"a theme moving one would multiply baked texels by a colour "
-              f"instead of recolouring anything")
+              f"(images -- since P3b-6 the rounded boxes are coverage, not "
+              f"premix) hold the identity in every theme; a theme moving one "
+              f"would multiply baked texels by a colour instead of "
+              f"recolouring anything")
 
     print(f"# {path}: {len(row)} tints over {len(u.themes)} theme(s), "
           f"{len(shared)} shared with slots, {paints} painting commands")

@@ -12,7 +12,7 @@ prose rots like any other document.
 | status | count |
 |---|---:|
 | provisional | 2 |
-| confirmed | 22 |
+| confirmed | 23 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -462,4 +462,26 @@ WHAT IT IS NOT is a claim about the EE, and F-038's remaining half is exactly th
 The value is procedural as much as numerical: P3c was deferred on a fill argument and this says the fill argument cannot be revived by any content shape, so P3c has to be argued on the 392 KiB footprint or not at all.
 
 *#75*
+
+### F-043 — A CLUT costs a full 8 KiB VRAM page, so palettizing to swap palettes is upside-down below ~8 KiB of texels -- and right above it
+
+**Measured:** Measured off the opl-env blob while choosing how to make rounded boxes themeable (P3b-6). gsKit's page geometry gives a 16x16 PSMCT32 CLUT one 8 KiB page, the same as a texture -- so the palette's cost does not scale with the thing it colours.
+opl-env's nine-patches before P3b-6: 11 textures, one per (radius, borderWidth, fill, borderColor), each holding 324-484 bytes of texels and occupying a full page. 88 KiB.
+Only TWO distinct (radius, borderWidth) pairs exist across all six screens -- (3,2) and (4,2). All eleven textures were duplicates that differed only in colour.
+| approach                              | textures | CLUTs | VRAM   | |---------------------------------------|----------|-------|--------| | premixed RGBA (before)                | 11       | 0     | 88 KiB | | coverage masks + shared coverage CLUT | 4        | 0 new | 32 KiB | | palettized patch + per-theme CLUT     | 2        | 22    | 176 KiB|
+The third row is the one worth writing down. Palettizing the patch and swapping its CLUT per theme is the mechanism P3b-0 built and the obvious reading of "the two compose", and here it DOUBLES the footprint and grows 88 KiB per additional theme, because a CLUT keys on (radius, bw, fill, border) x n_theme while the texture it colours is 81-121 bytes: palettizing the patch shrinks it to PSMT8, so the palette is 60-100x the texels it addresses.
+
+**Instrument:** `packages/baker/ps2ui_bake/vram.py`
+
+**Falsifier:** A CLUT whose page-rounded VRAM cost is less than a texture's, or an opl-env rebuild whose coverage patches exceed the 32 KiB this predicts -- either kills the arithmetic the choice rests on.
+
+THE RULE THIS GENERALIZES TO, and it is not "don't palettize": a palette earns its page when the texels it colours are much larger than 8 KiB. A 256x256 PSMT8 asset carries 64 KiB of texels behind one 8 KiB palette -- an 8:1 win, which is exactly why the image path palettizes and should keep doing so. The patches here are 9x9 and 11x11 -- 324 and 484 bytes as CT32, 81 and 121 palettized -- behind that same 8 KiB. Same mechanism, opposite verdict, and the size is the only input that changed.
+324 IS THE 9x9, NOT THE 11x11, and the first version of this note used it for both. Every size in range argues the same way, so the verdict never moved -- which is exactly why it survived being written down wrong.
+IT DOES NOT ALWAYS SAVE, and opl-env was the wrong example to generalize from. A premixed patch is one texture per distinct (radius, borderWidth, fill, borderColor) -- call it C. A coverage pair is two per distinct (radius, borderWidth) -- call it G. The split wins when C > 2G, which is to say when many colours share few geometries:
+| example  | G | C | predicts | textures | total VRAM | |----------|---|---|----------|----------|------------| | opl-env  | 2 | 11| win      | 28 -> 21 | 392 -> 336 KiB | | memcard  | 2 | 11| win      | 19 -> 11 | 30% -> 21% of budget | | channel6 | 6 | 9 | LOSS     | 23 -> 25 | 47% -> 50% of budget |
+THE RULE WAS CHECKED AGAINST ALL THREE SHIPPED EXAMPLES AND PREDICTED ALL THREE, including the one it says loses. channel6 draws six rounded geometries and paints each about 1.5 times, so it pays for the theming rather than being paid for it. (Coverage costs AT MOST 2G: a box with no border needs no ring texture, which is why channel6 lands on 25 rather than the 26 the bound allows.)
+The saving is a property of a STYLESHEET, not of the mechanism, and the mechanism's actual justification is that colour becomes reachable at all -- the VRAM went with it in two examples and against it in the third.
+THE CHOSEN FIX IS ALSO PALETTIZATION, which is worth being precise about because it reads as the opposite. A coverage patch is PSMT8 against the shared coverage CLUT -- 8bpp not 32bpp, one palette for the whole build, already paid for by the glyph atlases. What moved is not the compression but WHERE THE COLOUR LIVES: out of the texels and into the vertex tint, which is a tint-table entry, which is a thing a theme can move. Colour ends up in one table instead of two, which is the seam that has been the gap four times.
+
+*#77*
 

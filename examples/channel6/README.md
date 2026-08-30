@@ -83,7 +83,7 @@ Writes into `examples/channel6/build/`:
 
 | file | what |
 |------|------|
-| `ui.uib` | the console blob — both screens, 23 textures, 47% of the default VRAM budget |
+| `ui.uib` | the console blob — both screens, 25 textures, 50% of the default VRAM budget |
 | `preview.png` / `states.png` | the games screen, and every one of its 9 focus states on one sheet |
 | `probe.png` / `probe-states.png` | the same pair for the probe screen |
 | `in-game.png` | the browser composited over a synthetic game frame |
@@ -127,8 +127,8 @@ There are no table ceilings any more. Every bake prints the counts and
 the arena they add up to:
 
 ```
-runtime tables: 23 textures, 9 CLUTs, 15 slots, 2 screens
-ps2ui-bake: arena 10544 bytes (static uint8_t arena[10544] ...)
+runtime tables: 25 textures, 9 CLUTs, 15 slots, 2 screens
+ps2ui-bake: arena 10624 bytes (static uint8_t arena[10624] ...)
 ```
 
 That number, not a fraction, is what an integrator acts on: it is the

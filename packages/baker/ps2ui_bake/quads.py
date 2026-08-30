@@ -26,7 +26,8 @@ from .rounding import (css_alpha_to_gs, css_channel_to_gs, glyph_advance_px,
                        kern_px, round_half_up)
 from . import gs
 from .atlas import AtlasBuilder
-from .ninepatch import patch_key, rasterize_patch, slice_quads
+from .ninepatch import (COVERAGE_FILL, COVERAGE_RING, patch_key,
+                        rasterize_coverage, slice_quads)
 
 OP_QUAD = 0
 OP_TEXQUAD = 1
@@ -184,14 +185,21 @@ class Flattener:
             self._atlases[key] = (builder, len(self.textures) - 1)
         return self._atlases[key]
 
-    def _patch_for(self, radius, border_w, fill, border_color):
-        key = patch_key(radius, border_w, fill, border_color)
+    def _patch_for(self, radius, border_w, part):
+        """One coverage mask, PSMT8, on the shared coverage CLUT.
+
+        The same shape a glyph has, for the same reason: coverage in
+        the texels, colour in the tint. Keyed on geometry alone, so
+        every box with this radius and border width shares it whatever
+        colour it is painted.
+        """
+        key = patch_key(radius, border_w, part)
         if key not in self._patches:
-            patch = rasterize_patch(radius, border_w, fill, border_color)
-            rgba = patch.image.convert("RGBA")
-            data = gs.encode_psmct32(rgba.getdata())
+            patch = rasterize_coverage(radius, border_w, part)
+            img = patch.image
             self.textures.append(BakedTexture(
-                gs.PSMCT32, rgba.width, rgba.height, None, data,
+                gs.PSMT8, img.width, img.height,
+                self._coverage_clut_index(), gs.encode_psmt8(img.getdata()),
             ))
             self._patches[key] = (patch, len(self.textures) - 1)
         return self._patches[key]
@@ -209,15 +217,44 @@ class Flattener:
         radius = cmd["radius"]
 
         if radius > 0:
-            patch, tex = self._patch_for(radius, bw, fill, bc)
-            # The patch is premixed fill+border; identity tint (0x80 per
-            # channel in the modulate domain), real alpha in the texels.
-            white = (128, 128, 128, 128)
-            for (dx, dy, dw, dh), (su, sv, sw, sh) in slice_quads(patch, x, y, w, h):
-                self.records.append(DrawRecord(
-                    OP_TEXQUAD, state, focus, dx, dy, dw, dh, white,
-                    tex, su, sv, su + sw, sv + sh, keep=keep,
-                ))
+            # TWO LAYERS, EACH WITH ITS OWN ROLE (P3b-6). The fill goes
+            # down first and the border ring over it, both coverage
+            # masks modulated by a real tint -- so `background:
+            # var(--panel); border: 2px solid var(--edge)` on a rounded
+            # box reaches the tint table twice, under two names, and a
+            # theme moves both. Premixed, it reached the table not at
+            # all.
+            #
+            # Fill first, then ring: the masks are complementary by
+            # construction, so the order is not load-bearing for the
+            # pixels, but it is the order a browser paints in and the
+            # order the square-cornered branch below uses.
+            layers = (
+                (COVERAGE_FILL, fill, cmd.get("fillVar"),
+                 cmd.get("fillThemes")),
+                (COVERAGE_RING, bc if bw > 0 else None,
+                 cmd.get("borderColorVar"), cmd.get("borderColorThemes")),
+            )
+            for part, colour, var, themes in layers:
+                if not colour:
+                    continue
+                patch, tex = self._patch_for(radius, bw, part)
+                tint = self._gs_modulate_color(colour)
+                tvec = self._gs_vec(self._gs_modulate_color, themes)
+                for (dx, dy, dw, dh), (su, sv, sw, sh) in slice_quads(
+                        patch, x, y, w, h):
+                    # A cell this mask does not touch is a draw that
+                    # produces nothing: the ring's centre cell is the
+                    # whole interior of the box, and emitting it would
+                    # cost a full-box textured draw per rounded element
+                    # to composite zeros.
+                    if patch.cell_empty(su, sv, sw, sh):
+                        continue
+                    self.records.append(DrawRecord(
+                        OP_TEXQUAD, state, focus, dx, dy, dw, dh, tint,
+                        tex, su, sv, su + sw, sv + sh, keep=keep,
+                        var=var, rgba_themes=tvec,
+                    ))
             return
 
         if fill:

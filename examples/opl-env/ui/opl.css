@@ -63,20 +63,18 @@
  * screens. The parser warns on an omission and --strict is on here, so
  * this file cannot drift into that state quietly.
  *
- * WHAT THIS THEME CANNOT REACH, and it is most of what you see. Every
- * rounded box in this file -- chip, row, tile, dialog, button -- is
- * emitted as a nine-patch whose fill and border are PREMIXED into the
- * texture by the baker, drawn with an identity tint. A tint table
- * cannot recolour texels. Of the rects across these six screens, 107
- * are nine-patches and 6 are untextured quads, so switching to this
- * theme moves the text, the page background and the scrim, and leaves
- * every panel exactly where it was. See docs/PLAN.md P3b-6 -- the fix
- * is either two coverage draws per box or a palettized patch whose
- * CLUT the theme swaps, and both are their own slice.
+ * THE FIRST VERSION OF THIS THEME RECOLOURED THE TEXT AND LEFT EVERY
+ * PANEL DARK, and the comment here said so. Every rounded box in this
+ * file -- chip, row, tile, dialog, button -- was emitted as a
+ * nine-patch with its fill and border PREMIXED into the texture, drawn
+ * with an identity tint, and a tint table cannot recolour texels. 107
+ * of the 113 rects across these six screens were unreachable.
  *
- * The theme is still worth shipping now: it is what makes the blob
- * two-row, which is what bench sitting B needs, and the half that does
- * move is the half a photograph can check. */
+ * P3b-6 fixed the mechanism rather than the palette: a patch is now a
+ * coverage mask and the colour is the vertex tint. Left here because
+ * the shape of the bug is worth keeping -- a theme that half-works
+ * looks like a bad palette and is a missing mechanism, and the two are
+ * indistinguishable from the screenshot. */
 @theme light {
   --bg-page: #f4f6fa;
   --bg-panel: #ffffff;

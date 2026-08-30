@@ -492,8 +492,81 @@ Then, in an order P3a decides:
    | P3b-1 | the tint table format (v7) | **done** |
    | P3b-2 | `ps2ui_theme_set`, and a hand-built two-row blob to exercise it | **done** |
    | P3b-3 | `var()` in the CSS parser, and tints keyed on the **name** | **done** |
-   | P3b-4 | the baker writes a second row; `PS2UI_FEAT_ROLE_TINTS` is finally set | next |
-   | P3b-5 | DX: `ps2ui-check` prints the palette with each entry's var name; the previewer renders every theme; `--strict` on a bare literal in a themed UI | last |
+   | P3b-4 | the baker writes a second row; `PS2UI_FEAT_ROLE_TINTS` is finally set | **done** |
+   | P3b-6 | rounded boxes stop premixing their colour, so a theme can reach them | **done** (F-043) |
+   | P3b-5 | DX: `ps2ui-check` prints the palette with each entry's var name; `--strict` on a bare literal in a themed UI; **the lints run over every theme** | last |
+
+   **P3b-6 was not in the plan, and P3b-4 is what found it.** The
+   design said "every panel, border and background is an untextured
+   quad whose colour is a baked `r,g,b,a`". It counted `background:`
+   declarations. What the baker actually emitted was a **nine-patch**
+   for every box with a `border-radius` — fill and border rasterized
+   together into one RGBA texture, drawn with an identity tint. In
+   opl-env that is 107 rects against 6 untextured quads, so the first
+   working theme recoloured the text and left every panel dark. Colour
+   in texels is colour a tint table cannot reach.
+
+   The fix makes a patch a **coverage mask** — PSMT8 on the shared
+   coverage CLUT, exactly like a glyph atlas — and moves the colour
+   into the vertex tint, one layer for the fill and one for the border
+   ring. Both become tint-table entries, which is to say things a theme
+   can move.
+
+   | opl-env | before | after |
+   |---|---|---|
+   | patch textures | 11, keyed on colour too | **4**, keyed on `(radius, borderWidth)` |
+   | their VRAM | 88 KiB | **32 KiB** |
+   | commands (`n_cmd`) | 1,302 | 2,158 |
+   | of those, painting | 1,244 | 2,100 |
+   | tint entries | 13 | 28, of which 27 move |
+
+   **The VRAM saving is a property of the stylesheet, not of the
+   mechanism**, and opl-env was the wrong example to generalize from.
+   Premixed costs one texture per distinct `(radius, bw, fill, border)`
+   — call it C. Coverage costs two per distinct `(radius, bw)` — call
+   it G. The split wins when C > 2G, and that rule predicts all three
+   shipped examples including the one it says loses: opl-env 28 → 21
+   textures, memcard 19 → 11 (30% → 21% of budget), channel6 23 → 25
+   (47% → 50%) because it draws six rounded geometries and paints each
+   about 1.5 times. The justification is that colour becomes reachable
+   at all; the VRAM followed in two examples and opposed the third.
+   F-043 has all of them.
+
+   The rejected alternative was a per-theme CLUT swap — P3b-0's own
+   mechanism, and the obvious reading of "the two compose". It would
+   have taken the same blob to **176 KiB** and added 88 KiB per further
+   theme, because a CLUT costs a full 8 KiB page whether it colours
+   64 KiB of texels or the 81-121 bytes a palettized patch holds.
+   F-043 has the arithmetic and the rule it generalizes to.
+
+   **What this costs, stated plainly.** Nine-patch draws roughly double
+   (a fill layer of nine cells and a ring of eight; the ring's centre
+   cell holds no coverage and is skipped), so opl-env's command count
+   rises 66%. And every rounded box's colour now passes through the GS
+   modulate domain's 129 levels, where premixed texels were exact.
+   Measured over all six default-theme screenshots against `main`:
+
+   | delta | pixels | share |
+   |---|---:|---:|
+   | 1 | 632,885 | 36.8% |
+   | 2 | 35,020 | 2.0% |
+   | 3 or more | 35,696 | 2.1% |
+   | worst | 40 | 4 px, in `detail` |
+
+   Not visible at 1:1, and the tail is thin and bounded -- but the
+   first version of this paragraph said "four corner pixels by up to
+   24", which was `library.png` alone read as far as its top bucket
+   and no further. It is off by 35,692, and it is precisely the
+   sentence a reviewer uses to accept a rendering change WITHOUT
+   looking. Measure every image or claim only the one you measured.
+
+   **Sitting A is unaffected** — its ELFs are frozen at `914e20c` — but
+   this moves the command count enough that the next EE baseline is a
+   new one, not a continuation.
+
+   **A gap P3b-5 now has to close.** The layout lints — contrast,
+   minimum font size — run over the IR's row 0 and nothing else. A
+   theme can ship unreadable text and no check says so.
 
    ### Bench sequencing: two sittings, not one delayed one
 
