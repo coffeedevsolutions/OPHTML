@@ -663,7 +663,9 @@ Then, in an order P3a decides:
      driver's own per-frame work is 0.08 ms. `m` confirmed it
      independently — clean to N=3, then `m29@270` at N=4 where the
      peak frame needs 18.08 ms of a 16.683 ms field, with 270 = 9 × 30
-     against a `SCROLL_EVERY` of 30.
+     against a `SCROLL_EVERY` of 30, so the first miss is a scroll
+     frame. The *count* is undivided: no telemetry line carries a frame
+     index, so 29 cannot yet be told from near-margin jitter.
    - **F-040 is overturned.** Its own falsifier fired: `m0` at every N
      with the boot phase zeroed, where S13 read `m1@0` at N=4, 8 and
      16. Frame 0 never spilled a field; the clock had started at an

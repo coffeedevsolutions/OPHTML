@@ -112,6 +112,17 @@ EE_CFLAGS += -DPS2UI_OPLENV_EE_N=$(EE_N)
 endif
 endif
 
+# S14's follow-up: is this driver's gsKit_clear paying the blended
+# fill rate? Paired with OPLENV for the same reason FILL and EE are --
+# the clear under test is the opl-env driver's, and a build without it
+# is the memcard sample answering a question nobody asked.
+ifdef CLEAR_OPAQUE
+ifndef OPLENV
+$(error CLEAR_OPAQUE=1 requires OPLENV=1: the arm is the opl-env driver's own clear, not a build of its own)
+endif
+EE_CFLAGS += -DPS2UI_OPLENV_CLEAR_OPAQUE
+endif
+
 ifdef LADDER2
 EE_CFLAGS += -DPS2UI_SAMPLE_LADDER2
 endif

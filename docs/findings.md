@@ -534,9 +534,25 @@ THE PREDICTION WAS RIGHT IN SHAPE AND WRONG IN COEFFICIENT, and the wrongness is
     N=3  pred 3.68  meas 3.25   -0.43
     N=4  pred 4.60  meas 4.03   -0.57
 
-So 0.145 ms of GS time happens ONCE PER FRAME however many times the UI is drawn. THE MECHANISM IS NOT IDENTIFIED and this note does not name one. F-040 is what that costs: three passes at a mechanism that was not there, each reading as settled when written. The number is measured; the cause is open.
+So 0.145 ms of GS time happens ONCE PER FRAME however many times the UI is drawn.
+THERE IS EXACTLY ONE CANDIDATE AND THIS SITTING'S OWN SLOPE EXCLUDES IT BY 2x. In an EE build the only GS work in a frame that is not a ps2ui_render is a single gsKit_clear: the fill sprites are #ifdef-ed out, and both telemetry lines go through ps2ui_slot_set and are therefore drawn INSIDE the render. That clear is a full-screen 640x448 sprite with ABE on -- gsKit does not save or restore PrimAlphaEnable around it (the sample's own probe note found that), and ps2ui_render leaves it ON. F-039's slope prices exactly that draw at 0.2869 ms:
+
+    clear 0.2869 + render 0.7770 = 1.064 expected
+    gs(N=0)                      = 0.922 measured
+                                   0.142 short
+
+And the shortfall lands on the unblended rate at the same efficiency the fill sweep shows blended:
+
+    640x448 @ 1.180 Gpix/s (blended)  0.2430 vs 0.2869 measured  85%
+    640x448 @ 2.359 Gpix/s (opaque)   0.1215 vs 0.1450 residual  84%
+
+The intercept also carries any per-frame queue overhead, so 0.145 is an UPPER bound on the clear -- which widens the shortfall rather than closing it.
+"NO MECHANISM PROPOSED" AND "THE ONLY CANDIDATE PRESENT IS EXCLUDED BY OUR OWN NUMBERS" ARE DIFFERENT STATEMENTS, and the first version of this note made the weaker one. Declining to name a cause after F-040 is right; declining to name what the arithmetic already rules out is just less information. Two readings survive: the clear is not actually blending despite ABE being set -- the same class of unasserted-GS-state fault the v2 probe chased, and the ratio being 1.98 rather than arbitrary is what makes it worth asking -- or gs = base + (N+1) x R is wrong in a way that parks 0.14 in the intercept.
+THE DISCRIMINATOR IS ONE ELF AND IT COSTS NOTHING. oplenv-clearopaque turns ABE off for that one draw. It cannot change a pixel: ALPHA is (Cs - Cd) x As >> 7 + Cd and the clear's vertex alpha is 0x80 = 128, so the blend is already the identity Cv = Cs. gs drops ~0.14 and the first reading is right; gs does not move and the second is, which is the more interesting outcome.
 ee SETTLED THE BRANCH THE SWEEP EXISTED TO SPLIT. Predictions written before the sitting put N=4 at 12.05 if the driver's own work is negligible and 8.05 if it is about 1 ms. Measured 12.32. The scroll logic, sprintf and telemetry together are 80 us.
-AND m READ THE SAME QUESTION INDEPENDENTLY, which is why it was worth five ELFs rather than two. The upper branch predicted N=4 at the edge of a field and missing on scroll frames. Measured: m0 through N=3, then m29@270 at N=4, where mean ee+gs is 16.35 (inside a field) and peak ee^+gs^ is 18.08 (outside). 270 = 9 x 30 and SCROLL_EVERY is 30, so the first miss is a scroll frame. The mechanism is confirmed, not just the count.
+AND m READ THE SAME QUESTION INDEPENDENTLY, which is why it was worth five ELFs rather than two. The upper branch predicted N=4 at the edge of a field and missing on scroll frames. Measured: m0 through N=3, then m29@270 at N=4, where mean ee+gs is 16.35 (inside a field) and peak ee^+gs^ is 18.08 (outside).
+270 = 9 x 30 against a SCROLL_EVERY of 30, so THE FIRST MISS IS A SCROLL FRAME -- 1-in-30 by luck, which is evidence. It does NOT reach "the mechanism is confirmed", and an earlier version of this note said that. The count is the second read and nothing divides it: 29 misses fits "every scroll frame from 270 on, photographed around frame 1110" and fits "a scattering of near-margin frames whose first happened to be a scroll frame" equally well. At a mean of 16.35 against a 16.683 field there is 0.33 ms of headroom, so ordinary jitter puts non-scroll frames over too.
+The two are told apart by whether 29 ~ (frame - 270)/30 + 1, and NEITHER TELEMETRY LINE CARRIES A FRAME INDEX. One `frame` field answers this and F-045's gs^ question at the same time, which is the third time in this phase that the fix for an argument has been an instrument rather than a theory.
 p DID NOT SCALE: 595, 595, 595, 596, 600, against ~2975 if it had. ps2ui_render memsets its stats, so the readout is the last pass only -- confirmed rather than assumed. The variation is scroll position, not N.
 MEASURED BEFORE P3b-6, which took opl-env from 1,302 commands to 2,158. The per-render figure will rise; the DECOMPOSITION METHOD is what generalises, and re-running the same five ELFs against a new blob re-prices it in one sitting.
 

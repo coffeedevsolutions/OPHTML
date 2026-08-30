@@ -626,16 +626,64 @@ about 1 ms, and the reading is 12.32.
 Perfectly linear, so the extra passes are real and the sitting counts.
 But the slope is 0.777, not the 0.9205 predicted on the grounds that
 identical draws must cost identically. **0.145 ms of GS time happens
-once per frame however many times the UI is drawn.** The mechanism is
-not identified and this document does not name one — see F-040 for what
-naming a mechanism early costs.
+once per frame however many times the UI is drawn.**
+
+### There is exactly one candidate, and this sitting's own slope excludes it by 2×
+
+In an EE build the only GS work in a frame that is not a
+`ps2ui_render` is a single `gsKit_clear` — the fill sprites are
+`#ifdef`-ed out, and both telemetry lines go through `ps2ui_slot_set`
+and are drawn *inside* the render. That clear is a full-screen 640×448
+sprite with ABE on: gsKit does not save or restore `PrimAlphaEnable`
+around it, and `ps2ui_render` leaves it ON. F-039's slope prices
+exactly that draw.
+
+```
+clear 0.2869 + render 0.7770 = 1.064  expected
+gs(N=0)                      = 0.922  measured
+                               0.142  short
+```
+
+| | theoretical | measured | efficiency |
+|---|---:|---:|---:|
+| 640×448 @ 1.180 Gpix/s (blended) | 0.2430 | 0.2869 (fill slope) | 85% |
+| 640×448 @ 2.359 Gpix/s (opaque) | 0.1215 | 0.1450 (residual) | 84% |
+
+The residual lands on the *unblended* rate at the same efficiency the
+fill sweep shows blended, and 0.2869 / 0.1450 = **1.98** on a part
+whose opaque fill rate is twice its blended one. The intercept also
+carries any per-frame queue overhead, so 0.145 is an **upper** bound on
+the clear — which widens the shortfall rather than closing it.
+
+**No mechanism is asserted** — F-040 is what that costs. But "no
+mechanism proposed" and "the only candidate present is excluded by our
+own numbers" are different statements, and the second is a much sharper
+place to start. Two readings survive: the clear is not actually
+blending despite ABE being set, or `gs = base + (N+1) × R` is wrong in
+a way that parks 0.14 ms in the intercept.
+
+**`oplenv-clearopaque` is the discriminator**, and it is free. It turns
+ABE off for that one draw, which cannot change a pixel — `ALPHA` is
+`(Cs − Cd)·As>>7 + Cd` and the clear's vertex alpha is `0x80` = 128, so
+the blend is already the identity `Cv = Cs`. `gs` drops ~0.14 and the
+first reading is right; `gs` does not move and the second is.
 
 ### `m` read the same question independently
 
 At N=4, mean `ee`+`gs` is 16.35 (inside a 16.683 ms field) and peak
-`ee^`+`gs^` is 18.08 (outside), so only peak frames overrun. The first
-miss is at frame **270 = 9 × 30**, and `SCROLL_EVERY` is 30. The
-mechanism is confirmed, not just the count.
+`ee^`+`gs^` is 18.08 (outside). The first miss is at frame
+**270 = 9 × 30** against a `SCROLL_EVERY` of 30, so it is a scroll
+frame — 1-in-30 by luck, which is evidence.
+
+**It does not reach "the mechanism is confirmed", and an earlier draft
+of this section said that.** The count is the second read and nothing
+divides it: 29 misses fits *every scroll frame from 270 on* and fits
+*a scattering of near-margin frames whose first happened to be a scroll
+frame* equally well. At 16.35 against 16.683 there is 0.33 ms of
+headroom, so jitter puts non-scroll frames over too. The two are told
+apart by whether 29 ≈ (frame − 270)/30 + 1, and neither telemetry line
+carries a frame index. One `frame` field answers this and F-045's `gs^`
+question together.
 
 ### `p` did not scale
 
