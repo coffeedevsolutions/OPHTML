@@ -656,11 +656,22 @@ findings:
     now unexplained for a documented reason rather than an unexamined
     one.
 
-    THE m1 CAUSE IS SETTLED, AND IT IS THE COLD START AFTER ALL --
-    see F-040. This note previously said unknown, which was right at
-    the time: the mechanism had been named and its pricing was wrong.
+    THE m1 IS GONE, AND NOTHING WAS EVER WRONG WITH FRAME 0. S14
+    re-ran the same five ELFs with the boot phase zeroed and read m0 at
+    every N, so the m1 this paragraph tried three times to explain was
+    the clock starting at an arbitrary phase into a field, not work
+    overrunning one [F-040:historical].
 
-    THE FILL BUILD REPORTED m1 AND THE CAUSE WAS UNKNOWN. The frame
+    This note has now said three things in sequence: unknown, then
+    "settled, and it is the cold start after all", and now this. The
+    middle one is the instructive one -- it was written the moment a
+    bracket appeared to price the cold start, and the bracket was
+    measuring the phase. The paragraph below it, which priced the cold
+    start and found it short by a factor of seven, was RIGHT all along
+    and was overruled by a number that looked more precise.
+
+    THE FILL BUILD REPORTED m1 AND THE CAUSE WAS UNKNOWN -- and this
+    paragraph's arithmetic is what survived. The frame
     period is vsync-locked, so top-to-top quantises to whole fields and
     the 18.33 ms trip can only be cleared by two of them: one frame's
     work exceeded a WHOLE 16.683 ms field. This finding first offered
@@ -839,12 +850,32 @@ findings:
     stays inside the regime where fill is the only variable. A
     flattening would have meant bus rather than pixels; there is no
     flattening.
+
+    RECONFIRMED INDEPENDENTLY AT S14, on 914e20c -- a different sitting
+    and a different revision, with the one-line vsync fix in and the
+    whole EE arm added since. Refitting the same five N over the new
+    photographs:
+
+        gs = 0.9187 + layers x 0.2869   r^2 = 0.9999972
+
+    against this finding's 0.9205 + 0.2861. Agreement in the fourth
+    digit on both coefficients. The slope is a fill rate of 0.999
+    Gpix/s -- 640x448 in 0.2869 ms -- which lands on 1.0 to three
+    digits from a measurement that shares nothing with the first but
+    the hardware.
+
+    That matters more than a repeat usually does, because S13's OTHER
+    conclusion from the same five photographs (F-040's frame-0
+    bracket) was overturned at S14. The instrument was sound and the
+    inference drawn beside it was not, which is a distinction worth
+    having on the record.
   refs: ["#69"]
 
 - id: F-040
   phase: 3
-  status: provisional
-  claim: "Frame 0 spills a field once fill exceeds about 1 ms, for a reason not yet isolated"
+  status: overturned
+  claim: "OVERTURNED at S14. Frame 0 never spilled a field; the clock started at an arbitrary phase into one"
+  overturned_by: [F-044]
   evidence:
     instrument: docs/bench-phase2.md
     measurement: >-
@@ -902,8 +933,33 @@ findings:
     t_prev, unconditional -- gsKit_sync_flip would not do it, being
     guarded by !FirstFrame, which is still set there. Re-run the same
     five ELFs: misses vanish at every N and this finding dies; misses
-    persist and it stands, still owing a mechanism. Provisional until
-    then, and the phase stays open.
+    persist and it stands, still owing a mechanism.
+
+    S14 RAN THEM. THE MISSES VANISHED AT EVERY N.
+
+        build        N    gs    m at S13    m at S14
+        oplenv       0   0.92   m0          m0@0
+        fill2        2   1.49   m0          m0@0
+        fill4        4   2.07   m1@0        m0@0
+        fill         8   3.21   m1@0        m0@0
+        fill16      16   5.51   m1@0        m0@0
+
+    Field period f16.68 on all five, no stretch. So the bracket
+    measured C + PHI, and with PHI at zero frame 0 fits inside a field
+    at every fill level up to 16 full-screen layers. Of the two
+    readings that fit the same five photographs, the SECOND was right:
+    C ~ 3.5 ms with PHI ~ 12.3 ms, an ordinary frame 0, which is the
+    one the code supported. The 15.8 ms frame never existed.
+
+    WHAT THIS COST AND WHAT IT BOUGHT. Three passes at explaining a
+    mechanism that was not there -- vague, then precise and pointing at
+    code outside the measured window, then a bracket whose width was
+    sound and whose position was not. Every one read as settled when
+    written. What ended it was not a better explanation but an
+    INSTRUMENT CHANGE: `m` gained a frame index, and @0 on every miss
+    is what made "the clock's own first frame" reachable as a
+    hypothesis at all. A finding that cannot say WHEN cannot be argued
+    out of a wrong WHY.
   refs: ["#69"]
 
 - id: F-041
@@ -1078,3 +1134,127 @@ findings:
     is a thing a theme can move. Colour ends up in one table instead of
     two, which is the seam that has been the gap four times.
   refs: ["#77"]
+
+- id: F-044
+  phase: 3
+  status: confirmed
+  claim: "One ps2ui_render costs 2.44 ms of EE and 0.78 ms of GS; the driver around it costs 0.08 ms"
+  evidence:
+    instrument: docs/bench-phase2.md
+    measurement: >-
+      Bench S14, SCPH-50000, HW #309, five ELFs from 914e20c. The arm
+      renders the whole UI N extra times and touches no GS state.
+
+        N   ee     ee^     gs     gs^     m
+        0   2.54   3.79    0.92   1.15    m0@0
+        1   4.96   6.22    1.70   2.00    m0@0
+        2   7.39   8.65    2.48   2.85    m0@0
+        3   9.82   11.08   3.25   3.70    m0@0
+        4   12.32  13.58   4.03   4.50    m29@270
+
+      ee = 2.5220 + N x 2.4420, r^2 = 0.9999618
+      gs = 0.9220 + N x 0.7770, r^2 = 0.9999950
+
+      Since each build runs N+1 renders, ee = base + (N+1) x render
+      gives render 2.442 ms and base 0.080 ms; gs gives render 0.777 ms
+      and a fixed 0.145 ms.
+
+      So ONE ps2ui_render is 2.44 ms EE + 0.78 ms GS = 3.22 ms, about
+      19% of a 16.683 ms field.
+  falsifier: >-
+    A sweep point off either line by more than the print resolution, or
+    an ee intercept implying a base above ~0.5 ms, which would put the
+    driver's own per-frame work back in contention as a cost centre.
+  depends_on: [F-039]
+  note: >-
+    THE PREDICTION WAS RIGHT IN SHAPE AND WRONG IN COEFFICIENT, and the
+    wrongness is the finding. gs was predicted as (N+1) x 0.92 on the
+    grounds that the extra passes are identical draws, so all of
+    gs(0)=0.92 must be render. Measured slope is 0.777, and the miss
+    grows monotonically to -0.57 ms at N=4 -- 57 print units, not
+    noise:
+
+        N=0  pred 0.92  meas 0.92   +0.00
+        N=1  pred 1.84  meas 1.70   -0.14
+        N=2  pred 2.76  meas 2.48   -0.28
+        N=3  pred 3.68  meas 3.25   -0.43
+        N=4  pred 4.60  meas 4.03   -0.57
+
+    So 0.145 ms of GS time happens ONCE PER FRAME however many times
+    the UI is drawn. THE MECHANISM IS NOT IDENTIFIED and this note does
+    not name one. F-040 is what that costs: three passes at a mechanism
+    that was not there, each reading as settled when written. The
+    number is measured; the cause is open.
+
+    ee SETTLED THE BRANCH THE SWEEP EXISTED TO SPLIT. Predictions
+    written before the sitting put N=4 at 12.05 if the driver's own
+    work is negligible and 8.05 if it is about 1 ms. Measured 12.32.
+    The scroll logic, sprintf and telemetry together are 80 us.
+
+    AND m READ THE SAME QUESTION INDEPENDENTLY, which is why it was
+    worth five ELFs rather than two. The upper branch predicted N=4 at
+    the edge of a field and missing on scroll frames. Measured: m0
+    through N=3, then m29@270 at N=4, where mean ee+gs is 16.35 (inside
+    a field) and peak ee^+gs^ is 18.08 (outside). 270 = 9 x 30 and
+    SCROLL_EVERY is 30, so the first miss is a scroll frame. The
+    mechanism is confirmed, not just the count.
+
+    p DID NOT SCALE: 595, 595, 595, 596, 600, against ~2975 if it had.
+    ps2ui_render memsets its stats, so the readout is the last pass
+    only -- confirmed rather than assumed. The variation is scroll
+    position, not N.
+
+    MEASURED BEFORE P3b-6, which took opl-env from 1,302 commands to
+    2,158. The per-render figure will rise; the DECOMPOSITION METHOD is
+    what generalises, and re-running the same five ELFs against a new
+    blob re-prices it in one sitting.
+  refs: ["#76"]
+
+- id: F-045
+  phase: 3
+  status: provisional
+  claim: "The scroll frame's extra GS cost is 0.21-0.23 ms at every fill level except N=2, where it is 0.07"
+  evidence:
+    instrument: docs/bench-phase2.md
+    measurement: >-
+      gs^ - gs, the peak-hold frame's excess over the 60-frame mean,
+      across two sittings:
+
+        N     S13    S14      S14 second window
+        0     0.23   0.23     --
+        2     0.08   0.07     0.08
+        4     0.22   0.21     --
+        8     0.21   0.22     --
+        16    0.22   0.21     --
+
+      The N=2 build reads about a third of every other build, and it
+      READ THAT WAY IN THREE SEPARATE WINDOWS ACROSS TWO SITTINGS.
+  falsifier: >-
+    A gs^ reading at N=2 in the 0.21-0.23 band, which would make this
+    an artifact of particular windows after all.
+  depends_on: [F-039]
+  note: >-
+    ITS ONE AVAILABLE EXPLANATION IS NOW DEAD. S13 recorded this as
+    unexplained and the obvious answer was an unlucky peak-hold window:
+    the hold resets every 60 frames, SCROLL_EVERY is 30, and a window
+    that somehow missed both scroll frames would read a low peak. S14
+    photographed N=2 twice, seconds apart, and got 0.07 and 0.08. A
+    property that survives three windows is not a window.
+
+    NOT MONOTONIC AND NOT A TREND. N=0 and N=4 bracket it at 0.23 and
+    0.21, so this is not fill scaling: it is specifically the N=2
+    build.
+
+    NO MECHANISM IS PROPOSED HERE, deliberately. F-040 spent three
+    passes naming mechanisms for a thing that was not happening, and
+    the pattern was always the same -- a plausible cause written up
+    before the instrument could distinguish it from its rivals.
+
+    THE INSTRUMENT FIX IS THE SAME ONE THAT KILLED F-040. `m` became
+    arguable only when it gained a frame index; @0 on every miss is
+    what made "the clock's own first frame" reachable as a hypothesis.
+    gs^ has no @. Adding one says which frame holds the peak at N=2,
+    and whether the peak-hold is catching the scroll frame at all --
+    one sitting, and it either explains this or rules out the last
+    explanation standing.
+  refs: ["#69"]
