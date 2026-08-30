@@ -815,6 +815,17 @@ a composed frame coming in materially under the sum, which would mean
 something *is* reused and F-044's per-render model charges for it
 twice.
 
+**Check the glyph identity first, before trusting the time.** The
+composed frame must read `g` equal to `g(library) + g(confirm)` from
+the two sweep photographs. It is not a formality: the first version of
+this arm blanked library's readout so the scrim would not show two of
+them, which left the composed frame drawing 466 glyphs against the
+sweep points' 521 — and short by `k_glyph × 55` in exactly the
+direction that reads as "something is reused". The driver now mirrors
+the same readout into both pairs, so the lower line under the scrim
+shows the same numbers as the dialog's. If the two lines ever disagree,
+or if `g` does not add, stop and say so rather than fitting it.
+
 Line 2 on this arm prints the frame's totals, not `ui.stats` —
 `ps2ui_render` zeroes its stats per pass, so the struct would report
 confirm's 110 as if it were the frame's 804. A plausible wrong number

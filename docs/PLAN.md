@@ -993,6 +993,25 @@ Then, in an order P3a decides:
    mean something *is* being reused and the per-render model that
    F-044 fitted is charging for it twice.
 
+   **The identity is in commands *and* glyphs, and the first version
+   of this arm broke the glyph half.** It blanked library's readout so
+   the scrim would not show two of them — but `oplenv-scr-library`,
+   the subtrahend, draws its pair, so the composed frame carried 466
+   glyphs against the two sweep points' 521. Under the sweep's own
+   two-term model that makes the measured difference short by
+   `k_glyph × 55` — **always, and always in the direction of "under"**,
+   which is this arm's falsification criterion verbatim. An artifact
+   that manufactures the finding is the failure this phase keeps
+   catching, and it would have argued for the conclusion F-038
+   nominated as most likely to matter.
+
+   Fixed in the instrument rather than corrected in the analysis: the
+   driver now writes the same readout into both pairs, so the counts
+   add exactly. **And it is checkable on the photographs** — with the
+   fix, `g(composed)` must equal `g(library) + g(confirm)`, all three
+   read off line 2. A mismatch means an asymmetry like that one is
+   back, and the sitting can see it without waiting for the fit.
+
    **One thing the sweep does not price, and it belongs in the
    decision.** A precompiled chain pays off because the geometry is
    fixed. Nothing in the runtime moves, scales or fades a node today —

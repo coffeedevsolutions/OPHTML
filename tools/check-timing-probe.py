@@ -565,6 +565,20 @@ def main():
             fail.append("the compose arm's readout reads ui.stats, which "
                         "ps2ui_render zeroes per pass -- it would print the "
                         "second screen's counts as if they were the frame's")
+        # AND THE ACCUMULATOR HAS TO ACCUMULATE.
+        #
+        # The rule above asserts where the number comes FROM and never
+        # that it sums, so `fr_cmds = ui.stats.cmds` on the second
+        # render -- `=` for `+=` -- satisfies it completely while
+        # putting confirm's 110 on a frame that walked 804. That is the
+        # exact number the rule's own comment exists to keep off a
+        # photograph, reachable by a one-character edit. Found by
+        # sabotage after the first version passed it.
+        for acc in ("fr_cmds", "fr_glyphs", "fr_unfilled"):
+            if not re.search(r"\b%s\s*\+=" % acc, block):
+                fail.append("%s is assigned but never accumulated, so the "
+                            "compose readout reports the LAST render's "
+                            "count as the frame's" % acc)
 
     if not re.search(r"c%lu g%lu u%lu", formats):
         fail.append("the screen arm's format no longer spends a conversion "

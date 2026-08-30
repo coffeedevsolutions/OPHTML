@@ -520,6 +520,14 @@ jobs:
           # RENDER, and fall short by about one fixed cost if it is
           # paid per FRAME. Both subtrahends are sweep points, so the
           # three photographs settle it between themselves.
+          #
+          # THE IDENTITY IS IN GLYPHS TOO. The driver mirrors the same
+          # readout into library's slot pair and confirm's, so the
+          # composed frame's `g` equals the sum of the two sweep
+          # points'. Blanking library's pair instead -- the first
+          # version -- left it 55 glyphs short, which under the sweep's
+          # own model biases the difference toward "something is
+          # reused": this arm's falsification criterion, manufactured.
           make -C runtime/sample objclean
           make -C runtime/sample OPLENV=1 COMPOSE=1 \
             UIB=../../examples/opl-env/build/ui.uib \

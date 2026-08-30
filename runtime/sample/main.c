@@ -1802,15 +1802,6 @@ int main(void)
          * the identical error the moment the arm existed. */
         (void)last_upload;
 #endif
-#ifdef PS2UI_OPLENV_COMPOSE
-        /* Library keeps its own readout slots, and they would draw
-         * under the scrim with the dialog's numbers on top -- two
-         * readouts on one photograph, one of them saying "waiting"
-         * forever. "" blanks a slot; NULL would revert it to the
-         * placeholder, which is the bug (backlog B12's distinction). */
-        ps2ui_slot_set(&ui, "library-telem", "");
-        ps2ui_slot_set(&ui, "library-telem2", "");
-#endif
 
         /* ZERO THE BOOT PHASE before starting the clock.
          *
@@ -2264,6 +2255,38 @@ int main(void)
                         (unsigned long)((gs_pk_us % 1000) / 10),
                         (unsigned long)gs_pk_at_us);
                 ps2ui_slot_set(&ui, nm_telem, telem);
+#ifdef PS2UI_OPLENV_COMPOSE
+                /* MIRRORED INTO LIBRARY'S PAIR, NOT BLANKED, AND THE
+                 * DIFFERENCE IS 55 GLYPHS OF BIAS.
+                 *
+                 * The first version set these to "" so the scrim would
+                 * not show a second readout saying "waiting" forever.
+                 * But oplenv-scr-library -- the subtrahend this arm is
+                 * read against -- DOES draw its pair, so a blanked
+                 * composed frame carries 466 glyphs where the two sweep
+                 * points sum to 521. Under the sweep's own model that
+                 * makes ee(composed) - ee(library) short by k_g x 55,
+                 * always, and always in the direction of "under" --
+                 * which is verbatim this arm's falsification criterion
+                 * and would argue for the conclusion F-038 nominated as
+                 * most likely to matter. An artifact cannot be allowed
+                 * to produce the finding.
+                 *
+                 * Writing the same string to both pairs restores the
+                 * identity exactly rather than correcting for it in
+                 * analysis afterwards: same characters, so the same
+                 * glyph count, and the slot clips rather than
+                 * truncating so the narrower dialog box does not drop
+                 * any. It also answers the original objection better
+                 * than blanking did -- the lower line now shows the
+                 * same live numbers instead of a stale placeholder.
+                 *
+                 * AND IT IS CHECKABLE ON THE PHOTOGRAPHS: with this,
+                 * g(composed) must equal g(library) + g(confirm), all
+                 * three read off line 2. If it does not, an asymmetry
+                 * like the one this replaced is back. */
+                ps2ui_slot_set(&ui, "library-telem", telem);
+#endif
                 /* WHAT EACH BUILD PRINTS, AND WHY THE SCREEN ARM
                  * PRINTS SOMETHING ELSE.
                  *
@@ -2327,6 +2350,9 @@ int main(void)
 #endif
                         );
                 ps2ui_slot_set(&ui, nm_telem2, telem);
+#ifdef PS2UI_OPLENV_COMPOSE
+                ps2ui_slot_set(&ui, "library-telem2", telem);
+#endif
             }
 
             gsKit_queue_exec(gs);
