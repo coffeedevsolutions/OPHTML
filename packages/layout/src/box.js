@@ -50,6 +50,14 @@ function anonymousTextStyle(parentStyle) {
   // resolved rgba alone would be value-keyed under a role-keyed parent,
   // and a theme would recolour the parent's text and not this run of it.
   s.colorVar = parentStyle.colorVar;
+  // And the per-theme vector with the name. This list is hand-written
+  // and was one entry short the first time paint.js's guard ran against
+  // it: colorVar was here, colorThemes was not, so the text kept its
+  // role and lost every theme's value for it. Silent without the guard
+  // -- the default theme is still right, so nothing rendered wrong.
+  s.colorThemes = parentStyle.colorThemes
+    ? parentStyle.colorThemes.map((c) => c.slice())
+    : null;
   s.fontSize = parentStyle.fontSize;
   s.fontWeight = parentStyle.fontWeight;
   s.lineHeight = { ...parentStyle.lineHeight };
@@ -59,9 +67,11 @@ function anonymousTextStyle(parentStyle) {
   s.letterSpacing = parentStyle.letterSpacing;
   s.background = null;
   s.backgroundVar = null;
+  s.backgroundThemes = null;
   s.borderWidth = 0;
   s.borderColor = null;
   s.borderColorVar = null;
+  s.borderColorThemes = null;
   return s;
 }
 

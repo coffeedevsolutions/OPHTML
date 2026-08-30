@@ -39,7 +39,7 @@ re-deriving them.
 These are the Phase 2 baseline; Phase 3 optimises against them.
 
 ```
-blob            245,696 bytes
+blob            245,744 bytes
 arena             7,031 bytes      (the whole six-screen environment)
 screens                   6
 slots                   127
@@ -48,6 +48,10 @@ textures                 28        (10 streamed)
 fonts                     6
 VRAM                392 KiB        within a 736 KiB budget
 ```
+
+**The blob grew 48 bytes at P3b-4**: a second tint row, 13 entries of
+four bytes, plus alignment. Nothing else in the table moves -- a theme
+is a table swap, so it adds bytes and no commands, textures or slots.
 
 | screen | commands | textured | slots | focus |
 |---|---:|---:|---:|---:|

@@ -59,6 +59,29 @@ def command_tints(path):
     return out
 
 
+def art_tints(path, u):
+    """Tint entries used by TEXQUADs that are not glyphs.
+
+    Nine-patches and images carry their colour in their TEXELS, so
+    their vertex colour is the modulate identity and has to stay that
+    way in every theme. Glyph atlases are coverage-only and their tint
+    IS the text colour, so they are excluded by texture rather than by
+    value -- a glyph tint that happens to equal the identity (white
+    text) is a themeable colour that merely looks like one.
+    """
+    font_texs = {f["tex"] for f in u.fonts}
+    with open(path, "rb") as fh:
+        data = fh.read()
+    h = _HEADER.unpack_from(data, 0)
+    n_cmd, off_cmd = h[7], h[12]
+    out = set()
+    for i in range(n_cmd):
+        e = _CMD.unpack_from(data, off_cmd + i * _CMD.size)
+        if e[0] == OP_TEXQUAD and e[9] not in font_texs:
+            out.add(e[7])
+    return out
+
+
 def main(path: str) -> int:
     u = read_uib(path)
     row = u.themes[0]
@@ -101,8 +124,41 @@ def main(path: str) -> int:
           f"colours must not stop the palette being a small repeated set, "
           f"which is what makes a theme a table swap")
 
-    print(f"# {path}: {len(row)} tints, {len(shared)} shared with slots, "
-          f"{paints} painting commands")
+    # ---- the second row exists, moves, and knows what not to move ----
+    #
+    # The point of the whole slice, and three separate claims because
+    # each fails on its own: one row (the @theme block stopped being
+    # parsed), a second row that copies the first (the writer keyed the
+    # row on something that does not vary), and a second row that moved
+    # the identity tint too.
+    check(len(u.themes) == 2,
+          f"the blob carries {len(u.themes)} theme rows, expected 2 "
+          f"(:root and @theme light)")
+    if len(u.themes) == 2:
+        base, light = u.themes
+        moved = [i for i in range(len(base)) if base[i] != light[i]]
+        check(len(moved) == len(base) - 1,
+              f"{len(moved)} of {len(base)} entries differ between the two "
+              f"themes; every entry but the nine-patch identity should, and "
+              f"a row that mostly matches row 0 means the theme's values "
+              f"were not carried rather than that the palettes agree")
+
+        # AND THE IDENTITY STAYS IDENTITY. Asked of the ENTRY the art
+        # points at, not of the value: two entries hold
+        # (128,128,128,128) in row 0 -- --ink-max and the nine-patch
+        # identity -- and the whole reason they are two entries is that
+        # exactly one of them is allowed to move. Testing the value
+        # would either pass with both frozen (--ink-max unthemed) or
+        # fail with both moving, and could not tell those apart.
+        art = art_tints(path, u)
+        check(bool(art) and all(light[i] == ident for i in art),
+              f"the {len(art)} entry/entries the premixed art points at "
+              f"(nine-patches and images) hold the identity in every theme; "
+              f"a theme moving one would multiply baked texels by a colour "
+              f"instead of recolouring anything")
+
+    print(f"# {path}: {len(row)} tints over {len(u.themes)} theme(s), "
+          f"{len(shared)} shared with slots, {paints} painting commands")
     return report()
 
 

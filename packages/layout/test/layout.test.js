@@ -945,3 +945,56 @@ test('repeat: data-repeat never reaches the cascade as an attribute', () => {
   );
   assert.equal(ir.warnings.filter((w) => /data-repeat/.test(w) && !/no \{i\}/.test(w)).length, 0);
 });
+
+// ---------------------------------------------------------------- themes
+
+test('theme: the opacity fold runs over every row, not just the default', () => {
+  // THE #77 CASE, END TO END. `opacity` multiplies into a colour's
+  // alpha before the name is attached, so one role paints two colours.
+  // The failure this pins is a fold applied to row 0 and not the rest:
+  // the default theme would still be right, every screenshot would
+  // agree, and only the light theme would have a panel at the wrong
+  // transparency. Nothing else in the suite can see that.
+  const ir = compileCss(
+    '<div id="w"><div id="a"></div><div id="b"></div></div>',
+    ':root{--panel:#336699}\n@theme light{--panel:#eeeeee}\n'
+    + '#w{flex-direction:row}\n'
+    + '#a{width:40px;height:20px;background:var(--panel)}\n'
+    + '#b{width:40px;height:20px;background:var(--panel);opacity:0.5}',
+  );
+  assert.deepEqual(ir.themes, ['root', 'light']);
+  const [opaque, half] = rects(ir);
+  assert.equal(opaque.fillVar, '--panel');
+  assert.equal(half.fillVar, '--panel');
+  assert.deepEqual(opaque.fillThemes, [[51, 102, 153, 255], [238, 238, 238, 255]]);
+  // Halved in BOTH rows. Same role, same fold, two rows.
+  assert.deepEqual(half.fillThemes, [[51, 102, 153, 128], [238, 238, 238, 128]]);
+});
+
+test('theme: an anonymous text run carries the vector its parent has', () => {
+  // box.js copies inherited text style by hand, and the copy was one
+  // entry short when this was written: colorVar without colorThemes.
+  // Silent -- the default row is right, so nothing renders wrong.
+  const ir = compileCss(
+    '<div id="p">hello</div>',
+    ':root{--ink:#ffffff}\n@theme light{--ink:#111111}\n'
+    + '#p{color:var(--ink);font-size:14px}',
+  );
+  const [t] = texts(ir);
+  assert.equal(t.colorVar, '--ink');
+  assert.deepEqual(t.colorThemes, [[255, 255, 255, 255], [17, 17, 17, 255]]);
+});
+
+test('theme: a fill that no theme paints does not exist in any row', () => {
+  // Whether a command EXISTS is structure, and a theme moves colour,
+  // not structure. A theme that could delete a command by taking a
+  // fill to zero alpha would make the command list depend on the row
+  // chosen at runtime, which the format cannot express -- so the
+  // live/dead decision is row 0's and every row follows it.
+  const ir = compileCss(
+    '<div id="a">x</div>',
+    ':root{--ghost:rgba(1,2,3,0)}\n@theme light{--ghost:#ff0000}\n'
+    + '#a{width:10px;height:10px;background:var(--ghost);font-size:14px}',
+  );
+  assert.equal(rects(ir).length, 0);
+});

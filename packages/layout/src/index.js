@@ -102,7 +102,8 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   const ctx = { fonts };
   layoutTree(root, canvasW, canvasH, ctx);
 
-  const { commands, focusables, slots } = buildDisplayList(root);
+  const themeNames = sheet.themeNames ?? ['root'];
+  const { commands, focusables, slots } = buildDisplayList(root, themeNames.length);
   const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });
   for (const w of checkReachability(focus)) warnings.push(w);
 
@@ -125,6 +126,12 @@ export function compile(htmlSrc, cssSrc, options = {}) {
       regular: { family: fonts.regular.family, weight: fonts.regular.weight },
       bold: { family: fonts.bold.family, weight: fonts.bold.weight },
     },
+    // THE THEME LIST, INDEX-ORDERED, ROOT FIRST. Names are build-time
+    // only: the blob stores n_theme and `ps2ui_theme_set` selects by
+    // index, so this exists so a human (and ps2ui-check) can say which
+    // index they meant. Length is the width of every *Themes vector in
+    // the command list and slot table.
+    themes: themeNames,
     commands,
     focus,
     slots,

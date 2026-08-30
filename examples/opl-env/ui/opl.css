@@ -57,6 +57,56 @@
   --edge-danger: #c86a78;
 }
 
+/* The same roles, moved. Every one of the 27 is set: a theme that
+ * covers some of the palette recolours some of the screen, and the one
+ * that ships is always the one whose author only opened two of the six
+ * screens. The parser warns on an omission and --strict is on here, so
+ * this file cannot drift into that state quietly.
+ *
+ * WHAT THIS THEME CANNOT REACH, and it is most of what you see. Every
+ * rounded box in this file -- chip, row, tile, dialog, button -- is
+ * emitted as a nine-patch whose fill and border are PREMIXED into the
+ * texture by the baker, drawn with an identity tint. A tint table
+ * cannot recolour texels. Of the rects across these six screens, 107
+ * are nine-patches and 6 are untextured quads, so switching to this
+ * theme moves the text, the page background and the scrim, and leaves
+ * every panel exactly where it was. See docs/PLAN.md P3b-6 -- the fix
+ * is either two coverage draws per box or a palettized patch whose
+ * CLUT the theme swaps, and both are their own slice.
+ *
+ * The theme is still worth shipping now: it is what makes the blob
+ * two-row, which is what bench sitting B needs, and the half that does
+ * move is the half a photograph can check. */
+@theme light {
+  --bg-page: #f4f6fa;
+  --bg-panel: #ffffff;
+  --bg-tile: #eef1f7;
+  --bg-chip: #e6eaf2;
+  --bg-focus: #d3e0f7;
+  --edge: #c4ccdb;
+  --edge-soft: #d8dee9;
+  --accent: #2f5fc0;
+  --accent-edge: #1e4a9e;
+  --ink-on-accent: #ffffff;
+  --ink-title: #101623;
+  --ink-strong: #1c2433;
+  --ink-muted: #5a6478;
+  --ink-dim: #767f92;
+  --ink-max: #000000;
+  --score: #1f7a4d;
+  --scrim: rgba(240, 243, 248, 0.72);
+  --bg-dialog: #ffffff;
+  --edge-dialog: #7f9ccc;
+  --ink-dialog-title: #121a2b;
+  --ink-dialog-body: #4d5769;
+  --ink-dialog-btn: #23304a;
+  --bg-dialog-btn: #e9edf5;
+  --edge-dialog-btn: #b8c3d6;
+  --bg-dialog-btn-focus: #c3d5f2;
+  --bg-danger-focus: #f6d3d8;
+  --edge-danger: #a83646;
+}
+
 /* Scoping fixture for Phase 1 sizing. Deliberately realistic rather
  * than minimal: 12 library rows with four fields each, a continue-
  * playing rail, and filter chips, because the question this answers is

@@ -276,3 +276,75 @@ test('var: ordinary declarations inside :root warn rather than apply', () => {
   assert.match(sheet.warnings.join('\n'), /:root \{ color: \.\.\. \}" is ignored/);
   assert.equal(sheet.vars.size, 1);
 });
+
+// ---------------------------------------------------------------- @theme
+//
+// P3b-4. A theme is a second value for every name, and the shape that
+// makes it safe is that a use site gets back the WHOLE VECTOR rather
+// than a resolved colour: every fold downstream runs over all rows at
+// once, so no code path can move one theme's value and not another's.
+
+test('@theme: a use site gets one colour per theme, root first', () => {
+  const sheet = parseStylesheet(
+    ':root{--panel:#112233}\n@theme light{--panel:#eeddcc}\n'
+    + '.a{background:var(--panel)}',
+  );
+  assert.deepEqual(sheet.themeNames, ['root', 'light']);
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  const { style } = computeStyle(el, sheet, INITIAL_STYLE, null, []);
+  assert.deepEqual(style.background, [17, 34, 51, 255]);
+  assert.deepEqual(style.backgroundThemes, [
+    [17, 34, 51, 255], [238, 221, 204, 255],
+  ]);
+});
+
+test('@theme: a literal gets a full-width vector of itself', () => {
+  // Not a shorter vector and not null. One shape for one concept, or a
+  // consumer ends up handling only the shape it was written against.
+  const sheet = parseStylesheet(
+    ':root{--x:#111111}\n@theme light{--x:#eeeeee}\n.a{background:#0a0b0c}',
+  );
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  const { style } = computeStyle(el, sheet, INITIAL_STYLE, null, []);
+  assert.equal(style.backgroundVar, null);
+  assert.deepEqual(style.backgroundThemes, [[10, 11, 12, 255], [10, 11, 12, 255]]);
+});
+
+test('@theme: a theme that omits a key says so', () => {
+  const sheet = parseStylesheet(
+    ':root{--a:#111;--b:#222}\n@theme light{--a:#eee}',
+  );
+  assert.equal(sheet.warnings.length, 1);
+  assert.match(sheet.warnings[0], /@theme light does not set --b/);
+  // And it keeps :root's value rather than becoming undefined.
+  assert.deepEqual(sheet.vars.get('--b').themes, [[34, 34, 34, 255], [34, 34, 34, 255]]);
+});
+
+test('@theme: a name :root does not define is refused', () => {
+  // It could never be drawn: a use site only reaches a name through
+  // :root, so this is a theme value with nothing to apply it to.
+  assert.throws(
+    () => parseStylesheet(':root{--a:#111}\n@theme light{--b:#222}'),
+    /@theme light defines --b, which :root does not/,
+  );
+});
+
+test('@theme: a duplicate theme name is refused', () => {
+  assert.throws(
+    () => parseStylesheet(':root{--a:#111}\n@theme light{--a:#222}\n@theme light{--a:#333}'),
+    /@theme light is declared twice/,
+  );
+});
+
+test('@theme: a theme cannot set anything but a custom property', () => {
+  assert.throws(
+    () => parseStylesheet(':root{--a:#111}\n@theme light{padding:4px}'),
+    /a theme supplies custom properties and nothing else/,
+  );
+});
+
+test('@theme: a sheet with no @theme has exactly one theme', () => {
+  const sheet = parseStylesheet(':root{--a:#111}\n.a{color:var(--a)}');
+  assert.deepEqual(sheet.themeNames, ['root']);
+  assert.deepEqual(sheet.vars.get('--a').themes, [[17, 17, 17, 255]]);
+});

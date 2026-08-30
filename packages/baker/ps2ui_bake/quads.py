@@ -64,6 +64,14 @@ class DrawRecord:
     # missing value -- it is the author declining to offer this colour
     # to a theme, and it collapses by value exactly as it did at v7.
     var: str = None
+    # THE SAME COLOUR IN EVERY THEME, index 0 being this record's own
+    # `rgba`. None means "one theme", which is what a blob with no
+    # @theme block has. Not derived from `rgba` and a per-theme literal
+    # anywhere downstream, and that is the design: the fold from a
+    # declaration to a painted colour happens once, in layout, over the
+    # whole vector at once (paint.js foldAlpha), so a theme's value can
+    # never be computed from another theme's. See #77.
+    rgba_themes: tuple = None
     # data-keep: exempt from the dead-geometry trim. Build-time only --
     # it never reaches the .uib, because the runtime draws whatever
     # records it is given and has no notion of a record it should have
@@ -149,6 +157,17 @@ class Flattener:
         be in the 0x80-identity domain (backlog B1)."""
         return tuple(css_channel_to_gs(v) for v in rgba255)
 
+    @staticmethod
+    def _gs_vec(fn, vec):
+        """Convert a whole theme vector with the conversion its record
+        uses. Taking the function rather than a flag is deliberate: a
+        QUAD and a TEXQUAD carrying one CSS literal convert to DIFFERENT
+        GS values (flat shading is 0..255 RGB, modulate is 0x80-identity
+        on every channel), so a row written with the wrong one is wrong
+        by a factor of two and looks merely dim. Passing the caller's
+        own conversion makes picking the wrong one impossible."""
+        return tuple(fn(c) for c in vec) if vec else None
+
     def _coverage_clut_index(self) -> int:
         if self._coverage_clut is None:
             self.cluts.append(gs.coverage_clut())
@@ -205,6 +224,7 @@ class Flattener:
             self.records.append(DrawRecord(
                 OP_QUAD, state, focus, x, y, w, h, self._gs_color(fill),
                 keep=keep, var=cmd.get("fillVar"),
+                rgba_themes=self._gs_vec(self._gs_color, cmd.get("fillThemes")),
             ))
         if bw > 0 and bc:
             c = self._gs_color(bc)
@@ -213,6 +233,7 @@ class Flattener:
             # solid var(--edge)` -- and reusing fillVar here would fuse
             # them into whichever the theme moved first.
             bvar = cmd.get("borderColorVar")
+            cvec = self._gs_vec(self._gs_color, cmd.get("borderColorThemes"))
             edges = (
                 (x, y, w, bw),                    # top
                 (x, y + h - bw, w, bw),           # bottom
@@ -223,7 +244,7 @@ class Flattener:
                 if ew > 0 and eh > 0:
                     self.records.append(DrawRecord(
                         OP_QUAD, state, focus, ex, ey, ew, eh, c, keep=keep,
-                        var=bvar,
+                        var=bvar, rgba_themes=cvec,
                     ))
 
     # -------------------------------------------------------------- images
@@ -394,6 +415,7 @@ class Flattener:
         builder, tex = self._atlas_for(cmd["weight"], cmd["size"])
         tint = self._gs_modulate_color(cmd["color"])
         tint_var = cmd.get("colorVar")
+        tint_vec = self._gs_vec(self._gs_modulate_color, cmd.get("colorThemes"))
         pen_x = cmd["x"]
         top_y = cmd["y"]
         spacing = cmd.get("letterSpacing", 0)
@@ -413,7 +435,7 @@ class Flattener:
                     pen_x + glyph.bearing_x, top_y + glyph.bearing_y,
                     glyph.w, glyph.h, tint,
                     tex, glyph.u, glyph.v, glyph.u + glyph.w, glyph.v + glyph.h,
-                    var=tint_var,
+                    var=tint_var, rgba_themes=tint_vec,
                 ))
             pen_x += glyph.advance
             prev_cp = cp
@@ -600,6 +622,10 @@ class Flattener:
                 "color_focus": self._gs_modulate_color(sl["colorFocus"]),
                 "color_base_var": sl.get("colorBaseVar"),
                 "color_focus_var": sl.get("colorFocusVar"),
+                "color_base_themes": self._gs_vec(
+                    self._gs_modulate_color, sl.get("colorBaseThemes")),
+                "color_focus_themes": self._gs_vec(
+                    self._gs_modulate_color, sl.get("colorFocusThemes")),
             })
 
     def _finish_slots(self):

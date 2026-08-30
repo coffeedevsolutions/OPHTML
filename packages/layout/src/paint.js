@@ -14,18 +14,76 @@
 
 import { walkBoxes } from './box.js';
 
-function paintOfBox(box, style) {
+// THE FOLD RUNS OVER THE WHOLE VECTOR, WHICH IS THE POINT.
+//
+// `opacity` multiplies into a colour's alpha, and the colour that
+// reaches the baker is the folded one, not the declaration. So a role
+// is not a function of its name: var(--panel) at two opacities is two
+// painted colours and two tint entries, both of which a theme has to
+// move (see the comment on _tint in uib.py, and #77).
+//
+// The way that stays true is to never compute a theme's colour from
+// another theme's. Every theme's value goes through this same line,
+// so a fold that reaches one reaches all of them, and a fold added
+// later cannot be added to only the default row -- there is no code
+// path here that names a row.
+function foldAlpha(vec, opacity) {
+  if (!vec) return null;
+  return vec.map((c) => [c[0], c[1], c[2], Math.round(c[3] * opacity)]);
+}
+
+// A NAME WITHOUT A VECTOR IS THE FAILURE THIS GUARDS. The vectors are
+// set in five places in css.js and inherited through a list in a sixth,
+// and "one of those was missed" is the shape of every colour-seam bug
+// this project has had. Missing one would otherwise be silent: the base
+// colour is still right, so every screenshot, every unit test and the
+// previewer all agree, and only the second theme row is wrong.
+function vectorOf(themes, rgba, varName, nThemes, what) {
+  if (themes) {
+    if (themes.length !== nThemes) {
+      throw new Error(`layout: internal: ${what} has ${themes.length} theme `
+        + `values, expected ${nThemes}`);
+    }
+    return themes;
+  }
+  if (varName) {
+    throw new Error(`layout: internal: ${what} carries the name ${varName} but `
+      + `no per-theme values -- a themed colour resolved through a path that `
+      + `did not carry the vector`);
+  }
+  // Never went through a declaration: `color`'s initial white is the
+  // only colour that reaches here. Same value in every theme.
+  return rgba ? Array.from({ length: nThemes }, () => rgba.slice()) : null;
+}
+
+function paintOfBox(box, style, nThemes) {
   // The paint-relevant attributes of an element box under a given style,
   // normalized so invisible differences (a border-color with zero width,
   // a fully transparent fill) can never split an 'always' command into a
   // focused/unfocused pair.
-  const alpha = (c) => (c ? [c[0], c[1], c[2], Math.round(c[3] * style.opacity)] : null);
-  const fill = alpha(style.background);
-  let borderColor = style.borderWidth > 0 ? alpha(style.borderColor) : null;
-  if (borderColor && borderColor[3] === 0) borderColor = null;
+  //
+  // NORMALIZATION READS THE DEFAULT THEME AND ONLY THE DEFAULT THEME.
+  // Whether a command exists is structure, and a theme moves colour,
+  // not structure -- a theme that could delete a command by taking a
+  // fill to zero alpha would make the command list depend on the row
+  // selected at runtime, which the format cannot express. So the live/
+  // dead decision is theme 0's, and every row follows it.
+  const fillVec = foldAlpha(
+    vectorOf(style.backgroundThemes, style.background, style.backgroundVar,
+             nThemes, 'background'),
+    style.opacity);
+  const fill = fillVec ? fillVec[0] : null;
+  let borderVec = style.borderWidth > 0
+    ? foldAlpha(vectorOf(style.borderColorThemes, style.borderColor,
+                         style.borderColorVar, nThemes, 'border-color'),
+                style.opacity)
+    : null;
+  if (borderVec && borderVec[0][3] === 0) borderVec = null;
+  const borderColor = borderVec ? borderVec[0] : null;
   const live = fill && fill[3] > 0 ? fill : null;
   return {
     fill: live,
+    fillThemes: live ? fillVec : null,
     // The var() name travels WITH the colour and is normalized the same
     // way: a fill that ends up invisible carries no name either, or two
     // boxes that differ only in the name of a colour neither of them
@@ -33,17 +91,19 @@ function paintOfBox(box, style) {
     fillVar: live ? (style.backgroundVar ?? null) : null,
     borderWidth: borderColor ? style.borderWidth : 0,
     borderColor,
+    borderColorThemes: borderVec,
     borderColorVar: borderColor ? (style.borderColorVar ?? null) : null,
     radius: style.borderRadius,
   };
 }
 
-function textPaint(style) {
+function textPaint(style, nThemes) {
+  const vec = foldAlpha(
+    vectorOf(style.colorThemes, style.color, style.colorVar, nThemes, 'color'),
+    style.opacity);
   return {
-    color: [
-      style.color[0], style.color[1], style.color[2],
-      Math.round(style.color[3] * style.opacity),
-    ],
+    color: vec[0],
+    colorThemes: vec,
     colorVar: style.colorVar ?? null,
     fontWeight: style.fontWeight,
   };
@@ -60,9 +120,11 @@ function emitRect(cmds, box, paint, state) {
     x: box.x, y: box.y, w: box.width, h: box.height,
     fill: paint.fill,
     fillVar: paint.fillVar,
+    fillThemes: paint.fillThemes,
     borderWidth: paint.borderWidth > 0 && paint.borderColor ? paint.borderWidth : 0,
     borderColor: paint.borderWidth > 0 ? paint.borderColor : null,
     borderColorVar: paint.borderWidth > 0 ? paint.borderColorVar : null,
+    borderColorThemes: paint.borderWidth > 0 ? paint.borderColorThemes : null,
     radius: Math.min(paint.radius, Math.floor(Math.min(box.width, box.height) / 2)),
     state,
     focusId: box.focusId,
@@ -88,6 +150,7 @@ function emitTextLines(cmds, box, paint, state) {
       letterSpacing: s.letterSpacing,
       color: paint.color,
       colorVar: paint.colorVar,
+      colorThemes: paint.colorThemes,
       state,
       focusId: box.focusId,
       ...(box.nocontrast ? { nocontrast: true } : {}),
@@ -100,7 +163,7 @@ function emitTextLines(cmds, box, paint, state) {
  * Returns { commands, focusables } where focusables maps focusId to the
  * scope root box (used by the focus solver).
  */
-export function buildDisplayList(root) {
+export function buildDisplayList(root, nThemes = 1) {
   const commands = [];
   const focusables = new Map();
   const slots = [];
@@ -121,8 +184,8 @@ export function buildDisplayList(root) {
       const line = box.lines[0];
       const parent = box.parent;
       const pb = parent.style.borderWidth;
-      const base = textPaint(box.style);
-      const foc = textPaint(box.focusStyle);
+      const base = textPaint(box.style, nThemes);
+      const foc = textPaint(box.focusStyle, nThemes);
       slots.push({
         name: parent.slot.name,
         placeholder: line.text,
@@ -151,14 +214,16 @@ export function buildDisplayList(root) {
         // panel and leave every score, label and dialog line baked.
         colorBaseVar: base.colorVar ?? null,
         colorFocusVar: foc.colorVar ?? null,
+        colorBaseThemes: base.colorThemes,
+        colorFocusThemes: foc.colorThemes,
       });
       return; // no static commands for slot text
     }
 
     if (box.isText()) {
-      const base = textPaint(box.style);
+      const base = textPaint(box.style, nThemes);
       if (inScope) {
-        const foc = textPaint(box.focusStyle);
+        const foc = textPaint(box.focusStyle, nThemes);
         if (samePaint(base, foc)) emitTextLines(commands, box, base, 'always');
         else {
           emitTextLines(commands, box, base, 'unfocused');
@@ -169,9 +234,9 @@ export function buildDisplayList(root) {
       }
     } else {
       if (box.focusable) focusables.set(box.id, box);
-      const base = paintOfBox(box, box.style);
+      const base = paintOfBox(box, box.style, nThemes);
       if (inScope) {
-        const foc = paintOfBox(box, box.focusStyle);
+        const foc = paintOfBox(box, box.focusStyle, nThemes);
         if (samePaint(base, foc)) emitRect(commands, box, base, 'always');
         else {
           emitRect(commands, box, base, 'unfocused');

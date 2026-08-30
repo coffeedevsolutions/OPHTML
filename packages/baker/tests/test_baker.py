@@ -7,6 +7,7 @@ Run:  cd packages/baker && python3 -m unittest discover -s tests -v
 
 import io
 import json
+from dataclasses import replace
 import copy
 import os
 import shutil
@@ -1550,7 +1551,19 @@ class TestUib(unittest.TestCase):
             DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE, 0, 0, 0, 0, (0, 0, 0, 0)),
         ]
         out = self.roundtrip(recs)
-        self.assertEqual(out.records, recs)
+        # WIDENED, NOT LOST. A record written with rgba_themes=None is
+        # a colour that is the same in every theme, and the writer
+        # stores it as a full row rather than as an absence -- so the
+        # reader hands back the vector the file actually holds. Not
+        # special-cased to None at n_theme == 1: one shape for one
+        # concept, or the previewer's theme path would be exercised
+        # only by multi-theme blobs and untested by every other test
+        # in this file.
+        want = [replace(r, rgba_themes=((tuple(r.rgba),)
+                                        if r.op in (OP_QUAD, OP_TEXQUAD)
+                                        else None))
+                for r in recs]
+        self.assertEqual(out.records, want)
         self.assertEqual((out.canvas_w, out.canvas_h), (320, 240))
 
     def test_textures_cluts_and_focus_round_trip(self):
@@ -2188,6 +2201,55 @@ class TestTintTable(unittest.TestCase):
             "to move both or half the panels keep the old colour")
         self.assertEqual(u.themes[0][0][:3], u.themes[0][1][:3])
         self.assertNotEqual(u.themes[0][0][3], u.themes[0][1][3])
+
+    def test_two_themes_write_two_rows_and_set_the_bit(self):
+        """P3b-4. The row the format has had since v7, finally written.
+
+        Also the bit: the runtime refuses n_theme > 1 without it,
+        because a value-keyed table cannot tell two declarations that
+        share a colour apart, so a second row would recolour things
+        nobody asked for.
+        """
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                       (0x10, 0x20, 0x30, 0x80), var="--panel",
+                       rgba_themes=((0x10, 0x20, 0x30, 0x80),
+                                    (0xF0, 0xF0, 0xF0, 0x80))),
+            # No vector at all: the nine-patch identity tint, which has
+            # no declaration behind it and is identity in every theme.
+            DrawRecord(OP_TEXQUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4,
+                       (128, 128, 128, 128)),
+        ]
+        u = self.write(recs, n_theme=2)
+        self.assertTrue(u.feature_flags & FEAT_ROLE_TINTS)
+        self.assertEqual(len(u.themes), 2)
+        self.assertEqual(u.themes[0], [(0x10, 0x20, 0x30, 0x80),
+                                       (128, 128, 128, 128)])
+        self.assertEqual(
+            u.themes[1], [(0xF0, 0xF0, 0xF0, 0x80), (128, 128, 128, 128)],
+            "the named entry moves and the identity does not -- widened "
+            "to a full row rather than stored short, so a consumer sees "
+            "one shape whatever the theme count")
+
+    def test_a_row_that_disagrees_with_its_own_colour_is_refused(self):
+        """Row 0 IS the colour every other consumer sees. If they ever
+        disagreed the blob would render one thing and every host-side
+        check -- the previewer, the drift screenshots, ps2ui-check --
+        would agree with the other, which is the shape of a defect that
+        is only visible on a television."""
+        recs = [DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                           (1, 2, 3, 0x80),
+                           rgba_themes=((9, 9, 9, 0x80), (4, 5, 6, 0x80)))]
+        with self.assertRaises(ValueError) as cm:
+            self.write(recs, n_theme=2)
+        self.assertIn("row 0", str(cm.exception))
+
+    def test_a_short_vector_is_refused(self):
+        recs = [DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                           (1, 2, 3, 0x80), rgba_themes=((1, 2, 3, 0x80),))]
+        with self.assertRaises(ValueError) as cm:
+            self.write(recs, n_theme=2)
+        self.assertIn("1 themes, expected 2", str(cm.exception))
 
     def patched(self, path, mutate):
         """Apply `mutate(bytearray)` to a written blob and re-CRC it."""

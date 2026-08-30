@@ -35,6 +35,12 @@ const INHERITED_PROPS = new Set([
   // inheriting child behind. background and borderColor do not inherit,
   // so their names do not either.
   'colorVar',
+  // AND SO DOES colorThemes, for the same reason one step further on: a
+  // child inheriting the name but not the vector would be themed by
+  // whatever vector its own style happened to carry. paint.js refuses
+  // that combination rather than trusting this list, because this list
+  // is exactly the kind of thing that gets one entry short.
+  'colorThemes',
 ]);
 
 // The initial style. Frozen — see bug #1 in docs/architecture.md: padding
@@ -79,6 +85,14 @@ export const INITIAL_STYLE = Object.freeze({
   colorVar: null,
   backgroundVar: null,
   borderColorVar: null,
+  // And the whole vector beside the name -- one colour per theme, index
+  // 0 being :root. null means "never went through a declaration", which
+  // is only reachable for `color`'s initial white; paint.js widens that
+  // to a constant vector. A NAME WITHOUT A VECTOR IS A BUG, not a
+  // shorthand for the constant vector, and paint.js throws on it.
+  colorThemes: null,
+  backgroundThemes: null,
+  borderColorThemes: null,
   fontSize: 16,
   fontWeight: 400,
   lineHeight: { unit: 'number', value: 1.25 },
@@ -210,20 +224,53 @@ class SheetReader {
  *   { selector, declarations: [{prop, value, line}], line }
  * Each comma-separated selector becomes its own rule sharing declarations.
  */
+function splitDeclarations(body, line) {
+  const out = [];
+  for (const decl of body.split(';')) {
+    const d = decl.trim();
+    if (!d) continue;
+    const colon = d.indexOf(':');
+    if (colon === -1) throw new Error(`css: line ${line}: malformed declaration "${d}"`);
+    out.push({
+      prop: d.slice(0, colon).trim().toLowerCase(),
+      value: d.slice(colon + 1).trim(),
+      line,
+    });
+  }
+  return out;
+}
+
 export function parseStylesheet(src) {
   const r = new SheetReader(src);
   const rules = [];
   const warnings = [];
   const vars = new Map();
+  const themeBlocks = [];
   for (;;) {
     r.skipWsAndComments();
     if (r.eof()) break;
     if (r.peek() === '@') {
-      // No at-rules: no media queries on a fixed 640x448 target, no
-      // imports in a build with explicit inputs. Skip the block, warn.
+      // One at-rule, @theme. The rest are skipped with a warning: no
+      // media queries on a fixed 640x448 target, no imports in a build
+      // with explicit inputs.
       const line = r.line;
       const head = r.readUntil('{;');
       if (r.peek() === ';') { r.advance(); warnings.push(`css: line ${line}: at-rule "${head.trim()}" ignored`); continue; }
+      const m = /^@theme\s+([A-Za-z][A-Za-z0-9_-]*)\s*$/.exec(head.trim());
+      if (m) {
+        r.advance(); // {
+        const body = r.readUntil('}');
+        if (r.eof()) throw new Error(`css: line ${line}: unterminated @theme block`);
+        r.advance(); // }
+        themeBlocks.push({ name: m[1], line, declarations: splitDeclarations(body, line) });
+        continue;
+      }
+      if (/^@theme\b/.test(head.trim())) {
+        throw new Error(`css: line ${line}: "${head.trim()}" -- @theme takes one `
+          + `identifier, e.g. "@theme light". A theme is selected by index at `
+          + `runtime and the name exists so a human can say which index they `
+          + `meant, so an unparseable one is refused rather than numbered`);
+      }
       let depth = 0;
       do {
         if (r.peek() === '{') depth++;
@@ -240,18 +287,7 @@ export function parseStylesheet(src) {
     const body = r.readUntil('}');
     if (r.eof()) throw new Error(`css: line ${line}: unterminated block`);
     r.advance(); // }
-    const declarations = [];
-    for (const decl of body.split(';')) {
-      const d = decl.trim();
-      if (!d) continue;
-      const colon = d.indexOf(':');
-      if (colon === -1) throw new Error(`css: line ${line}: malformed declaration "${d}"`);
-      declarations.push({
-        prop: d.slice(0, colon).trim().toLowerCase(),
-        value: d.slice(colon + 1).trim(),
-        line,
-      });
-    }
+    const declarations = splitDeclarations(body, line);
     // :root IS NOT A SELECTOR HERE, IT IS A DECLARATION SITE.
     //
     // Intercepted before parseSelector, which does not accept it --
@@ -276,7 +312,7 @@ export function parseStylesheet(src) {
             + `geometry is baked, so a themeable length would be a different `
             + `and much larger design`);
         }
-        vars.set(d.prop, { rgba: col, line: d.line });
+        vars.set(d.prop, { rgba: col, line: d.line, themes: [col] });
       }
       continue;
     }
@@ -292,7 +328,79 @@ export function parseStylesheet(src) {
       }
     }
   }
-  return { rules, warnings, vars };
+  resolveThemes(vars, themeBlocks, warnings);
+  return { rules, warnings, vars, themeNames: ['root', ...themeBlocks.map((b) => b.name)] };
+}
+
+// ------------------------------------------------------------- @theme
+//
+// A THEME IS A SECOND VALUE FOR EVERY NAME, RESOLVED HERE AND NOWHERE
+// ELSE. Every var() use site gets back the whole vector -- one colour
+// per theme, index 0 being :root -- and every fold downstream is
+// applied to the vector rather than to the first element. That is the
+// property this design turns on: a theme cannot half-move a colour,
+// because there is no code path that treats one theme's value
+// differently from another's. See the fold note in paint.js.
+//
+// Names are a BUILD-TIME concept. The blob stores n_theme and the
+// runtime selects by index (`ps2ui_theme_set`), so a name never
+// reaches the console; it exists so a human can say which index they
+// meant, and so ps2ui-check can print the table with something
+// readable beside each row.
+function resolveThemes(vars, blocks, warnings) {
+  const seen = new Set(['root']);
+  for (const b of blocks) {
+    if (seen.has(b.name)) {
+      throw new Error(`css: line ${b.line}: @theme ${b.name} is declared twice`
+        + (b.name === 'root'
+          ? ` -- "root" is the theme :root defines, and it is always index 0`
+          : ``));
+    }
+    seen.add(b.name);
+  }
+  // Each block extends every name's vector by exactly one, in block
+  // order, so vars.get(x).themes[i] is theme i for every x. The width
+  // is uniform by construction rather than by check.
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const given = new Map();
+    for (const d of b.declarations) {
+      if (!d.prop.startsWith('--')) {
+        throw new Error(`css: line ${d.line}: @theme ${b.name} { ${d.prop}: ... } `
+          + `-- a theme supplies custom properties and nothing else. Sizes, `
+          + `fonts and layout are baked geometry; a themeable length would be `
+          + `a different and much larger design`);
+      }
+      if (!vars.has(d.prop)) {
+        throw new Error(`css: line ${d.line}: @theme ${b.name} defines ${d.prop}, `
+          + `which :root does not. A name only reaches a use site through `
+          + `:root, so this value could never be drawn`);
+      }
+      if (given.has(d.prop)) {
+        throw new Error(`css: line ${d.line}: @theme ${b.name} sets ${d.prop} twice`);
+      }
+      const col = parseColor(d.value);
+      if (!col) {
+        throw new Error(`css: line ${d.line}: @theme ${b.name}: ${d.prop}: `
+          + `"${d.value}" is not a color`);
+      }
+      given.set(d.prop, col);
+    }
+    for (const [name, def] of vars) {
+      const col = given.get(name);
+      if (!col) {
+        // Inherits :root's value, and says so. A silently half-
+        // converted theme looks right on the two screens the author
+        // happened to open and wrong on the rest -- design 4.3, which
+        // makes this an error under --strict.
+        warnings.push(`css: line ${b.line}: @theme ${b.name} does not set `
+          + `${name} (defined at line ${def.line}), so it keeps the :root `
+          + `value -- a theme that covers some of the palette recolours `
+          + `some of the screen`);
+      }
+      def.themes.push(col || def.rgba);
+    }
+  }
 }
 
 // ------------------------------------------------------------------ var()
@@ -324,7 +432,19 @@ const VAR_USE = /^var\(\s*(--[A-Za-z0-9_-]+)\s*(,)?([^)]*)\)$/;
  * therefore outside any theme -- see docs/design-p3b-theming.md 9.2. */
 export function resolveColorValue(value, vars, prop, line) {
   const m = VAR_USE.exec(value.trim());
-  if (!m) return { rgba: parseColor(value), varName: null };
+  if (!m) {
+    // A LITERAL IS THE SAME COLOUR IN EVERY THEME, and it gets a
+    // full-width vector saying so rather than a shorter one. Every
+    // consumer then handles one shape, and "this colour is not
+    // themeable" is expressed by the values being equal instead of by
+    // an absence somebody has to remember to test for.
+    const lit = parseColor(value);
+    return {
+      rgba: lit,
+      varName: null,
+      rgbaThemes: lit ? Array.from({ length: themeCount(vars) }, () => lit.slice()) : null,
+    };
+  }
   const [, name, comma, rest] = m;
   if (comma) {
     throw new Error(`css: line ${line}: ${prop}: var(${name}, ...) has a `
@@ -342,7 +462,23 @@ export function resolveColorValue(value, vars, prop, line) {
       + `literal, because a theme that cannot reach a colour is exactly the `
       + `defect this mechanism exists to prevent`);
   }
-  return { rgba: def.rgba.slice(), varName: name };
+  return {
+    rgba: def.rgba.slice(),
+    varName: name,
+    rgbaThemes: def.themes.map((c) => c.slice()),
+  };
+}
+
+/** A literal's vector: the same colour in every theme. */
+export function themeVector(rgba, vars) {
+  return Array.from({ length: themeCount(vars) }, () => rgba.slice());
+}
+
+/** How many themes this sheet declares, root included. Always >= 1. */
+export function themeCount(vars) {
+  if (!vars) return 1;
+  for (const def of vars.values()) return def.themes.length;
+  return 1;
 }
 
 // ------------------------------------------------------------- declarations
@@ -459,34 +595,42 @@ export function applyDeclaration(style, prop, value, line, warnings, vars) {
         // `var(--a, b)` is refused by resolveColorValue before it can
         // arrive here in two pieces.
         if (p.startsWith('var(')) {
-          const { rgba, varName } = resolveColorValue(p, vars, prop, line);
-          style.borderColor = rgba; style.borderColorVar = varName; continue;
+          const { rgba, varName, rgbaThemes } = resolveColorValue(p, vars, prop, line);
+          style.borderColor = rgba; style.borderColorVar = varName;
+          style.borderColorThemes = rgbaThemes; continue;
         }
         const col = parseColor(p);
-        if (col) { style.borderColor = col; style.borderColorVar = null; continue; }
+        if (col) {
+          style.borderColor = col; style.borderColorVar = null;
+          style.borderColorThemes = themeVector(col, vars); continue;
+        }
         throw new Error(`css: line ${line}: border: unsupported token "${p}" (only solid borders exist)`);
       }
       return true;
     }
     case 'border-width': style.borderWidth = px(); return true;
     case 'border-color': {
-      const { rgba, varName } = resolveColorValue(value, vars, prop, line);
+      const { rgba, varName, rgbaThemes } = resolveColorValue(value, vars, prop, line);
       if (!rgba) throw new Error(`css: line ${line}: border-color: bad color "${value}"`);
-      style.borderColor = rgba; style.borderColorVar = varName; return true;
+      style.borderColor = rgba; style.borderColorVar = varName;
+      style.borderColorThemes = rgbaThemes; return true;
     }
     case 'border-radius': style.borderRadius = px(); return true;
     case 'background': case 'background-color': {
       if (value === 'none' || value === 'transparent') {
-        style.background = null; style.backgroundVar = null; return true;
+        style.background = null; style.backgroundVar = null;
+        style.backgroundThemes = null; return true;
       }
-      const { rgba, varName } = resolveColorValue(value, vars, prop, line);
+      const { rgba, varName, rgbaThemes } = resolveColorValue(value, vars, prop, line);
       if (!rgba) throw new Error(`css: line ${line}: ${prop}: bad color "${value}" (flat colors only — gradients are a texture you bake yourself)`);
-      style.background = rgba; style.backgroundVar = varName; return true;
+      style.background = rgba; style.backgroundVar = varName;
+      style.backgroundThemes = rgbaThemes; return true;
     }
     case 'color': {
-      const { rgba, varName } = resolveColorValue(value, vars, prop, line);
+      const { rgba, varName, rgbaThemes } = resolveColorValue(value, vars, prop, line);
       if (!rgba) throw new Error(`css: line ${line}: color: bad color "${value}"`);
-      style.color = rgba; style.colorVar = varName; return true;
+      style.color = rgba; style.colorVar = varName;
+      style.colorThemes = rgbaThemes; return true;
     }
     case 'font-size': style.fontSize = px(); return true;
     case 'font-weight':
