@@ -30,8 +30,8 @@ for spec in $EXPECT; do
     # the same six screens at the same densities, and its secondary
     # text is 11-13px slot text. None of it warned until P3b-5 taught
     # the linter to see a data-slot at all. 11 keeps the rule live --
-    # anything smaller still fails -- and does not claim 11px is
-    # readable from three metres.
+    # anything smaller still fails -- and S14 read that layer off an
+    # SCPH-50000 and found it legible [F-046].
     node "$repo/packages/layout/bin/ps2ui-layout.js" \
         "$here/ui/$name.html" "$here/ui/opl.css" \
         -o "$out/$name.json" --strict --min-font-size 11 >/dev/null

@@ -521,18 +521,22 @@ Then, in an order P3a decides:
    vectors and the focused one is the seam that has been the gap in
    #70, #72 and #74.
 
-   **What that turned up is open and is not P3b-5's to settle.**
+   **What that turned up went to the bench and came back settled.**
    opl-env's entire secondary text layer sits below the 14px couch
    floor — row titles at 13, subtitles and counts at 11, detail fields
    at 12, **97 instances across six screens** — and none of it ever
    warned, because all of it is slot text. The floor was not being met;
-   it was being missed. `--min-font-size 11` in `build.sh` keeps the
-   rule live (anything smaller still fails) and records the admission
-   in the one place a reader will look, but it does **not** decide that
-   11px is readable from three metres. That is a question about the
-   density study this example exists to be — twelve rows of four
-   fields, which is what an OPL-class environment demands — and it
-   wants a photograph, not an argument.
+   it was being missed. `--min-font-size 11` keeps the rule live
+   (anything smaller still fails) and records the value where a reader
+   will look.
+
+   **S14 then read it off the screen** [F-046]. Every oplenv ELF
+   photographed that sitting renders the whole layer, and all of it was
+   legible on an SCPH-50000. So the 14px floor is wrong for secondary
+   text at this density, and 11 has a photograph behind it rather than
+   being the number that makes the build pass. Provisional on one point
+   only: the bench panel was within arm's reach, and "from a couch"
+   means two or three metres. One photograph from the sofa closes it.
 
    Worth noting where the blind spot showed: `opl.css`'s comment on
    `.dlg-btn` says *"`--strict` enforces a floor on FOCUSABLE text"*.

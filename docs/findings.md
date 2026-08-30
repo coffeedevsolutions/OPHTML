@@ -11,7 +11,7 @@ prose rots like any other document.
 
 | status | count |
 |---|---:|
-| provisional | 2 |
+| provisional | 3 |
 | confirmed | 24 |
 | overturned | 3 |
 
@@ -583,4 +583,29 @@ NO MECHANISM IS PROPOSED HERE, deliberately. F-040 spent three passes naming mec
 THE INSTRUMENT FIX IS THE SAME ONE THAT KILLED F-040. `m` became arguable only when it gained a frame index; @0 on every miss is what made "the clock's own first frame" reachable as a hypothesis. gs^ has no @. Adding one says which frame holds the peak at N=2, and whether the peak-hold is catching the scroll frame at all -- one sitting, and it either explains this or rules out the last explanation standing.
 
 *#69*
+
+### F-046 — opl-env's 11-13px slot text is legible on an SCPH-50000 and a Hisense panel, so the 14px floor is wrong for secondary text *(provisional)*
+
+**Measured:** Read off the screen at S14 rather than argued. Every oplenv ELF photographed that sitting renders the full secondary text layer -- row titles at 13px, subtitles, timestamps and counts at 11px, detail fields and dialog body at 12px -- and all of it read clean. The bench operator's verdict on the whole set: perfectly visible.
+What that layer is, and why nothing had ever checked it:
+
+  22px   1 slot,  4 static   screen titles
+  16px   1 slot,  0 static   dialog title
+  14px   9 slots, 15 static  chips, buttons, counts, hints
+  13px   slots only          row titles, "Title of a Game {n}"
+  12px   6 slots, 0 static   detail fields, dialog body
+  11px   6 slots, 0 static   subtitles, timestamps, counts
+
+EVERY string below the floor is a slot and EVERY static string is at or above it. Not a coincidence: the floor was enforced exactly where the linter could see, and the small text lived entirely where it could not. 12 distinct authored strings, 97 warnings after data-repeat expansion.
+
+**Instrument:** `docs/bench-phase2.md`
+
+**Falsifier:** A photograph from a seated viewing distance -- 2 to 3 metres, which is what "from a couch" means -- in which the 11px subtitles or the 13px row titles cannot be read. The bench reading was taken at working distance, which is closer.
+
+THE MEASUREMENT IS NOT THE WHOLE CLAIM, WHICH IS WHY THIS IS PROVISIONAL. The lint's premise is legibility "from a couch", and the S14 photographs were taken at a bench with the panel within arm's reach. Closer than the rule is about. What is settled is that the text is not marginal at working distance -- which was the live worry, since a 2x error would have shown there. What is not settled is the seated case, and one photograph from the sofa closes it.
+THE FLOOR WAS NEVER MET, IT WAS MISSED, and the difference matters for what to conclude. 11 is now a deliberate value in build.sh and measure.sh with a hardware reading behind it, where before P3b-5 it was 14 everywhere and simply unreachable for two thirds of the text. A rule that cannot see the text it governs is not a stricter rule; it is a quieter one.
+AND IT HAD WRITTEN ITSELF INTO THE DOCS. opl.css's comment on .dlg-btn said --strict enforces the floor "on FOCUSABLE text", and the README repeated it. lint.js has always checked every text command. It read as focusable-only because every non-focusable small string in that file is a slot. Corrected in both places at P3b-5, and recorded here because a blind spot that reaches the documentation is the kind that survives a rewrite.
+WHAT THIS DOES NOT LICENSE: 11px as a general floor. It is the smallest size THIS density study uses -- twelve rows of four fields, which is what an OPL-class environment demands -- and the rule stays live below it. A UI that wants 8px still fails.
+
+*#81*
 

@@ -16,7 +16,7 @@ mkdir -p "$out"
 # --strict, because an example that ships with warnings teaches the
 # warnings are noise. The scope fixture may warn; this may not.
 #
-# --min-font-size 11, AND IT IS AN ADMISSION RATHER THAN A SETTING.
+# --min-font-size 11, MEASURED RATHER THAN ASSUMED [F-046].
 # This environment's whole secondary text layer -- row titles at 13px,
 # subtitles and counts at 11px, detail fields at 12px, 97 instances
 # across the six screens -- sits below the 14px couch floor. None of it
@@ -24,12 +24,16 @@ mkdir -p "$out"
 # not see a slot at all until P3b-5. The floor was not being met; it was
 # being missed.
 #
-# 11 and not 0: the smallest size this design actually uses, so the rule
-# stays live and anything below it still fails the build. What this
-# does NOT do is decide that 11px is readable from a couch. That is a
-# question about the density study this example exists to be -- twelve
-# rows of four fields, which is what an OPL-class environment demands --
-# and it is open. See docs/PLAN.md.
+# S14 then read it off the screen: every oplenv ELF renders that whole
+# layer, and all of it was legible on an SCPH-50000. So 11 is a value
+# with a photograph behind it, not a number chosen to make the build
+# pass. The one thing still open is the seated case -- the bench panel
+# was within arm's reach and "from a couch" means two or three metres
+# -- which is why F-046 is provisional.
+#
+# 11 and not 0: the smallest size this design actually uses, so the
+# rule stays live and anything below it still fails the build. A UI
+# that wants 8px is still refused.
 for screen in landing library detail filters recent confirm; do
     node "$repo/packages/layout/bin/ps2ui-layout.js" \
         "$here/ui/$screen.html" "$here/ui/opl.css" \
