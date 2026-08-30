@@ -3118,6 +3118,42 @@ class TestDeadGeometryTrim(unittest.TestCase):
         self.assertEqual(two["cmd_first"] + two["cmd_count"], len(f.records))
         self.assertEqual(f.dropped, 1)
 
+    def test_two_screens_may_not_share_a_slot_name(self):
+        # The runtime resolves a slot name over the WHOLE file and takes
+        # the first match, so a duplicate makes one of the two
+        # unreachable -- and an unreachable slot shows its placeholder
+        # forever, which looks like a driver that stopped updating.
+        # paint.js only checks within one document, so nothing caught
+        # this until the per-screen readout wanted "telem" on all six.
+        def with_slot(name):
+            ir = tiny_ir([])
+            ir["slots"] = [{
+                "name": name, "placeholder": "x",
+                "x": 0, "textY": 10, "w": 100,
+                "size": 14, "weight": 400, "lineHeight": 18,
+                "align": "left", "ellipsis": False, "capacity": 8,
+                "focusId": None,
+                "colorBase": [200, 200, 200, 255],
+                "colorFocus": [255, 255, 255, 255],
+            }]
+            return ir
+
+        a, b = with_slot("telem"), with_slot("telem")
+        f = Flattener(a, font_paths())
+        with self.assertRaises(ValueError) as cm:
+            f.run_screens([("one", a), ("two", b)])
+        self.assertIn("telem", str(cm.exception))
+        self.assertIn("one", str(cm.exception))
+        self.assertIn("two", str(cm.exception))
+
+        # And the same two screens with screen-scoped names bake fine,
+        # so the check is about collision and not about slots at all.
+        a, b = with_slot("one-telem"), with_slot("two-telem")
+        f = Flattener(a, font_paths())
+        f.run_screens([("one", a), ("two", b)])
+        self.assertEqual([s["name"] for s in f.slots],
+                         ["one-telem", "two-telem"])
+
     def test_the_validator_and_the_baker_share_one_clip_model(self):
         # They used to carry two copies that already differed by a term.
         from ps2ui_bake import clip as clip_mod

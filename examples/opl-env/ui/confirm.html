@@ -21,6 +21,16 @@
       <p class="dlg-btn" id="dlg-cancel" focusable autofocus>CANCEL</p>
       <p class="dlg-btn dlg-danger" id="dlg-ok" focusable>REMOVE</p>
     </div>
+    <!-- The readout. On EVERY screen, not only on library: slots are
+         per-screen (render_slots walks the current screen's slot range),
+         so a telemetry line that lives on library draws nothing while
+         anything else is up, and P3d's content sweep renders five
+         screens that are not library. Screen-scoped names because
+         ps2ui_slot_set resolves by FIRST match over the whole file. -->
+    <div class="telem-dlg">
+      <p class="telem-l" data-slot="confirm-telem" data-slot-capacity="48">telemetry: waiting</p>
+      <p class="telem-l" data-slot="confirm-telem2" data-slot-capacity="48">gs: waiting</p>
+    </div>
   </div>
 </div>
 </body>

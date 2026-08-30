@@ -500,6 +500,56 @@ def main():
                         "fractional argument or the screen shows a wrong "
                         "number rather than no number" % (var, role, n, uses))
 
+    # AND THE SWEEP'S X-AXIS HAS TO REACH IT TOO.
+    #
+    # P3d fits ee against content, and the screen arm prints the two
+    # regressors it fits plus the correction it applies. Each is a
+    # different kind of loss if it goes missing, and none of them shows
+    # up as a blank on the photograph -- the line just has one field
+    # fewer, which nobody notices at a bench:
+    #   cmds        the x-axis itself. Without it the sweep is six ee
+    #               readings against nothing.
+    #   slot_glyphs the term P3d CANNOT remove. Folded into k it biases
+    #               k upward, which is the direction that wrongly opens
+    #               the gate this arm exists to price.
+    #   tex_unfilled the streamed draws counted in prims and then
+    #               skipped; it lands on detail and library, the two
+    #               ends of the fit.
+    # `p` is deliberately NOT here: the screen arm trades it away for
+    # these three, and requiring both would fail the very build this
+    # rule is for.
+    for expr, field, role in (
+            (r"stats\.cmds\b", "cmds", "the command-walk trip count, "
+             "which IS P3d's x-axis"),
+            (r"stats\.slot_glyphs\b", "slot_glyphs", "the glyph quads the "
+             "pen composes per frame, the EE cost a precompiled chain "
+             "cannot remove"),
+            (r"stats\.tex_unfilled\b", "tex_unfilled", "the streamed draws "
+             "counted in prims and then skipped")):
+        if not re.search(expr, printed):
+            fail.append("%s (%s) never reaches the readout, so the content "
+                        "sweep photographs an ee with nothing to plot it "
+                        "against" % (field, role))
+    # The ARGUMENT reaching sprintf is half of it; the format has to
+    # spend a conversion on it or the values shift left by one and every
+    # field after it prints the wrong number under the right label.
+    # Read off the RAW source, not off `block`: strip_comments blanks
+    # string literals along with comments, so the format text simply is
+    # not there to search. That is the right default for every other
+    # rule here -- they anchor on code and prose about code reads the
+    # same -- and it is exactly wrong for the one rule whose subject IS
+    # a literal.
+    formats = "".join(re.findall(r"sprintf\s*\(\s*telem[^;]*;", text, re.S))
+    # Comments inside the call still have to go, for the reason
+    # strip_comments exists: one of these arms carries a paragraph
+    # explaining the fields, and prose naming them would satisfy a rule
+    # about the format spending conversions on them.
+    formats = re.sub(r"/\*.*?\*/", "", formats, flags=re.S)
+    if not re.search(r"c%lu g%lu u%lu", formats):
+        fail.append("the screen arm's format no longer spends a conversion "
+                    "on each of c, g and u, so its arguments misalign and "
+                    "the line reads plausibly and wrongly")
+
     # F-034's falsifier is "any dropped field", and a 60-frame mean can
     # only be read for that indirectly and only while the drop is
     # inside the window. The counter that reads it directly has to

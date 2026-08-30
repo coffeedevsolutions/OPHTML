@@ -484,10 +484,21 @@ jobs:
           # time goes and P3d is answered outright.
           #
           # Static by construction: a screen build skips the window
-          # scroll and cover streaming, which are library-only, so the
-          # points differ in command count and nothing else. p on each
-          # photograph states the count the ELF actually drew, so the
-          # x-axis is read off the screen rather than assumed.
+          # scroll and the cover uploads, which are library-only, so
+          # the points differ in content and nothing else.
+          #
+          # The x-axis is c, not p. p is stats.prims -- draws
+          # submitted, which is commands that survived visibility PLUS
+          # one per slot glyph -- while the loop P3d removes trips
+          # stats.cmds times; p/cmds runs 0.94 to 1.90 over these six
+          # screens and the orderings differ. g is beside it because
+          # slot glyphs are the DYNAMIC TAIL a precompiled chain cannot
+          # contain, so they are EE cost P3d does not remove: two
+          # regressors, and only k_cmd bounds what the phase can buy.
+          # u counts the streamed draws counted in prims and then
+          # skipped -- detail has one and library nine, so it lands on
+          # both ends of the fit. All three are on the readout, so the
+          # x is read off the photograph rather than assumed.
           for scr in confirm detail landing recent filters library; do
             make -C runtime/sample objclean
             make -C runtime/sample OPLENV=1 OPLENV_SCREEN=$scr \

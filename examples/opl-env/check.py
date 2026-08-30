@@ -26,10 +26,12 @@ to write, this checks what a loader will actually find.
 """
 
 import os
+import re
 import sys
 
 from ps2ui_bake.quads import OP_QUAD, OP_TEXQUAD
 from ps2ui_bake.uib import _CMD, _HEADER, read_uib
+from ps2ui_bake.quads import TEXKIND_STREAMED
 
 _checks = []
 
@@ -87,6 +89,125 @@ def art_tints(path, u):
         if e[0] == OP_TEXQUAD and e[9] not in font_texs:
             out.add(e[7])
     return out
+
+
+# ---------------------------------------------------------------- readout
+
+DRIVER_C = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "..", "runtime", "sample", "main.c")
+
+
+def readout_formats():
+    """The driver's telemetry format strings, read from the driver.
+
+    Not a copy of them. A list maintained here would go stale exactly
+    when it matters -- someone adds a field, the line overflows, and
+    the check that exists to catch that is still measuring yesterday's
+    line. So the subject is main.c itself: every string literal inside
+    a sprintf whose destination is the `telem` buffer, across all of
+    its build arms.
+    """
+    src = open(DRIVER_C, encoding="utf-8").read()
+    out = []
+    for call in re.findall(r"sprintf\s*\(\s*telem\s*,(.*?)\);", src, re.S):
+        # Strip comments before hunting literals: the surrounding prose
+        # quotes field names in "..." and would otherwise be measured.
+        call = re.sub(r"/\*.*?\*/", "", call, flags=re.S)
+        for lit in re.findall(r'"((?:[^"\\]|\\.)*)"', call):
+            out.append(lit)
+    return out
+
+
+_FIELD = re.compile(r"([A-Za-z^@]*)(%l?u(?:\.%02l?u)?)")
+
+
+def widest(fmt, values):
+    """The widest string a format can produce.
+
+    Every conversion is named by the letters in front of it -- `c%lu`,
+    `up%u`, `m%lu@%lu` -- and each name gets its widest value from
+    `values`. An UNKNOWN name is not skipped and not guessed: it comes
+    back in the returned list of misses and fails the check, because a
+    new field whose ceiling nobody stated is precisely the field that
+    overflows the line.
+    """
+    miss = []
+
+    def sub(m):
+        name = m.group(1)
+        if name not in values:
+            miss.append(name)
+            return m.group(0)
+        # The NAME STAYS. Dropping it was this function's first bug and
+        # it made every line measure short by one letter per field --
+        # the check passed, on a string the driver never prints.
+        return name + values[name]
+
+    return _FIELD.sub(sub, fmt), miss
+
+
+def driver_const(name):
+    """A #define'd integer from the driver, so a ceiling that depends on
+    one is not a number copied into this file."""
+    src = open(DRIVER_C, encoding="utf-8").read()
+    m = re.search(r"^#define\s+%s\s+(\d+)\s*$" % re.escape(name),
+                  src, re.M)
+    if not m:
+        raise SystemExit("check.py: %s is no longer a plain #define in "
+                         "main.c, so the readout ceiling that depends on "
+                         "it cannot be derived" % name)
+    return int(m.group(1))
+
+
+def pen_width(text, font, letter_spacing):
+    """Mirror of slot_measure's accumulation in runtime/ps2ui.c."""
+    glyphs, kerns = font["glyphs"], font["kerns"]
+    w, prev = 0, None
+    for ch in text:
+        g = glyphs.get(ord(ch))
+        if g is None:
+            continue
+        if prev is not None:
+            w += letter_spacing + kerns.get((prev, ord(ch)), 0)
+        w += g["advance"]
+        prev = ord(ch)
+    return w
+
+
+def field_ceilings(u, scr):
+    """The widest value each readout field can reach, on THIS screen.
+
+    Derived where the blob knows the answer, stated where it does not.
+    A ceiling that is merely large would make the check reject designs
+    that cannot actually overflow -- 99999 commands on a screen whose
+    table holds 694 is not a worst case, it is a different program.
+
+      counts   bounded by the screen: cmds by its entry in the screen
+               table, slot glyphs by the summed capacities of its own
+               slots (the driver cannot write more than it declared),
+               prims by their sum. Per screen and not blob-wide,
+               because a readout only ever shows the numbers of the
+               screen it is drawn on.
+      ms       a frame period; the clock is per-field, so 16.68.
+      run      m, n and the two @ indices count frames. 99999 is 28
+               minutes at 60Hz, longer than any sitting so far.
+      up       bytes handed to ps2ui_tex_set in one scroll step. Not a
+               blob quantity, so it comes from the driver's own
+               constants -- every row of the window re-uploaded at
+               once, which is the most one step can move.
+    """
+    lo, n = scr["slot_first"], scr["slot_count"]
+    glyphs = sum(sl["capacity"] for sl in u.slots[lo:lo + n])
+    cmds = scr["cmd_count"]
+    return {
+        "ee": "16.68", "gs": "16.68", "^": "16.68", "f": "16.68",
+        "@": "99999", "m": "99999", "n": "99999",
+        "c": str(cmds), "g": str(glyphs), "p": str(cmds + glyphs),
+        "u": str(sum(1 for t in u.textures if t.kind == TEXKIND_STREAMED)),
+        "up": str(driver_const("OPLENV_ROWS") * driver_const("OPLENV_ART_W")
+                  * driver_const("OPLENV_ART_H") * 4),
+        "t": str(max(0, len(u.themes) - 1)),
+    }
 
 
 def main(path: str) -> int:
@@ -165,6 +286,90 @@ def main(path: str) -> int:
               f"premix) hold the identity in every theme; a theme moving one "
               f"would multiply baked texels by a colour instead of "
               f"recolouring anything")
+
+    # ---- every screen can report its own cost, and the line fits ----
+    #
+    # TWO FAILURES, ONE CHECK, because they produce the same photograph.
+    # Slots are per-screen: render_slots walks the current screen's slot
+    # range, so a readout that exists only on library draws NOTHING on
+    # the five other screens P3d's sweep renders -- five points with no
+    # numbers on them. And a line that overflows its slot is clipped by
+    # the scissor rather than ellipsised, so the last field simply is
+    # not there. Either way the bench comes home with a photograph that
+    # is missing the number the sitting was for.
+    #
+    # Measured with the runtime's own pen against the font each slot
+    # actually names, so the confirm screen -- 11px in a 256px dialog
+    # rather than 14px in a footer, because the scrim has no footer and
+    # making one pushed the dialog title out of the title-safe area --
+    # is checked on its own terms rather than on library's.
+    fmts = readout_formats()
+    check(len(fmts) >= 2,
+          f"found {len(fmts)} telemetry format string(s) in the driver; "
+          f"this check measures what main.c actually prints, and finding "
+          f"none means it is measuring nothing")
+    # Line 1 carries the timings and goes in -telem; every other arm is
+    # a line 2 variant and goes in -telem2. Keyed on the field the
+    # driver leads with, not on the order the literals appear in.
+    lines = {"-telem": [f for f in fmts if f.startswith("ee")],
+             "-telem2": [f for f in fmts if not f.startswith("ee")]}
+    by_name = {sl["name"]: sl for sl in u.slots}
+    for scr in u.screens:
+        lo, n = scr["slot_first"], scr["slot_count"]
+        reachable = {sl["name"] for sl in u.slots[lo:lo + n]}
+        ceil = field_ceilings(u, scr)
+        for suffix, arms in lines.items():
+            name = scr["name"] + suffix
+            if not check(name in reachable,
+                         f"screen {scr['name']!r} carries its own {name!r}, "
+                         f"so the driver can put a readout on it; without one "
+                         f"this sweep point photographs no numbers"):
+                continue
+            sl = by_name[name]
+            font = u.fonts[sl["font"]]
+            # The two limits are asked SEPARATELY, and of the widest arm
+            # under each. They are different limits -- capacity is the
+            # buffer, w is the scissor -- and the arm that runs longest
+            # in pixels need not be the one that runs longest in bytes,
+            # so taking one arm's worst and testing both of its numbers
+            # can pass a line that overflows under the other.
+            px, ch = [], []
+            for fmt in arms:
+                text, miss = widest(fmt, ceil)
+                if not check(not miss,
+                             f"{name}: readout field(s) {sorted(set(miss))} "
+                             f"have no stated ceiling, so nothing knows how "
+                             f"wide the line can get"):
+                    continue
+                # THE LABELS ARE PART OF THE LINE. widest()'s first
+                # version returned the value without the name in front
+                # of it, so every measurement came up one letter per
+                # field short -- a passing check on a string the driver
+                # never prints. The measured text must still contain
+                # every name the format writes.
+                labels = [m.group(1) for m in _FIELD.finditer(fmt)
+                          if m.group(1)]
+                check(all(lb in text for lb in labels),
+                      f"{name}: the widest-case line \"{text}\" has lost a "
+                      f"field label from {labels}, so it is shorter than "
+                      f"anything the driver can print and every limit below "
+                      f"is measured against the wrong string")
+                px.append((pen_width(text, font, sl["letter_spacing"]), text))
+                ch.append((len(text), text))
+            if not px:
+                continue
+            w, wtxt = max(px)
+            c, ctxt = max(ch)
+            check(w <= sl["w"],
+                  f"{name}: widest line \"{wtxt}\" is {w}px of {sl['w']}px; "
+                  f"the slot clips rather than ellipsises, so an overflowing "
+                  f"line loses its LAST field, which is where the newest "
+                  f"number always goes")
+            check(c <= sl["capacity"],
+                  f"{name}: longest line \"{ctxt}\" is {c} chars of "
+                  f"{sl['capacity']}; ps2ui_slot_set truncates at the "
+                  f"declared capacity, so the tail is gone before the pen "
+                  f"ever sees it")
 
     print(f"# {path}: {len(row)} tints over {len(u.themes)} theme(s), "
           f"{len(shared)} shared with slots, {paints} painting commands")

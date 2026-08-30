@@ -828,30 +828,84 @@ Then, in an order P3a decides:
    demands: a phase opening *"optimization against Phase 2's numbers,
    not vibes"* must not begin with the item those numbers argue
    against. The blob already carries six screens spanning **110 to 694
-   commands**, a 6.3× range, so six renders give `ee = base + k ×
-   commands` with no new geometry and no new blob.
+   commands**, a 6.3× range, so six renders price the gate with no new
+   geometry and no new blob.
 
-   | screen | commands |
-   |---|---:|
-   | confirm | 110 |
-   | detail | 196 |
-   | landing | 331 |
-   | recent | 360 |
-   | filters | 467 |
-   | library | 694 |
+   **The fit has two regressors, not one.** PLAN.md's own definition of
+   P3d is *"bake each screen's **static** geometry as a ready-to-kick
+   chain; runtime **patches the dynamic tail**"* — and slot glyphs
+   **are** that tail. The pen composes them per frame from the current
+   string, so a precompiled chain cannot contain them: they are EE work
+   P3d does not remove. Over these six screens glyphs track commands
+   only at r = 0.75, so a one-term fit buries glyph cost inside `k` —
+   and since the whole claim is that **k bounds what P3d can buy**,
+   that bias runs in the direction that wrongly *opens* the gate.
+
+   ```
+   ee = base + k_cmd × cmds + k_glyph × glyphs      only k_cmd is the bound
+   ```
+
+   Predicted off the blob, at each screen's initial focus. The
+   photographs are what count — `c` and `g` are on the readout for
+   exactly that reason — but the prediction goes down first, the way
+   F-039's and F-044's did:
+
+   | screen | commands | slot glyphs | drawn | `p` |
+   |---|---:|---:|---:|---:|
+   | confirm | 110 | 145 | 64 | 209 |
+   | detail | 196 | 187 | 99 | 286 |
+   | landing | 331 | 233 | 206 | 439 |
+   | recent | 360 | 344 | 189 | 533 |
+   | filters | 467 | 188 | 253 | 441 |
+   | library | 694 | 376 | 366 | 742 |
+
+   `recent` and `filters` are what make the split possible: 30% more
+   commands, 45% fewer glyphs. If six points still prove too collinear
+   to separate the terms, that is worth discovering from a table rather
+   than from a sitting, and the answer is one authored screen with
+   `filters`' command count and `recent`'s glyph count.
 
    **That decomposition is the gate.** A precompiled chain removes the
-   per-command term and leaves the fixed one, so **k bounds what P3d
-   can ever buy**. Mostly `base` and P3d buys little at any content
-   scale — the gate then stays shut on a measurement rather than on an
-   asymmetry, which is a better place to leave it. Mostly `k` and it
-   scales with content, and the intercept says at what size.
+   per-command term and leaves the fixed one. Mostly `base` and P3d
+   buys little at any content scale — the gate then stays shut on a
+   measurement rather than on an asymmetry, which is a better place to
+   leave it. Mostly `k_cmd` and it scales with content, and the
+   intercept says at what size.
 
    Static by construction: a screen build skips the window scroll and
-   cover streaming, which are library-only, so the points differ in
-   command count and nothing else. `p` on each photograph states the
-   count that ELF actually drew, so the x-axis is read off the screen
-   rather than assumed.
+   the cover uploads, which are library-only, so the points differ in
+   content and nothing else.
+
+   **The x-axis is `c`, and `p` is not it.** `p` is `stats.prims` —
+   draws submitted, which is painting commands that survived visibility
+   *plus one per slot glyph* — while the loop P3d removes trips
+   `stats.cmds` times. `p`/`cmds` runs 0.94 to 1.90 across these six
+   screens and the two orderings differ, so `p` is not a rescaling of
+   commands; a plot against it fits a different line. The screen arm
+   therefore prints `c`, `g` and `u` in place of `p` and `up` (which is
+   always 0 with no window to scroll), and the sweep reads its x off
+   the photograph rather than off this table.
+
+   One correction the write-up owes: **cover streaming is not
+   library-only.** `detail.html` carries a `det-art` streamed slot and
+   nothing binds it, so detail draws one texquad whose `Mem` is NULL —
+   counted in `prims`, then skipped before the bind. Library has nine.
+   About 1% of prims, but it lands on both ends of the fit and it
+   *removes* work, which flattens the slope toward "P3d buys little" —
+   one of the two conclusions on offer. `u` is on the readout so the
+   correction is measured rather than argued.
+
+   The readout itself had to move to make room. It is now on **all six
+   screens** rather than only on library — slots are per-screen, so a
+   readout on library draws nothing while any other screen is up, and
+   five of the six points are not library — and it dropped to 11px,
+   F-046's floor. At 14px the theme arm's worst case is 43 characters
+   in a 38-character slot and 359px in library's 314px of footer, so
+   its last field was already being clipped on long runs; a third line
+   does not fit either, the lint puts it at y=425, outside title-safe.
+   `examples/opl-env/check.py` now measures every arm of the driver's
+   own format strings against every screen's slot with the runtime's
+   pen, so "it fits" is a check and not a recollection.
 
    **The missing instrument is the EE analogue of the fill arm**, and
    the obvious version of it does not work. Rendering the UI N extra
