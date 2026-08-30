@@ -3382,30 +3382,133 @@ int main(int argc, char **argv)
                   "row and gets all the way to a frame");
 
             if (loaded) {
-                u64 sig0 = 0, sig1 = 0, sig0b = 0;
-                int j;
+                /* THE TWO HALVES ARE SIGNED SEPARATELY, and the
+                 * first version of this did not do that. A single
+                 * whole-frame signature is satisfied by EITHER half
+                 * moving, so it fences neither: with it, render_slots
+                 * ignoring the live row passed (every panel recolours,
+                 * every title stays baked), and after that was fixed
+                 * the command path ignoring it passed too (every title
+                 * recolours, every panel stays baked). Same defect,
+                 * mirrored, and one signature cannot see either.
+                 *
+                 * The pen runs after the command list, so the frame
+                 * splits at n_prims - slot_glyphs: head is commands,
+                 * tail is slot text. sig0b stays whole-frame because
+                 * it is an equality -- "goes back" is stronger when it
+                 * covers everything. */
+                u64 cmd0 = 0, cmd1 = 0;
+                u64 slot0 = 0, slot1 = 0;
+                u64 back_cmd = 0, back_slot = 0;
+                int j, split, slot_users = 0, cmd_users = 0;
+                uint32_t sk;
 
                 CHECK(tc.theme == 0,
                       "and it opens on row 0, not on whichever row the "
                       "header happens to name last");
 
+                /* The premise for the slot check below, and it is a
+                 * different question from the whole-table `distinct`
+                 * above: that one asks whether the rotation changes
+                 * the TABLE, this asks whether it changes an entry
+                 * some drawn SLOT actually points at. A palette that
+                 * rotated only among command colours would satisfy
+                 * the first and leave the second vacuous. */
+                {
+                    const ps2ui_screen_entry *se =
+                        &tc.screen_table[tc.screen];
+                    const ps2ui_tint_entry *r1 =
+                        tc.tints + (size_t)tc.hdr->n_tint;
+                    for (sk = se->slot_first;
+                         sk < (uint32_t)se->slot_first + se->slot_count;
+                         sk++) {
+                        const ps2ui_slot_entry *sl = &tc.slots[sk];
+                        uint16_t ix[2];
+                        int q;
+                        ix[0] = sl->tint_base;
+                        ix[1] = sl->tint_focus;
+                        for (q = 0; q < 2; q++) {
+                            const ps2ui_tint_entry *a = &tc.tints[ix[q]];
+                            const ps2ui_tint_entry *b = &r1[ix[q]];
+                            if (a->r != b->r || a->g != b->g
+                                || a->b != b->b || a->a != b->a)
+                                slot_users++;
+                        }
+                    }
+                    for (sk = se->cmd_first;
+                         sk < se->cmd_first + se->cmd_count; sk++) {
+                        const ps2ui_cmd *cc2 = &tc.cmd[sk];
+                        const ps2ui_tint_entry *a, *b;
+                        if (cc2->op != PS2UI_OP_QUAD
+                            && cc2->op != PS2UI_OP_TEXQUAD)
+                            continue;
+                        a = &tc.tints[cc2->tint];
+                        b = &r1[cc2->tint];
+                        if (a->r != b->r || a->g != b->g
+                            || a->b != b->b || a->a != b->a)
+                            cmd_users++;
+                    }
+                }
+
                 stub_reset_keep_tm();
                 ps2ui_render(&tc, &tgs);
-                for (j = 0; j < g_stub.n_prims; j++)
-                    sig0 ^= g_stub.prims[j].color * (u64)(j + 1);
+                split = g_stub.n_prims - (int)tc.stats.slot_glyphs;
+                for (j = 0; j < split; j++)
+                    cmd0 ^= g_stub.prims[j].color * (u64)(j + 1);
+                for (j = split; j < g_stub.n_prims; j++)
+                    slot0 ^= g_stub.prims[j].color * (u64)(j + 1);
 
                 CHECK(ps2ui_theme_set(&tc, 1) == PS2UI_OK,
                       "theme_set reaches the second row");
                 stub_reset_keep_tm();
                 ps2ui_render(&tc, &tgs);
-                for (j = 0; j < g_stub.n_prims; j++)
-                    sig1 ^= g_stub.prims[j].color * (u64)(j + 1);
+                split = g_stub.n_prims - (int)tc.stats.slot_glyphs;
+                for (j = 0; j < split; j++)
+                    cmd1 ^= g_stub.prims[j].color * (u64)(j + 1);
+                for (j = split; j < g_stub.n_prims; j++)
+                    slot1 ^= g_stub.prims[j].color * (u64)(j + 1);
 
-                CHECK(sig0 != sig1,
+                CHECK(cmd_users > 0,
+                      "the screen draws commands whose tint indices "
+                      "point at entries the rotation moves, or the "
+                      "check below cannot fail");
+                CHECK(cmd0 != cmd1,
                       "A THEME SWITCH CHANGES WHAT THE GS IS TOLD TO "
                       "DRAW. The whole point of the table: no upload, "
                       "no bind, no transfer -- one pointer moves and "
-                      "the next frame is a different colour");
+                      "the next frame is a different colour. Signed "
+                      "over the COMMAND prims only, so slot text "
+                      "switching cannot satisfy it");
+
+                /* AND IT REACHES SLOT TEXT. The signature above cannot
+                 * see that: the command prims alone move the XOR, so
+                 * a render_slots that read ctx->tints instead of the
+                 * live row recoloured every panel, border and
+                 * background while leaving every title, label, score
+                 * and status line baked -- a half-applied theme, and
+                 * it passed all 398 checks.
+                 *
+                 * THIS IS THE THIRD TIME THIS SEAM HAS BEEN THE GAP.
+                 * The design missed slots until #70's review, the
+                 * tint_focus fence missed them until #72's, and the
+                 * switch missed them here. Colour lives in TWO tables
+                 * and every mechanism that touches one has to touch
+                 * the other; that is written on ps2ui_slot_entry now
+                 * rather than rediscovered a fourth time.
+                 *
+                 * Isolated the way #72's slot fence does it: the pen
+                 * runs after the command list, so the last
+                 * stats.slot_glyphs prims of a frame are exactly its
+                 * output. */
+                CHECK(slot_users > 0,
+                      "the screen draws slots whose tint indices point "
+                      "at entries the rotation actually moves, or the "
+                      "check below cannot fail");
+                CHECK(slot0 != slot1,
+                      "AND THE SWITCH REACHES SLOT TEXT, not only "
+                      "commands. A theme that recolours every panel "
+                      "and leaves every title baked passes every other "
+                      "check here");
 
                 CHECK(ps2ui_theme_set(&tc, 2) == PS2UI_ERR_RANGE,
                       "a third row is refused on a two-row blob, so the "
@@ -3418,11 +3521,19 @@ int main(int argc, char **argv)
                       "and the switch goes back");
                 stub_reset_keep_tm();
                 ps2ui_render(&tc, &tgs);
-                for (j = 0; j < g_stub.n_prims; j++)
-                    sig0b ^= g_stub.prims[j].color * (u64)(j + 1);
-                CHECK(sig0b == sig0,
-                      "returning to row 0 draws exactly what row 0 drew: "
-                      "selecting a theme is a selection, not a mutation");
+                split = g_stub.n_prims - (int)tc.stats.slot_glyphs;
+                for (j = 0; j < split; j++)
+                    back_cmd ^= g_stub.prims[j].color * (u64)(j + 1);
+                for (j = split; j < g_stub.n_prims; j++)
+                    back_slot ^= g_stub.prims[j].color * (u64)(j + 1);
+                /* Both halves, for the same reason the pair above is
+                 * split: a one-way switch in either half alone would
+                 * satisfy a whole-frame equality only by accident, and
+                 * would satisfy nothing if it did not. */
+                CHECK(back_cmd == cmd0 && back_slot == slot0,
+                      "returning to row 0 draws exactly what row 0 drew, "
+                      "in commands AND in slot text: selecting a theme "
+                      "is a selection, not a mutation");
             }
         }
         {

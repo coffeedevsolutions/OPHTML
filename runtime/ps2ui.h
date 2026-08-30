@@ -246,11 +246,27 @@ typedef struct ps2ui_slot_entry {
      * ps2ui_cmd it carried no padding at all. Four real bytes per
      * slot, 508 on opl-env's 127.
      *
-     * Colour lives here as well as in commands, which the design
-     * missed for a revision: 4 of opl-env's 13 colours appear ONLY in
-     * slots -- every score, every source label, the dialog text. A
-     * theme reaching commands and not slots would leave all the
-     * running text baked. */
+     * COLOUR LIVES IN TWO TABLES, AND EVERY MECHANISM THAT TOUCHES
+     * ONE MUST TOUCH THE OTHER. Read that as a standing instruction,
+     * not an observation: this seam has been the gap three times, each
+     * caught in review rather than by a check.
+     *
+     *   - The P3b design proposed a tint table for commands and did
+     *     not notice slots carry colour too. 4 of opl-env's 12 are
+     *     slot-only -- every score, every source label, the dialog
+     *     text -- so that theme would have left all the running text
+     *     baked.
+     *   - The v7 fence for tint_focus covered ps2ui_cmd and left
+     *     ps2ui_slot_entry unfenced in BOTH directions.
+     *   - ps2ui_theme_set's first check signed the whole frame, which
+     *     either half can satisfy alone, so a render_slots that
+     *     ignored the live row passed everything.
+     *
+     * The pattern is not a coincidence any more: the command path is
+     * the one you are looking at, and the slot pen is a separate
+     * function two hundred lines away that nobody scrolls to. Fence
+     * the two halves separately, or the check you write proves only
+     * that one of them works. */
     uint16_t tint_base;
     uint16_t tint_focus;
     /* Was pad (always zero) until feature bit 2: CSS letter-spacing in
