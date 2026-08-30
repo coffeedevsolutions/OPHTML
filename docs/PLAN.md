@@ -512,28 +512,51 @@ Then, in an order P3a decides:
    ring. Both become tint-table entries, which is to say things a theme
    can move.
 
-   | | before | after |
+   | opl-env | before | after |
    |---|---|---|
    | patch textures | 11, keyed on colour too | **4**, keyed on `(radius, borderWidth)` |
    | their VRAM | 88 KiB | **32 KiB** |
-   | painting commands | 1,302 | 2,158 |
+   | commands (`n_cmd`) | 1,302 | 2,158 |
+   | of those, painting | 1,244 | 2,100 |
    | tint entries | 13 | 28, of which 27 move |
+
+   **The VRAM saving is a property of the stylesheet, not of the
+   mechanism**, and opl-env was the wrong example to generalize from.
+   Premixed costs one texture per distinct `(radius, bw, fill, border)`
+   — call it C. Coverage costs two per distinct `(radius, bw)` — call
+   it G. The split wins when C > 2G. channel6 draws five radii and
+   paints each about twice, so it goes the other way: 23 → 25 textures,
+   280 → 296 KiB, 47% → 50% of budget. The justification is that colour
+   becomes reachable at all; the VRAM followed in one example and
+   opposed in the other. F-043 has both.
 
    The rejected alternative was a per-theme CLUT swap — P3b-0's own
    mechanism, and the obvious reading of "the two compose". It would
    have taken the same blob to **176 KiB** and added 88 KiB per further
    theme, because a CLUT costs a full 8 KiB page whether it colours
-   64 KiB of texels or 324 bytes. F-043 has the arithmetic and the rule
-   it generalizes to.
+   64 KiB of texels or the 81-121 bytes a palettized patch holds.
+   F-043 has the arithmetic and the rule it generalizes to.
 
    **What this costs, stated plainly.** Nine-patch draws roughly double
    (a fill layer of nine cells and a ring of eight; the ring's centre
    cell holds no coverage and is skipped), so opl-env's command count
    rises 66%. And every rounded box's colour now passes through the GS
-   modulate domain's 129 levels, where premixed texels were exact:
-   measured against the previous screenshots, 164k pixels move by 1,
-   10k by 2, and four corner pixels by up to 24 where area-averaged
-   coverage replaced a LANCZOS premix that had been overshooting.
+   modulate domain's 129 levels, where premixed texels were exact.
+   Measured over all six default-theme screenshots against `main`:
+
+   | delta | pixels | share |
+   |---|---:|---:|
+   | 1 | 632,885 | 36.8% |
+   | 2 | 35,020 | 2.0% |
+   | 3 or more | 35,696 | 2.1% |
+   | worst | 40 | 4 px, in `detail` |
+
+   Not visible at 1:1, and the tail is thin and bounded -- but the
+   first version of this paragraph said "four corner pixels by up to
+   24", which was `library.png` alone read as far as its top bucket
+   and no further. It is off by 35,692, and it is precisely the
+   sentence a reviewer uses to accept a rendering change WITHOUT
+   looking. Measure every image or claim only the one you measured.
 
    **Sitting A is unaffected** — its ELFs are frozen at `914e20c` — but
    this moves the command count enough that the next EE baseline is a

@@ -24,17 +24,24 @@ against the one shared coverage CLUT, exactly as a glyph atlas is. The
 colour arrives as the vertex tint, which is a tint-table entry, which
 is a thing a theme can move.
 
-It is also much smaller, and that is the same trade the image path
-makes: 8bpp plus one shared palette instead of 32bpp per texel. A patch
-now keys on (radius, border_w) alone rather than on the colours too,
-because coverage has no colour in it, so opl-env's 11 patch textures
-collapse to 4. Each held 324-484 bytes of texels while occupying a full
-8 KiB page, so that is 88 KiB of VRAM down to 32 KiB.
+A patch now keys on (radius, border_w) alone rather than on the colours
+too, because coverage has no colour in it. In opl-env that collapses 11
+patch textures to 4 -- each held 324-484 bytes of texels while occupying
+a full 8 KiB page, so 88 KiB of VRAM down to 32.
+
+THAT SAVING IS NOT A PROPERTY OF THIS CHANGE. Premixed costs one
+texture per distinct (radius, border_w, fill, border_color); coverage
+costs two per distinct (radius, border_w). The split wins when the
+first count exceeds twice the second -- many colours over few
+geometries. channel6 has five radii painted about twice each and goes
+the other way: 23 textures to 25, 280 KiB to 296. Do not sell this as
+a VRAM optimization; it is what makes the colour reachable, and the
+bytes go whichever way the stylesheet sends them.
 
 Deliberately NOT a per-theme CLUT swap, which was the other candidate.
 A CLUT costs a full page, the same as the texture: an 11x11 patch would
-carry 8 KiB of palette for 324 bytes of texels, once per colour
-combination per theme. That is 176 KiB for two themes here and 88 KiB
+carry 8 KiB of palette for the 121 bytes it holds once palettized,
+once per colour combination per theme. That is 176 KiB for two themes here and 88 KiB
 more for each one after. CLUT swapping earns its keep on a 256x256
 asset, where one page of palette covers 64 KiB of texels; it is
 upside-down at this size.

@@ -65,11 +65,18 @@ Everything else below moved at P3b-6.
 
 **These moved at P3b-6, and in both directions.** Rounded boxes stopped
 premixing their colour into a texture and became two tinted coverage
-layers, so commands rose 1,302 -> 2,158 while textures fell 28 -> 21 and
-VRAM 392 -> 336 KiB. A coverage patch keys on `(radius, borderWidth)`
-alone, where a premixed one keyed on the colours too: eleven patch
-textures collapsed to four, 88 KiB of VRAM to 32. The blob grew because
-it now carries two theme rows and 856 more commands.
+layers, so commands rose 1,302 -> 2,158 (1,244 -> 2,100 of them
+painting, which is the count `check.py`'s palette-ratio rule keys on)
+while textures fell 28 -> 21 and VRAM 392 -> 336 KiB. A coverage patch
+keys on `(radius, borderWidth)` alone, where a premixed one keyed on
+the colours too: eleven patch textures collapsed to four, 88 KiB of
+VRAM to 32. The blob grew because it now carries two theme rows and
+856 more commands.
+
+This example gets the good end of that trade and channel6 does not --
+it draws five corner radii and pays 16 KiB rather than saving 56. See
+F-043: the direction depends on how many colours share how few
+geometries, so it is a fact about the stylesheet.
 
 The per-screen slot counts also correct a stale figure the headline
 check could not see -- it verifies the seven numbers above and not this
