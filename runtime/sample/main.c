@@ -1637,7 +1637,20 @@ int main(void)
         unsigned cur_theme = 0;                   /* tint row on screen */
 #endif
         u32 t_prev = 0;
-        char telem[64];
+        /* 160, not 64, and the extra 96 bytes are for the COMPILER
+         * rather than the console. gcc bounds a %lu at 20 digits, so
+         * the screen arm's eight conversions come to 156 bytes in the
+         * worst case it can see, and at 64 it raises
+         * -Wformat-overflow -- fatal under -Werror, and the reason the
+         * OPLENV arms could not join the host syntax check. The values
+         * are nowhere near that (`c` tops out at 694, `n` at a frame
+         * count) and the slot truncates at 48 characters regardless,
+         * so nothing on screen changes. Sizing to what the compiler
+         * can PROVE beats suppressing the warning, and it beats
+         * snprintf here: that only turns the same analysis into
+         * -Wformat-truncation, equally fatal, while costing the two
+         * fences that anchor on `sprintf(telem`. */
+        char telem[160];
         /* SLOT NAMES ARE SCREEN-SCOPED, and they have to be: slots are
          * per-screen (render_slots walks the current screen's slot
          * range), so a readout that lives on library draws nothing
@@ -1677,7 +1690,7 @@ int main(void)
          * submitted, which is painting commands that survived
          * visibility PLUS one per slot glyph -- while the loop that
          * P3d removes trips stats.cmds times. Over these six screens
-         * p/cmds runs 0.96 to 1.98 and the two orderings differ, so p
+         * p/cmds runs 0.94 to 1.90 and the two orderings differ, so p
          * is not a rescaling of commands and fitting against it would
          * fit the wrong line.
          *
@@ -1720,6 +1733,28 @@ int main(void)
             oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
             last_upload = oplenv_bind_window(&ui, gs, &w);
         }
+#ifdef PS2UI_OPLENV_SCREEN
+        /* AND THE CONSTANT DOES NOT COVER last_upload, which is what
+         * the comment above got wrong. It reasons about a variable
+         * going UNUSED under #ifndef, and the constant does fix that --
+         * w stays syntactically used either way. This is the
+         * NEIGHBOURING diagnostic: the screen arm's readout trades `up`
+         * away for `c`, `g` and `u`, which leaves last_upload written
+         * four times and read nowhere, and -Wall -Werror here includes
+         * -Wunused-but-set-variable. Same flag, different rule, and it
+         * broke the elf job on all six sweep builds.
+         *
+         * A cast rather than a preprocessor guard around the
+         * declaration and its four writes, for two reasons. It keeps
+         * the screen arm ONE code path, which is the property the
+         * constant was introduced to buy. And it keeps the variable
+         * that would show `up` non-zero on a screen build, so the arm's
+         * own claim -- no window, so no upload, so nothing to report --
+         * stays inspectable rather than compiled out because it is
+         * asserted to be true. Scoped to this arm, so a build that
+         * SHOULD print `up` and stops doing it still fails here. */
+        (void)last_upload;
+#endif
 
         /* ZERO THE BOOT PHASE before starting the clock.
          *

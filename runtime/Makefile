@@ -127,6 +127,29 @@ syntax-check:
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE -DPS2UI_OPLENV_FILL \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: both arms together (measures neither cleanly)"
+# AND THE THREE OPLENV ARMS THIS LIST STILL DID NOT HAVE. FILL and EE
+# were here from the start; CLEAR_OPAQUE, THEME_CYCLE and SCREEN were
+# added to hw.yml later and never joined, so three build arms CI
+# compiles had no host check at all. P3d's screen arm duly shipped a
+# red `elf` job: trading `up` off the readout left last_upload written
+# four times and read nowhere, which is -Wunused-but-set-variable and
+# fatal under -Werror. The rule the list needs is not "add the flags
+# you thought of" but "every arm hw.yml builds appears here", so a new
+# arm in the workflow is a new line here.
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_CLEAR_OPAQUE \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_OPLENV_CLEAR_OPAQUE"
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_THEME_CYCLE \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_OPLENV_THEME_CYCLE"
+# Quoted separately for the reason SAMPLE_SCREEN is: a stringised name
+# does not survive a `for v in` expansion.
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_SCREEN='"confirm"' \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_OPLENV_SCREEN"
 
 # Source-level, because the property it guards is an ORDERING and the
 # compiler has no opinion about it: the opl-env driver's frame timer

@@ -860,10 +860,30 @@ Then, in an order P3a decides:
    | library | 694 | 376 | 366 | 742 |
 
    `recent` and `filters` are what make the split possible: 30% more
-   commands, 45% fewer glyphs. If six points still prove too collinear
-   to separate the terms, that is worth discovering from a table rather
-   than from a sitting, and the answer is one authored screen with
-   `filters`' command count and `recent`'s glyph count.
+   commands, 45% fewer glyphs.
+
+   **Six points are enough, and that is arithmetic rather than hope.**
+   r = 0.751 gives a variance inflation of 2.29, which is mild, and the
+   commands spread over `sqrt(Σ(c - c̄)²)` = 462. Taking
+   `k_cmd ≈ 2.44 ms / 414` as the scale if the walk were the whole
+   per-render cost, and σ as the residual standard error of S14's own
+   `ee` fit — **0.0276 ms**, derived from its five residuals rather
+   than read off its r², which is the step where this first came out
+   2.8× too small — the 95% interval on `k_cmd` with 3 degrees of
+   freedom is:
+
+   | σ | 95% CI on `k_cmd` |
+   |---|---|
+   | 0.028 ms (S14's) | ±4.9% |
+   | 0.055 ms (twice that) | ±9.8% |
+
+   So `k_cmd` separates to about ±5%, and to ±10% even if these six
+   screens are twice as noisy as one screen swept by N. That decides
+   the gate several times over, so **the seventh authored screen is not
+   needed** — a prediction the sitting can falsify, rather than a worry
+   to carry into it. It is falsified by a fitted `k_cmd` whose own
+   standard error exceeds a tenth of it, which would mean the residuals
+   came back far above S14's.
 
    **That decomposition is the gate.** A precompiled chain removes the
    per-command term and leaves the fixed one. Mostly `base` and P3d
