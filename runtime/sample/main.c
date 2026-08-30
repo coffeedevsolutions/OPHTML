@@ -1037,6 +1037,13 @@ static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
  * so a bench can sweep it and see the number scale -- a reading that
  * moves proportionally with fill is much stronger evidence than one
  * that merely moves. */
+#ifndef PS2UI_OPLENV_EE_N
+/* Extra whole-UI passes per frame. See the arm itself for why the
+ * range stops around 4: ee(0) is 2.41 ms with a 3.67 ms peak, so five
+ * renders put the peak frame at the edge of a field. */
+#define PS2UI_OPLENV_EE_N 2
+#endif
+
 #ifndef PS2UI_OPLENV_FILL_N
 #define PS2UI_OPLENV_FILL_N 8
 #endif
@@ -1799,6 +1806,57 @@ int main(void)
                     gsKit_prim_sprite(gs, 0.0f, 0.0f, 640.0f, 448.0f, 0,
                                       GS_SETREG_RGBAQ(0x20, 0x10, 0x30,
                                                       0x40, 0x00));
+            }
+#endif
+#ifdef PS2UI_OPLENV_EE
+            /* THE EE ARM. The GS got a five-point sweep, a fitted line
+             * and r^2 = 0.999998 [F-039]. The EE has one number and
+             * nothing to extrapolate with, so half of F-038 -- the half
+             * P3d's gate now rests on -- is measured on one side and
+             * asserted on the other. This is the missing instrument.
+             *
+             * N EXTRA WHOLE-UI PASSES, AND NOTHING ELSE. ee(N) should
+             * be base + (N+1) x render, so a line through four or five
+             * points gives BOTH the per-render EE cost and, in the
+             * intercept, how much of the 2.41 ms is the driver rather
+             * than ps2ui_render. The fill sweep's intercept turned out
+             * to be its real measurement; the same shape applies here.
+             *
+             * NO GS STATE IS TOUCHED, and the first design did touch
+             * it. It proposed the extra passes inside a 1x1 scissor --
+             * which ps2ui_render discards four lines in (ps2ui.c:1044)
+             * -- and then an alpha test with ATST=NEVER, which the tree
+             * cannot pin down: gsKit_set_test takes a preset, gsCore.c
+             * is NOT vendored here, and GS_ATEST_ON is documented only
+             * as "Turns on Alpha Testing (Source)". Depending on that
+             * is the exact hazard ps2ui.c:999-1010 declines to take on,
+             * and an instrument built on unverified GS state cannot
+             * settle a question about whether an instrument is
+             * trustworthy.
+             *
+             * SO gs RISES TOO, AND THAT COSTS NOTHING. The two are
+             * read by separate clocks -- ee across the kick window, gs
+             * after gsKit_finish returns -- so the GS scaling does not
+             * enter the EE number at all. It is a free cross-check
+             * instead: gs should scale by the same (N+1) factor, and
+             * if it does not, the extra passes are not doing what this
+             * arm claims.
+             *
+             * THE RANGE IS BOUNDED BY ee, NOT BY gs. At 2.41 ms mean
+             * and 3.67 ms peak, five renders put the peak frame at
+             * about 18.3 ms -- past a field. So N=0..3 should hold m0
+             * and N=4 is predicted to miss on scroll frames. That
+             * prediction is written down here BEFORE the sitting, the
+             * way F-039's five points were, and `m` is what reports it.
+             *
+             * Before ps2ui_render, not after, for the reason the fill
+             * arm gives above: the last pass is the one the eye sees,
+             * so opaque panels land correctly and only translucent
+             * edges compound. */
+            {
+                int ei;
+                for (ei = 0; ei < PS2UI_OPLENV_EE_N; ei++)
+                    ps2ui_render(&ui, gs);
             }
 #endif
             ps2ui_render(&ui, gs);

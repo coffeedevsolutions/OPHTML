@@ -279,6 +279,41 @@ def main():
                             "FILL_N the screen is blank and the fill ELF "
                             "cannot be photographed")
 
+    # THE EE ARM, held to the same three rules, and to one it does not
+    # share with the fill arm.
+    #
+    # Absence is the failure here for the same reason: this is the
+    # instrument P3d's gate rests on [F-042], and a check that passes
+    # over a tree with no arm asserts the opposite of what it prints.
+    if "PS2UI_OPLENV_EE" not in block:
+        fail.append("the EE arm is gone; ee has one number and no model, "
+                    "so half of F-038 goes back to being asserted rather "
+                    "than measured")
+    else:
+        eloop = re.search(r"for\s*\(\s*\w+\s*=\s*0\s*;\s*\w+\s*<\s*"
+                          r"PS2UI_OPLENV_EE_N\s*;", block)
+        if not eloop:
+            fail.append("the EE arm no longer loops to PS2UI_OPLENV_EE_N, so "
+                        "it can run a fixed number of passes -- including "
+                        "zero, which is a sweep with one point")
+        elif not re.search(r"ps2ui_render\s*\(", block[eloop.end():]):
+            fail.append("the EE arm loops but renders nothing; ee would then "
+                        "refuse to move and a dead arm is indistinguishable "
+                        "from an EE that does not scale with work")
+        else:
+            # AND IT MUST NOT DRAW GS-ONLY WORK. The whole claim is that
+            # the extra passes are WHOLE RENDERS -- same command walk,
+            # same slot pen -- so the slope is the per-render EE cost. A
+            # loop that called gsKit_prim_sprite instead would move `ee`
+            # a little (the call is not free) and `gs` a lot, and the
+            # fitted slope would be neither quantity. That is the fill
+            # arm wearing this arm's name.
+            body = block[eloop.end():eloop.end() + 400]
+            if re.search(r"gsKit_prim_\w+\s*\(", body):
+                fail.append("the EE arm draws primitives directly instead of "
+                            "calling ps2ui_render, so its slope is not the "
+                            "per-render EE cost it is fitted as")
+
     # The boot phase has to be zeroed before the clock starts.
     #
     # Frame 0's period is the only one not bounded by two vsyncs, so
@@ -432,6 +467,7 @@ def main():
     print("ok - and a dropped field records when, not only how many")
     print("ok - and every figure computed actually reaches the readout")
     print("ok - and the fill arm still draws what it promises, under the UI")
+    print("ok - and the EE arm runs whole renders, not primitives")
     print("ok - one FINISH token per frame, on the oneshot queue")
     print("ok - and the boot phase is zeroed before the clock starts")
     return 0

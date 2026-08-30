@@ -108,6 +108,25 @@ syntax-check:
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL -DPS2UI_OPLENV_FILL_N=16 \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_FILL_N=16"
+# The EE arm and one of its sweep points, for the same reason: it is the
+# instrument P3d's gate now rests on [F-042], and an arm discovered
+# broken at a bench is an arm discovered with the console already on.
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE"
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE -DPS2UI_OPLENV_EE_N=4 \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_OPLENV_EE_N=4"
+# Both arms at once must NOT be a silent combination: fill multiplies GS
+# work and this multiplies both, so a build carrying both measures
+# neither cleanly. It still has to compile, because the flags are
+# independent and someone will try it.
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE -DPS2UI_OPLENV_FILL \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: both arms together (measures neither cleanly)"
 
 # Source-level, because the property it guards is an ORDERING and the
 # compiler has no opinion about it: the opl-env driver's frame timer
