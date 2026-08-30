@@ -427,6 +427,21 @@ jobs:
               UIB=../../examples/opl-env/build/ui.uib \
               EE_BIN=oplenv-fill$n.elf
           done
+          # S14's follow-up. The EE sweep put 0.145 ms of GS time
+          # once per frame, and in an EE build the only GS work that
+          # is not a ps2ui_render is one gsKit_clear -- a full-screen
+          # ABE-on sprite, which this same sitting prices at 0.2869 ms.
+          # It costs about half that, and 0.2869/0.1450 = 1.98 on a
+          # part whose opaque fill rate is twice its blended one.
+          # This ELF turns ABE off for that one draw. Predicted:
+          #   gs ~0.78 -> the clear was paying the blended rate
+          #   gs  0.92 -> it was not, and 0.145 is something else
+          # It cannot change a pixel either way: the blend is already
+          # the identity at vertex alpha 0x80.
+          make -C runtime/sample objclean
+          make -C runtime/sample OPLENV=1 CLEAR_OPAQUE=1 \
+            UIB=../../examples/opl-env/build/ui.uib \
+            EE_BIN=oplenv-clearopaque.elf
           # P3a3's EE sweep. gs got five points, a fitted line and
           # r^2 = 0.999998; ee has one number and nothing to
           # extrapolate with, which is the asymmetry P3d's gate is now
@@ -465,6 +480,7 @@ jobs:
           test -f runtime/sample/oplenv-fill2.elf
           test -f runtime/sample/oplenv-fill4.elf
           test -f runtime/sample/oplenv-fill16.elf
+          test -f runtime/sample/oplenv-clearopaque.elf
           test -f runtime/sample/oplenv-ee1.elf
           test -f runtime/sample/oplenv-ee2.elf
           test -f runtime/sample/oplenv-ee3.elf
@@ -508,6 +524,7 @@ jobs:
             runtime/sample/oplenv-fill2.elf
             runtime/sample/oplenv-fill4.elf
             runtime/sample/oplenv-fill16.elf
+            runtime/sample/oplenv-clearopaque.elf
             runtime/sample/oplenv-ee1.elf
             runtime/sample/oplenv-ee2.elf
             runtime/sample/oplenv-ee3.elf

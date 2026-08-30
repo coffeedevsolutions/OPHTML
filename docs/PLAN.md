@@ -521,18 +521,22 @@ Then, in an order P3a decides:
    vectors and the focused one is the seam that has been the gap in
    #70, #72 and #74.
 
-   **What that turned up is open and is not P3b-5's to settle.**
+   **What that turned up went to the bench and came back settled.**
    opl-env's entire secondary text layer sits below the 14px couch
    floor — row titles at 13, subtitles and counts at 11, detail fields
    at 12, **97 instances across six screens** — and none of it ever
    warned, because all of it is slot text. The floor was not being met;
-   it was being missed. `--min-font-size 11` in `build.sh` keeps the
-   rule live (anything smaller still fails) and records the admission
-   in the one place a reader will look, but it does **not** decide that
-   11px is readable from three metres. That is a question about the
-   density study this example exists to be — twelve rows of four
-   fields, which is what an OPL-class environment demands — and it
-   wants a photograph, not an argument.
+   it was being missed. `--min-font-size 11` keeps the rule live
+   (anything smaller still fails) and records the value where a reader
+   will look.
+
+   **S14 then read it off the screen** [F-046]. Every oplenv ELF
+   photographed that sitting renders the whole layer, and all of it was
+   legible on an SCPH-50000. So the 14px floor is wrong for secondary
+   text at this density, and 11 has a photograph behind it rather than
+   being the number that makes the build pass. Provisional on one point
+   only: the bench panel was within arm's reach, and "from a couch"
+   means two or three metres. One photograph from the sofa closes it.
 
    Worth noting where the blind spot showed: `opl.css`'s comment on
    `.dlg-btn` says *"`--strict` enforces a floor on FOCUSABLE text"*.
@@ -651,15 +655,39 @@ Then, in an order P3a decides:
    recoloured nothing on a television. It needs a console and two
    photographs, and it needs a blob with two rows — which is P3b-4.
 
-   | sitting | when | what |
-   |---|---|---|
-   | **A** | now, artifact hw #309 | the EE sweep (5 ELFs), F-040's falsifier (5 ELFs), the `-fill2` outlier |
-   | **B** | after P3b-4 | a theme switch on hardware — P3b's exit gate, and the one claim in the phase a host cannot check |
+   | sitting | when | what | outcome |
+   |---|---|---|---|
+   | **A** | done, S14 on hw #309 | the EE sweep, F-040's falsifier, the `-fill2` outlier | all three answered |
+   | **B** | needs a driver theme binding | a theme switch on hardware — P3b's exit gate, and the one claim in the phase a host cannot check | not yet buildable |
 
-   Sitting A decides whether P3d's gate can reopen, which is a
-   phase-level question P3b-4 and P3b-5 do not depend on. Serialising
-   them behind each other would hold a measurement for work that cannot
-   change it.
+   **Sitting A is done and it answered all three.**
+
+   - **The EE sweep** [F-044]. One `ps2ui_render` costs **2.44 ms of
+     EE and 0.78 ms of GS**, 3.22 ms in all, about 19% of a field. The
+     driver's own per-frame work is 0.08 ms. `m` confirmed it
+     independently — clean to N=3, then `m29@270` at N=4 where the
+     peak frame needs 18.08 ms of a 16.683 ms field, with 270 = 9 × 30
+     against a `SCROLL_EVERY` of 30, so the first miss is a scroll
+     frame. The *count* is undivided: no telemetry line carries a frame
+     index, so 29 cannot yet be told from near-margin jitter.
+   - **F-040 is overturned.** Its own falsifier fired: `m0` at every N
+     with the boot phase zeroed, where S13 read `m1@0` at N=4, 8 and
+     16. Frame 0 never spilled a field; the clock had started at an
+     arbitrary phase into one.
+   - **The `-fill2` outlier reproduces** [F-045]. Three windows across
+     two sittings at ≈0.075 against 0.21–0.23 everywhere else, so the
+     unlucky-window explanation is dead and it is now a real anomaly
+     owed a mechanism.
+
+   **F-039 was also reconfirmed independently** — refitting S14's five
+   points gives 0.9187 + 0.2869/layer against S13's 0.9205 + 0.2861,
+   agreement in the fourth digit, and a fill rate of 0.999 Gpix/s. The
+   instrument was sound at S13; the inference drawn beside it was not.
+
+   **Sitting B is blocked on a driver change, not on the blob.** P3b-4
+   made the blob two-row, but nothing in `runtime/sample/main.c` ever
+   calls `ps2ui_theme_set` — there is no button to press. A pad binding
+   plus a hw run is what unblocks it.
 
    **P3b-3 and P3b-5 swapped, and the old P3b-3 is gone.** The plan
    said role-keying meant "the IR carries each colour's declaration
@@ -744,11 +772,19 @@ Then, in an order P3a decides:
    argument for it is headroom for content nobody has drawn yet, and
    F-038 says what would have to be shown first.
 
-   **P3d's gate is now the only one that can reopen, and its evidence
-   is the half nobody has instrumented** [F-042]. The GS side of
-   F-038 is settled by arithmetic; the EE side has one number and no
-   model, so "the EE is at 14.4%" is measured on one content shape and
-   extrapolated to none.
+   **P3d's gate has its number now** [F-044]. The GS side of F-038 was
+   settled by arithmetic; the EE side had one number and no model, so
+   "the EE is at 14.4%" was measured on one content shape and
+   extrapolated to none. S14's sweep splits that number: **2.44 ms per
+   `ps2ui_render` and 0.08 ms of driver**, from five points at
+   r² = 0.99996. The EE cost of a screen is now a thing that can be
+   extrapolated rather than a single reading.
+
+   One caveat carried forward: this was measured on the blob at
+   `914e20c`, before P3b-6 took opl-env from 1,302 commands to 2,158.
+   The per-render figure will rise. The decomposition method is what
+   generalises — re-running the same five ELFs against a new blob
+   re-prices it in one sitting.
 
    **The missing instrument is the EE analogue of the fill arm**, and
    the obvious version of it does not work. Rendering the UI N extra

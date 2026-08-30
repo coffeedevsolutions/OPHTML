@@ -134,8 +134,10 @@ It read as a rule about *focusable* text for a while, and it never was.
 is that every other small string here is `data-slot` text, and the
 linter could not see a slot at all until P3b-5 — at which point 97 more
 instances at 11–13px appeared. `build.sh` now passes
-`--min-font-size 11` to record that deliberately rather than have it be
-missed; whether 11px is actually readable from three metres is open.
+`--min-font-size 11`, and S14 read that layer off an SCPH-50000 and
+found it legible [F-046] — so the value has a photograph behind it, not
+just a build that passes. Open on one point: the bench panel was within
+arm's reach, and "from a couch" means two or three metres.
 
 ## Screens
 

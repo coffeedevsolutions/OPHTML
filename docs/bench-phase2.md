@@ -359,6 +359,30 @@ the clock starts.
 frame 0's period is a true multiple of the field. Re-run the same five
 ELFs — if the misses vanish, the bracket was measuring boot phase.
 
+### S14 ran them, and the misses vanished [F-040:historical]
+
+| build | N | `gs` | `m` at S13 | `m` at S14 |
+|---|---:|---:|---|---|
+| `oplenv` | 0 | 0.92 | `m0` | `m0@0` |
+| `oplenv-fill2` | 2 | 1.49 | `m0` | `m0@0` |
+| `oplenv-fill4` | 4 | 2.07 | **`m1@0`** | `m0@0` |
+| `oplenv-fill` | 8 | 3.21 | **`m1@0`** | `m0@0` |
+| `oplenv-fill16` | 16 | 5.51 | **`m1@0`** | `m0@0` |
+
+`f16.68` on all five, no stretch. **Frame 0 never spilled a field.**
+The bracket measured C + φ, and with φ at zero frame 0 fits inside a
+field at every fill level up to sixteen full-screen layers. Of the two
+readings that fit the same five photographs, the second was right —
+C ≈ 3.5 ms with φ ≈ 12.3 — and it is the one the code supported all
+along. The 15.8 ms frame never existed, so **nothing above this line
+about frame 0's cost should be read as current.**
+
+Three passes at a mechanism that was not there, each reading as settled
+when written. What ended it was not a better explanation but an
+instrument change: `m` gained a frame index, and `@0` on every miss is
+what made "the clock's own first frame" reachable as a hypothesis. A
+finding that cannot say *when* cannot be argued out of a wrong *why*.
+
 **And the readout audited itself a fourth time.** Line 1 gained `^1.15`
 (+5 glyphs); line 2 gained `@0` and lost ` ms`, cancelling exactly. `p`
 went 590 → **595**. All five photos read p595 on five different
@@ -560,3 +584,149 @@ So it joins the other two rather than being a caveat:
 passes are real and the counter is per-render.** If `p` scales, stats
 are accumulating across passes and something else in the readout is
 suspect too.
+
+---
+
+# Bench S14 — the EE sweep, and F-040's falsifier
+
+SCPH-50000, HW #309, ten ELFs from `914e20c`. Every prediction in the
+section above was written before this sitting.
+
+## The EE sweep [F-044]
+
+| N | `ee` | `ee^` | `gs` | `gs^` | `p` | `m` |
+|---:|---:|---:|---:|---:|---:|---|
+| 0 | 2.54 | 3.79 | 0.92 | 1.15 | 595 | `m0@0` |
+| 1 | 4.96 | 6.22 | 1.70 | 2.00 | 595 | `m0@0` |
+| 2 | 7.39 | 8.65 | 2.48 | 2.85 | 595 | `m0@0` |
+| 3 | 9.82 | 11.08 | 3.25 | 3.70 | 596 | `m0@0` |
+| 4 | 12.32 | 13.58 | 4.03 | 4.50 | 600 | **`m29@270`** |
+
+```
+ee = 2.5220 + N x 2.4420    r^2 = 0.9999618
+gs = 0.9220 + N x 0.7770    r^2 = 0.9999950
+```
+
+**One `ps2ui_render` is 2.44 ms EE + 0.78 ms GS = 3.22 ms**, about 19%
+of a field. The driver's own per-frame work — scroll, `sprintf`,
+telemetry — is **0.08 ms**. That is the upper branch, decisively: the
+prediction put N=4 at 12.05 if the base is negligible and 8.05 if it is
+about 1 ms, and the reading is 12.32.
+
+### `gs` was right in shape and wrong in coefficient
+
+| N | predicted | measured | miss |
+|---:|---:|---:|---:|
+| 0 | 0.92 | 0.92 | +0.00 |
+| 1 | 1.84 | 1.70 | −0.14 |
+| 2 | 2.76 | 2.48 | −0.28 |
+| 3 | 3.68 | 3.25 | −0.43 |
+| 4 | 4.60 | 4.03 | **−0.57** |
+
+Perfectly linear, so the extra passes are real and the sitting counts.
+But the slope is 0.777, not the 0.9205 predicted on the grounds that
+identical draws must cost identically. **0.145 ms of GS time happens
+once per frame however many times the UI is drawn.**
+
+### There is exactly one candidate, and this sitting's own slope excludes it by 2×
+
+In an EE build the only GS work in a frame that is not a
+`ps2ui_render` is a single `gsKit_clear` — the fill sprites are
+`#ifdef`-ed out, and both telemetry lines go through `ps2ui_slot_set`
+and are drawn *inside* the render. That clear is a full-screen 640×448
+sprite with ABE on: gsKit does not save or restore `PrimAlphaEnable`
+around it, and `ps2ui_render` leaves it ON. F-039's slope prices
+exactly that draw.
+
+```
+clear 0.2869 + render 0.7770 = 1.064  expected
+gs(N=0)                      = 0.922  measured
+                               0.142  short
+```
+
+| | theoretical | measured | efficiency |
+|---|---:|---:|---:|
+| 640×448 @ 1.180 Gpix/s (blended) | 0.2430 | 0.2869 (fill slope) | 85% |
+| 640×448 @ 2.359 Gpix/s (opaque) | 0.1215 | 0.1450 (residual) | 84% |
+
+The residual lands on the *unblended* rate at the same efficiency the
+fill sweep shows blended, and 0.2869 / 0.1450 = **1.98** on a part
+whose opaque fill rate is twice its blended one. The intercept also
+carries any per-frame queue overhead, so 0.145 is an **upper** bound on
+the clear — which widens the shortfall rather than closing it.
+
+**No mechanism is asserted** — F-040 is what that costs. But "no
+mechanism proposed" and "the only candidate present is excluded by our
+own numbers" are different statements, and the second is a much sharper
+place to start. Two readings survive: the clear is not actually
+blending despite ABE being set, or `gs = base + (N+1) × R` is wrong in
+a way that parks 0.14 ms in the intercept.
+
+**`oplenv-clearopaque` is the discriminator**, and it is free. It turns
+ABE off for that one draw, which cannot change a pixel — `ALPHA` is
+`(Cs − Cd)·As>>7 + Cd` and the clear's vertex alpha is `0x80` = 128, so
+the blend is already the identity `Cv = Cs`. `gs` drops ~0.14 and the
+first reading is right; `gs` does not move and the second is.
+
+### `m` read the same question independently
+
+At N=4, mean `ee`+`gs` is 16.35 (inside a 16.683 ms field) and peak
+`ee^`+`gs^` is 18.08 (outside). The first miss is at frame
+**270 = 9 × 30** against a `SCROLL_EVERY` of 30, so it is a scroll
+frame — 1-in-30 by luck, which is evidence.
+
+**It does not reach "the mechanism is confirmed", and an earlier draft
+of this section said that.** The count is the second read and nothing
+divides it: 29 misses fits *every scroll frame from 270 on* and fits
+*a scattering of near-margin frames whose first happened to be a scroll
+frame* equally well. At 16.35 against 16.683 there is 0.33 ms of
+headroom, so jitter puts non-scroll frames over too. The two are told
+apart by whether 29 ≈ (frame − 270)/30 + 1, and neither telemetry line
+carries a frame index. One `frame` field answers this and F-045's `gs^`
+question together.
+
+### `p` did not scale
+
+595, 595, 595, 596, 600 — against ~2,975 if stats accumulated across
+passes. The counter is per-render, confirmed rather than assumed. (The
+variation is scroll position; the prediction of a flat 590 was taken
+from a different one.)
+
+## The fill sweep — F-040 dies, F-039 is reconfirmed
+
+| build | N | `ee` | `gs` | `gs^` | `gs^ − gs` | F-039 predicts |
+|---|---:|---:|---:|---:|---:|---:|
+| `oplenv` | 0 | 2.54 | 0.92 | 1.15 | 0.23 | 0.920 |
+| `oplenv-fill2` | 2 | 2.51 | 1.49 | 1.56 | **0.07** | 1.493 |
+| `oplenv-fill2` (2nd window) | 2 | 2.51 | 1.49 | 1.57 | **0.08** | 1.493 |
+| `oplenv-fill4` | 4 | 2.50 | 2.07 | 2.28 | 0.21 | 2.065 |
+| `oplenv-fill` | 8 | 2.51 | 3.21 | 3.43 | 0.22 | 3.209 |
+| `oplenv-fill16` | 16 | 2.51 | 5.51 | 5.72 | 0.21 | 5.498 |
+
+**F-039 reconfirmed independently.** Refitting these five gives
+`gs = 0.9187 + layers × 0.2869`, r² = 0.9999972, against S13's
+0.9205 + 0.2861 — agreement in the fourth digit on both coefficients,
+from a different sitting on a different revision. The slope is a fill
+rate of **0.999 Gpix/s**.
+
+That matters more than a repeat usually does: S13's *other* conclusion
+from the same five photographs was overturned here. The instrument was
+sound; an inference drawn beside it was not.
+
+**A cross-check nobody asked for.** `ee` reads 2.50–2.54 on every fill
+build, identical to the EE sweep's N=0. The fill layers cost **zero EE
+time**, which is the instrument validating its own separation: `ee` is
+read across the kick window and `gs` after `gsKit_finish` returns, and
+the fill arm moves one without touching the other.
+
+## The `-fill2` outlier reproduces [F-045]
+
+Three windows across two sittings, all ≈0.075, against 0.21–0.23 at
+every other N. **The unlucky-window explanation is dead** — that is
+what photographing N=2 twice bought. It is not monotonic and not fill
+scaling: N=0 and N=4 bracket it at 0.23 and 0.21.
+
+No mechanism is proposed. The instrument fix is the one that killed
+F-040: **`gs^` needs an `@` the way `m` got one.** Which frame holds the
+peak at N=2, and whether the peak-hold is catching the scroll frame at
+all, is one sitting away.

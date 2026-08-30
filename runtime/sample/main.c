@@ -1763,7 +1763,59 @@ int main(void)
                 }
             }
 
+            /* THE CLEAR'S OWN ARM. S14 measured gs(N) over the EE
+             * sweep as 0.9220 + N x 0.7770, so one ps2ui_render costs
+             * 0.777 ms and 0.145 ms of GS time happens ONCE PER FRAME
+             * however many times the UI is drawn [F-044].
+             *
+             * In an EE build this clear is the only GS work in a frame
+             * that is not a ps2ui_render: the fill sprites below are
+             * #ifdef-ed out and both telemetry lines go through
+             * ps2ui_slot_set, so they are drawn INSIDE the render. So
+             * "0.145 ms once per frame" is a statement about this one
+             * line -- and the same sitting prices a full-screen ABE-on
+             * sprite at 0.2869 ms (F-039's slope, and the sprite below
+             * is exactly that: 640x448, ABE on). The clear should cost
+             * the same. It costs about half.
+             *
+             * The residual is not merely unexplained; it is HALF of
+             * the one thing it could be, and 0.2869 / 0.1450 = 1.98 on
+             * a part whose opaque fill rate is twice its blended one.
+             * That ratio is why this is worth an ELF.
+             *
+             * WHY ABE IS EVEN A QUESTION HERE: gsKit does not save and
+             * restore PrimAlphaEnable around gsKit_clear -- the note
+             * above the probe found that the hard way -- and
+             * ps2ui_render leaves it ON (ps2ui.c). So this clear is a
+             * full-screen BLENDED sprite whether anyone meant it or not.
+             *
+             * PREDICTIONS, BEFORE THE SITTING:
+             *
+             *   gs drops ~0.14 to about 0.78  -> the clear was paying
+             *       the blended rate, the residual is explained, and
+             *       the drop is free: ~4% of the frame's GS budget,
+             *       about a fifth of a whole ps2ui_render.
+             *   gs does not move              -> the clear was already
+             *       unblended and 0.145 belongs to something else,
+             *       which is the more interesting result and the one
+             *       the model has to answer for.
+             *
+             * AND IT CANNOT CHANGE A PIXEL EITHER WAY. ps2ui.c sets
+             * ALPHA to (Cs - Cd) x As >> 7 + Cd, and this clear's
+             * vertex alpha is 0x80 = 128, so the blend is already the
+             * identity Cv = Cs. If the screen looks different, THAT is
+             * the finding and not the timing.
+             *
+             * The intercept also carries any per-frame queue overhead,
+             * so 0.145 is an UPPER bound on the clear -- which widens
+             * the shortfall rather than closing it. */
+#ifdef PS2UI_OPLENV_CLEAR_OPAQUE
+            gs->PrimAlphaEnable = GS_SETTING_OFF;
             gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
+            gs->PrimAlphaEnable = GS_SETTING_ON;
+#else
+            gsKit_clear(gs, GS_SETREG_RGBAQ(0x0A, 0x0E, 0x1A, 0x80, 0x00));
+#endif
 #ifdef PS2UI_OPLENV_FILL
             /* THE FALSIFICATION ARM FOR gs, AND IT IS NOT OPTIONAL.
              *
