@@ -1638,18 +1638,43 @@ int main(void)
 #endif
         u32 t_prev = 0;
         /* 160, not 64, and the extra 96 bytes are for the COMPILER
-         * rather than the console. gcc bounds a %lu at 20 digits, so
-         * the screen arm's eight conversions come to 156 bytes in the
-         * worst case it can see, and at 64 it raises
-         * -Wformat-overflow -- fatal under -Werror, and the reason the
-         * OPLENV arms could not join the host syntax check. The values
-         * are nowhere near that (`c` tops out at 694, `n` at a frame
+         * rather than the console: at 64 the screen arm raises
+         * -Wformat-overflow, fatal under -Werror, which is why the
+         * OPLENV arms could not join the host syntax check.
+         *
+         * MEASURED, NOT DERIVED, because the derivation was wrong
+         * three ways. gcc bounds these at TEN digits, not twenty --
+         * every argument is a u32 cast to unsigned long, so
+         * value-range propagation narrows it and the note says
+         * `directive argument in the range [0, 4294967295]`. Twenty is
+         * the bound for a genuinely unbounded 64-bit unsigned long,
+         * which none of these is. And a digit-count rule does not
+         * reach the answer anyway: gcc's reported worst case is not
+         * the size it enforces at -Wformat-overflow=1. Bisecting the
+         * real compile is what settles it. The minimum each arm
+         * accepts:
+         *
+         *     plain / FILL / EE / CLEAR_OPAQUE   63
+         *     THEME_CYCLE                        66
+         *     OPLENV_SCREEN                      83   <- the binding one
+         *
+         * so 160 carries 77 bytes of margin. The values on screen are
+         * nowhere near any of it (`c` tops out at 694, `n` at a frame
          * count) and the slot truncates at 48 characters regardless,
-         * so nothing on screen changes. Sizing to what the compiler
-         * can PROVE beats suppressing the warning, and it beats
-         * snprintf here: that only turns the same analysis into
-         * -Wformat-truncation, equally fatal, while costing the two
-         * fences that anchor on `sprintf(telem`. */
+         * so nothing photographed changes.
+         *
+         * THE USEFUL PART: 64 sat ONE BYTE above the plain arm's 63.
+         * The screen arm did not introduce fragility, it landed on a
+         * buffer that had been one conversion from the edge since it
+         * was written. Anything added to this readout should re-run
+         * the bisection rather than trust the headroom.
+         *
+         * snprintf is not the fix -- the same analysis comes back as
+         * -Wformat-truncation, equally fatal. It would also break the
+         * two fences anchored on `sprintf(telem`, though LOUDLY: the
+         * timing probe reports five rules failing at once, because
+         * `printed` comes back empty. A one-word regex change that
+         * announces itself, not a silent loss. */
         char telem[160];
         /* SLOT NAMES ARE SCREEN-SCOPED, and they have to be: slots are
          * per-screen (render_slots walks the current screen's slot

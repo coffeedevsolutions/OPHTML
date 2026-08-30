@@ -134,8 +134,17 @@ syntax-check:
 # red `elf` job: trading `up` off the readout left last_upload written
 # four times and read nowhere, which is -Wunused-but-set-variable and
 # fatal under -Werror. The rule the list needs is not "add the flags
-# you thought of" but "every arm hw.yml builds appears here", so a new
-# arm in the workflow is a new line here.
+# you thought of" but "every arm hw.yml builds appears here, or says
+# in writing why it cannot", so a new arm in the workflow is a new
+# line here.
+#
+# ONE ARM TAKES THE SECOND CLAUSE, and only one: USB. It is excluded
+# on purpose and the reason is at sample/Makefile's `ifdef USB` --
+# sifrpc.h and friends do not exist on the host, and this tree does
+# not shim them after the fileio.h episode. `elf` is its arbiter.
+# Everything else hw.yml builds is above or in SAMPLE_VARIANTS;
+# checked by diffing the workflows' make invocations against this
+# list, which is worth mechanising the day a third exception appears.
 	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_CLEAR_OPAQUE \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
