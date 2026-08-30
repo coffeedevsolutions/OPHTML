@@ -137,6 +137,24 @@ endif
 EE_CFLAGS += -DPS2UI_OPLENV_SCREEN='"$(OPLENV_SCREEN)"'
 endif
 
+# P3d's other missing number: what LAYERING costs. F-038 names "a
+# transition compositing two full screens" as the likeliest content to
+# push past half a field, and composition is the one Phase 1 contract
+# never timed. Renders library then confirm in one frame, static like
+# OPLENV_SCREEN. Paired with OPLENV for the same reason every arm is.
+ifdef COMPOSE
+ifndef OPLENV
+$(error COMPOSE=1 requires OPLENV=1: the arm layers two of opl-env's own screens, not a build of its own)
+endif
+ifdef OPLENV_SCREEN
+$(error COMPOSE=1 and OPLENV_SCREEN=... are exclusive: one renders a named screen, the other renders two, and a build claiming both would photograph whichever won the #if)
+endif
+ifdef THEME_CYCLE
+$(error COMPOSE=1 and THEME_CYCLE=1 are exclusive, for the reason OPLENV_SCREEN is: the arm measures at a FIXED tint row, and `t` does not fit the line it prints)
+endif
+EE_CFLAGS += -DPS2UI_OPLENV_COMPOSE
+endif
+
 # P3b's exit gate. The opl-env driver cycling its tint rows on a timer,
 # so a photograph shows a theme chosen at RUNTIME rather than baked in.
 # Paired with OPLENV for the same reason FILL, EE and CLEAR_OPAQUE are.

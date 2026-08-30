@@ -738,3 +738,96 @@ fits *every scroll frame from 270 on* and fits *near-margin jitter*
 equally well, and only `29 ≈ (n − 270)/30 + 1` separates them. Both
 land in the next sitting alongside `oplenv-clearopaque` and
 `oplenv-theme`.
+
+## P3d's two arms, both waiting on the next sitting
+
+**What to boot, and in what order.** Seven ELFs, seven photographs, all
+of the same two lines. The six sweep points are interchangeable — take
+them in whatever order the stick lists — but photograph
+`oplenv-scr-library` and `oplenv-scr-confirm` **before**
+`oplenv-compose`, because the composed frame is read as a difference
+against those two and a sitting that ran out of time before them would
+leave the compose reading uninterpretable:
+
+```
+oplenv-scr-confirm   oplenv-scr-detail    oplenv-scr-landing
+oplenv-scr-recent    oplenv-scr-filters   oplenv-scr-library
+oplenv-compose       <- last, needs the two above it
+```
+
+Each screen build settles after a second or two and then holds still;
+there is no scrolling on any of them. Wait for `ee` to stop moving,
+then shoot.
+
+
+Neither is measured yet. Both are written down first, the way F-039's
+five points and F-044's two branches were, so the sitting scores a
+prediction rather than producing one.
+
+### The content sweep — `oplenv-scr-*`, six ELFs
+
+Six screens the blob already carries, spanning **110 to 694 commands**,
+a 6.3× range. `ee = base + k_cmd × cmds + k_glyph × glyphs`, and only
+`k_cmd` bounds what a precompiled chain can buy — glyph quads are the
+dynamic tail the chain cannot contain, so folding them into one slope
+would bias it the way that wrongly opens the gate.
+
+Read `c` and `g` off each photograph rather than off this table; they
+are on line 2 for exactly that reason. `p` is **not** the x-axis:
+`p`/`cmds` runs 0.94 to 1.90 across these six and the orderings differ.
+
+| screen | commands | slot glyphs | drawn | `p` |
+|---|---:|---:|---:|---:|
+| confirm | 110 | 145 | 64 | 209 |
+| detail | 196 | 187 | 99 | 286 |
+| landing | 331 | 233 | 206 | 439 |
+| recent | 360 | 344 | 189 | 533 |
+| filters | 467 | 188 | 253 | 441 |
+| library | 694 | 376 | 366 | 742 |
+
+**Six points are enough** — not a hope, arithmetic. r = 0.751 gives a
+variance inflation of 2.29, the commands spread over √Σ(c−c̄)² = 462,
+and σ is **0.0276 ms**, the residual standard error of S14's own `ee`
+fit computed from its five residuals. That puts `k_cmd` at ±4.9% (95%,
+3 dof), ±9.8% at twice the noise. **Falsified** by a fitted `k_cmd`
+whose standard error exceeds a tenth of it.
+
+### The composition arm — `oplenv-compose`, one ELF
+
+Library then confirm in one frame: **804 commands**, above every sweep
+point. F-038 names *"a transition compositing two full screens"* as the
+likeliest content to push past half a field, and composition is the one
+Phase 1 contract nobody has timed — §4.4 counted its primitives and
+stopped.
+
+Read against the sweep, not alone. Both screens are sweep points, so
+three photographs settle it:
+
+```
+ee(library+confirm) − ee(library)  ==  ee(confirm) − base    per RENDER
+                                   <   ee(confirm) − base    per FRAME
+```
+
+**Predicted: additivity holds.** `ps2ui_render` keeps nothing between
+calls that a second call could reuse — it re-applies the scissor,
+re-walks from `cmd_first`, and rebinds every texture. **Falsified** by
+a composed frame coming in materially under the sum, which would mean
+something *is* reused and F-044's per-render model charges for it
+twice.
+
+**Check the glyph identity first, before trusting the time.** The
+composed frame must read `g` equal to `g(library) + g(confirm)` from
+the two sweep photographs. It is not a formality: the first version of
+this arm blanked library's readout so the scrim would not show two of
+them, which left the composed frame drawing 466 glyphs against the
+sweep points' 521 — and short by `k_glyph × 55` in exactly the
+direction that reads as "something is reused". The driver now mirrors
+the same readout into both pairs, so the lower line under the scrim
+shows the same numbers as the dialog's. If the two lines ever disagree,
+or if `g` does not add, stop and say so rather than fitting it.
+
+Line 2 on this arm prints the frame's totals, not `ui.stats` —
+`ps2ui_render` zeroes its stats per pass, so the struct would report
+confirm's 110 as if it were the frame's 804. A plausible wrong number
+on a photograph is the failure mode this file exists to prevent, so
+`check-timing-probe.py` asserts the readout reads the accumulators.

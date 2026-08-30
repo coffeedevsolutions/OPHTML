@@ -545,6 +545,41 @@ def main():
     # explaining the fields, and prose naming them would satisfy a rule
     # about the format spending conversions on them.
     formats = re.sub(r"/\*.*?\*/", "", formats, flags=re.S)
+    # AND THE COMPOSE ARM MUST NOT READ ui.stats FOR THEM.
+    #
+    # ps2ui_render memsets ctx->stats on entry, so after two renders
+    # ui.stats holds the SECOND render's counts. On the compose arm
+    # that is confirm's 110 commands standing in for the 804 the frame
+    # walked -- a number that is plausible, wrong, and photographed.
+    # The arm sums across both renders into locals instead, so the
+    # readout's three content fields must come from those and not from
+    # the struct. Checked on the SOURCE rather than the values because
+    # nothing at runtime can tell 110 from a real screen of 110.
+    if "PS2UI_OPLENV_COMPOSE" in text:
+        arm = re.search(r"#if defined\(PS2UI_OPLENV_COMPOSE\)(.*?)#elif",
+                        formats, re.S)
+        if not arm:
+            fail.append("the readout has no compose branch, so the arm "
+                        "prints one render's counts for a two-render frame")
+        elif re.search(r"\bui\.stats\.", arm.group(1)):
+            fail.append("the compose arm's readout reads ui.stats, which "
+                        "ps2ui_render zeroes per pass -- it would print the "
+                        "second screen's counts as if they were the frame's")
+        # AND THE ACCUMULATOR HAS TO ACCUMULATE.
+        #
+        # The rule above asserts where the number comes FROM and never
+        # that it sums, so `fr_cmds = ui.stats.cmds` on the second
+        # render -- `=` for `+=` -- satisfies it completely while
+        # putting confirm's 110 on a frame that walked 804. That is the
+        # exact number the rule's own comment exists to keep off a
+        # photograph, reachable by a one-character edit. Found by
+        # sabotage after the first version passed it.
+        for acc in ("fr_cmds", "fr_glyphs", "fr_unfilled"):
+            if not re.search(r"\b%s\s*\+=" % acc, block):
+                fail.append("%s is assigned but never accumulated, so the "
+                            "compose readout reports the LAST render's "
+                            "count as the frame's" % acc)
+
     if not re.search(r"c%lu g%lu u%lu", formats):
         fail.append("the screen arm's format no longer spends a conversion "
                     "on each of c, g and u, so its arguments misalign and "

@@ -1042,9 +1042,17 @@ static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
  * is why the readout prints tex_unfilled -- the correction is small
  * and it lands on two of the six points, so it is measured rather than
  * assumed away. */
-#ifdef PS2UI_OPLENV_SCREEN
+#if defined(PS2UI_OPLENV_SCREEN)
 #define OPLENV_IS_LIBRARY 0
 #define OPLENV_SCREEN_NAME PS2UI_OPLENV_SCREEN
+#elif defined(PS2UI_OPLENV_COMPOSE)
+/* The compose arm is static for the same reason the screen arm is --
+ * no window, so no scroll and no uploads -- and its readout goes on
+ * the TOP screen, because ps2ui_render does not clear and confirm is
+ * drawn second. Writing to library's pair would put the numbers under
+ * a translucent scrim with the dialog over them. */
+#define OPLENV_IS_LIBRARY 0
+#define OPLENV_SCREEN_NAME "confirm"
 #else
 #define OPLENV_IS_LIBRARY 1
 #define OPLENV_SCREEN_NAME "library"
@@ -1687,6 +1695,17 @@ int main(void)
          * keeps them apart, and the baker refuses a blob that repeats
          * a slot name across screens. */
         char nm_telem[48], nm_telem2[48];
+#ifdef PS2UI_OPLENV_COMPOSE
+        /* PER-FRAME, NOT PER-RENDER, and the difference is the whole
+         * point of this arm. ps2ui_render memsets ctx->stats on entry
+         * (ps2ui.c:973), so after two renders ui.stats holds the
+         * SECOND one's counts only -- confirm's 110 commands, not the
+         * 804 the frame actually walked. Reading ui.stats here would
+         * put a plausible wrong number on the photograph, which is the
+         * failure this project keeps finding. Summed across both
+         * renders instead. */
+        unsigned long fr_cmds, fr_glyphs, fr_unfilled;
+#endif
 
         sprintf(nm_telem, "%s-telem", OPLENV_SCREEN_NAME);
         sprintf(nm_telem2, "%s-telem2", OPLENV_SCREEN_NAME);
@@ -1758,7 +1777,7 @@ int main(void)
             oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
             last_upload = oplenv_bind_window(&ui, gs, &w);
         }
-#ifdef PS2UI_OPLENV_SCREEN
+#if defined(PS2UI_OPLENV_SCREEN) || defined(PS2UI_OPLENV_COMPOSE)
         /* AND THE CONSTANT DOES NOT COVER last_upload, which is what
          * the comment above got wrong. It reasons about a variable
          * going UNUSED under #ifndef, and the constant does fix that --
@@ -1776,8 +1795,11 @@ int main(void)
          * that would show `up` non-zero on a screen build, so the arm's
          * own claim -- no window, so no upload, so nothing to report --
          * stays inspectable rather than compiled out because it is
-         * asserted to be true. Scoped to this arm, so a build that
-         * SHOULD print `up` and stops doing it still fails here. */
+         * asserted to be true. Scoped to the arms that drop `up`, so
+         * a build that SHOULD print it and stops still fails here --
+         * and adding COMPOSE to that list is not a guess: the host
+         * syntax check this same commit's predecessor added reported
+         * the identical error the moment the arm existed. */
         (void)last_upload;
 #endif
 
@@ -2157,7 +2179,44 @@ int main(void)
                     ps2ui_render(&ui, gs);
             }
 #endif
+#ifdef PS2UI_OPLENV_COMPOSE
+            /* THE COMPOSITION ARM. F-038's bar for reopening either
+             * gate names "a transition compositing two full screens"
+             * as the most likely content to push past half a field,
+             * and composition is the one Phase 1 contract nobody has
+             * ever TIMED -- 4.4 measured it in primitives (375 + 255 =
+             * 630) and stopped there.
+             *
+             * Two screen_set + render pairs in one frame, which is the
+             * documented overlay idiom exactly: ps2ui_render does not
+             * clear, so library lands and confirm composites over it.
+             * The blob already carries both, so this arm authors
+             * nothing, the same argument that made the content sweep
+             * the cheap first slice.
+             *
+             * WHAT IT DECIDES. ee(library+confirm) should equal
+             * ee(library) + ee(confirm) - base if the per-render fixed
+             * cost is paid per RENDER, and should fall short of that
+             * by roughly one fixed cost if it is paid per FRAME. Both
+             * subtrahends come from the same sitting -- they are two
+             * of the six screen builds -- so this is a self-contained
+             * consistency check needing no prior calibration. And it
+             * is exactly the decomposition P3d turns on: a chain that
+             * removes per-render setup pays twice on a layered screen
+             * and once on a flat one. */
+            ps2ui_screen_set(&ui, "library");
             ps2ui_render(&ui, gs);
+            fr_cmds = ui.stats.cmds;
+            fr_glyphs = ui.stats.slot_glyphs;
+            fr_unfilled = ui.stats.tex_unfilled;
+            ps2ui_screen_set(&ui, "confirm");
+#endif
+            ps2ui_render(&ui, gs);
+#ifdef PS2UI_OPLENV_COMPOSE
+            fr_cmds += ui.stats.cmds;
+            fr_glyphs += ui.stats.slot_glyphs;
+            fr_unfilled += ui.stats.tex_unfilled;
+#endif
 
 
             /* Rolling mean over a second, so the numbers are steady
@@ -2196,6 +2255,38 @@ int main(void)
                         (unsigned long)((gs_pk_us % 1000) / 10),
                         (unsigned long)gs_pk_at_us);
                 ps2ui_slot_set(&ui, nm_telem, telem);
+#ifdef PS2UI_OPLENV_COMPOSE
+                /* MIRRORED INTO LIBRARY'S PAIR, NOT BLANKED, AND THE
+                 * DIFFERENCE IS 55 GLYPHS OF BIAS.
+                 *
+                 * The first version set these to "" so the scrim would
+                 * not show a second readout saying "waiting" forever.
+                 * But oplenv-scr-library -- the subtrahend this arm is
+                 * read against -- DOES draw its pair, so a blanked
+                 * composed frame carries 466 glyphs where the two sweep
+                 * points sum to 521. Under the sweep's own model that
+                 * makes ee(composed) - ee(library) short by k_g x 55,
+                 * always, and always in the direction of "under" --
+                 * which is verbatim this arm's falsification criterion
+                 * and would argue for the conclusion F-038 nominated as
+                 * most likely to matter. An artifact cannot be allowed
+                 * to produce the finding.
+                 *
+                 * Writing the same string to both pairs restores the
+                 * identity exactly rather than correcting for it in
+                 * analysis afterwards: same characters, so the same
+                 * glyph count, and the slot clips rather than
+                 * truncating so the narrower dialog box does not drop
+                 * any. It also answers the original objection better
+                 * than blanking did -- the lower line now shows the
+                 * same live numbers instead of a stale placeholder.
+                 *
+                 * AND IT IS CHECKABLE ON THE PHOTOGRAPHS: with this,
+                 * g(composed) must equal g(library) + g(confirm), all
+                 * three read off line 2. If it does not, an asymmetry
+                 * like the one this replaced is back. */
+                ps2ui_slot_set(&ui, "library-telem", telem);
+#endif
                 /* WHAT EACH BUILD PRINTS, AND WHY THE SCREEN ARM
                  * PRINTS SOMETHING ELSE.
                  *
@@ -2225,7 +2316,7 @@ int main(void)
                  * exactly as it was, so S14's numbers stay comparable
                  * with the next run of it. */
                 sprintf(telem,
-#if defined(PS2UI_OPLENV_SCREEN)
+#if defined(PS2UI_OPLENV_SCREEN) || defined(PS2UI_OPLENV_COMPOSE)
                         "f%lu.%02lu c%lu g%lu u%lu m%lu@%lu n%lu",
 #elif defined(PS2UI_OPLENV_THEME_CYCLE)
                         /* t only in the build that cycles. The slot
@@ -2240,7 +2331,11 @@ int main(void)
 #endif
                         (unsigned long)(fld_us / 1000),
                         (unsigned long)((fld_us % 1000) / 10),
-#if defined(PS2UI_OPLENV_SCREEN)
+#if defined(PS2UI_OPLENV_COMPOSE)
+                        /* The frame's totals, not ui.stats -- see the
+                         * accumulator's declaration. */
+                        fr_cmds, fr_glyphs, fr_unfilled,
+#elif defined(PS2UI_OPLENV_SCREEN)
                         (unsigned long)ui.stats.cmds,
                         (unsigned long)ui.stats.slot_glyphs,
                         (unsigned long)ui.stats.tex_unfilled,
@@ -2249,11 +2344,15 @@ int main(void)
 #endif
                         (unsigned long)missed, (unsigned long)miss_at,
                         (unsigned long)frame
-#if !defined(PS2UI_OPLENV_SCREEN) && defined(PS2UI_OPLENV_THEME_CYCLE)
+#if !defined(PS2UI_OPLENV_SCREEN) && !defined(PS2UI_OPLENV_COMPOSE) \
+    && defined(PS2UI_OPLENV_THEME_CYCLE)
                         , cur_theme
 #endif
                         );
                 ps2ui_slot_set(&ui, nm_telem2, telem);
+#ifdef PS2UI_OPLENV_COMPOSE
+                ps2ui_slot_set(&ui, "library-telem2", telem);
+#endif
             }
 
             gsKit_queue_exec(gs);
