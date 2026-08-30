@@ -379,3 +379,55 @@ these readings. One `gsKit_finish()` away; it is P3a.
 one scroll step at a time. A grid view, a larger window, or a cover
 size other than 28x28 CT32 are all unmeasured, and F-032's per-row
 reservation model is the thing most likely to move under them.
+
+---
+
+## What the sweep lets you answer without a console
+
+F-039 did not just prove the GS instrument works. It produced a
+**calibrated model**, and a calibrated model answers questions that
+would otherwise cost a sitting:
+
+```
+gs(layers) = 0.9205 ms  +  layers x 0.2861 ms
+             ^ the UI's own cost      ^ one full-screen 640x448 blended quad
+                                        (286,720 px at 1.002 Gpix/s)
+```
+
+Against the five measured points, to the print resolution:
+
+| layers | model | measured |
+|---|---|---|
+| 0 | 0.92 | 0.92 |
+| 2 | 1.49 | 1.49 |
+| 4 | 2.07 | 2.07 |
+| 8 | 3.21 | 3.21 |
+| 16 | 5.50 | 5.50 |
+
+**So half a field on the GS costs 25.9 full-screen blended layers, and
+a whole field costs 55.1.** Every content shape F-038 names as a threat:
+
+| shape | layers | gs | share of a field |
+|---|---|---|---|
+| a background image | 1 | 1.21 ms | 7.2% |
+| a transition compositing two full screens | 2 | 1.49 ms | 8.9% |
+| both at once | 3 | 1.78 ms | 10.7% |
+| 9 covers 28x28 -> 128x128 | — | +0.14 ms | +0.8% |
+
+**F-038's note guessed the wrong processor** [F-042]. It expected the
+compositing transition to be "the one most likely to move gs, since
+fill scales with area". It costs 0.57 ms. Nothing an OPL-class UI can
+plausibly draw gets the GS near its limit, and that half of F-038's
+falsifier is now discharged by arithmetic rather than waiting on a
+bench.
+
+**The EE half is the open one, and it has no model.** `gs` has five
+points, a fitted line and r² = 0.999998. `ee` has one number, 2.4 ms,
+and nothing to extrapolate with — so the surviving half of F-038
+cannot be answered the same way. The missing instrument is the EE
+analogue of the fill arm: **render the UI N extra times inside a 1x1
+scissor.** The EE walks every command and composes every slot; the GS
+fills nothing. `ee` scales with N, `gs` stays flat — and if `gs` does
+NOT stay flat, the arm says so, which is its own falsification. That
+is the next thing worth building, and it needs one sitting rather than
+a guess.

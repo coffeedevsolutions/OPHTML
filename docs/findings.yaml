@@ -698,15 +698,76 @@ findings:
     about a CONTENT SHAPE rather than about the console. It is true of
     nine rows of text with 28x28 covers and one scroll step at a time.
     A grid view, larger art, a background image, or a transition that
-    composites two full screens are all outside what has been measured,
-    and the second of those is the one most likely to move gs, since
-    fill scales with area and this screen is mostly flat panels.
+    composites two full screens are all outside what has been measured.
+
+    HALF THE FALSIFIER IS NOW DISCHARGED, AND THIS NOTE NAMED THE WRONG
+    PROCESSOR [F-042]. It expected a compositing transition to be the
+    shape most likely to move gs, "since fill scales with area and this
+    screen is mostly flat panels". F-039's calibrated model prices that
+    at 0.57 ms. Reaching half a field on the GS takes 25.9 full-screen
+    blended layers; every shape named above costs under 11% of a field.
+    No OPL-class content gets the GS near its limit, and that was
+    settled by arithmetic rather than by another sitting.
+
+    SO THE SURVIVING HALF IS THE EE, AND THE EE HAS NO MODEL. gs has
+    five points, a fitted line and r^2 = 0.999998. ee has one number
+    and nothing to extrapolate with, which is why this finding cannot
+    be closed the way its GS half was. The missing instrument is the EE
+    analogue of the fill arm -- render the UI N extra times inside a
+    1x1 scissor, so the EE walks every command while the GS fills
+    nothing. Until that exists, "neither processor is the constraint"
+    is measured on one side and asserted on the other.
 
     What it does settle is that no Phase 3 item may be justified by
     frame rate without first showing content that threatens one of
     these two numbers. That is a higher bar than the phase opened with
     and it is the point of having measured.
   refs: ["#67"]
+
+- id: F-042
+  phase: 3
+  status: confirmed
+  claim: "Half a field of GS time costs 25.9 full-screen blended layers, so no OPL-class content shape can reach it"
+  evidence:
+    instrument: docs/bench-phase2.md
+    measurement: >-
+      Derived from F-039's fit, not from a new sitting:
+
+        gs(layers) = 0.9205 ms + layers x 0.2861 ms
+
+      where 0.2861 is 640x448 = 286,720 px at the fitted 1.002 Gpix/s.
+      The model reproduces all five measured sweep points to the print
+      resolution (0.92 / 1.49 / 2.07 / 3.21 / 5.50).
+
+      Half a field is 8.34 ms, so (8.34 - 0.9205) / 0.2861 = 25.9
+      full-screen blended layers; a whole field is 55.1. Against the
+      shapes F-038 names as threats: a background image 1.21 ms
+      (7.2%), a transition compositing two full screens 1.49 ms
+      (8.9%), both at once 1.78 ms (10.7%), and growing nine covers
+      from 28x28 to 128x128 adds 0.14 ms.
+  falsifier: >-
+    A bench reading whose gs exceeds this model's prediction for the
+    content drawn by more than the print resolution -- or a UI inside
+    the Phase 2 envelope that genuinely carries more than about 26
+    layers of full-screen blended overdraw
+  depends_on: [F-037, F-039]
+  note: >-
+    A PREDICTION FROM A CONFIRMED MODEL, NOT A NEW MEASUREMENT, and
+    confirmed on that basis because the model was validated the same
+    way it is being used here: F-039's five points were predicted
+    before the sitting and came back correct to one print unit on every
+    one. Using it to price a content shape is the same operation.
+
+    WHAT IT IS NOT is a claim about the EE, and F-038's remaining half
+    is exactly that. It is also not a claim that the GS cannot be
+    saturated -- 26 layers will do it -- only that nothing this
+    toolchain can currently author comes close.
+
+    The value is procedural as much as numerical: P3c was deferred on
+    a fill argument and this says the fill argument cannot be revived
+    by any content shape, so P3c has to be argued on the 392 KiB
+    footprint or not at all.
+  refs: ["#67", "#69"]
 
 - id: F-039
   phase: 3

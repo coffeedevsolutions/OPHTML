@@ -12,7 +12,7 @@ prose rots like any other document.
 | status | count |
 |---|---:|
 | provisional | 2 |
-| confirmed | 21 |
+| confirmed | 22 |
 | overturned | 2 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -217,7 +217,7 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 **Falsifier:** A realistic environment whose arena exceeds the old fixed ceiling
 
-**Rests on this:** F-032, F-034, F-036, F-037, F-038, F-039, F-040
+**Rests on this:** F-032, F-034, F-036, F-037, F-038, F-039, F-040, F-042
 
 THE NUMBER IN THIS CLAIM WAS WRONG FOR TWO PULL REQUESTS AND A PHASE LOCK. It said 6,951 and 125 slots; the blob says 7,003 and 126. #63 added the telem slot to library.html, the library screen went 43 to 44, and every count-derived figure moved with it.
 The finding itself never wavered -- the falsifier is an arena past the old 35,648-byte ceiling and 7,003 is not remotely close, so this was a right conclusion carrying a wrong number, which is the harder kind to notice. Nothing did notice, because `instrument` here names a hand-written README and nothing read the blob header back into it. A figure nobody re-derives is true on the day it is written and unfalsifiable afterwards.
@@ -254,7 +254,7 @@ TWO NUMBERS ABOVE MEAN LESS THAN THEY LOOK, and PR #64's review was right to say
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …)
 
-**Rests on this:** F-034, F-036, F-037, F-038, F-039, F-040
+**Rests on this:** F-034, F-036, F-037, F-038, F-039, F-040, F-042
 
 Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload. The number exists so that is decided by a measurement rather than guessed, and it now is one.
 
@@ -271,7 +271,7 @@ The 0.05 ms gap was first written down here as "0.28% error". It was not error. 
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
 
-**Rests on this:** F-036, F-037, F-038, F-039, F-040
+**Rests on this:** F-036, F-037, F-038, F-039, F-040, F-042
 
 WHAT THIS MEASUREMENT DID NOT MEASURE: headroom. The HW #260 build read the clock after gsKit_sync_flip, which blocks until vsync, so 16.73 ms was dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it said nothing about how much of the field was left. A number that stable, that plausible and that mislabelled is the same shape of defect as the rest of this project, arrived at with a stopwatch instead of a renderer.
 THE INSTRUMENT HAS SINCE CHANGED. The driver now reports `f`, the wall-clock frame period, which is the quantity this finding claims; `ee`, the EE's own work, stopping at the DMA kick before the flip; and `m`, a count of dropped fields cumulative since boot, because a falsifier reading "any dropped field" cannot be served by a rolling mean. So this finding stays falsifiable against the shipping build. The ordering is asserted by tools/check-timing-probe.py, which fails on all eight ways of reinstating the old shape -- including one it did not catch until #64's review found it, where the correct capture is kept and a second one added after the flip.
@@ -289,7 +289,7 @@ A self-consistency check fell out of the prim count: the first photograph reads 
 
 **Falsifier:** A known wall-clock interval that the driver reports at half or double its true length. Read `f` for this, not `ee`: since the headroom change `ee` is the EE's work and is not vsync-locked, so it is not a clock against a known interval.
 
-**Rests on this:** F-036, F-037, F-038, F-039, F-040
+**Rests on this:** F-036, F-037, F-038, F-039, F-040, F-042
 
 Retires the bench marker that had sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
 THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch the claim but is worth recording. 8.34 was the true half-period, not what that build would have printed; #64's review said 8.37, which is the half-period through the truncated divisor before the integer print truncates again. The value is 8.36. The finding survives because a factor of two does not care, but a counterfactual nobody evaluated is not evidence, and this one sat in a confirmed finding through a phase.
@@ -306,7 +306,7 @@ THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch
 
 **Depends on:** [F-034](#f-034) (The OPL-class environment runs at full field rat…), [F-035](#f-035) (COP0 Count ticks once per CPU cycle at 294.912 M…)
 
-**Rests on this:** F-037, F-038, F-039, F-040
+**Rests on this:** F-037, F-038, F-039, F-040, F-042
 
 WHAT THIS DOES NOT MEASURE: the GS's SHARE of the field. Not GS time outright -- see F-034's note, which corrects the claim that gsKit_queue_exec returns while the GS draws. It does not: it blocks on the previous frame's FINISH first, so a GS over budget would surface inside `ee` and trip `m`. Between them, `ee << f` and `m0` bound GS time below a field. What they cannot do is divide that field: 10% GS and 90% GS look identical from here. Reading the clock after gsKit_finish() rather than after vsync is P3a.
 THIS IS A DUTY-CYCLE MEAN, and the frame that has to fit is not the one printed. Two frames in sixty do the scroll work -- 36 slot_set plus 9 tex_set in oplenv_bind_window -- and a 60-frame mean smears them. Solving mean(11-19) - mean(1-9) = d + u/30 with d from the prim delta puts the scroll frame at roughly 2.4 to 3.9 ms rather than 2.21. The headline survives with room to spare, because m0 already proves none of those frames missed a field, but "an eighth of a field" is the average eighth. A peak-hold beside the mean would make this readable directly, which is the same upgrade `m` was for F-034; it ships with P3a rather than costing a sitting of its own.
@@ -329,7 +329,7 @@ The 2.12 reading is CONFOUNDED and must not be used for a marginal cost: it is t
 
 **Depends on:** [F-036](#f-036) (The OPL-class environment uses about an eighth o…)
 
-**Rests on this:** F-038, F-039, F-040
+**Rests on this:** F-038, F-039, F-040, F-042
 
 THE ARM IS WHY THIS IS A MEASUREMENT, and it checks against the PART rather than against itself. gs read 0.92 on the plain build and 3.21 on oplenv-fill.elf, so the CSR FINISH bit is not latched. It moved 2.29 ms for 2,293,760 blended pixels: 1.002 Gpix/s. The GS is 16 pixel pipelines at 147.456 MHz -- 2.359 Gpix/s unblended, halved to 1.180 when a blend forces a framebuffer read-modify-write -- so the arm landed at 84.9% of the part's blended peak, and 85.7%/84.2% across the reading's 2.27-2.31 ms spread. 85% of theoretical on real silicon with page breaks is where it belongs. A latched instrument reads 0.00 forever; a broken one does not land within 15% of a spec sheet.
 AND IT MOVED NOTHING ELSE. ee was 2.41 on both builds at p599 and 2.37 on both at p590 -- +0.00 twice. One prim per sprite, so the EE has nothing extra to build. A `gs` that rose while `ee` rose with it would have been measuring the wrong thing.
@@ -354,7 +354,9 @@ THE FILL BUILD REPORTED m1 AND THE CAUSE WAS UNKNOWN. The frame period is vsync-
 
 **Depends on:** [F-036](#f-036) (The OPL-class environment uses about an eighth o…), [F-037](#f-037) (The GS spends about a twentieth of a field on an…)
 
-PROVISIONAL, and the phase stays open, because this is a claim about a CONTENT SHAPE rather than about the console. It is true of nine rows of text with 28x28 covers and one scroll step at a time. A grid view, larger art, a background image, or a transition that composites two full screens are all outside what has been measured, and the second of those is the one most likely to move gs, since fill scales with area and this screen is mostly flat panels.
+PROVISIONAL, and the phase stays open, because this is a claim about a CONTENT SHAPE rather than about the console. It is true of nine rows of text with 28x28 covers and one scroll step at a time. A grid view, larger art, a background image, or a transition that composites two full screens are all outside what has been measured.
+HALF THE FALSIFIER IS NOW DISCHARGED, AND THIS NOTE NAMED THE WRONG PROCESSOR [F-042]. It expected a compositing transition to be the shape most likely to move gs, "since fill scales with area and this screen is mostly flat panels". F-039's calibrated model prices that at 0.57 ms. Reaching half a field on the GS takes 25.9 full-screen blended layers; every shape named above costs under 11% of a field. No OPL-class content gets the GS near its limit, and that was settled by arithmetic rather than by another sitting.
+SO THE SURVIVING HALF IS THE EE, AND THE EE HAS NO MODEL. gs has five points, a fitted line and r^2 = 0.999998. ee has one number and nothing to extrapolate with, which is why this finding cannot be closed the way its GS half was. The missing instrument is the EE analogue of the fill arm -- render the UI N extra times inside a 1x1 scissor, so the EE walks every command while the GS fills nothing. Until that exists, "neither processor is the constraint" is measured on one side and asserted on the other.
 What it does settle is that no Phase 3 item may be justified by frame rate without first showing content that threatens one of these two numbers. That is a higher bar than the phase opened with and it is the point of having measured.
 
 *#67*
@@ -377,7 +379,7 @@ Worst error one print unit, 0.01 ms, on every point. Least squares through all f
 
 **Depends on:** [F-037](#f-037) (The GS spends about a twentieth of a field on an…)
 
-**Rests on this:** F-040
+**Rests on this:** F-040, F-042
 
 ONE STEP PROVES NOT-LATCHED; A LINE PROVES MEASURING. That was the argument for building the sweep and it is exactly what came back. A mis-anchored clock can produce a non-zero constant. It cannot produce five points on a straight line whose slope is the part's fill rate and whose intercept is the quantity being measured.
 THE INTERCEPT IS THE MEASUREMENT. 0.9205 ms is the UI's own GS cost extrapolated to zero fill, derived from five points rather than read off one, and it agrees with the directly measured 0.92 to within half a print unit. F-037's headline number is now the y-intercept of a regression rather than a single reading.
@@ -430,4 +432,25 @@ THE ORDERING HAZARD IS SYMMETRIC AND ONLY ONE SIDE IS ENFORCED. clut_set before 
 But ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND upload reverts a swap just as silently -- same failure, opposite direction, and the standard above applies to it identically. Documented in the header rather than fixed, because nothing in this repo calls upload twice and changing upload's contract inside a CLUT pull request is the wrong place for it. A swap does not survive an upload, before or after.
 
 *#70*
+
+### F-042 — Half a field of GS time costs 25.9 full-screen blended layers, so no OPL-class content shape can reach it
+
+**Measured:** Derived from F-039's fit, not from a new sitting:
+
+  gs(layers) = 0.9205 ms + layers x 0.2861 ms
+
+where 0.2861 is 640x448 = 286,720 px at the fitted 1.002 Gpix/s. The model reproduces all five measured sweep points to the print resolution (0.92 / 1.49 / 2.07 / 3.21 / 5.50).
+Half a field is 8.34 ms, so (8.34 - 0.9205) / 0.2861 = 25.9 full-screen blended layers; a whole field is 55.1. Against the shapes F-038 names as threats: a background image 1.21 ms (7.2%), a transition compositing two full screens 1.49 ms (8.9%), both at once 1.78 ms (10.7%), and growing nine covers from 28x28 to 128x128 adds 0.14 ms.
+
+**Instrument:** `docs/bench-phase2.md`
+
+**Falsifier:** A bench reading whose gs exceeds this model's prediction for the content drawn by more than the print resolution -- or a UI inside the Phase 2 envelope that genuinely carries more than about 26 layers of full-screen blended overdraw
+
+**Depends on:** [F-037](#f-037) (The GS spends about a twentieth of a field on an…), [F-039](#f-039) (The GS instrument is linear in fill at 1.002 Gpi…)
+
+A PREDICTION FROM A CONFIRMED MODEL, NOT A NEW MEASUREMENT, and confirmed on that basis because the model was validated the same way it is being used here: F-039's five points were predicted before the sitting and came back correct to one print unit on every one. Using it to price a content shape is the same operation.
+WHAT IT IS NOT is a claim about the EE, and F-038's remaining half is exactly that. It is also not a claim that the GS cannot be saturated -- 26 layers will do it -- only that nothing this toolchain can currently author comes close.
+The value is procedural as much as numerical: P3c was deferred on a fill argument and this says the fill argument cannot be revived by any content shape, so P3c has to be argued on the 392 KiB footprint or not at all.
+
+*#67, #69*
 
