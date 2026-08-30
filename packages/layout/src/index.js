@@ -107,9 +107,35 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });
   for (const w of checkReachability(focus)) warnings.push(w);
 
-  const lints = lintDocument(commands, focus, {
-    canvasW, canvasH, par, ...options.lint,
-  }).map((l) => `${l.rule}: ${l.message}`);
+  // THE LINTS RUN OVER EVERY THEME, NOT JUST THE DEFAULT ROW.
+  //
+  // contrast and ntsc-red-bleed read colours; everything else reads
+  // geometry. A theme moves colours and nothing else, so a UI that is
+  // readable in :root can be unreadable in @theme light and every
+  // check in this repository would still pass -- the blob is correct,
+  // the screenshots are correct for the row they render, and the
+  // failure is discovered on a television. That is exactly the class
+  // of defect this phase exists to close, arriving through the feature
+  // built to close it.
+  //
+  // Deduplicated by exact message against row 0. The geometry lints
+  // produce byte-identical strings in every theme and would otherwise
+  // be reported n_theme times, which teaches people to skim the list --
+  // the same argument data-nocontrast makes in lint.js. A colour lint
+  // that fires in two themes carries a different ratio in each, so it
+  // survives the dedup and is reported for both, correctly.
+  const lintOpts = { canvasW, canvasH, par, ...options.lint };
+  const lints = lintDocument(commands, focus, lintOpts)
+    .map((l) => `${l.rule}: ${l.message}`);
+  const seen = new Set(lints);
+  for (let t = 1; t < themeNames.length; t++) {
+    for (const l of lintDocument(commandsInTheme(commands, t), focus, lintOpts)) {
+      const line = `${l.rule}: ${l.message}`;
+      if (seen.has(line)) continue;
+      seen.add(line);
+      lints.push(`@theme ${themeNames[t]}: ${line}`);
+    }
+  }
 
   return {
     version: IR_VERSION,
@@ -141,6 +167,24 @@ export function compile(htmlSrc, cssSrc, options = {}) {
 
 /** Convenience: compile from file paths. <img> src attributes resolve
  * relative to the HTML file unless options.assetDir overrides. */
+/** The display list as theme `t` paints it.
+ *
+ * Colour only: a theme cannot move geometry, so x/y/w/h and every
+ * structural field are shared by reference and the copy is shallow.
+ * Falls back to the row-0 value when a command carries no vector,
+ * which is the untinted art whose colour is in its texels.
+ */
+function commandsInTheme(commands, t) {
+  return commands.map((c) => {
+    if (!c.fillThemes && !c.borderColorThemes && !c.colorThemes) return c;
+    const out = { ...c };
+    if (c.fillThemes) out.fill = c.fillThemes[t];
+    if (c.borderColorThemes) out.borderColor = c.borderColorThemes[t];
+    if (c.colorThemes) out.color = c.colorThemes[t];
+    return out;
+  });
+}
+
 export function compileFiles(htmlPath, cssPath, options = {}) {
   return compile(
     readFileSync(htmlPath, 'utf8'),

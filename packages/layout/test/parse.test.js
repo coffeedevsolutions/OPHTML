@@ -348,3 +348,29 @@ test('@theme: a sheet with no @theme has exactly one theme', () => {
   assert.deepEqual(sheet.themeNames, ['root']);
   assert.deepEqual(sheet.vars.get('--a').themes, [[17, 17, 17, 255]]);
 });
+
+test('@theme: a bare literal warns, but only once a theme exists', () => {
+  // A literal is a legitimate choice -- the author declining to offer a
+  // colour to a theme -- so this must not fire on an unthemed sheet, or
+  // it is a permanent false alarm on every stylesheet in the repo.
+  const unthemed = parseStylesheet(':root{--a:#111}\n.x{color:#8b94a7}');
+  assert.equal(unthemed.warnings.filter((w) => w.includes('literal')).length, 0);
+
+  const themed = parseStylesheet(
+    ':root{--a:#111}\n@theme light{--a:#eee}\n'
+    + '.x{color:#8b94a7;border:2px solid #202839}',
+  );
+  const lit = themed.warnings.filter((w) => w.includes('is a literal'));
+  assert.equal(lit.length, 2, 'the colour AND the border shorthand token');
+  assert.ok(lit.every((w) => w.includes('line 3')));
+});
+
+test('@theme: one warning per authored line, not per matching element', () => {
+  // computeStyle runs applyDeclaration once per matching element, so a
+  // rule matching twelve rows would warn twelve times about one line.
+  // Emitted from parseStylesheet for exactly that reason.
+  const sheet = parseStylesheet(
+    ':root{--a:#111}\n@theme light{--a:#eee}\n.row{background:#101623}',
+  );
+  assert.equal(sheet.warnings.filter((w) => w.includes('is a literal')).length, 1);
+});

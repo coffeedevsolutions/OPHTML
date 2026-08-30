@@ -64,6 +64,9 @@ def main(argv=None) -> int:
                     help="quantize every image to 8-bit indexed PSMT8+CLUT "
                          "(4x less VRAM per texel; <=256 colors per image). "
                          "Per-image opt-in: the `palettize` attribute on <img>.")
+    ap.add_argument("--tints", action="store_true",
+                    help="print the tint table with the var() name behind "
+                         "each entry -- the half of it only the baker knows")
     ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",
                     help="texture VRAM budget (default: 4 MiB minus a "
                          "double-buffered framebuffer pair + Z at canvas size)")
@@ -135,12 +138,29 @@ def main(argv=None) -> int:
         return 1
 
     initial = flat.screens[0]["initial"]
+    tint_report = []
     write_uib(
         args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
         flat.focus_nodes, initial, flat.fonts, flat.slots, flat.screens,
         tuple(ir["canvas"].get("displayAspect", (4, 3))),
         len(ir.get("themes") or ["root"]),
+        tint_report=tint_report,
     )
+
+    if args.tints:
+        names = ir.get("themes") or ["root"]
+        print(f"# {len(tint_report)} tint entries over {len(names)} theme(s): "
+              f"{', '.join(names)}", file=sys.stderr)
+        for i, var, vec in tint_report:
+            cols = "  ".join("(%3d,%3d,%3d,%3d)" % tuple(c) for c in vec)
+            # A LITERAL IS NOT A GAP. An entry with no name is a colour
+            # the author declined to offer to a theme, which is a
+            # legitimate choice -- design-p3b-theming.md 9.2 -- so it
+            # is labelled rather than left blank next to the named ones.
+            label = var if var else "(literal, unthemed)"
+            fixed = all(c == vec[0] for c in vec)
+            note = "   FIXED in every theme" if fixed and len(vec) > 1 else ""
+            print(f"  {i:3d}  {cols}  {label}{note}", file=sys.stderr)
 
     n_tex_bytes = sum(len(t.data) for t in flat.textures)
     # Streamed slots contribute no bytes to the file, so this total is

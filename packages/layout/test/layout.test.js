@@ -998,3 +998,38 @@ test('theme: a fill that no theme paints does not exist in any row', () => {
   );
   assert.equal(rects(ir).length, 0);
 });
+
+test('theme: the lints run over every theme, not just the default row', () => {
+  // THE GAP P3b-6 LEFT OPEN. contrast and ntsc-red-bleed read colours;
+  // a theme moves colours. So a UI readable in :root can be unreadable
+  // in @theme light with every check in the repository still passing --
+  // the blob is right, the screenshots are right for the row they
+  // render, and the failure is found on a television.
+  const ir = compileCss(
+    '<div id="w"><span id="t">hello there</span></div>',
+    ':root{--panel:#101623;--ink:#f2f5fa}\n'
+    + '@theme light{--panel:#f4f6fa;--ink:#ffffff}\n'
+    + '#w{flex-direction:column;width:400px;height:40px;'
+    + 'background:var(--panel);padding:8px}\n'
+    + '#t{color:var(--ink);font-size:16px}',
+  );
+  const contrast = ir.warnings.filter((w) => w.includes('contrast:'));
+  assert.equal(contrast.length, 1, 'readable in root, unreadable in light');
+  assert.match(contrast[0], /^@theme light: contrast:/);
+});
+
+test('theme: a geometry lint is not repeated once per theme', () => {
+  // The dedup, and it earns its place: the geometry lints produce
+  // byte-identical strings in every row, so without it a two-theme UI
+  // reports every overscan twice and a five-theme one five times. A
+  // list with that much duplication is one people skim, which is the
+  // same argument data-nocontrast makes in lint.js.
+  const ir = compileCss(
+    '<div id="w"><span id="t">x</span></div>',
+    ':root{--ink:#ffffff}\n@theme light{--ink:#eeeeee}\n'
+    + '#w{flex-direction:column}\n#t{color:var(--ink);font-size:9px}',
+  );
+  const small = ir.warnings.filter((w) => w.includes('min-font-size:'));
+  assert.equal(small.length, 1);
+  assert.ok(!small[0].startsWith('@theme'), 'reported once, unprefixed');
+});

@@ -2401,6 +2401,40 @@ class TestTintTable(unittest.TestCase):
             self.write(recs, n_theme=2)
         self.assertIn("1 themes, expected 2", str(cm.exception))
 
+    def test_the_tint_report_carries_the_name_only_it_knows(self):
+        """P3b-5. The var() name never reaches the blob -- the runtime
+        selects a theme by index and has no use for it -- so write_uib
+        is the last point in the pipeline where an entry can be tied
+        back to the declaration that produced it.
+
+        That makes "why did this not change colour" a two-tool
+        question: `ps2ui-bake --tints` prints the names as it writes
+        them, `ps2ui-check --tints` prints what a loader finds. Dropping
+        the name here leaves the first tool answering the same half as
+        the second, which reads as working.
+        """
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                       (0x10, 0x20, 0x30, 0x80), var="--panel",
+                       rgba_themes=((0x10, 0x20, 0x30, 0x80),
+                                    (0xF0, 0xF0, 0xF0, 0x80))),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4,
+                       (0x11, 0x22, 0x33, 0x80)),
+        ]
+        report = []
+        with tempfile.TemporaryDirectory() as td:
+            write_uib(os.path.join(td, "t.uib"), {"w": 320, "h": 240},
+                      list(recs), [], [], [], None, n_theme=2,
+                      tint_report=report)
+        self.assertEqual([(i, var) for i, var, _ in report],
+                         [(0, "--panel"), (1, None)],
+                         "the named entry keeps its name and the literal "
+                         "keeps its absence -- a literal is the author "
+                         "declining to offer a colour to a theme, not a "
+                         "missing name")
+        self.assertEqual(report[0][2],
+                         ((0x10, 0x20, 0x30, 0x80), (0xF0, 0xF0, 0xF0, 0x80)))
+
     def patched(self, path, mutate):
         """Apply `mutate(bytearray)` to a written blob and re-CRC it."""
         with open(path, "rb") as fh:
