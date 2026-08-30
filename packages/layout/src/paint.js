@@ -23,10 +23,17 @@ function paintOfBox(box, style) {
   const fill = alpha(style.background);
   let borderColor = style.borderWidth > 0 ? alpha(style.borderColor) : null;
   if (borderColor && borderColor[3] === 0) borderColor = null;
+  const live = fill && fill[3] > 0 ? fill : null;
   return {
-    fill: fill && fill[3] > 0 ? fill : null,
+    fill: live,
+    // The var() name travels WITH the colour and is normalized the same
+    // way: a fill that ends up invisible carries no name either, or two
+    // boxes that differ only in the name of a colour neither of them
+    // paints would split into a focused/unfocused pair for nothing.
+    fillVar: live ? (style.backgroundVar ?? null) : null,
     borderWidth: borderColor ? style.borderWidth : 0,
     borderColor,
+    borderColorVar: borderColor ? (style.borderColorVar ?? null) : null,
     radius: style.borderRadius,
   };
 }
@@ -37,6 +44,7 @@ function textPaint(style) {
       style.color[0], style.color[1], style.color[2],
       Math.round(style.color[3] * style.opacity),
     ],
+    colorVar: style.colorVar ?? null,
     fontWeight: style.fontWeight,
   };
 }
@@ -51,8 +59,10 @@ function emitRect(cmds, box, paint, state) {
     op: 'rect',
     x: box.x, y: box.y, w: box.width, h: box.height,
     fill: paint.fill,
+    fillVar: paint.fillVar,
     borderWidth: paint.borderWidth > 0 && paint.borderColor ? paint.borderWidth : 0,
     borderColor: paint.borderWidth > 0 ? paint.borderColor : null,
+    borderColorVar: paint.borderWidth > 0 ? paint.borderColorVar : null,
     radius: Math.min(paint.radius, Math.floor(Math.min(box.width, box.height) / 2)),
     state,
     focusId: box.focusId,
@@ -77,6 +87,7 @@ function emitTextLines(cmds, box, paint, state) {
       weight: paint.fontWeight,
       letterSpacing: s.letterSpacing,
       color: paint.color,
+      colorVar: paint.colorVar,
       state,
       focusId: box.focusId,
       ...(box.nocontrast ? { nocontrast: true } : {}),

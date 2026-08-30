@@ -29,6 +29,12 @@ export const GEOMETRY_PROPS = new Set([
 const INHERITED_PROPS = new Set([
   'color', 'fontSize', 'fontWeight', 'lineHeight', 'textAlign', 'whiteSpace',
   'letterSpacing',
+  // colorVar rides with color, and MUST: a child inheriting the resolved
+  // rgba without the name would be value-keyed while its parent is
+  // role-keyed, so a theme would move the parent's text and leave every
+  // inheriting child behind. background and borderColor do not inherit,
+  // so their names do not either.
+  'colorVar',
 ]);
 
 // The initial style. Frozen — see bug #1 in docs/architecture.md: padding
@@ -65,6 +71,14 @@ export const INITIAL_STYLE = Object.freeze({
   borderRadius: 0,
   background: null,
   color: Object.freeze([255, 255, 255, 255]),
+  // The var() NAME behind each colour, or null when the author wrote a
+  // literal. Parallel fields rather than a richer colour value: paint.js
+  // rebuilds the rgba array to fold in opacity, so anything attached to
+  // the array itself would not survive, and .slice()/spread drop
+  // non-enumerable properties too. These are plain strings and travel.
+  colorVar: null,
+  backgroundVar: null,
+  borderColorVar: null,
   fontSize: 16,
   fontWeight: 400,
   lineHeight: { unit: 'number', value: 1.25 },
@@ -200,6 +214,7 @@ export function parseStylesheet(src) {
   const r = new SheetReader(src);
   const rules = [];
   const warnings = [];
+  const vars = new Map();
   for (;;) {
     r.skipWsAndComments();
     if (r.eof()) break;
@@ -237,12 +252,97 @@ export function parseStylesheet(src) {
         line,
       });
     }
+    // :root IS NOT A SELECTOR HERE, IT IS A DECLARATION SITE.
+    //
+    // Intercepted before parseSelector, which does not accept it --
+    // only :focus is a pseudo-class in this dialect. Adding :root to
+    // that alternation was the other option and it is the wrong one:
+    // it would make `:root { color: red }` parse, and then the honest
+    // meaning of that is "the initial value for every element", which
+    // is cascade semantics this target does not have. Structural
+    // refusal beats a rule nobody can implement.
+    if (selText.trim() === ':root') {
+      for (const d of declarations) {
+        if (!d.prop.startsWith('--')) {
+          warnings.push(`css: line ${d.line}: ":root { ${d.prop}: ... }" is `
+            + `ignored -- :root defines custom properties on this target, `
+            + `not inherited style`);
+          continue;
+        }
+        const col = parseColor(d.value);
+        if (!col) {
+          throw new Error(`css: line ${d.line}: ${d.prop}: "${d.value}" is `
+            + `not a color, and ps2ui custom properties are colors only -- `
+            + `geometry is baked, so a themeable length would be a different `
+            + `and much larger design`);
+        }
+        vars.set(d.prop, { rgba: col, line: d.line });
+      }
+      continue;
+    }
     for (const one of selText.split(',')) {
       if (!one.trim()) continue;
       rules.push({ selector: parseSelector(one), declarations, line });
+      for (const d of declarations) {
+        if (d.prop.startsWith('--')) {
+          warnings.push(`css: line ${d.line}: custom property "${d.prop}" `
+            + `outside :root is ignored -- ps2ui resolves names globally, so `
+            + `an element-scoped value would silently mean the :root one`);
+        }
+      }
     }
   }
-  return { rules, warnings };
+  return { rules, warnings, vars };
+}
+
+// ------------------------------------------------------------------ var()
+//
+// A DELIBERATELY SMALL SLICE OF CUSTOM PROPERTIES, and the smallness is
+// the design rather than an unfinished edge. Theming needs a NAMESPACE,
+// not the cascade: `var(--focus-ring)` is a role an author chose, where
+// `#7c9be0` written in nine places is nine coincidences that happen to
+// agree. What ps2ui takes from CSS custom properties is exactly the part
+// that carries a name.
+//
+// Supported:   :root { --name: <color> }   and   var(--name) at a use site
+// NOT supported, and each is refused loudly rather than half-honoured:
+//   - definitions outside :root (there is no cascade here to resolve them
+//     against, so an element-scoped value would silently mean :root's)
+//   - var(--a, fallback) -- a fallback is a second value for one name,
+//     which is the one thing a role must not have
+//   - var() nested inside another value, e.g. `1px solid var(--x)`; the
+//     whole declaration value must be the var() and nothing else
+//   - non-colour custom properties: geometry is baked, and a themeable
+//     length would be a different and much larger design [F-042 note]
+
+const VAR_USE = /^var\(\s*(--[A-Za-z0-9_-]+)\s*(,)?([^)]*)\)$/;
+
+/** Resolve a declaration value that may be `var(--name)`.
+ *
+ * Returns { rgba, varName } on success. `varName` is null for a literal,
+ * which is how a colour the author did not name stays value-keyed and
+ * therefore outside any theme -- see docs/design-p3b-theming.md 9.2. */
+export function resolveColorValue(value, vars, prop, line) {
+  const m = VAR_USE.exec(value.trim());
+  if (!m) return { rgba: parseColor(value), varName: null };
+  const [, name, comma, rest] = m;
+  if (comma) {
+    throw new Error(`css: line ${line}: ${prop}: var(${name}, ...) has a `
+      + `fallback. A role is one colour per theme; a fallback is a second `
+      + `value for the same name and there is nothing here to choose between `
+      + `them`);
+  }
+  if (rest.trim()) {
+    throw new Error(`css: line ${line}: ${prop}: malformed var(${name}${rest})`);
+  }
+  const def = vars && vars.get(name);
+  if (!def) {
+    throw new Error(`css: line ${line}: ${prop}: ${name} is not defined in `
+      + `:root. Undefined names are refused rather than falling back to a `
+      + `literal, because a theme that cannot reach a colour is exactly the `
+      + `defect this mechanism exists to prevent`);
+  }
+  return { rgba: def.rgba.slice(), varName: name };
 }
 
 // ------------------------------------------------------------- declarations
@@ -270,7 +370,7 @@ const SIDE_INDEX = { top: 0, right: 1, bottom: 2, left: 3 };
  * Apply one declaration to a computed-style object (mutates).
  * Returns true when the property was understood.
  */
-export function applyDeclaration(style, prop, value, line, warnings) {
+export function applyDeclaration(style, prop, value, line, warnings, vars) {
   const px = () => pxOrThrow(value, prop, line);
   switch (prop) {
     case 'display':
@@ -353,29 +453,40 @@ export function applyDeclaration(style, prop, value, line, warnings) {
         const len = parseLength(p);
         if (len && len.unit === 'px') { style.borderWidth = len.value; continue; }
         if (p === 'solid' || p === 'none') continue;
+        // A var() token survives splitSpaces because it contains no
+        // space in the form this dialect accepts (no fallback, so no
+        // comma-space). `border: 1px solid var(--ring)` therefore works;
+        // `var(--a, b)` is refused by resolveColorValue before it can
+        // arrive here in two pieces.
+        if (p.startsWith('var(')) {
+          const { rgba, varName } = resolveColorValue(p, vars, prop, line);
+          style.borderColor = rgba; style.borderColorVar = varName; continue;
+        }
         const col = parseColor(p);
-        if (col) { style.borderColor = col; continue; }
+        if (col) { style.borderColor = col; style.borderColorVar = null; continue; }
         throw new Error(`css: line ${line}: border: unsupported token "${p}" (only solid borders exist)`);
       }
       return true;
     }
     case 'border-width': style.borderWidth = px(); return true;
     case 'border-color': {
-      const col = parseColor(value);
-      if (!col) throw new Error(`css: line ${line}: border-color: bad color "${value}"`);
-      style.borderColor = col; return true;
+      const { rgba, varName } = resolveColorValue(value, vars, prop, line);
+      if (!rgba) throw new Error(`css: line ${line}: border-color: bad color "${value}"`);
+      style.borderColor = rgba; style.borderColorVar = varName; return true;
     }
     case 'border-radius': style.borderRadius = px(); return true;
     case 'background': case 'background-color': {
-      if (value === 'none' || value === 'transparent') { style.background = null; return true; }
-      const col = parseColor(value);
-      if (!col) throw new Error(`css: line ${line}: ${prop}: bad color "${value}" (flat colors only — gradients are a texture you bake yourself)`);
-      style.background = col; return true;
+      if (value === 'none' || value === 'transparent') {
+        style.background = null; style.backgroundVar = null; return true;
+      }
+      const { rgba, varName } = resolveColorValue(value, vars, prop, line);
+      if (!rgba) throw new Error(`css: line ${line}: ${prop}: bad color "${value}" (flat colors only — gradients are a texture you bake yourself)`);
+      style.background = rgba; style.backgroundVar = varName; return true;
     }
     case 'color': {
-      const col = parseColor(value);
-      if (!col) throw new Error(`css: line ${line}: color: bad color "${value}"`);
-      style.color = col; return true;
+      const { rgba, varName } = resolveColorValue(value, vars, prop, line);
+      if (!rgba) throw new Error(`css: line ${line}: color: bad color "${value}"`);
+      style.color = rgba; style.colorVar = varName; return true;
     }
     case 'font-size': style.fontSize = px(); return true;
     case 'font-weight':
@@ -403,6 +514,10 @@ export function applyDeclaration(style, prop, value, line, warnings) {
       return true;
     }
     default:
+      // Custom properties are collected in parseStylesheet and warned
+      // about there when they sit outside :root. Reaching here would
+      // print a second, wrong diagnostic saying they are unsupported.
+      if (prop.startsWith('--')) return false;
       warnings.push(`css: line ${line}: property "${prop}" not supported on this target; ignored`);
       return false;
   }
@@ -417,6 +532,7 @@ export function applyDeclaration(style, prop, value, line, warnings) {
  * compile error (see docs/architecture.md, ":focus is a paint-only delta").
  */
 export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warnings) {
+  const vars = sheet && sheet.vars;
   const matched = [];
   for (let i = 0; i < sheet.rules.length; i++) {
     const rule = sheet.rules[i];
@@ -445,7 +561,7 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
       for (const d of rule.declarations) focusDeclProps.push(d);
       continue;
     }
-    for (const d of rule.declarations) applyDeclaration(style, d.prop, d.value, d.line, warnings);
+    for (const d of rule.declarations) applyDeclaration(style, d.prop, d.value, d.line, warnings, vars);
   }
 
   const focusDeclared = focusDeclProps.length > 0;
@@ -459,7 +575,7 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
   const focusStyle = makeBase(parentFocusInherit ?? parentStyle);
   for (const { rule } of matched) {
     if (rule.selector.focus) continue;
-    for (const d of rule.declarations) applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings);
+    for (const d of rule.declarations) applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars);
   }
   for (const d of focusDeclProps) {
     if (GEOMETRY_PROPS.has(d.prop)) {
@@ -468,7 +584,7 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
         + 'Both states share one baked layout; move the geometry to the base rule.',
       );
     }
-    applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings);
+    applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars);
   }
   return { style, focusStyle, focusDeclared };
 }
