@@ -1,6 +1,6 @@
 # ps2ui Foundation Plan
 
-*rev 1.4 · 2026-08-29 · format v6 shipped · **Phases 0, 1 and 2 locked; Phase 3 open, and its speed case has been measured away** · bring-up matrix complete — steps 1–7, 9, 10 pass on SCPH-50000; 8 void pending a CRT (panel deinterlacer, with positive field evidence logged)*
+*rev 1.5 · 2026-08-30 · format v7 shipped · **Phases 0, 1 and 2 locked; Phase 3 open, its speed case measured away, and P3b is the whole of it** · bring-up matrix complete — steps 1–7, 9, 10 pass on SCPH-50000; 8 void pending a CRT (panel deinterlacer, with positive field evidence logged)*
 
 *Progress lives in §6. Every phase gate is a measurement with a
 falsifier in [`docs/findings.yaml`](findings.yaml), not a checkbox
@@ -540,6 +540,16 @@ Then, in an order P3a decides:
    always also was — VRAM tidiness and exact streamed reservations —
    and must be argued that way, on the 392 KiB footprint rather than on
    milliseconds.
+
+   **And the fill argument is now closed rather than merely unopened**
+   [F-042]. F-039's calibrated model prices half a field of GS at 25.9
+   full-screen blended layers; every content shape F-038 named as a
+   threat costs under 11% of a field at the fitted slope, and under
+   16% even if textured fill runs at half that rate — the slope was
+   fitted on untextured sprites, so the textured shapes are lower
+   bounds. Even at half rate, half a field takes 13 layers. There is
+   no future content that revives P3c on frame rate. Footprint or
+   nothing.
 3. **P3d — precompiled GIF/DMA chains.** Bake each screen's static
    geometry as a ready-to-kick chain; runtime patches the dynamic tail.
    Frame ≈ one DMA kick. **Gate did not open, and this was the phase's
@@ -548,6 +558,35 @@ Then, in an order P3a decides:
    off fourteen that are already idle. Deferred, not deleted — the
    argument for it is headroom for content nobody has drawn yet, and
    F-038 says what would have to be shown first.
+
+   **P3d's gate is now the only one that can reopen, and its evidence
+   is the half nobody has instrumented** [F-042]. The GS side of
+   F-038 is settled by arithmetic; the EE side has one number and no
+   model, so "the EE is at 14.4%" is measured on one content shape and
+   extrapolated to none.
+
+   **The missing instrument is the EE analogue of the fill arm**, and
+   the obvious version of it does not work. Rendering the UI N extra
+   times inside a 1×1 scissor fails because `ps2ui_render` resets the
+   scissor to the full canvas four lines in (`ps2ui.c:1044`), so the
+   clip does not survive being entered and every pass fills the
+   screen. The **alpha test** does survive: `ps2ui_render` deliberately
+   leaves TEST inherited (`ps2ui.c:999-1010`), so `ATE` with
+   `ATST = NEVER` before N extra passes gives the EE all of its work
+   while the GS discards every fragment — no runtime change, and a
+   documented non-assertion becomes the mechanism.
+
+   `gs` will still rise, because it is GIF transfer *plus* drawing and
+   each pass pushes the command list again. The check is therefore not
+   "`gs` stays flat" but "`gs` rises by transfer and setup only, far
+   below the N × 0.2861 ms the fill model predicts" — sharper, because
+   the model supplies the number it must come in under. If `gs` rises
+   *at* the fill rate, the test is not discarding and the arm is
+   measuring nothing: the same trap as P3a's latched CSR, caught the
+   same way, by predicting the number before the sitting.
+
+   Until that sweep exists, this item is deferred on an asymmetry
+   rather than on a measurement.
 
 The ordering is deliberate: the ungated item first, then the two whose
 justification does not exist yet. A phase that opens "optimization
@@ -562,20 +601,41 @@ background image, larger cover art, or a transition compositing two
 full screens. Fill scales with area, and this screen is mostly flat
 panels.
 
-> **Exit gate:** measured frame CPU time published before/after; chains
-> are opt-in per blob via a feature bit and degrade to the replay path.
-> **Amended:** "frame CPU time" was the gate written before anyone knew
-> CPU time was 13% of a field. The gate is now GS *and* EE time,
-> published before/after, and an item that improves neither does not
-> ship on the grounds that it is clever. [F-036]
+> **Exit gate — rewritten, because the old one gated an item this
+> phase declined to build.** It read: *"measured frame CPU time
+> published before/after; chains are opt-in per blob via a feature bit
+> and degrade to the replay path."* That is **P3d's** gate. P3d is
+> deferred — F-036 shut it — so the phase was carrying an exit
+> condition for work it had decided not to do, which is the
+> sequencing authority contradicting its own item list.
+>
+> **The gate is P3b's, because P3b is the phase:** a UI recolours
+> every colour it draws — commands *and* slot text — from a theme
+> chosen at runtime; the previewer renders each theme so a reviewer
+> can see one without a console; and a blob that cannot be recoloured
+> correctly refuses to open rather than switching to a theme that
+> moves nine unrelated things together.
+>
+> **Two conditions carry over from the old gate, and both bind
+> harder now.** Any item still claiming a *speed* justification must
+> publish measured GS **and** EE time before and after — that
+> amendment was made once CPU time turned out to be an eighth of a
+> field [F-036], and it stands. And an item that improves neither
+> number does not ship on the grounds that it is clever.
 
 ### Phase 4 — Make it a product
 
 Distribution, deliberately last. Honest versions first (packages claim
-0.2.0 with no tags and three format versions of drift), then npm + PyPI +
+0.2.0 with **no git tags at all** and now **four** format versions of
+drift — v5, v6, v7 shipped under one package version), then npm + PyPI +
 a `ps2ui` wrapper CLI (`build` / `dev` / `check` / `fontgen`), a format
-stability pledge post-v6, and a docs pass with UC-3 as the flagship
+stability pledge **post-v7**, and a docs pass with UC-3 as the flagship
 tutorial.
+
+The pledge moved from post-v6 because v7 broke the format inside
+Phase 3 (the tint table), which is the second break since the pledge
+was first written down. P3b-3 is the last planned format-visible
+change in the phase; the pledge has to start after it or start again.
 
 > **Exit gate:** a stranger with npm, pip, and a TTF reproduces the
 > memcard example — and its hardware screenshot — without cloning the repo.
