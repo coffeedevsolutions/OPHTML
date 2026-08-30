@@ -355,8 +355,8 @@ THE FILL BUILD REPORTED m1 AND THE CAUSE WAS UNKNOWN. The frame period is vsync-
 **Depends on:** [F-036](#f-036) (The OPL-class environment uses about an eighth o…), [F-037](#f-037) (The GS spends about a twentieth of a field on an…)
 
 PROVISIONAL, and the phase stays open, because this is a claim about a CONTENT SHAPE rather than about the console. It is true of nine rows of text with 28x28 covers and one scroll step at a time. A grid view, larger art, a background image, or a transition that composites two full screens are all outside what has been measured.
-HALF THE FALSIFIER IS NOW DISCHARGED, AND THIS NOTE NAMED THE WRONG PROCESSOR [F-042]. It expected a compositing transition to be the shape most likely to move gs, "since fill scales with area and this screen is mostly flat panels". F-039's calibrated model prices that at 0.57 ms. Reaching half a field on the GS takes 25.9 full-screen blended layers; every shape named above costs under 11% of a field. No OPL-class content gets the GS near its limit, and that was settled by arithmetic rather than by another sitting.
-SO THE SURVIVING HALF IS THE EE, AND THE EE HAS NO MODEL. gs has five points, a fitted line and r^2 = 0.999998. ee has one number and nothing to extrapolate with, which is why this finding cannot be closed the way its GS half was. The missing instrument is the EE analogue of the fill arm -- render the UI N extra times inside a 1x1 scissor, so the EE walks every command while the GS fills nothing. Until that exists, "neither processor is the constraint" is measured on one side and asserted on the other.
+HALF THE FALSIFIER IS NOW DISCHARGED, AND THIS NOTE NAMED THE WRONG PROCESSOR [F-042]. It expected a compositing transition to be the shape most likely to move gs, "since fill scales with area and this screen is mostly flat panels". F-039's calibrated model prices that at 0.57 ms. Reaching half a field on the GS takes 25.9 full-screen blended layers; every shape named above costs under 11% of a field at the fitted slope, and under 16% even if textured fill runs at half that rate -- which it may, since the slope was fitted on untextured sprites and three of those shapes are textured. No OPL-class content gets the GS near its limit either way, and that was settled by arithmetic rather than by another sitting.
+SO THE SURVIVING HALF IS THE EE, AND THE EE HAS NO MODEL. gs has five points, a fitted line and r^2 = 0.999998. ee has one number and nothing to extrapolate with, which is why this finding cannot be closed the way its GS half was. The missing instrument is the EE analogue of the fill arm. NOT the 1x1 scissor the first draft proposed: ps2ui_render resets the scissor to the full canvas four lines in (ps2ui.c:1044), so a caller-set clip does not survive being entered. The alpha test does -- ps2ui_render deliberately leaves TEST inherited (ps2ui.c:999-1010) -- so ATE with ATST=NEVER before N extra passes gives the EE all of its work while the GS discards every fragment, with no runtime change. Until that sweep exists, "neither processor is the constraint" is measured on one side and asserted on the other.
 What it does settle is that no Phase 3 item may be justified by frame rate without first showing content that threatens one of these two numbers. That is a higher bar than the phase opened with and it is the point of having measured.
 
 *#67*
@@ -433,18 +433,27 @@ But ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND upload rever
 
 *#70*
 
-### F-042 — Half a field of GS time costs 25.9 full-screen blended layers, so no OPL-class content shape can reach it
+### F-042 — Half a field of GS time costs 25.9 full-screen UNTEXTURED blended layers, so no OPL-class content shape can reach it
 
 **Measured:** Derived from F-039's fit, not from a new sitting:
 
   gs(layers) = 0.9205 ms + layers x 0.2861 ms
 
 where 0.2861 is 640x448 = 286,720 px at the fitted 1.002 Gpix/s. The model reproduces all five measured sweep points to the print resolution (0.92 / 1.49 / 2.07 / 3.21 / 5.50).
-Half a field is 8.34 ms, so (8.34 - 0.9205) / 0.2861 = 25.9 full-screen blended layers; a whole field is 55.1. Against the shapes F-038 names as threats: a background image 1.21 ms (7.2%), a transition compositing two full screens 1.49 ms (8.9%), both at once 1.78 ms (10.7%), and growing nine covers from 28x28 to 128x128 adds 0.14 ms.
+Half a field is 8.34 ms, so (8.34 - 0.9205) / 0.2861 = 25.9 full-screen blended layers; a whole field is 55.1.
+THE SLOPE IS UNTEXTURED. The sweep drew gsKit_prim_sprite -- flat colour, no texture (main.c:1799) -- so the shapes below, three of which are textured, are priced at a rate the GS beats only when it is not fetching texels. Each is a LOWER BOUND, and each is given twice: at the fitted slope, and at half of it.
+
+  a background image                 1.21 / 1.49 ms   7.2 / 8.9%
+  a transition over two full screens 1.49 / 2.06 ms   8.9 / 12.4%
+  both at once                       1.78 / 2.64 ms  10.7 / 15.8%
+  9 covers 28x28 -> 128x128         +0.14 / +0.28 ms
+
+Even at half the fitted rate, half a field still takes 13 full-screen layers. The intercept is unaffected either way: 0.9205 ms is the UI's own measured cost and already contains every textured thing the UI draws.
 
 **Instrument:** `docs/bench-phase2.md`
 
-**Falsifier:** A bench reading whose gs exceeds this model's prediction for the content drawn by more than the print resolution -- or a UI inside the Phase 2 envelope that genuinely carries more than about 26 layers of full-screen blended overdraw
+**Falsifier:** A measured sweep point of UNTEXTURED full-screen blended fill that departs from 0.9205 + n x 0.2861 by more than the print resolution, or a UI inside the Phase 2 envelope that genuinely carries more than about 26 such layers.
+DELIBERATELY NOT "a reading whose gs exceeds the prediction for the content drawn", which is what the first version said: three of the shapes priced above are textured and the slope is not, so the first textured content anyone benches could trip that while the layer claim -- the thing this finding actually asserts -- stayed exactly true. A finding must not be falsifiable by being applied outside the domain it was fitted in.
 
 **Depends on:** [F-037](#f-037) (The GS spends about a twentieth of a field on an…), [F-039](#f-039) (The GS instrument is linear in fill at 1.002 Gpi…)
 
@@ -452,5 +461,5 @@ A PREDICTION FROM A CONFIRMED MODEL, NOT A NEW MEASUREMENT, and confirmed on tha
 WHAT IT IS NOT is a claim about the EE, and F-038's remaining half is exactly that. It is also not a claim that the GS cannot be saturated -- 26 layers will do it -- only that nothing this toolchain can currently author comes close.
 The value is procedural as much as numerical: P3c was deferred on a fill argument and this says the fill argument cannot be revived by any content shape, so P3c has to be argued on the 392 KiB footprint or not at all.
 
-*#67, #69*
+*#75*
 

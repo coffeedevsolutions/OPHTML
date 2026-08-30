@@ -405,14 +405,27 @@ Against the five measured points, to the print resolution:
 | 16 | 5.50 | 5.50 |
 
 **So half a field on the GS costs 25.9 full-screen blended layers, and
-a whole field costs 55.1.** Every content shape F-038 names as a threat:
+a whole field costs 55.1.**
 
-| shape | layers | gs | share of a field |
+**THE SLOPE IS UNTEXTURED, AND THREE OF THE FOUR SHAPES BELOW ARE NOT.**
+The sweep drew `gsKit_prim_sprite` — flat colour, no texture, alpha
+blended (`main.c:1799`). Texel fetch contends for the same path, so the
+textured fill rate is materially lower and every textured row here is a
+**lower bound**, not a prediction. The intercept is unaffected: 0.9205
+ms is the UI's own measured cost and already contains all the textured
+work the UI does. Only the slope is untextured.
+
+| shape | layers | at the fitted slope | if textured fill were half as fast |
 |---|---|---|---|
-| a background image | 1 | 1.21 ms | 7.2% |
-| a transition compositing two full screens | 2 | 1.49 ms | 8.9% |
-| both at once | 3 | 1.78 ms | 10.7% |
-| 9 covers 28x28 -> 128x128 | — | +0.14 ms | +0.8% |
+| a background image | 1 | 1.21 ms · 7.2% | 1.49 ms · 8.9% |
+| a transition compositing two full screens | 2 | 1.49 ms · 8.9% | 2.06 ms · 12.4% |
+| both at once | 3 | 1.78 ms · 10.7% | 2.64 ms · 15.8% |
+| 9 covers 28x28 -> 128x128 | — | +0.14 ms | +0.28 ms |
+
+The conclusion survives the pessimistic column: **even at half the
+fitted rate, half a field still takes 13 full-screen layers**, and
+nothing above is close. The 25.9-layer claim itself is *in* domain —
+full-screen blended sprites are exactly what was measured.
 
 **F-038's note guessed the wrong processor** [F-042]. It expected the
 compositing transition to be "the one most likely to move gs, since
@@ -424,10 +437,52 @@ bench.
 **The EE half is the open one, and it has no model.** `gs` has five
 points, a fitted line and r² = 0.999998. `ee` has one number, 2.4 ms,
 and nothing to extrapolate with — so the surviving half of F-038
-cannot be answered the same way. The missing instrument is the EE
-analogue of the fill arm: **render the UI N extra times inside a 1x1
-scissor.** The EE walks every command and composes every slot; the GS
-fills nothing. `ee` scales with N, `gs` stays flat — and if `gs` does
-NOT stay flat, the arm says so, which is its own falsification. That
-is the next thing worth building, and it needs one sitting rather than
-a guess.
+cannot be answered the same way.
+
+### The EE arm, and why the obvious version of it does not work
+
+The instrument wants to multiply EE work while leaving fill alone. The
+first draft of this section said **render the UI N extra times inside a
+1x1 scissor**. That cannot work, and the reason is four lines into
+`ps2ui_render`:
+
+```c
+stack[0].x0 = 0;  stack[0].y0 = 0;
+stack[0].x1 = ctx->hdr->canvas_w;
+stack[0].y1 = ctx->hdr->canvas_h;
+apply_scissor(gs, &stack[0]);        /* ps2ui.c:1044 */
+```
+
+A caller-set scissor survives exactly until the renderer is entered.
+Every extra pass would fill the whole screen, `ee` and `gs` would rise
+together, and the arm's self-falsification clause would fire for a
+reason it does not anticipate: the scissor was discarded, not the
+design wrong.
+
+**Use the alpha test instead, and it needs no runtime change.**
+`ps2ui_render` deliberately does *not* assert the alpha TEST register —
+`ps2ui.c:999-1010` spells out why, and names `gsKit_set_test` as the
+line that would. So a caller can set `ATE` with `ATST = NEVER` before
+the extra passes and it is still in force when the renderer runs: the
+GS receives, sets up and discards every fragment, the EE does all of
+its work. A documented non-assertion becomes the mechanism.
+
+### And `gs` will not stay flat, which makes the check sharper
+
+`gs` is **GIF transfer + GS drawing** (see the readout table above). N
+extra renders push N× the command list through the GIF — roughly 41 KB
+per pass — plus per-primitive setup for 1,244 prims × N. None of that
+is clipped by an alpha test.
+
+So the expectation is not "flat". It is:
+
+> `gs` rises with N by **transfer and setup only** — far below the
+> N × 0.2861 ms the fill model predicts for the same passes drawn for
+> real.
+
+That is a better check than flatness ever was, because the model
+supplies the number it must come in under. If `gs` rises *at* the fill
+rate, the alpha test is not discarding and the arm is measuring
+nothing — which is the same class of trap as the latched-CSR one P3a
+was built around, and it is caught the same way: by predicting the
+number before the sitting.

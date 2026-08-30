@@ -544,8 +544,12 @@ Then, in an order P3a decides:
    **And the fill argument is now closed rather than merely unopened**
    [F-042]. F-039's calibrated model prices half a field of GS at 25.9
    full-screen blended layers; every content shape F-038 named as a
-   threat costs under 11% of a field. So there is no future content
-   that revives P3c on frame rate. Footprint or nothing.
+   threat costs under 11% of a field at the fitted slope, and under
+   16% even if textured fill runs at half that rate — the slope was
+   fitted on untextured sprites, so the textured shapes are lower
+   bounds. Even at half rate, half a field takes 13 layers. There is
+   no future content that revives P3c on frame rate. Footprint or
+   nothing.
 3. **P3d — precompiled GIF/DMA chains.** Bake each screen's static
    geometry as a ready-to-kick chain; runtime patches the dynamic tail.
    Frame ≈ one DMA kick. **Gate did not open, and this was the phase's
@@ -559,13 +563,30 @@ Then, in an order P3a decides:
    is the half nobody has instrumented** [F-042]. The GS side of
    F-038 is settled by arithmetic; the EE side has one number and no
    model, so "the EE is at 14.4%" is measured on one content shape and
-   extrapolated to none. **The missing instrument is the EE analogue
-   of the fill arm:** render the UI N extra times inside a 1x1
-   scissor, so the EE walks every command and composes every slot
-   while the GS fills nothing. `ee` should scale with N and `gs` stay
-   flat — and if `gs` does not stay flat, the arm says so, which is
-   its own falsification. Until that sweep exists, this item is
-   deferred on an asymmetry rather than on a measurement.
+   extrapolated to none.
+
+   **The missing instrument is the EE analogue of the fill arm**, and
+   the obvious version of it does not work. Rendering the UI N extra
+   times inside a 1×1 scissor fails because `ps2ui_render` resets the
+   scissor to the full canvas four lines in (`ps2ui.c:1044`), so the
+   clip does not survive being entered and every pass fills the
+   screen. The **alpha test** does survive: `ps2ui_render` deliberately
+   leaves TEST inherited (`ps2ui.c:999-1010`), so `ATE` with
+   `ATST = NEVER` before N extra passes gives the EE all of its work
+   while the GS discards every fragment — no runtime change, and a
+   documented non-assertion becomes the mechanism.
+
+   `gs` will still rise, because it is GIF transfer *plus* drawing and
+   each pass pushes the command list again. The check is therefore not
+   "`gs` stays flat" but "`gs` rises by transfer and setup only, far
+   below the N × 0.2861 ms the fill model predicts" — sharper, because
+   the model supplies the number it must come in under. If `gs` rises
+   *at* the fill rate, the test is not discarding and the arm is
+   measuring nothing: the same trap as P3a's latched CSR, caught the
+   same way, by predicting the number before the sitting.
+
+   Until that sweep exists, this item is deferred on an asymmetry
+   rather than on a measurement.
 
 The ordering is deliberate: the ungated item first, then the two whose
 justification does not exist yet. A phase that opens "optimization
