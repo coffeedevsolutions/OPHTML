@@ -505,6 +505,25 @@ jobs:
               UIB=../../examples/opl-env/build/ui.uib \
               EE_BIN=oplenv-scr-$scr.elf
           done
+          # P3d's OTHER missing number: what LAYERING costs. F-038's
+          # bar for reopening either gate names "a transition
+          # compositing two full screens" as the likeliest content to
+          # push past half a field, and composition is the one Phase 1
+          # contract nobody has timed -- 4.4 measured it in primitives
+          # and stopped. Two screen_set + render pairs in one frame,
+          # which is the documented overlay idiom exactly, over two
+          # screens the blob already carries.
+          #
+          # It is read against the sweep above rather than on its own:
+          # ee(library+confirm) - ee(library) should equal
+          # ee(confirm) - base if per-render fixed cost is paid per
+          # RENDER, and fall short by about one fixed cost if it is
+          # paid per FRAME. Both subtrahends are sweep points, so the
+          # three photographs settle it between themselves.
+          make -C runtime/sample objclean
+          make -C runtime/sample OPLENV=1 COMPOSE=1 \
+            UIB=../../examples/opl-env/build/ui.uib \
+            EE_BIN=oplenv-compose.elf
           # P3b's EXIT GATE. The one claim in the phase a host cannot
           # check: that a UI recolours every colour it draws from a
           # theme chosen at RUNTIME. The host stub counts primitives
@@ -563,6 +582,7 @@ jobs:
             test -f runtime/sample/oplenv-scr-$scr.elf
           done
           test -f runtime/sample/oplenv-theme.elf
+          test -f runtime/sample/oplenv-compose.elf
           test -f runtime/sample/oplenv-clearopaque.elf
           test -f runtime/sample/oplenv-ee1.elf
           test -f runtime/sample/oplenv-ee2.elf
@@ -614,6 +634,7 @@ jobs:
             runtime/sample/oplenv-scr-filters.elf
             runtime/sample/oplenv-scr-library.elf
             runtime/sample/oplenv-theme.elf
+            runtime/sample/oplenv-compose.elf
             runtime/sample/oplenv-clearopaque.elf
             runtime/sample/oplenv-ee1.elf
             runtime/sample/oplenv-ee2.elf

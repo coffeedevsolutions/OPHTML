@@ -927,30 +927,71 @@ Then, in an order P3a decides:
    own format strings against every screen's slot with the runtime's
    pen, so "it fits" is a check and not a recollection.
 
-   **The missing instrument is the EE analogue of the fill arm**, and
-   the obvious version of it does not work. Rendering the UI N extra
-   times inside a 1×1 scissor fails because `ps2ui_render` resets the
-   scissor to the full canvas four lines in (`ps2ui.c:1044`), so the
-   clip does not survive being entered and every pass fills the
-   screen. The **alpha test** does survive: `ps2ui_render` deliberately
-   leaves TEST inherited (`ps2ui.c:999-1010`), so `ATE` with
-   `ATST = NEVER` before N extra passes gives the EE all of its work
-   while the GS discards every fragment — no runtime change, and a
-   documented non-assertion becomes the mechanism.
+   **The EE instrument exists, and this paragraph used to say it did
+   not.** It described the arm as missing and proposed building it on
+   an alpha test — `ATE` with `ATST = NEVER` before N extra passes, so
+   the EE does its work while the GS discards every fragment. That is
+   not what was built, and the reason is written at the arm itself:
+   `gsKit_set_test` takes a preset, `gsCore.c` is not vendored here,
+   and `GS_ATEST_ON` is documented only as *"Turns on Alpha Testing
+   (Source)"*. **An instrument built on unverified GS state cannot
+   settle a question about whether an instrument is trustworthy**,
+   which is the same hazard `ps2ui.c:999-1010` declines to take on.
 
-   `gs` will still rise, because it is GIF transfer *plus* drawing and
-   each pass pushes the command list again. The check is therefore not
-   "`gs` stays flat" but "`gs` rises by transfer and setup only, far
-   below the N × 0.2861 ms the fill model predicts" — sharper, because
-   the model supplies the number it must come in under. If `gs` rises
-   *at* the fill rate, the test is not discarding and the arm is
-   measuring nothing: the same trap as P3a's latched CSR, caught the
-   same way, by predicting the number before the sitting.
+   What shipped instead is N extra whole-UI passes touching no GS
+   state at all. `gs` rises with them, and that costs nothing: `ee` is
+   read across the kick window and `gs` after `gsKit_finish` returns,
+   so the GS scaling never enters the EE number — it is a free
+   cross-check that the passes are doing what the arm claims. S14 ran
+   it and F-044 is the result, five points at r² = 0.99996. So the
+   prediction this paragraph made about `gs` was wrong too: it does
+   not rise "by transfer and setup only", it rises at 0.777 ms per
+   render, the full render rate.
 
-   Until that sweep exists, this item is deferred on an asymmetry
-   rather than on a measurement — and the content sweep above is the
-   cheaper half of closing that, because it needs no runtime change at
-   all.
+   The correction is recorded here because the sequencing authority
+   was asserting a missing instrument, a mechanism the code had
+   rejected in writing, and a `gs` prediction its own finding
+   falsified. `docs/bench-phase2.md` §"The EE arm, and why the obvious
+   version of it does not work" has carried the right account since
+   S14; this file is the one that drifted.
+
+   **The second slice is what LAYERING costs**, and it is the one
+   number F-038 asks for that nothing has measured. That finding's bar
+   for reopening either gate names *"a transition compositing two full
+   screens"* as the likeliest content to push past half a field — and
+   composition is the one Phase 1 contract nobody has timed. §4.4
+   measured it in primitives (375 + 255 = 630) and stopped there.
+
+   `COMPOSE=1` renders **library then confirm in one frame**, which is
+   the documented overlay idiom exactly, over two screens the blob
+   already carries: **804 commands**, above every point in the sweep.
+   No new geometry, no new blob, one more photograph on a sitting
+   already scheduled.
+
+   **It is read against the sweep, not on its own.** Both screens are
+   sweep points, so three photographs settle it between themselves:
+
+   ```
+   ee(library+confirm) − ee(library)  ==  ee(confirm) − base    per RENDER
+                                      <   ee(confirm) − base    per FRAME
+   ```
+
+   **That is the decomposition P3d turns on, one level up from the
+   sweep.** The content sweep says what a command costs; this says
+   whether `ps2ui_render`'s own fixed cost is paid once per frame or
+   once per render. A chain that removes per-render setup pays twice
+   on a layered screen and once on a flat one — so if the fixed term
+   is large *and* repeats, layering is where P3d earns its keep, and
+   if it does not repeat, a modal is nearly free and the gate is
+   unmoved by the case F-038 thought most likely to move it.
+
+   Predicted before the sitting, as F-039's and F-044's were:
+   additivity holds, because `ps2ui_render` keeps no state between
+   calls that a second call could reuse — it re-applies the scissor,
+   re-walks from `cmd_first`, and rebinds every texture. Falsified by
+   a composed frame coming in materially under the sum, which would
+   mean something *is* being reused and the per-render model that
+   F-044 fitted is charging for it twice.
 
    **One thing the sweep does not price, and it belongs in the
    decision.** A precompiled chain pays off because the geometry is
