@@ -540,3 +540,23 @@ worth five ELFs rather than two.
 
 The range stops at N=4 for that reason: past it the loop stops being
 vsync-locked and the frame period stops being a clean 16.683.
+
+### `p` does not scale, and that is a third cross-check
+
+`ps2ui_render` opens with `memset(&ctx->stats, 0, ...)` (`ps2ui.c:973`),
+so the readout's `p` reports **the last pass only** — one (N+1)th of
+what the frame actually drew. The prim count has been this project's
+free self-audit four times; a photograph from an EE build will not
+reconcile against a plain one unless you multiply.
+
+So it joins the other two rather than being a caveat:
+
+| N | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| `p` printed | 590 | 590 | 590 | 590 | 590 |
+| prims actually drawn | 590 | 1,180 | 1,770 | 2,360 | 2,950 |
+
+**`p` staying at 590 while `gs` scales is the pair that says the extra
+passes are real and the counter is per-render.** If `p` scales, stats
+are accumulating across passes and something else in the readout is
+suspect too.

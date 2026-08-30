@@ -91,6 +91,27 @@ EE_CFLAGS += -DPS2UI_OPLENV_FILL_N=$(FILL_N)
 endif
 endif
 
+# P3a3's EE arm, and the same pairing rule for the same reason. It is
+# the opl-env driver rendering the whole UI N extra times, so an EE=1
+# build without OPLENV=1 is the memcard sample wearing the EE ELF's
+# name -- boots, shows a UI, and is not the arm anyone thinks they are
+# holding. That mistake bites at a bench, not in CI, because bringup.md
+# drives these by hand.
+ifdef EE
+ifndef OPLENV
+$(error EE=1 requires OPLENV=1: the EE arm is the opl-env driver rendering itself N extra times, not a build of its own)
+endif
+EE_CFLAGS += -DPS2UI_OPLENV_EE
+# EE_N sweeps the extra passes. Same argument as FILL_N: one step shows
+# ee is not pinned, PROPORTIONALITY shows it is measuring per-render
+# cost -- and the intercept of the fitted line is the quantity nothing
+# in this tree currently knows, how much of the 2.41 ms is
+# ps2ui_render rather than the driver around it.
+ifdef EE_N
+EE_CFLAGS += -DPS2UI_OPLENV_EE_N=$(EE_N)
+endif
+endif
+
 ifdef LADDER2
 EE_CFLAGS += -DPS2UI_SAMPLE_LADDER2
 endif

@@ -1842,12 +1842,32 @@ int main(void)
              * if it does not, the extra passes are not doing what this
              * arm claims.
              *
-             * THE RANGE IS BOUNDED BY ee, NOT BY gs. At 2.41 ms mean
-             * and 3.67 ms peak, five renders put the peak frame at
-             * about 18.3 ms -- past a field. So N=0..3 should hold m0
-             * and N=4 is predicted to miss on scroll frames. That
-             * prediction is written down here BEFORE the sitting, the
-             * way F-039's five points were, and `m` is what reports it.
+             * THE RANGE IS BOUNDED BY ee, NOT BY gs, AND N=4 IS A
+             * DISCRIMINATOR RATHER THAN A PREDICTED MISS. An earlier
+             * version of this comment said five renders put the peak
+             * frame at 5 x 3.67 = 18.3 ms and would miss. That
+             * multiplies the PEAK, and the peak's 1.26 ms excess over
+             * the mean is oplenv_bind_window -- driver work, which this
+             * arm's own model puts in `base` and which does not repeat.
+             * The comment contradicted the model three lines above it.
+             *
+             * Under ee(N) = base + (N+1) x render, and adding gs
+             * because EE and GS work are sequential in a frame:
+             *
+             *   upper branch (base ~ 0)   12.05 + 4.60 = 16.65
+             *   lower branch (base ~ 1.0)  8.05 + 4.60 = 12.65
+             *
+             * against a 16.683 ms field. So N=4 misses on the upper
+             * branch and does not on the lower, which makes `m` a
+             * SECOND, INDEPENDENT read on the same question the fitted
+             * line answers. A clean m0 at N=4 is not a failed
+             * prediction -- it is the informative result, and saying
+             * otherwise here would have had the bench score it as one.
+             *
+             * All of this is written down BEFORE the sitting, the way
+             * F-039's five points were. docs/bench-phase2.md carries
+             * the same numbers; if the two ever disagree again, that
+             * file is the one derived from the model.
              *
              * Before ps2ui_render, not after, for the reason the fill
              * arm gives above: the last pass is the one the eye sees,

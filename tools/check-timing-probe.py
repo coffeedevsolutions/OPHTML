@@ -300,19 +300,34 @@ def main():
             fail.append("the EE arm loops but renders nothing; ee would then "
                         "refuse to move and a dead arm is indistinguishable "
                         "from an EE that does not scale with work")
-        else:
-            # AND IT MUST NOT DRAW GS-ONLY WORK. The whole claim is that
-            # the extra passes are WHOLE RENDERS -- same command walk,
-            # same slot pen -- so the slope is the per-render EE cost. A
-            # loop that called gsKit_prim_sprite instead would move `ee`
-            # a little (the call is not free) and `gs` a lot, and the
-            # fitted slope would be neither quantity. That is the fill
-            # arm wearing this arm's name.
-            body = block[eloop.end():eloop.end() + 400]
-            if re.search(r"gsKit_prim_\w+\s*\(", body):
-                fail.append("the EE arm draws primitives directly instead of "
-                            "calling ps2ui_render, so its slope is not the "
-                            "per-render EE cost it is fitted as")
+        elif not re.search(
+                r"for\s*\(\s*\w+\s*=\s*0\s*;\s*\w+\s*<\s*"
+                r"PS2UI_OPLENV_EE_N\s*;[^)]*\)\s*\{?\s*ps2ui_render\s*\(",
+                block):
+            # AND IT MUST BE ps2ui_render THE LOOP CALLS, asserted
+            # POSITIVELY. The whole claim is that the extra passes are
+            # WHOLE RENDERS -- same command walk, same slot pen -- so
+            # the fitted slope is the per-render EE cost. A loop calling
+            # gsKit_prim_sprite instead would move `ee` a little and
+            # `gs` a lot, and the slope would be neither quantity: the
+            # fill arm wearing this arm's name.
+            #
+            # THE FIRST VERSION SCANNED FOR THE PRIM CALL IN A 400-BYTE
+            # WINDOW AFTER THE LOOP, AND THAT IS ESCAPABLE. strip_comments
+            # blanks comments while PRESERVING OFFSETS, so a comment
+            # inside the loop body spends the window as spaces -- and the
+            # comment on this very arm runs about 1,800 bytes, so the
+            # distance is not hypothetical here. Review moved the prim
+            # call past 420 bytes of comment and all thirteen checks
+            # passed.
+            #
+            # Matching what MUST be there has no window to escape, which
+            # is the same correction the peak-hold rule took in #68:
+            # assert the thing that must happen, not the absence of one
+            # that must not.
+            fail.append("the EE arm's loop does not call ps2ui_render "
+                        "directly, so its slope is not the per-render EE "
+                        "cost it is fitted as")
 
     # The boot phase has to be zeroed before the clock starts.
     #
