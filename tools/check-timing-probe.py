@@ -391,9 +391,25 @@ def main():
         # ee_n++;` and `if (ee > ee_peak) ee_peak = 0;` both compile
         # clean and both print ^0.00 forever, which is the same
         # silent-zero failure the fill arm exists to catch on gs.
-        if not re.search(r"if\s*\(\s*(\w+)\s*>\s*%s\s*\)\s*%s\s*=\s*\1\s*;"
-                         % (var, var), block):
+        # The optional brace was added when gs's peak gained a frame
+        # index and the body became two statements. It does NOT loosen
+        # what this catches: the backreference still demands the same
+        # variable on both sides, so `if (gsu > gs_peak) { gs_peak = 0; }`
+        # fails exactly as `if (gsu > gs_peak) gs_peak = 0;` did.
+        if not re.search(r"if\s*\(\s*(\w+)\s*>\s*%s\s*\)\s*\{?\s*"
+                         r"%s\s*=\s*\1\s*;" % (var, var), block):
             fail.append("no peak-hold on %s; %s" % (var[:2], why))
+
+    # WHICH frame held the gs peak, for the same reason miss_at exists
+    # below. F-045 is stuck on gs^ - gs reading 0.07 at N=2 against
+    # 0.21-0.23 everywhere else, and its one surviving explanation --
+    # that the peak-hold is not catching a scroll frame -- cannot be
+    # tested without knowing which frame it caught. `= frame` and not
+    # `= 0`, so a declaration does not count as recording anything.
+    if not re.search(r"\bgs_pk_at\s*=\s*frame\b", block):
+        fail.append("the gs peak says how big and not which frame; "
+                    "F-045's one remaining explanation is untestable "
+                    "without it")
 
     # miss_at, because `m` alone says how many and never when -- and the
     # first explanation offered for HW #262's single miss was wrong by a

@@ -442,6 +442,22 @@ jobs:
           make -C runtime/sample OPLENV=1 CLEAR_OPAQUE=1 \
             UIB=../../examples/opl-env/build/ui.uib \
             EE_BIN=oplenv-clearopaque.elf
+          # P3b's EXIT GATE. The one claim in the phase a host cannot
+          # check: that a UI recolours every colour it draws from a
+          # theme chosen at RUNTIME. The host stub counts primitives
+          # and the previewer renders from the same values the baker
+          # wrote, so both would agree with a runtime that recoloured
+          # nothing on a television. Two photographs settle it.
+          #
+          # Self-driven on a 240-frame timer rather than a pad: this
+          # sample loads no IOP service at all, and adding padman would
+          # change the boot path the timing arms measure. Behind its
+          # own flag so the plain builds stay comparable with the
+          # sittings already taken.
+          make -C runtime/sample objclean
+          make -C runtime/sample OPLENV=1 THEME_CYCLE=1 \
+            UIB=../../examples/opl-env/build/ui.uib \
+            EE_BIN=oplenv-theme.elf
           # P3a3's EE sweep. gs got five points, a fitted line and
           # r^2 = 0.999998; ee has one number and nothing to
           # extrapolate with, which is the asymmetry P3d's gate is now
@@ -480,6 +496,7 @@ jobs:
           test -f runtime/sample/oplenv-fill2.elf
           test -f runtime/sample/oplenv-fill4.elf
           test -f runtime/sample/oplenv-fill16.elf
+          test -f runtime/sample/oplenv-theme.elf
           test -f runtime/sample/oplenv-clearopaque.elf
           test -f runtime/sample/oplenv-ee1.elf
           test -f runtime/sample/oplenv-ee2.elf
@@ -524,6 +541,7 @@ jobs:
             runtime/sample/oplenv-fill2.elf
             runtime/sample/oplenv-fill4.elf
             runtime/sample/oplenv-fill16.elf
+            runtime/sample/oplenv-theme.elf
             runtime/sample/oplenv-clearopaque.elf
             runtime/sample/oplenv-ee1.elf
             runtime/sample/oplenv-ee2.elf

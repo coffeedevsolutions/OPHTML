@@ -1601,8 +1601,21 @@ int main(void)
         u32 fld_acc = 0, fld_n = 0, fld_us = 0;   /* wall-clock period  */
         u32 gs_acc = 0, gs_us = 0;                /* GS draw time       */
         u32 gs_peak = 0, gs_pk_us = 0;            /* worst GS frame     */
+        /* WHICH frame held that peak, not just how big it was. F-045
+         * is stuck for exactly this reason: gs^ - gs reads 0.21-0.23
+         * at every fill level except N=2, where three windows across
+         * two sittings read 0.07, and the one surviving explanation --
+         * that the peak-hold is not catching a scroll frame -- cannot
+         * be tested without knowing which frame it caught. `m` became
+         * arguable the moment it gained @; this is the same fix on the
+         * same kind of question. Absolute, so `@ % OPLENV_SCROLL_EVERY
+         * == 0` reads directly as "it was a scroll frame". */
+        u32 gs_pk_at = 0, gs_pk_at_us = 0;        /* and when          */
         u32 ee_peak = 0, ee_pk_us = 0;            /* worst EE frame     */
         u32 missed = 0, miss_at = 0;              /* dropped fields     */
+#ifdef PS2UI_OPLENV_THEME_CYCLE
+        unsigned cur_theme = 0;                   /* tint row on screen */
+#endif
         u32 t_prev = 0;
         char telem[64];
 
@@ -1762,6 +1775,41 @@ int main(void)
                     }
                 }
             }
+
+#ifdef PS2UI_OPLENV_THEME_CYCLE
+            /* P3b's EXIT GATE, and the one claim in the phase a host
+             * cannot check. "A UI recolours every colour it draws from
+             * a theme chosen at RUNTIME": the host stub counts
+             * primitives and the previewer renders from the same
+             * values the baker wrote, so both would agree with a
+             * runtime that recoloured nothing on a television.
+             *
+             * SELF-DRIVEN, NOT PAD-DRIVEN, for the reason the scroll
+             * is. This sample loads no IOP service at all -- no pad,
+             * no sound, no memory card -- and adding padman would
+             * change the boot path this driver exists to measure. A
+             * timer proves runtime selection just as well as a button
+             * does: the row is chosen while the frame loop runs, not
+             * baked in, which is the whole of the claim.
+             *
+             * BEHIND A FLAG so the plain build stays byte-comparable
+             * with the sittings already taken. F-044's ee and gs lines
+             * were fitted on builds without this, and a theme swap in
+             * the measured path would make the next sweep a different
+             * experiment wearing the same name.
+             *
+             * Slow on purpose: 240 frames is four seconds at field
+             * rate, long enough to photograph either state without
+             * racing it, and n in the readout says which frame the
+             * picture was taken on. */
+            if (frame && frame % 240 == 0) {
+                unsigned n = ui.hdr->n_theme;
+                if (n > 1) {
+                    cur_theme = (cur_theme + 1) % n;
+                    ps2ui_theme_set(&ui, cur_theme);
+                }
+            }
+#endif
 
             /* THE CLEAR'S OWN ARM. S14 measured gs(N) over the EE
              * sweep as 0.9220 + N x 0.7770, so one ps2ui_render costs
@@ -1941,6 +1989,7 @@ int main(void)
                 ee_us = ee_acc / ee_n;
                 gs_us = gs_acc / ee_n;
                 gs_pk_us = gs_peak;
+                gs_pk_at_us = gs_pk_at;
                 /* PEAK-HOLD, and it resets with the window on purpose.
                  * F-036's figure is a 1-in-30 duty-cycle mean: two
                  * frames in sixty do the scroll work and the mean
@@ -1952,12 +2001,13 @@ int main(void)
                  * that matters. */
                 ee_pk_us = ee_peak;
                 ee_acc = 0; gs_acc = 0; ee_n = 0;
-                ee_peak = 0; gs_peak = 0;
+                ee_peak = 0; gs_peak = 0; gs_pk_at = 0;
                 if (fld_n) fld_us = fld_acc / fld_n;
                 fld_acc = 0; fld_n = 0;
             }
             if (ee_us) {
-                sprintf(telem, "ee%lu.%02lu^%lu.%02lu gs%lu.%02lu^%lu.%02lu",
+                sprintf(telem,
+                        "ee%lu.%02lu^%lu.%02lu gs%lu.%02lu^%lu.%02lu@%lu",
                         (unsigned long)(ee_us / 1000),
                         (unsigned long)((ee_us % 1000) / 10),
                         (unsigned long)(ee_pk_us / 1000),
@@ -1965,13 +2015,39 @@ int main(void)
                         (unsigned long)(gs_us / 1000),
                         (unsigned long)((gs_us % 1000) / 10),
                         (unsigned long)(gs_pk_us / 1000),
-                        (unsigned long)((gs_pk_us % 1000) / 10));
+                        (unsigned long)((gs_pk_us % 1000) / 10),
+                        (unsigned long)gs_pk_at_us);
                 ps2ui_slot_set(&ui, "telem", telem);
-                sprintf(telem, "f%lu.%02lu p%lu up%u m%lu@%lu",
+                /* n is the run's frame count, and m without it is half
+                 * a reading. S14 got m29@270 at N=4 and the review was
+                 * right that 29 divides nothing: it fits "every scroll
+                 * frame from 270 on" and fits "near-margin jitter whose
+                 * first miss happened to be a scroll frame" equally
+                 * well, and only n tells them apart --
+                 * 29 ~ (n - 270)/OPLENV_SCROLL_EVERY + 1 for the first.
+                 * t is the theme row on screen, so a photograph of a
+                 * theme switch says which one it is. */
+                sprintf(telem,
+#ifdef PS2UI_OPLENV_THEME_CYCLE
+                        /* t only in the build that cycles. The slot
+                         * truncates rather than overflows, and a
+                         * trailing field is the first thing lost, so
+                         * the plain builds -- the ones whose line
+                         * lengths the sittings already depend on --
+                         * do not pay for a number they cannot vary. */
+                        "f%lu.%02lu p%lu up%u m%lu@%lu n%lu t%u",
+#else
+                        "f%lu.%02lu p%lu up%u m%lu@%lu n%lu",
+#endif
                         (unsigned long)(fld_us / 1000),
                         (unsigned long)((fld_us % 1000) / 10),
                         (unsigned long)ui.stats.prims, last_upload,
-                        (unsigned long)missed, (unsigned long)miss_at);
+                        (unsigned long)missed, (unsigned long)miss_at,
+                        (unsigned long)frame
+#ifdef PS2UI_OPLENV_THEME_CYCLE
+                        , cur_theme
+#endif
+                        );
                 ps2ui_slot_set(&ui, "telem2", telem);
             }
 
@@ -2043,7 +2119,7 @@ int main(void)
                  * prediction is written down before the reading on
                  * purpose. */
                 if (ee > ee_peak) ee_peak = ee;
-                if (gsu > gs_peak) gs_peak = gsu;
+                if (gsu > gs_peak) { gs_peak = gsu; gs_pk_at = frame; }
             }
             ee_n++;
             frame++;

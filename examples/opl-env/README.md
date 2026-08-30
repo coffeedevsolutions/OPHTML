@@ -19,7 +19,7 @@ this blob, and an exemption here would be an exemption on them.
 
 | mechanism | where |
 |---|---|
-| blob-declared working set | 6,751-byte arena for the whole environment |
+| blob-declared working set | 6,759-byte arena for the whole environment |
 | streamed texture slots | nine list thumbnails + one detail cover |
 | slot text at scale | 127 slots, none of them a fixed ceiling |
 | composition | `confirm` drawn over `library` or `detail`, no clear between |
@@ -40,7 +40,7 @@ These are the Phase 2 baseline; Phase 3 optimises against them.
 
 ```
 blob            269,232 bytes
-arena             6,751 bytes      (the whole six-screen environment)
+arena             6,759 bytes      (the whole six-screen environment)
 screens                   6
 slots                   127
 focus nodes              51
