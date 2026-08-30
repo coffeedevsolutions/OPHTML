@@ -61,6 +61,12 @@ def default_budget(canvas_w: int, canvas_h: int) -> int:
     return VRAM_TOTAL - 3 * fb
 
 
+# A CLUT's texels: 256 entries of PSMCT32. It occupies a whole 8 KiB
+# page regardless (F-043), which is exactly the kind of gap the line
+# below reports rather than hides.
+CLUT_PAYLOAD = 256 * 4
+
+
 def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
     """Compute the footprint. Returns (lines, total_bytes, budget, ok);
     lines is a printable per-texture breakdown."""
@@ -68,6 +74,7 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         budget = default_budget(canvas_w, canvas_h)
     lines = []
     total = 0
+    payload_total = 0
     for i, t in enumerate(textures):
         size = page_rounded_size(t.width, t.height, t.fmt)
         total += size
@@ -86,6 +93,7 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         # about a slot.
         streamed = bool(getattr(t, "kind", 0))
         payload = t.reservation if streamed else len(t.data)
+        payload_total += payload
         lines.append(
             f"  tex[{i:2d}] {fmt_name:8s} {t.width:4d}x{t.height:<4d} "
             f"{'streamed' if streamed else 'baked':8s} "
@@ -94,11 +102,32 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
     for i, _c in enumerate(cluts):
         size = clut_size()
         total += size
+        payload_total += CLUT_PAYLOAD
         lines.append(f"  clut[{i}] PSMCT32  256 entries        -> {size:7d} B in pages")
     fb = framebuffer_size(canvas_w, canvas_h)
     lines.append(
         f"  framebuffers assumed: 2x draw/display + 1x Z @ {canvas_w}x{canvas_h} "
         f"= {3 * fb} B"
+    )
+    # THE COLUMN ABOVE HAS NEVER BEEN ADDED UP, and the difference is
+    # the whole of what P3c has left to argue with. Its frame-rate case
+    # is closed [F-037, F-042]: the GS is at 5.6% and no content shape
+    # F-038 named revives it. What survives is footprint -- page-aware
+    # packing to reduce TBP switches and make streamed reservations
+    # exact -- and that case has to be made on bytes. Printing the two
+    # totals side by side is the cheapest possible version of making
+    # it, on every bake rather than once in a document.
+    #
+    # WHAT THIS IS NOT: a claim that the gap is recoverable. It is the
+    # size of the prize, not the prize. How much a packer could
+    # actually reclaim depends on the GS's texture-base granularity and
+    # on what gsKit's allocator will do with it, neither of which this
+    # tree has verified -- so the number is reported and not spent.
+    waste = total - payload_total
+    lines.append(
+        f"  payload {payload_total} B -> {total} B in pages: "
+        f"{waste} B ({100 * waste // max(total, 1)}%) is page-rounding, "
+        f"which is what P3c would have to reclaim"
     )
     lines.append(
         f"  textures {total} B of {budget} B budget "

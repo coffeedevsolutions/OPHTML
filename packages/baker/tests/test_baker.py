@@ -964,6 +964,50 @@ class TestStreamedAuthoring(unittest.TestCase):
         self.assertIn(f"{payload} B payload", row)
         self.assertIn(f"{pages} B in pages", row)
 
+    def test_the_report_totals_the_payload_column_it_prints(self):
+        """The per-texture rows have printed payload and pages side by
+        side since v6, and nothing ever added the columns up -- so the
+        gap between them, which is the whole of what P3c has left to
+        argue with, was visible per texture and unstated overall.
+
+        Asserted against the SUM OF THE PRINTED ROWS rather than a
+        recomputed expectation, because a total that agrees with its own
+        arithmetic and disagrees with the lines above it is the failure
+        worth catching. A CLUT contributes 1 KiB of payload against a
+        full 8 KiB page (F-043), so it is in the sum too."""
+        import re
+        from ps2ui_bake import vram
+        # 100x70, not the fixture's default 64x64: a 64x64 CT32 texture
+        # is EXACTLY two pages, so the gap is zero and the assertion at
+        # the bottom is vacuous. Its own guard caught that on the first
+        # run, which is the only reason the guard is there.
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover"></div>',
+            self.CSS.replace("width:64px;height:64px",
+                             "width:100px;height:70px"))
+        self.assertIsNotNone(uib, err)
+        lines, total, _budget, _ok = vram.report(
+            uib.textures, uib.cluts, 640, 448, None)
+
+        rows = sum(int(m.group(1))
+                   for ln in lines
+                   for m in [re.search(r"(\d+) B payload", ln)] if m)
+        rows += vram.CLUT_PAYLOAD * len(uib.cluts)
+
+        summary = [ln for ln in lines if "page-rounding" in ln]
+        self.assertEqual(len(summary), 1, lines)
+        m = re.search(r"payload (\d+) B -> (\d+) B in pages: (\d+) B", summary[0])
+        self.assertIsNotNone(m, summary[0])
+        payload, pages, waste = (int(g) for g in m.groups())
+
+        self.assertEqual(payload, rows,
+                         "the total disagrees with the rows it summarises")
+        self.assertEqual(pages, total, "and with the budget figure below it")
+        self.assertEqual(waste, pages - payload)
+        self.assertGreater(waste, 0,
+                           "a fixture with no page-rounding gap would make "
+                           "this test vacuous")
+
     def test_the_bake_summary_does_not_call_a_reservation_zero(self):
         """The per-texture row stopped saying '0 B raw'; the total one
         line beneath it summed len(t.data) and said '(0 KiB)' for the

@@ -310,8 +310,11 @@ environment *running* and the first slice only proves it bakes:
 
 1. **The environment exists, bakes and loads.** **[shipped]**
    `examples/opl-env`: six screens, 127 slots, ten streamed texture
-   slots, one overlay. 246,144-byte blob, 7,031-byte arena for the
-   whole environment, VRAM 392 KiB inside a 736 KiB budget. Carries the
+   slots, one overlay. 269,824-byte blob, 7,319-byte arena for the
+   whole environment, VRAM 336 KiB inside a 736 KiB budget. (Those
+   four figures moved at P3b-6 and again when the readout went on
+   every screen; `tools/check-example-figures.py` holds the README's
+   copy to the blob, and this one is now current with it.) Carries the
    `examples/` contract -- warning-free under `--strict`, screenshots
    refreshed by building, `check-blobs` with no exemptions -- and CI
    runs all three, which the first version did not.
@@ -783,8 +786,36 @@ Then, in an order P3a decides:
    reservations exact. **Gate did not open** [F-037]: the GS is at
    5.6%, so there is no frame-rate case. It survives only as what it
    always also was — VRAM tidiness and exact streamed reservations —
-   and must be argued that way, on the 392 KiB footprint rather than on
-   milliseconds.
+   and must be argued that way, on the footprint rather than on
+   milliseconds. That footprint is **336 KiB**, not the 392 KiB this
+   line used to cite: P3b-6 moved it when the rounded boxes stopped
+   premixing their colour.
+
+   **The size of the prize is now printed on every bake.** The
+   per-texture rows have shown payload and page-rounded size side by
+   side since v6, and nothing added the columns up — so the gap, which
+   is the whole of what this item has left to argue with, was visible
+   per texture and unstated overall:
+
+   | example | payload | in pages | page-rounding gap |
+   |---|---:|---:|---:|
+   | memcard | 130 KiB | 160 KiB | 30 KiB (19%) |
+   | opl-env | 224 KiB | 336 KiB | **112 KiB (33%)** |
+   | channel6 | 190 KiB | 368 KiB | **178 KiB (48%)** |
+
+   channel6 is the striking one and its cause is already on record:
+   nine CLUTs, each costing a full 8 KiB page for 1 KiB of palette
+   [F-043]. That is 63 KiB of the 178 before a single texture is
+   considered.
+
+   **This is the size of the prize, not the prize.** How much a packer
+   could actually reclaim depends on the GS's texture-base granularity
+   and on what gsKit's allocator will do with it, and **this tree has
+   verified neither** — the same standard that kept the alpha test out
+   of the EE arm. So the number is reported and not spent. The first
+   slice of P3c, whenever it is pulled, is to establish that
+   granularity; until then the item has a measured motivation and an
+   unverified mechanism, which is a better place than it was.
 
    **And the fill argument is now closed rather than merely unopened**
    [F-042]. F-039's calibrated model prices half a field of GS at 25.9
