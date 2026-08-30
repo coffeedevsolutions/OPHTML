@@ -35,6 +35,14 @@ PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
 # assumptions hold without knowing what the screens are called.
 (cd "$repo" && ./tools/check-blobs.sh examples/opl-env/build/ui.uib)
 
+# And what THIS blob promises, which check-blobs cannot know: that the
+# tint table is role-keyed, that slot text and commands share the
+# entries whose names they share, and that naming the colours did not
+# stop the palette being a small repeated set. Run here rather than in
+# the baker's unit suite because the subject is a build artefact -- see
+# the header of check.py for why that distinction is load-bearing.
+PYTHONPATH="$repo/packages/baker" python3 "$here/check.py" "$out/ui.uib"
+
 # The README embeds these, so they are committed -- which only stays
 # honest if building refreshes them.
 PYTHONPATH="$repo/packages/baker" python3 - "$out" "$here/screenshots" <<'PY'

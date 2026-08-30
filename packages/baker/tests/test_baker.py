@@ -2153,72 +2153,41 @@ class TestTintTable(unittest.TestCase):
             "recolour the panel and leave the label behind")
         self.assertEqual(u.slots[0]["tint_base"], 0)
 
-    def test_opl_env_slots_share_roles_with_commands(self):
-        """The IR half of the two-table seam, over the real blob.
+    def test_one_name_is_not_one_entry_when_opacity_folds_in(self):
+        """A ROLE IS NOT A FUNCTION OF ITS NAME ALONE, and P3b-4's
+        row-writer is where that bites.
 
-        A slot's colour and a command's colour that carry the SAME var
-        name are one role and must be one entry. Four of opl-env's slot
-        tints are shared with commands that way -- every one of them a
-        case where a theme moving that name has to move both.
+        `opacity` multiplies into the painted colour's alpha before the
+        name is attached, so the layout output for
 
-        This is the check the synthetic test cannot make. Stripping
-        colorBaseVar/colorFocusVar out of paint.js leaves the baker
-        keying correctly on names it never receives, and the synthetic
-        slots in this file set those fields directly, so they never
-        notice. On the real blob it takes n_tint from 13 to 16: three
-        roles split in half because the slot side lost its name.
+            #a { background: var(--panel) }
+            #b { background: var(--panel); opacity: 0.5 }
+
+        is one role carrying two colours. Two entries is the RIGHT
+        answer -- they are different colours on screen and one entry
+        could only serve both by picking a side -- so this is not a
+        fence against fusing them. It is a fence against the belief
+        that fusing them is what happens, held by a future row-writer
+        that looks a theme's literal up by name and copies it into
+        "the" entry: it would move the opaque panel, leave the
+        half-alpha one baked, and change half the screen.
+
+        Keyed on the name alone this collapses to 1 and the test
+        fails. That is the sabotage it exists to catch.
         """
-        import os, struct
-        from ps2ui_bake.uib import _HEADER, _CMD
-        root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "..", "..", "..")
-        path = os.path.normpath(
-            os.path.join(root, "examples/opl-env/build/ui.uib"))
-        if not os.path.exists(path):
-            unavailable(self, "opl-env is not built "
-                              "(examples/opl-env/build.sh)")
-        u = read_uib(path)
-        with open(path, "rb") as fh:
-            data = fh.read()
-        h = _HEADER.unpack_from(data, 0)
-        n_cmd, off_cmd = h[7], h[12]
-        cmd = set()
-        for i in range(n_cmd):
-            e = _CMD.unpack_from(data, off_cmd + i * _CMD.size)
-            if e[0] in (OP_QUAD, OP_TEXQUAD):
-                cmd.add(e[7])
-        slot = ({s["tint_base"] for s in u.slots}
-                | {s["tint_focus"] for s in u.slots})
-        self.assertGreaterEqual(
-            len(cmd & slot), 4,
-            "slot text and commands must share the tint entries whose var "
-            "names they share; fewer means one side stopped keying on the "
-            "name and a theme would recolour the panels and leave the "
-            "labels baked")
-
-    def test_opl_env_separates_a_role_from_the_ninepatch_identity(self):
-        """The measured consequence on the shipped example.
-
-        #ffffff as text modulates to (128,128,128,128), which is exactly
-        the identity tint the nine-patch emitter uses on untinted art.
-        Value-keying made those one entry, so a theme touching --ink-max
-        would have tinted every nine-patch in the environment.
-        """
-        import os
-        root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "..", "..", "..")
-        path = os.path.normpath(
-            os.path.join(root, "examples/opl-env/build/ui.uib"))
-        if not os.path.exists(path):
-            unavailable(self, "opl-env is not built "
-                              "(examples/opl-env/build.sh)")
-        row = read_uib(path).themes[0]
-        ident = (128, 128, 128, 128)
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                       (51, 102, 153, 0x80), var="--panel"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4,
+                       (51, 102, 153, 0x40), var="--panel"),
+        ]
+        u = self.write(recs)
         self.assertEqual(
-            row.count(ident), 2,
-            "two entries must hold the identity tint: --ink-max, and the "
-            "nine-patch emitter's untinted art. One entry means they fused "
-            "and a theme would tint every panel")
+            len(u.themes[0]), 2,
+            "one name, two painted colours, two entries -- a theme has "
+            "to move both or half the panels keep the old colour")
+        self.assertEqual(u.themes[0][0][:3], u.themes[0][1][:3])
+        self.assertNotEqual(u.themes[0][0][3], u.themes[0][1][3])
 
     def patched(self, path, mutate):
         """Apply `mutate(bytearray)` to a written blob and re-CRC it."""
