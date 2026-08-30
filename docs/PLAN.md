@@ -932,6 +932,17 @@ Then, in an order P3a decides:
    cheaper half of closing that, because it needs no runtime change at
    all.
 
+   **One thing the sweep does not price, and it belongs in the
+   decision.** A precompiled chain pays off because the geometry is
+   fixed. Nothing in the runtime moves, scales or fades a node today —
+   the whole surface is visibility, slot text, streamed textures,
+   CLUT/theme, screen, focus and list windowing — so "fixed" is
+   currently free. `F26` in the backlog proposes changing that, and the
+   animated share of a screen is a direct discount on what a chain can
+   buy. If runtime geometry is wanted, its scope wants settling before
+   the chain is built rather than after, because the chain's design
+   turns on how much of it has to stay patchable.
+
 The ordering is deliberate: the ungated item first, then the two whose
 justification does not exist yet. A phase that opens "optimization
 against Phase 2's numbers, not vibes" should not begin with the item
