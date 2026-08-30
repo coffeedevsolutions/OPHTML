@@ -406,9 +406,15 @@ h1 {
 .dlg-row { flex-direction: row; gap: 10px; justify-content: flex-end; height: 32px; }
 
 .dlg-btn {
-  /* 14px, not 12: --strict enforces a floor on FOCUSABLE text because
-     below it is unreadable from a couch, and a dialog button is the
-     most consequential text on the screen. The rule caught this. */
+  /* 14px, not 12: the floor is 14px because below it is unreadable
+     from a couch, and a dialog button is the most consequential text
+     on the screen. The rule caught this.
+
+     This used to say the floor applies to FOCUSABLE text. It never
+     did -- lint.js has always checked every text command. It read
+     that way because every non-focusable small string in this file is
+     data-slot text, and the linter could not see a slot at all until
+     P3b-5. The blind spot had written itself into the comment. */
   width: 104px; height: 32px;
   font-size: 14px;
   color: var(--ink-dialog-btn);

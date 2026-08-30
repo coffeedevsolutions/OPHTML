@@ -124,10 +124,18 @@ slots. Filed rather than fixed — a multi-line slot is a real feature
 with a real cost (wrapping in the runtime pen), and it should be pulled
 by a use case, not added because a dialog was awkward once.
 
-**3. `--strict` caught a 12px focusable.** The dialog buttons were 12px;
+**3. `--strict` caught a 12px button.** The dialog buttons were 12px;
 the floor is 14px because below it is unreadable from a couch. Working
 as intended, and worth recording that it fired on the most consequential
 text on the screen.
+
+It read as a rule about *focusable* text for a while, and it never was.
+`lint.js` checks every text command. What made it look focusable-only
+is that every other small string here is `data-slot` text, and the
+linter could not see a slot at all until P3b-5 — at which point 97 more
+instances at 11–13px appeared. `build.sh` now passes
+`--min-font-size 11` to record that deliberately rather than have it be
+missed; whether 11px is actually readable from three metres is open.
 
 ## Screens
 
