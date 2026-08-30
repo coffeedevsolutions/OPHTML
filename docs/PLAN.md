@@ -937,11 +937,11 @@ Then, in an order P3a decides:
    fixed. Nothing in the runtime moves, scales or fades a node today —
    the whole surface is visibility, slot text, streamed textures,
    CLUT/theme, screen, focus and list windowing — so "fixed" is
-   currently free. `F26` in the backlog proposes changing that, and the
-   animated share of a screen is a direct discount on what a chain can
-   buy. If runtime geometry is wanted, its scope wants settling before
-   the chain is built rather than after, because the chain's design
-   turns on how much of it has to stay patchable.
+   currently free. The pull lane's **runtime geometry** item proposes
+   changing that, and the animated share of a screen is a direct
+   discount on what a chain can buy. If it is ever pulled, its scope
+   wants settling before the chain is built rather than after, because
+   the chain's design turns on how much of it has to stay patchable.
 
 The ordering is deliberate: the ungated item first, then the two whose
 justification does not exist yet. A phase that opens "optimization
@@ -1016,8 +1016,38 @@ PR merged first.
 ### The pull lane
 
 No phase: `position: absolute` (F8), gradients (F15), localization (F17),
-non-Latin text (F16), full VRAM unload (old F19). Each enters only when a
-concrete use pulls it. Nothing enters because it scores well.
+non-Latin text (F16), full VRAM unload (old F19), **runtime geometry**
+(below). Each enters only when a concrete use pulls it. Nothing enters
+because it scores well.
+
+**Runtime geometry — animation and transitions.** Geometry is baked, and
+the whole runtime surface is `visible_set`, `slot_set`, `tex_set`,
+`clut_set`, `theme_set`, `screen_set`, `focus_set` and `list_*`. Nothing
+moves, scales or fades a node, so a cascade, a coverflow, a slide
+transition or a focus ring that travels cannot be expressed at all — an
+app can only cut between baked states. It is a polish gap rather than a
+correctness one: what ps2ui draws is right, it just arrives instantly.
+
+Three tiers, cheapest first, and they are separable:
+
+| tier | mechanism | notes |
+|---|---|---|
+| offset | `ps2ui_offset_set(ctx, name, dx, dy)` over a subtree | one add per command; an offset table shaped like the visibility bits. Slide-ins, travelling focus rings, parallax |
+| scale + opacity | opacity into the tint alpha; scale recomputes quad corners | opacity is nearly free — the tint table has been per-command since P3b. Scale is where I2's rounding rule and P1k's half-texel bias need re-deriving, not reusing |
+| timelines | a `@keyframes` subset baked into the blob | an app plays a named transition instead of driving a value per frame. The tier that makes it authored in CSS rather than in C |
+
+**What would pull it**, stated so the admission rule has something to
+test: a PSBBN-class animated shell. That is not an anchored use case in
+§5 today — UC-3 asks for none of it — so it stays in this lane. `F8` is
+upstream of the parts that overlap without nesting, and `lint.js`
+already carries forward cover for that.
+
+**It discounts P3d, which is why it is written down now.** A
+precompiled chain pays off because the geometry is fixed, so the
+animated share of a screen subtracts directly from what the chain buys,
+and the chain's design turns on how much has to stay patchable. If this
+is ever pulled, its scope wants settling before the chain is built
+rather than after. That is a sequencing claim, not a measurement.
 
 ## §7 PS2 hardware exploitation map
 
