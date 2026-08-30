@@ -28,7 +28,9 @@ from ps2ui_bake.rounding import (
 )
 from ps2ui_bake import gs
 from ps2ui_bake.atlas import AtlasBuilder
-from ps2ui_bake.ninepatch import rasterize_patch, slice_quads, patch_key
+from ps2ui_bake.ninepatch import (COVERAGE_FILL, COVERAGE_RING,
+                                  rasterize_coverage, slice_quads,
+                                  patch_key)
 from ps2ui_bake.quads import (
     Flattener, DrawRecord, OP_QUAD, OP_TEXQUAD, OP_SCISSOR_PUSH, OP_SCISSOR_POP,
     STATE_ALWAYS, STATE_UNFOCUSED, STATE_FOCUSED, FOCUS_NONE, TEX_NONE,
@@ -216,7 +218,16 @@ class TestModulateDomain(unittest.TestCase):
         f.run()
         self.assertEqual(f.records[0].rgba, (200, 30, 30, 0x80))
 
-    def test_ninepatch_tint_is_modulate_identity(self):
+    def test_a_rounded_fill_is_tinted_by_its_own_colour(self):
+        """WAS test_ninepatch_tint_is_modulate_identity, and the change
+        is the point of P3b-6. The identity tint said "this texture
+        already knows what colour it is" -- which put every rounded
+        box's colour in its texels, where a tint table cannot reach it.
+        The tint is now the fill, converted to the modulate domain like
+        any other TEXQUAD colour.
+
+        The identity has not gone away; it belongs to images, which
+        really do carry their own colour."""
         ir = tiny_ir([{
             "op": "rect", "x": 0, "y": 0, "w": 40, "h": 40,
             "fill": [1, 2, 3, 255], "borderWidth": 0, "borderColor": None,
@@ -224,9 +235,10 @@ class TestModulateDomain(unittest.TestCase):
         }])
         f = Flattener(ir, font_paths())
         f.run()
+        self.assertTrue(f.records)
         for r in f.records:
             self.assertEqual(r.op, OP_TEXQUAD)
-            self.assertEqual(r.rgba, (0x80, 0x80, 0x80, 0x80))
+            self.assertEqual(r.rgba, (1, 1, 2, 0x80))
 
     @unittest.skipIf(TTF is None, "DejaVu Sans not installed")
     def test_every_texquad_channel_at_most_0x80(self):
@@ -329,12 +341,92 @@ class TestAtlas(unittest.TestCase):
 
 class TestNinePatch(unittest.TestCase):
     def test_patch_dimensions(self):
-        p = rasterize_patch(6, 2, (10, 20, 30, 255), (200, 200, 200, 255))
+        p = rasterize_coverage(6, 2, COVERAGE_FILL)
         self.assertEqual(p.cell, 7)
         self.assertEqual(p.image.width, 15)
 
+    def test_fill_and_ring_never_sum_past_full_coverage(self):
+        """THE SEAM. The two masks are drawn from one geometry -- ring
+        is outer minus the same inset shape the fill is -- so a corner
+        texel that is half fill is half ring and the two composite to
+        one solid pixel. Rasterized independently they would each be
+        antialiased against nothing, sum past 255, and lay a dark
+        hairline around every rounded box that no author wrote.
+
+        Also the reason _mask downsamples with BOX and not LANCZOS: a
+        windowed-sinc filter overshoots, and an overshoot here is this
+        defect arriving through the resampler instead."""
+        for radius, bw in ((4, 2), (3, 2), (8, 1), (6, 3)):
+            f = rasterize_coverage(radius, bw, COVERAGE_FILL).image
+            r = rasterize_coverage(radius, bw, COVERAGE_RING).image
+            pairs = list(zip(f.getdata(), r.getdata()))
+            self.assertTrue(all(a + b <= 255 for a, b in pairs),
+                            f"radius {radius} bw {bw}: coverage sums past 1")
+            # And they actually meet: somewhere on the corner arc both
+            # are partial. Without this the check above passes for a
+            # ring that is empty.
+            self.assertTrue(any(0 < a < 255 and 0 < b < 255 for a, b in pairs),
+                            f"radius {radius} bw {bw}: no shared corner texel")
+
+    def test_coverage_preserves_the_area_it_rasterized(self):
+        """A coverage texel is an AREA FRACTION, so the mask's total
+        must equal the shape's area. That is what picks BOX as the
+        downsample filter over the LANCZOS the premixed patch used: a
+        resampling filter rings, and measured over these shapes LANCZOS
+        loses or invents up to 0.47 px^2 of rounded corner where BOX is
+        within 0.02.
+
+        This is the check that pins the filter. The seam check above
+        does NOT -- it passes under LANCZOS too, because ring is a
+        clamped subtraction and the sum is bounded whatever the filter
+        does. Two independent properties; the first version of the
+        comment above had them as one.
+        """
+        from PIL import Image, ImageDraw
+        from ps2ui_bake.ninepatch import SUPERSAMPLE as S
+        for radius, bw in ((4, 0), (4, 2), (6, 3), (8, 1)):
+            # THE SUBJECT, not a local reimplementation of it. The
+            # first version of this test built its own BOX resize and
+            # compared that against itself, so swapping the module's
+            # filter to LANCZOS passed all 185 checks. A test that does
+            # not call the thing it is about cannot fail for the reason
+            # it was written.
+            got = sum(rasterize_coverage(radius, bw, COVERAGE_FILL)
+                      .image.getdata()) / 255.0
+            # The exact area, rasterized at supersample and counted --
+            # no resize, so nothing here shares a filter with the code
+            # under test.
+            size = 2 * max(radius, bw) + 3
+            big = Image.new("L", (size * S,) * 2, 0)
+            ImageDraw.Draw(big).rounded_rectangle(
+                (bw * S, bw * S, (size - bw) * S - 1, (size - bw) * S - 1),
+                radius=max(radius - bw, 0) * S, fill=255)
+            exact = sum(big.getdata()) / 255.0 / (S * S)
+            self.assertLess(
+                abs(got - exact), 0.05,
+                f"radius {radius} bw {bw}: coverage totals {got:.3f} px^2 "
+                f"for a shape of {exact:.3f}")
+
+    def test_a_coverage_patch_holds_no_colour(self):
+        """The whole point: the same geometry is one texture whatever
+        it is painted, which is what takes opl-env from 11 patch
+        textures to 4 and from 88 KiB of VRAM to 32."""
+        self.assertEqual(patch_key(4, 2, COVERAGE_FILL),
+                         patch_key(4, 2, COVERAGE_FILL))
+        self.assertNotEqual(patch_key(4, 2, COVERAGE_FILL),
+                            patch_key(4, 2, COVERAGE_RING))
+
+    def test_the_rings_centre_cell_is_empty(self):
+        """A border does not cover the middle of the box. Emitting that
+        cell anyway would cost a full-box textured draw per rounded
+        element to composite a rectangle of zeros."""
+        p = rasterize_coverage(4, 2, COVERAGE_RING)
+        self.assertTrue(p.cell_empty(p.cell, p.cell,
+                                     p.size - 2 * p.cell, p.size - 2 * p.cell))
+        self.assertFalse(p.cell_empty(0, 0, p.cell, p.cell))
+
     def test_slices_tile_target_exactly(self):
-        p = rasterize_patch(6, 2, (10, 20, 30, 255), None)
+        p = rasterize_coverage(6, 2, COVERAGE_FILL)
         target = (5, 7, 100, 60)
         covered = [[False] * 60 for _ in range(100)]
         for (dx, dy, dw, dh), _src in slice_quads(p, *target):
@@ -345,7 +437,7 @@ class TestNinePatch(unittest.TestCase):
         self.assertTrue(all(all(col) for col in covered), "slices leave gaps")
 
     def test_small_target_clamps_corners(self):
-        p = rasterize_patch(10, 0, (1, 2, 3, 255), None)
+        p = rasterize_coverage(10, 0, COVERAGE_FILL)
         quads = list(slice_quads(p, 0, 0, 12, 12))
         for (dx, dy, dw, dh), _ in quads:
             self.assertGreaterEqual(dx, 0)
@@ -353,10 +445,7 @@ class TestNinePatch(unittest.TestCase):
             self.assertLessEqual(dx + dw, 12)
             self.assertLessEqual(dy + dh, 12)
 
-    def test_key_dedups_identical_styles(self):
-        a = patch_key(4, 1, [1, 2, 3, 255], None)
-        b = patch_key(4, 1, (1, 2, 3, 255), None)
-        self.assertEqual(a, b)
+
 
 
 class TestFlattener(unittest.TestCase):
@@ -387,7 +476,18 @@ class TestFlattener(unittest.TestCase):
         edge_area = sum(r.w * r.h for r in f.records[1:])
         self.assertEqual(edge_area, 50 * 2 * 2 + 2 * (40 - 4) * 2)
 
-    def test_rounded_rect_is_nine_texquads(self):
+    def test_rounded_rect_is_two_tinted_coverage_layers(self):
+        """P3b-6. Nine cells of fill coverage, eight of border ring --
+        the ring's centre cell is the interior of the box and holds no
+        coverage, so emitting it would cost a full-box textured draw to
+        composite zeros.
+
+        Two textures, not one, and the second is the price of the
+        change: a premixed patch was 9 draws and 1 texture. What it
+        buys is that both colours are now vertex tints, which is to say
+        tint-table entries, which is to say things a theme can move.
+        Premixed they were texels and a theme could not reach either.
+        """
         ir = tiny_ir([{
             "op": "rect", "x": 0, "y": 0, "w": 60, "h": 40,
             "fill": [1, 1, 1, 255], "borderWidth": 2,
@@ -396,9 +496,59 @@ class TestFlattener(unittest.TestCase):
         }])
         f = Flattener(ir, font_paths())
         f.run()
-        self.assertEqual(len(f.records), 9)
+        self.assertEqual(len(f.records), 17)
         self.assertTrue(all(r.op == OP_TEXQUAD for r in f.records))
-        self.assertEqual(len(f.textures), 1)
+        self.assertEqual(len(f.textures), 2)
+        # Each layer carries ITS OWN colour, in the modulate domain.
+        by_tint = {}
+        for r in f.records:
+            by_tint.setdefault(r.rgba, 0)
+            by_tint[r.rgba] += 1
+        self.assertEqual(by_tint, {(1, 1, 1, 0x80): 9, (4, 4, 4, 0x80): 8})
+
+    def test_the_ring_carries_the_border_role_not_the_fill_role(self):
+        """One element, two roles. `background: var(--panel); border:
+        2px solid var(--edge)` is a chip whose interior and outline a
+        theme moves independently, and the split is what makes that
+        expressible at all -- premixed, neither reached the table.
+
+        Fenced separately from the colours because the colours cannot
+        catch it: handing the ring layer `fillVar` leaves every rgba in
+        the test above unchanged, since the tint comes from the colour
+        and only the NAME comes from the var. That sabotage passed the
+        whole suite."""
+        ir = tiny_ir([{
+            "op": "rect", "x": 0, "y": 0, "w": 60, "h": 40,
+            "fill": [1, 1, 1, 255], "fillVar": "--panel",
+            "borderWidth": 2, "borderColor": [7, 7, 7, 255],
+            "borderColorVar": "--edge", "radius": 6,
+            "state": "always", "focusId": None,
+        }])
+        f = Flattener(ir, font_paths())
+        f.run()
+        by_var = {}
+        for r in f.records:
+            by_var[r.var] = by_var.get(r.var, 0) + 1
+        self.assertEqual(by_var, {"--panel": 9, "--edge": 8})
+
+    def test_two_rounded_boxes_of_one_shape_share_both_textures(self):
+        """The saving, stated as a test. A coverage patch keys on
+        geometry alone, so two boxes with the same radius and border
+        width are one pair of textures however differently they are
+        painted. Keyed on the colours too -- which is what premixing
+        forced -- this is four textures, and opl-env's eleven."""
+        rect = {
+            "op": "rect", "x": 0, "y": 0, "w": 60, "h": 40,
+            "fill": [1, 1, 1, 255], "borderWidth": 2,
+            "borderColor": [7, 7, 7, 255], "radius": 6,
+            "state": "always", "focusId": None,
+        }
+        ir = tiny_ir([rect, {**rect, "x": 100,
+                             "fill": [200, 100, 50, 255],
+                             "borderColor": [9, 9, 9, 255]}])
+        f = Flattener(ir, font_paths())
+        f.run()
+        self.assertEqual(len(f.textures), 2)
 
     def test_identical_rounded_styles_share_a_texture(self):
         rect = {

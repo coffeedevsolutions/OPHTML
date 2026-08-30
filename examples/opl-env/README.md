@@ -19,7 +19,7 @@ this blob, and an exemption here would be an exemption on them.
 
 | mechanism | where |
 |---|---|
-| blob-declared working set | 7,031-byte arena for the whole environment |
+| blob-declared working set | 6,751-byte arena for the whole environment |
 | streamed texture slots | nine list thumbnails + one detail cover |
 | slot text at scale | 127 slots, none of them a fixed ceiling |
 | composition | `confirm` drawn over `library` or `detail`, no clear between |
@@ -39,28 +39,41 @@ re-deriving them.
 These are the Phase 2 baseline; Phase 3 optimises against them.
 
 ```
-blob            245,744 bytes
-arena             7,031 bytes      (the whole six-screen environment)
+blob            269,232 bytes
+arena             6,751 bytes      (the whole six-screen environment)
 screens                   6
 slots                   127
 focus nodes              51
-textures                 28        (10 streamed)
+textures                 21        (10 streamed)
 fonts                     6
-VRAM                392 KiB        within a 736 KiB budget
+VRAM                336 KiB        within a 736 KiB budget
 ```
 
-**The blob grew 48 bytes at P3b-4**: a second tint row, 13 entries of
-four bytes, plus alignment. Nothing else in the table moves -- a theme
-is a table swap, so it adds bytes and no commands, textures or slots.
+**P3b-4 added 48 bytes and nothing else**: a second tint row, 13
+entries of four bytes, plus alignment. That is what a theme costs --
+bytes, and no commands, textures or slots, because it is a table swap.
+Everything else below moved at P3b-6.
 
 | screen | commands | textured | slots | focus |
 |---|---:|---:|---:|---:|
-| landing | 203 | 196 | 15 | 7 |
-| library | 414 | 389 | 43 | 17 |
-| detail | 132 | 131 | 15 | 4 |
-| filters | 267 | 256 | 20 | 12 |
-| recent | 216 | 197 | 28 | 9 |
-| confirm | 70 | 69 | 4 | 2 |
+| landing | 331 | 324 | 15 | 7 |
+| library | 694 | 669 | 45 | 17 |
+| detail | 196 | 195 | 15 | 4 |
+| filters | 467 | 456 | 20 | 12 |
+| recent | 360 | 341 | 28 | 9 |
+| confirm | 110 | 109 | 4 | 2 |
+
+**These moved at P3b-6, and in both directions.** Rounded boxes stopped
+premixing their colour into a texture and became two tinted coverage
+layers, so commands rose 1,302 -> 2,158 while textures fell 28 -> 21 and
+VRAM 392 -> 336 KiB. A coverage patch keys on `(radius, borderWidth)`
+alone, where a premixed one keyed on the colours too: eleven patch
+textures collapsed to four, 88 KiB of VRAM to 32. The blob grew because
+it now carries two theme rows and 856 more commands.
+
+The per-screen slot counts also correct a stale figure the headline
+check could not see -- it verifies the seven numbers above and not this
+table, and library had read 43 since before #63 added the telem slot.
 
 Two streamed reservation sizes, because a real environment needs both:
 

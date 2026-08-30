@@ -985,3 +985,62 @@ findings:
     CLUT pull request is the wrong place for it. A swap does not
     survive an upload, before or after.
   refs: ["#70"]
+
+- id: F-043
+  phase: 3
+  status: confirmed
+  claim: "A CLUT costs a full 8 KiB VRAM page, so palettizing to swap palettes is upside-down below ~8 KiB of texels -- and right above it"
+  evidence:
+    instrument: packages/baker/ps2ui_bake/vram.py
+    measurement: >-
+      Measured off the opl-env blob while choosing how to make rounded
+      boxes themeable (P3b-6). gsKit's page geometry gives a 16x16
+      PSMCT32 CLUT one 8 KiB page, the same as a texture -- so the
+      palette's cost does not scale with the thing it colours.
+
+      opl-env's nine-patches before P3b-6: 11 textures, one per
+      (radius, borderWidth, fill, borderColor), each holding 324-484
+      bytes of texels and occupying a full page. 88 KiB.
+
+      Only TWO distinct (radius, borderWidth) pairs exist across all six
+      screens -- (3,2) and (4,2). All eleven textures were duplicates
+      that differed only in colour.
+
+      | approach                              | textures | CLUTs | VRAM   |
+      |---------------------------------------|----------|-------|--------|
+      | premixed RGBA (before)                | 11       | 0     | 88 KiB |
+      | coverage masks + shared coverage CLUT | 4        | 0 new | 32 KiB |
+      | palettized patch + per-theme CLUT     | 2        | 22    | 176 KiB|
+
+      The third row is the one worth writing down. Palettizing the
+      patch and swapping its CLUT per theme is the mechanism P3b-0
+      built and the obvious reading of "the two compose", and here it
+      DOUBLES the footprint and grows 88 KiB per additional theme,
+      because a CLUT keys on (radius, bw, fill, border) x n_theme while
+      the texture it colours is 324 bytes.
+    reproduce: >-
+      ./examples/opl-env/build.sh, then sum
+      vram.page_rounded_size() over the patch textures; count distinct
+      (radius, borderWidth) pairs in build/*.json.
+  falsifier: >-
+    A CLUT whose page-rounded VRAM cost is less than a texture's, or an
+    opl-env rebuild whose coverage patches exceed the 32 KiB this
+    predicts -- either kills the arithmetic the choice rests on.
+  note: >-
+    THE RULE THIS GENERALIZES TO, and it is not "don't palettize": a
+    palette earns its page when the texels it colours are much larger
+    than 8 KiB. A 256x256 PSMT8 asset carries 64 KiB of texels behind
+    one 8 KiB palette -- an 8:1 win, which is exactly why the image
+    path palettizes and should keep doing so. An 11x11 patch carries
+    324 bytes behind the same 8 KiB. Same mechanism, opposite verdict,
+    and the size is the only input that changed.
+
+    THE CHOSEN FIX IS ALSO PALETTIZATION, which is worth being precise
+    about because it reads as the opposite. A coverage patch is PSMT8
+    against the shared coverage CLUT -- 8bpp not 32bpp, one palette for
+    the whole build, already paid for by the glyph atlases. What moved
+    is not the compression but WHERE THE COLOUR LIVES: out of the
+    texels and into the vertex tint, which is a tint-table entry, which
+    is a thing a theme can move. Colour ends up in one table instead of
+    two, which is the seam that has been the gap four times.
+  refs: ["#77"]
