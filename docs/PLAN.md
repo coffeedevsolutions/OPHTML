@@ -693,10 +693,20 @@ Then, in an order P3a decides:
    sample loads no IOP service at all, and adding padman would change
    the boot path the timing arms exist to measure. A timer proves
    runtime selection exactly as well as a button. Behind its own flag,
-   so the plain builds stay byte-comparable with the sittings already
-   taken — F-044's lines were fitted without it, and a theme swap in
-   the measured path would make the next sweep a different experiment
-   wearing the same name.
+   so the theme switch is not in the measured path — F-044's lines were
+   fitted without it.
+
+   **The next sitting's numbers will not match F-044's, and that is
+   P3b-6 rather than a regression.** It took the library screen — the
+   one every timing arm renders — from 414 records to 694. So the
+   clear-arm prediction is written as a **difference**: photograph
+   `oplenv.elf` and `oplenv-clearopaque.elf` in the same sitting and
+   subtract, expecting ~0.14 ms. An absolute "0.78 or 0.92" is anchored
+   to a blob that no longer exists and would read as *neither* even if
+   the mechanism is exactly as described — the cleanest experiment in
+   the queue returning a null result for a bookkeeping reason. `p`
+   announces it on the first photograph: S14 recorded `p595`, and 595
+   is unreachable on a screen that gained 280 records.
 
    **The readout gained the two fields the last sitting proved it
    needed.** `gs^` now carries `@frame`, which is the instrument F-045

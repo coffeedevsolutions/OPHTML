@@ -1792,17 +1792,34 @@ int main(void)
              * does: the row is chosen while the frame loop runs, not
              * baked in, which is the whole of the claim.
              *
-             * BEHIND A FLAG so the plain build stays byte-comparable
-             * with the sittings already taken. F-044's ee and gs lines
-             * were fitted on builds without this, and a theme swap in
-             * the measured path would make the next sweep a different
-             * experiment wearing the same name.
+             * BEHIND A FLAG so the theme switch is not in the
+             * measured path. F-044's ee and gs lines were fitted on
+             * builds without it, and a swap inside the loop would make
+             * the next sweep a different experiment wearing the same
+             * name.
              *
-             * Slow on purpose: 240 frames is four seconds at field
-             * rate, long enough to photograph either state without
-             * racing it, and n in the readout says which frame the
-             * picture was taken on. */
-            if (frame && frame % 240 == 0) {
+             * That is the whole of what the flag buys, and an earlier
+             * version of this comment claimed more -- that the plain
+             * build stays "byte-comparable" with the sittings already
+             * taken. It does not, for reasons no flag can touch: the
+             * blob changed under P3b-6, slot capacity went 34 -> 38,
+             * the arena 6,751 -> 6,759, and both sprintfs gained a
+             * field. The coefficients will move next sitting, and that
+             * is P3b-6 rather than a regression.
+             *
+             * Slow on purpose: ~4 seconds at field rate, long enough
+             * to photograph either state without racing it, and n in
+             * the readout says which frame the picture was taken on.
+             *
+             * 241 AND NOT 240, which is coprime with OPLENV_SCROLL_EVERY
+             * rather than a multiple of it. At 240 every switch would
+             * land on a scroll frame AND on a telemetry window flush,
+             * which costs nothing for the exit-gate photograph -- the
+             * panels recolour either way -- but permanently welds the
+             * switch's own cost to the scroll's. If a later sitting
+             * wants to price ps2ui_theme_set, 240 would have made that
+             * unmeasurable and the frame is free now. */
+            if (frame && frame % 241 == 0) {
                 unsigned n = ui.hdr->n_theme;
                 if (n > 1) {
                     cur_theme = (cur_theme + 1) % n;
@@ -1837,16 +1854,28 @@ int main(void)
              * ps2ui_render leaves it ON (ps2ui.c). So this clear is a
              * full-screen BLENDED sprite whether anyone meant it or not.
              *
-             * PREDICTIONS, BEFORE THE SITTING:
+             * PREDICTED AS A DIFFERENCE, NOT AN ABSOLUTE. The
+             * numbers above were fitted at S14 on 914e20c, and P3b-6
+             * has since taken the library screen -- the one these arms
+             * render -- from 414 records to 694. gs(N=0) is not 0.92
+             * on this build, so "0.78 or 0.92" would read as neither
+             * even if the mechanism is exactly as described, and the
+             * cleanest experiment in the queue would return a null
+             * result for a bookkeeping reason. p says so on the first
+             * photograph: S14 recorded p595, and 595 is unreachable on
+             * a screen that gained 280 records.
              *
-             *   gs drops ~0.14 to about 0.78  -> the clear was paying
-             *       the blended rate, the residual is explained, and
-             *       the drop is free: ~4% of the frame's GS budget,
-             *       about a fifth of a whole ps2ui_render.
-             *   gs does not move              -> the clear was already
-             *       unblended and 0.145 belongs to something else,
-             *       which is the more interesting result and the one
-             *       the model has to answer for.
+             * So photograph oplenv.elf and oplenv-clearopaque.elf in
+             * the SAME sitting and subtract:
+             *
+             *   gs drops ~0.14  -> the clear was paying the blended
+             *       rate, the residual is explained, and the drop is
+             *       free: ~4% of the frame's GS budget, about a fifth
+             *       of a whole ps2ui_render.
+             *   gs unchanged    -> the clear was already unblended and
+             *       0.145 belongs to something else, which is the more
+             *       interesting result and the one the model has to
+             *       answer for.
              *
              * AND IT CANNOT CHANGE A PIXEL EITHER WAY. ps2ui.c sets
              * ALPHA to (Cs - Cd) x As >> 7 + Cd, and this clear's
