@@ -494,7 +494,60 @@ Then, in an order P3a decides:
    | P3b-3 | `var()` in the CSS parser, and tints keyed on the **name** | **done** |
    | P3b-4 | the baker writes a second row; `PS2UI_FEAT_ROLE_TINTS` is finally set | **done** |
    | P3b-6 | rounded boxes stop premixing their colour, so a theme can reach them | **done** (F-043) |
-   | P3b-5 | DX: `ps2ui-check` prints the palette with each entry's var name; `--strict` on a bare literal in a themed UI; **the lints run over every theme** | last |
+   | P3b-5 | DX: the palette printed with names, `--strict` on a bare literal in a themed UI, the lints run over every theme | **done** |
+
+   **P3b-5's first item split across two tools, because the format
+   made it.** The design asked `ps2ui-check` to print "index, value per
+   theme, and the declaration that produced it". It cannot: a tint
+   entry is four bytes of colour, and the `var()` name is a build-time
+   concept that never reaches the blob, since the runtime selects a
+   theme by index and has no use for a name. So `ps2ui-bake --tints`
+   prints the names as it writes them and `ps2ui-check --tints` prints
+   what a loader actually finds. Read together they answer "why did
+   this not change colour"; either alone answers half of it.
+
+   **And linting the themes exposed that slot text was not linted at
+   all.** `paint.js` emits no static command for a `data-slot` — its
+   glyphs are drawn on the console from the slot table — and `compile`
+   only ever handed `commands` to the linter. Same colour, same
+   background, same geometry as static text; the only difference was
+   the attribute. opl-env is **127 slots**, which is every title, count
+   and telemetry line in the environment.
+
+   Fixed by splicing a linter's-eye view of each slot into the command
+   list *at the index it would have painted at* — appending would let a
+   rect drawn on top of the slot into its contrast chain — with two
+   commands per slot, base and focus, because a slot has two colour
+   vectors and the focused one is the seam that has been the gap in
+   #70, #72 and #74.
+
+   **What that turned up is open and is not P3b-5's to settle.**
+   opl-env's entire secondary text layer sits below the 14px couch
+   floor — row titles at 13, subtitles and counts at 11, detail fields
+   at 12, **97 instances across six screens** — and none of it ever
+   warned, because all of it is slot text. The floor was not being met;
+   it was being missed. `--min-font-size 11` in `build.sh` keeps the
+   rule live (anything smaller still fails) and records the admission
+   in the one place a reader will look, but it does **not** decide that
+   11px is readable from three metres. That is a question about the
+   density study this example exists to be — twelve rows of four
+   fields, which is what an OPL-class environment demands — and it
+   wants a photograph, not an argument.
+
+   Worth noting where the blind spot showed: `opl.css`'s comment on
+   `.dlg-btn` says *"`--strict` enforces a floor on FOCUSABLE text"*.
+   The rule in `lint.js` has always applied to all text. It read as
+   focusable-only because every non-focusable small string in the file
+   was a slot, and therefore invisible.
+
+   The third item was not in the original plan. It came out of P3b-6:
+   `contrast` and `ntsc-red-bleed` read colours, a theme moves colours,
+   and the lints only ever saw row 0 — so a UI readable in `:root`
+   could be unreadable in `@theme light` with every check in the
+   repository passing. The blob would be correct, the screenshots
+   correct for the row they render, and the failure discovered on a
+   television. opl-env's light theme now passes contrast on all six
+   screens, which nothing had checked before.
 
    **P3b-6 was not in the plan, and P3b-4 is what found it.** The
    design said "every panel, border and background is an untextured
@@ -564,9 +617,11 @@ Then, in an order P3a decides:
    this moves the command count enough that the next EE baseline is a
    new one, not a continuation.
 
-   **A gap P3b-5 now has to close.** The layout lints — contrast,
-   minimum font size — run over the IR's row 0 and nothing else. A
-   theme can ship unreadable text and no check says so.
+   **A gap P3b-5 closed.** The layout lints ran over the IR's row 0 and
+   nothing else, so a theme could ship unreadable text with no check
+   saying so. They now run over every row, deduplicated by message
+   against row 0 — the geometry lints are byte-identical in every theme
+   and would otherwise be reported once per theme.
 
    ### Bench sequencing: two sittings, not one delayed one
 

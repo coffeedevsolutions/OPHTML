@@ -167,6 +167,25 @@ export function buildDisplayList(root, nThemes = 1) {
   const commands = [];
   const focusables = new Map();
   const slots = [];
+  // SLOT TEXT, AS THE LINTER NEEDS TO SEE IT.
+  //
+  // A data-slot emits no static commands -- its glyphs are drawn on the
+  // console from the slot table -- so it was invisible to lintDocument
+  // entirely. Same colour, same background, same geometry as static
+  // text, and the only difference was the attribute: contrast and
+  // min-font-size simply never ran on it. opl-env is 127 slots, which
+  // is every title, count and telemetry line in the environment.
+  //
+  // Spliced at the index the text WOULD have occupied, not appended,
+  // because lintDocument accumulates backgrounds in paint order: a rect
+  // drawn after this point is on top of the slot, not behind it, and
+  // appending would let it into the contrast chain.
+  //
+  // Two commands per slot, base and focus. A slot has two colour
+  // vectors and the focused one sits on a different background -- the
+  // seam that has been the gap in #70, #72 and #74. One command here
+  // would check the state nobody looks at while focused.
+  const lintCommands = [];
 
   const visit = (box) => {
     const inScope = box.focusId !== null && box.focusStyle !== box.style;
@@ -217,6 +236,32 @@ export function buildDisplayList(root, nThemes = 1) {
         colorBaseThemes: base.colorThemes,
         colorFocusThemes: foc.colorThemes,
       });
+      // The linter's view of what the console will draw here. Kept
+      // out of the IR: it is not a paint command, and the baker must
+      // never see one.
+      const at = commands.length;
+      const mk = (colour, themes, state) => ({
+        op: 'text',
+        x: parent.x + parent.style.padding[3] + pb,
+        y: line.y + Math.floor(line.leading / 2),
+        text: line.text,
+        size: box.style.fontSize,
+        weight: base.fontWeight,
+        letterSpacing: box.style.letterSpacing,
+        color: colour,
+        colorThemes: themes,
+        state,
+        focusId: box.focusId,
+        ...(box.nocontrast ? { nocontrast: true } : {}),
+      });
+      const same = JSON.stringify(base.color) === JSON.stringify(foc.color)
+        && JSON.stringify(base.colorThemes) === JSON.stringify(foc.colorThemes);
+      if (box.focusId === null || same) {
+        lintCommands.push([at, mk(base.color, base.colorThemes, 'always')]);
+      } else {
+        lintCommands.push([at, mk(base.color, base.colorThemes, 'unfocused')]);
+        lintCommands.push([at, mk(foc.color, foc.colorThemes, 'focused')]);
+      }
       return; // no static commands for slot text
     }
 
@@ -288,5 +333,14 @@ export function buildDisplayList(root, nThemes = 1) {
     }
     seen.add(s.name);
   }
-  return { commands, focusables, slots };
+  // Merge the slot views into paint order. Built here rather than in
+  // compile() so nothing has to reconstruct where a slot sat.
+  const forLint = [];
+  let li = 0;
+  const pend = lintCommands.slice().sort((a, b) => a[0] - b[0]);
+  for (let i = 0; i <= commands.length; i++) {
+    while (li < pend.length && pend[li][0] === i) forLint.push(pend[li++][1]);
+    if (i < commands.length) forLint.push(commands[i]);
+  }
+  return { commands, focusables, slots, forLint };
 }

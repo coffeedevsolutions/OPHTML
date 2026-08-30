@@ -25,9 +25,16 @@ total_slots=0
 for spec in $EXPECT; do
     name="${spec%%:*}"; rest="${spec#*:}"
     want_slots="${rest%%:*}"; want_focus="${rest##*:}"
+    # --min-font-size 11 for the same reason examples/opl-env/build.sh
+    # passes it, and this fixture is where that reason came from: it is
+    # the same six screens at the same densities, and its secondary
+    # text is 11-13px slot text. None of it warned until P3b-5 taught
+    # the linter to see a data-slot at all. 11 keeps the rule live --
+    # anything smaller still fails -- and does not claim 11px is
+    # readable from three metres.
     node "$repo/packages/layout/bin/ps2ui-layout.js" \
         "$here/ui/$name.html" "$here/ui/opl.css" \
-        -o "$out/$name.json" --strict >/dev/null
+        -o "$out/$name.json" --strict --min-font-size 11 >/dev/null
     got=$(python3 -c "
 import json,sys
 ir=json.load(open('$out/$name.json'))

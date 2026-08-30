@@ -40,8 +40,9 @@ from .quads import (
     FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
     STATE_ALWAYS, STATE_FOCUSED, STATE_UNFOCUSED, TEX_NONE,
 )
-from .uib import (FEAT_KERNING, FEAT_ROLE_TINTS, FEAT_SLOT_SPACING,
-                  FEAT_STREAMED_TEX, TEXKIND_STREAMED, read_uib)
+from .uib import (_CMD, _HEADER, FEAT_KERNING, FEAT_ROLE_TINTS,
+                  FEAT_SLOT_SPACING, FEAT_STREAMED_TEX, TEXKIND_STREAMED,
+                  read_uib)
 
 ERROR = "error"
 WARNING = "warning"
@@ -613,6 +614,68 @@ def check_blob(uib, budget=None, allow_dead: int = 0,
     return rep
 
 
+def print_tints(uib, path) -> None:
+    """The tint table, one row per entry, one column per theme.
+
+    WHAT THIS CANNOT SHOW IS THE NAME, and that is a property of the
+    format rather than of this function. Tint entries are four bytes of
+    colour; the var() name they were keyed on is a build-time concept
+    that never reaches the blob, because the runtime selects a theme by
+    INDEX and has no use for it. So the two halves of "why did this not
+    change colour" live in two tools: `ps2ui-bake --tints` prints the
+    names as it writes them, and this prints what a loader will
+    actually find. Read together they answer the question; either alone
+    answers half of it.
+
+    An entry that is identical in every theme is marked, because that
+    is the answer to the question far more often than a wrong value is.
+    """
+    themes = uib.themes or [[]]
+    n_theme, n_tint = len(themes), len(themes[0])
+    # THE INDICES, READ OFF THE FILE. read_uib resolves a command's tint
+    # to its colour and drops the index, so the index has to come from
+    # the bytes -- the same reason examples/opl-env/check.py reads them
+    # directly. The first version of this collected r.rgba_themes into a
+    # set and never read it: dead, and unusable even if it had been
+    # read, since a vector cannot be compared against an entry number.
+    with open(path, "rb") as fh:
+        data = fh.read()
+    h = _HEADER.unpack_from(data, 0)
+    n_cmd, off_cmd = h[7], h[12]
+    used_cmd = set()
+    for i in range(n_cmd):
+        e = _CMD.unpack_from(data, off_cmd + i * _CMD.size)
+        if e[0] in (OP_QUAD, OP_TEXQUAD):
+            used_cmd.add(e[7])
+            used_cmd.add(e[8])
+    used_slot = set()
+    for sl in uib.slots:
+        used_slot.add(sl.get("tint_base"))
+        used_slot.add(sl.get("tint_focus"))
+    print(f"# {n_tint} tint entries over {n_theme} theme(s)")
+    head = "  idx  " + "  ".join(f"theme {t:<14d}" for t in range(n_theme))
+    print(head + "  where")
+    for i in range(n_tint):
+        cols = "  ".join(
+            "%-20s" % ("(%3d,%3d,%3d,%3d)" % tuple(themes[t][i]))
+            for t in range(n_theme))
+        frozen = all(themes[t][i] == themes[0][i] for t in range(n_theme))
+        where = []
+        if i in used_cmd:
+            where.append("cmd")
+        if i in used_slot:
+            where.append("slot")
+        # AN ENTRY NOTHING POINTS AT is the sharpest thing a table for
+        # answering "why did this not change colour" can say, and
+        # without the cmd column it printed identically to one used by
+        # every quad on the screen.
+        if not where:
+            where.append("UNREFERENCED")
+        if frozen and n_theme > 1:
+            where.append("fixed in every theme")
+        print(f"  {i:3d}  {cols}  {', '.join(where)}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         prog="ps2ui-check",
@@ -628,6 +691,9 @@ def main(argv=None) -> int:
                          "rules and interlace pair); more than N still warns")
     ap.add_argument("--strict", action="store_true",
                     help="treat CRT warnings as failures")
+    ap.add_argument("--tints", action="store_true",
+                    help="print the tint table, one row per entry and one "
+                         "column per theme, then exit")
     args = ap.parse_args(argv)
 
     try:
@@ -635,6 +701,10 @@ def main(argv=None) -> int:
     except (OSError, ValueError) as exc:
         print(f"ps2ui-check: {exc}", file=sys.stderr)
         return 2
+
+    if args.tints:
+        print_tints(uib, args.uib)
+        return 0
 
     rep = check_blob(uib, args.vram_budget, args.allow_dead,
                      args.allow_hairline)

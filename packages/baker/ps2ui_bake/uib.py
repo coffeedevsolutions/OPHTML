@@ -111,9 +111,15 @@ def _align16(buf: bytearray):
 
 def write_uib(path, canvas, records, textures, cluts, focus_nodes,
               initial_focus, fonts=(), slots=(), screens=None,
-              display_aspect=(4, 3), n_theme=1):
+              display_aspect=(4, 3), n_theme=1, tint_report=None):
     """focus_nodes: IR focus graph nodes (document order == table order).
     initial_focus: focus-table index or None.
+    tint_report: an optional list, filled with (index, var, vector) for
+    every interned tint. The VAR NAME IS ONLY KNOWABLE HERE -- it never
+    reaches the blob, because the runtime selects a theme by index and
+    has no use for a name -- so this is the one point in the pipeline
+    where an entry can be tied back to the declaration that produced
+    it. `ps2ui-bake --tints` prints it.
     n_theme: how many rows the tint table has, root included. The
     colours themselves arrive on the records (`rgba_themes`) and slots
     (`color_base_themes` / `color_focus_themes`) rather than being
@@ -442,6 +448,10 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     out += bytes(blob_pad)
     assert len(out) == off_blob, "layout arithmetic and bytes written disagree"
     out += blob
+
+    if tint_report is not None:
+        tint_report.extend((i, var, vec)
+                           for i, (var, vec) in enumerate(tint_entries))
 
     # CRC over the whole file with the crc field zeroed.
     crc = zlib.crc32(bytes(out)) & 0xFFFFFFFF
