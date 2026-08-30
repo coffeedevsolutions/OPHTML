@@ -555,7 +555,10 @@ class TestSlotCapacity(unittest.TestCase):
                                       "ps2ui-layout.js"), hp, cp, "-o", jp],
                 capture_output=True)
             if r.returncode != 0:
-                self.skipTest("layout unavailable: " + r.stderr.decode()[:120])
+                # Node IS available where the gate is set, so this is a
+                # broken layout compiler rather than a missing tool.
+                unavailable(self, "the layout compiler would not run: "
+                                  + r.stderr.decode()[:120])
             env = dict(os.environ,
                        PYTHONPATH=os.path.join(root, "packages", "baker"))
             r = subprocess.run([sys.executable, "-m", "ps2ui_bake", jp,
@@ -565,9 +568,18 @@ class TestSlotCapacity(unittest.TestCase):
             return read_uib(up), r.stderr.decode()
 
     def test_capacity_survives_the_bake(self):
-        uib, _ = self.bake(200)
-        if uib is None:
-            self.skipTest("bake refused a capacity it should accept")
+        uib, err = self.bake(200)
+        # NOT A SKIP, AND THIS ONE NEVER SHOULD HAVE BEEN. The other
+        # skips in this file guard a missing FIXTURE; this guarded the
+        # test's own subject. bake() returns None only when the baker
+        # refused -- a failing `node` is caught above -- so "bake
+        # refused a capacity it should accept" is the exact defect this
+        # test exists to find, and it was reported as OK. Worse in kind
+        # than the four TestS7Discriminator skips that prompted the
+        # audit, because no reordering or fixture could ever have made
+        # it run: the condition it skipped on WAS the failure.
+        self.assertIsNotNone(
+            uib, f"the baker refused a capacity it should accept: {err[:300]}")
         self.assertEqual([s["capacity"] for s in uib.slots], [200],
                          "the blob must record what the author asked for")
 
@@ -914,6 +926,33 @@ class TestCoverPattern(unittest.TestCase):
                          "it has -- backlog B1 on a new path")
 
 
+# A precondition this suite reaches for and did not find: a skip
+# normally, a FAILURE when the environment says the suite must be
+# complete.
+#
+# WHY THE FAILURE ARM EXISTS. A skip is reported as OK, so a test that
+# never runs is indistinguishable from one that passes -- and four
+# tests in this file had never run in CI. Their skip message said "the
+# bench fixture is not built; ci.yml builds it", which was true of the
+# workflow and false of the moment: ci.yml built that fixture at line
+# 153 and ran this suite at line 57. Ninety-six lines too late, for as
+# long as both had existed, with a green tick every time.
+#
+# Reordering the workflow alone would fix today's symptom and invite
+# being reordered back. This makes the silence itself the thing that
+# breaks, so the ordering is enforced by the suite rather than by
+# whoever edits the YAML next. Both halves ship together: the reorder
+# is the fix, this is the tripwire.
+#
+# The variable is still named for the cross-check that first needed it
+# (ci.yml and docs/method.md name it), and it now means the broader
+# thing: under it, every fixture this suite reaches for must exist.
+def unavailable(case, why):
+    if os.environ.get("PS2UI_REQUIRE_CROSSCHECK") == "1":
+        case.fail(f"PS2UI_REQUIRE_CROSSCHECK=1 but {why}")
+    case.skipTest(why)
+
+
 class TestS7Discriminator(unittest.TestCase):
     """Bench step S7's calibration.
 
@@ -951,7 +990,8 @@ class TestS7Discriminator(unittest.TestCase):
         irp = os.path.join(self.BUILD, "covers.json")
         blob = os.path.join(self.BUILD, "bench.uib")
         if not (os.path.exists(irp) and os.path.exists(blob)):
-            self.skipTest("bench fixture not built; ci.yml builds it")
+            unavailable(self, "the bench fixture is not built "
+                              "(fixtures/bench-stream/build.sh)")
         with open(irp) as fh:
             ir = json.load(fh)
         line = [c for c in ir["commands"]
@@ -1005,7 +1045,8 @@ class TestS7Discriminator(unittest.TestCase):
         FACE, not about one line of static text."""
         blob = os.path.join(self.BUILD, "bench.uib")
         if not os.path.exists(blob):
-            self.skipTest("bench fixture not built")
+            unavailable(self, "the bench fixture is not built "
+                              "(fixtures/bench-stream/build.sh)")
         g = read_uib(blob).fonts[0]["glyphs"]
         bottoms = {}
         for ch in "ELo2eanc":
@@ -1029,16 +1070,6 @@ class TestArena(unittest.TestCase):
     asserts ps2ui_arena_size against an independent carve of the same
     header; this side asserts the Python against the real blobs.
     """
-
-    def blob(self, name):
-        import os
-        from ps2ui_bake.uib import read_uib
-        here = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.normpath(os.path.join(
-            here, "..", "..", "..", "examples", name, "build", "ui.uib"))
-        if not os.path.exists(path):
-            self.skipTest(f"{path} not baked")
-        return read_uib(path)
 
     def write_fixture(self, path):
         """A small blob covering every arena region, written with the
@@ -1134,18 +1165,11 @@ class TestArena(unittest.TestCase):
                            capture_output=True)
 
         # And when the environment says this must run, a skip is a
-        # failure. Reordering ci.yml alone would fix today's symptom and
-        # invite being reordered back; this makes the silence itself the
-        # thing that breaks.
-        required = os.environ.get("PS2UI_REQUIRE_CROSSCHECK") == "1"
-
-        def unavailable(why):
-            if required:
-                self.fail(f"PS2UI_REQUIRE_CROSSCHECK=1 but {why}")
-            self.skipTest(why)
-
+        # failure -- see unavailable() above, which this test is where
+        # the reasoning was first written down and which now serves the
+        # whole file rather than this one method.
         if not os.path.exists(size_obj):
-            unavailable("runtime not built (make -C runtime test)")
+            unavailable(self, "runtime not built (make -C runtime test)")
 
         src = r"""
         #include "ps2ui.h"
@@ -1178,8 +1202,8 @@ class TestArena(unittest.TestCase):
                  "-o", exe],
                 capture_output=True)
             if cc.returncode != 0:
-                unavailable(f"cannot build the runtime here: "
-                            f"{cc.stderr.decode()[:200]}")
+                unavailable(self, f"cannot build the runtime here: "
+                                  f"{cc.stderr.decode()[:200]}")
             # A blob this test builds itself, so the comparison never
             # depends on some earlier step having baked one. That
             # dependency is what the skip guard was hiding: with the
@@ -2525,14 +2549,26 @@ class TestCheck(unittest.TestCase):
         root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "..", "..", "..")
         seen = 0
-        for rel in ("examples/memcard/build/ui.uib",
-                    "examples/channel6/build/ui.uib"):
+        rels = ("examples/memcard/build/ui.uib",
+                "examples/channel6/build/ui.uib")
+        for rel in rels:
             path = os.path.normpath(os.path.join(root, rel))
             if not os.path.exists(path):
                 continue  # not built in this checkout
             seen += 1
             rep = check_blob(read_uib(path))
             self.assertEqual(rep.errors, 0, f"{rel}: {self.failures(rep)}")
+        # HALF THE CORPUS IS NOT THE CORPUS. seen == 1 means one blob
+        # was built and the other was not, and the loop above would
+        # check half the regression set and report OK with nothing
+        # said -- the same shape as everything else this change is
+        # about, one notch smaller. CI never hits it (the baker step
+        # runs before both example builds, so seen is always 0); a
+        # developer who has built memcard and not channel6 does.
+        self.assertIn(seen, (0, len(rels)),
+                      f"{seen} of {len(rels)} example blobs are built: this "
+                      "test covers the corpus or it covers none of it, "
+                      "never part of it")
         if seen == 0:
             # Not the treatment the arena cross-check got. That one
             # could build what it needed in a second; these blobs need
@@ -2544,6 +2580,24 @@ class TestCheck(unittest.TestCase):
             # runtime's assumptions" step covers these exact bytes with
             # ps2ui-check by name, and DOES gate. Say that here so the
             # skip reads as a division of labour rather than a hole.
+            #
+            # THE DISTINCTION IS NOW LOAD-BEARING, because the S7 tests
+            # above carried a skip message of the same shape that was
+            # NOT true, and those four never ran in CI at all.
+            #
+            # The test to apply is NOT whether the cited step runs
+            # first. This skip cites a step 116 lines below the one
+            # that runs this suite, and is fine; the S7 four cited a
+            # step 96 lines below, and were not. The difference is what
+            # the cited step DOES: that one asserts this same property
+            # over these same bytes, by name, and gates. Theirs merely
+            # built a fixture, so for them ordering was everything and
+            # the coverage was zero, not late.
+            #
+            # Written out because the first version of this reasoning,
+            # and the rule in docs/method.md it came from, both got it
+            # wrong in the ordering direction -- which would have
+            # condemned this skip and blessed a badly-ordered one.
             self.skipTest("examples not built in this checkout; ci.yml "
                           "gates these blobs with ps2ui-check after the "
                           "example builds")

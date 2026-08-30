@@ -38,6 +38,64 @@ The fix is instructive. It was **not** fixed by reordering the workflow:
 It was fixed twice instead — the test builds the object itself, and
 `PS2UI_REQUIRE_CROSSCHECK=1` turns a skip into a failure in CI.
 
+**And then the lesson was applied to one test and not generalised**,
+which is how the same defect ran for months two hundred lines further
+down the same file. Four `TestS7Discriminator` tests skipped with
+*"bench fixture not built; ci.yml builds it"* — true of the workflow,
+false of the moment: `ci.yml` built that fixture ninety-six lines after
+the step that ran them. They had never executed in CI, and a skip
+reports as `OK`, so nothing said so. Found in review of the v7 format
+change, in a diff that did not touch them.
+
+`unavailable()` is now a helper the whole file shares rather than a
+closure inside the one test that needed it first, and the variable
+means the broader thing: under it, **every** fixture the suite reaches
+for must exist. The workflow was reordered as well — the reorder is the
+fix, the failure is the tripwire, and shipping only the first is what
+invites being reordered back.
+
+**The general form, and the first draft of it was wrong in a way worth
+keeping.** It read: *a skip message may cite a workflow step as the
+reason the skip is safe only if that step has already run.* Review
+applied it to the one skip this file deliberately keeps —
+`TestCheck.test_the_shipped_examples_pass`, which cites a step at
+`ci.yml:191` and runs at `:75`, **116 lines too late** — and the rule
+condemns it. It should not: that step really does assert the same
+property over the same bytes, by name, and gates.
+
+So ordering is the incidental part. For the S7 four the coverage was
+not late, it was **zero**: nothing else ran those assertions in any
+position, and had the fixture build happened to sit at line 40 all
+along, an ordering rule would have blessed them while they still had no
+second reader.
+
+> A skip message may cite a workflow step as the reason it is safe only
+> if that step **actually asserts the same property**. If nothing else
+> does, the skip *is* the coverage — and a skip is reported as `OK`.
+> Ordering matters only when what is cited is the step that builds the
+> fixture the test needs.
+
+That condemns the four, exempts the fifth for the reason that actually
+holds, and does not depend on line numbers that move.
+
+**The audit it prompted found a worse one**, two hundred lines up from
+the four: `test_capacity_survives_the_bake` skipped with *"bake refused
+a capacity it should accept"* — a skip guarding not a missing fixture
+but the test's own subject. No reordering could have made that one run,
+because the condition it skipped on **was** the failure it existed to
+detect. A skip on a missing fixture is a coverage gap; a skip on your
+own assertion is a test that reports `OK` for the bug.
+
+And a third size below both: a loop that iterates a corpus, skips the
+members it cannot find, and reports on the rest without saying how many
+it saw. `test_the_shipped_examples_pass` checked two example blobs and
+handled *zero* built and *two* built; with one built it covered half
+the regression set and returned `OK` in silence. Never in CI — the
+baker step runs before both example builds, so the count is always
+zero there — and every time for a developer who had baked one of them.
+**A count that is neither all nor none is the answer, not a case to
+fall through.**
+
 Others: a `argc == 3` guard that silently skipped eighteen checks when
 a fourth fixture was added, leaving the suite green *and smaller*; and
 `opl-env` registered in `check-blobs.sh`'s `ALL` list while `ci.yml`
