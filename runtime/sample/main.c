@@ -1030,6 +1030,26 @@ static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
  * settled screen, fast enough that a sitting sees many steps. */
 #define OPLENV_SCROLL_EVERY 30
 
+/* The screen this driver renders, and whether it is the library.
+ * A screen build is static by construction: the window scroll and the
+ * cover UPLOADS are library-only, so every point in P3d's content
+ * sweep is a plain render of N commands.
+ *
+ * Not "cover streaming is library-only", which is what this said and
+ * is not true: detail.html carries a det-art streamed slot and nothing
+ * ever binds it, so detail renders one texquad whose Mem is NULL. That
+ * draw is counted in `prims` and then skipped before the bind, which
+ * is why the readout prints tex_unfilled -- the correction is small
+ * and it lands on two of the six points, so it is measured rather than
+ * assumed away. */
+#ifdef PS2UI_OPLENV_SCREEN
+#define OPLENV_IS_LIBRARY 0
+#define OPLENV_SCREEN_NAME PS2UI_OPLENV_SCREEN
+#else
+#define OPLENV_IS_LIBRARY 1
+#define OPLENV_SCREEN_NAME "library"
+#endif
+
 /* How many full-screen alpha-blended sprites the falsification arm
  * draws. Eight is chosen to be unmissable rather than realistic: at
  * 640x448 that is 2.3 million blended pixels a frame, so if `gs` does
@@ -1617,9 +1637,109 @@ int main(void)
         unsigned cur_theme = 0;                   /* tint row on screen */
 #endif
         u32 t_prev = 0;
-        char telem[64];
+        /* 160, not 64, and the extra 96 bytes are for the COMPILER
+         * rather than the console: at 64 the screen arm raises
+         * -Wformat-overflow, fatal under -Werror, which is why the
+         * OPLENV arms could not join the host syntax check.
+         *
+         * MEASURED, NOT DERIVED, because the derivation was wrong
+         * three ways. gcc bounds these at TEN digits, not twenty --
+         * every argument is a u32 cast to unsigned long, so
+         * value-range propagation narrows it and the note says
+         * `directive argument in the range [0, 4294967295]`. Twenty is
+         * the bound for a genuinely unbounded 64-bit unsigned long,
+         * which none of these is. And a digit-count rule does not
+         * reach the answer anyway: gcc's reported worst case is not
+         * the size it enforces at -Wformat-overflow=1. Bisecting the
+         * real compile is what settles it. The minimum each arm
+         * accepts:
+         *
+         *     plain / FILL / EE / CLEAR_OPAQUE   63
+         *     THEME_CYCLE                        66
+         *     OPLENV_SCREEN                      83   <- the binding one
+         *
+         * so 160 carries 77 bytes of margin. The values on screen are
+         * nowhere near any of it (`c` tops out at 694, `n` at a frame
+         * count) and the slot truncates at 48 characters regardless,
+         * so nothing photographed changes.
+         *
+         * THE USEFUL PART: 64 sat ONE BYTE above the plain arm's 63.
+         * The screen arm did not introduce fragility, it landed on a
+         * buffer that had been one conversion from the edge since it
+         * was written. Anything added to this readout should re-run
+         * the bisection rather than trust the headroom.
+         *
+         * snprintf is not the fix -- the same analysis comes back as
+         * -Wformat-truncation, equally fatal. It would also break the
+         * two fences anchored on `sprintf(telem`, though LOUDLY: the
+         * timing probe reports five rules failing at once, because
+         * `printed` comes back empty. A one-word regex change that
+         * announces itself, not a silent loss. */
+        char telem[160];
+        /* SLOT NAMES ARE SCREEN-SCOPED, and they have to be: slots are
+         * per-screen (render_slots walks the current screen's slot
+         * range), so a readout that lives on library draws nothing
+         * while any other screen is up -- and five of P3d's six sweep
+         * points are not library. Every screen therefore carries its
+         * own pair. ps2ui_slot_set resolves by FIRST match over the
+         * whole file, so six slots called "telem" would all be one
+         * slot to this driver; the screen name is the prefix that
+         * keeps them apart, and the baker refuses a blob that repeats
+         * a slot name across screens. */
+        char nm_telem[48], nm_telem2[48];
 
+        sprintf(nm_telem, "%s-telem", OPLENV_SCREEN_NAME);
+        sprintf(nm_telem2, "%s-telem2", OPLENV_SCREEN_NAME);
+
+        /* WHICH SCREEN, AND WHY IT IS A BUILD FLAG.
+         *
+         * P3d's gate turns on a number nobody has: how EE cost scales
+         * with CONTENT. F-044 priced one ps2ui_render at 2.44 ms, and
+         * that is one point on one screen -- exactly the shape of the
+         * problem F-044 itself was built to fix ("the EE side has one
+         * number and no model"), one level up. Extrapolating per
+         * command from a single reading is not a model, it is a
+         * division.
+         *
+         * The blob already carries six screens spanning 110 to 694
+         * commands, a 6.3x range, with no new geometry to author and
+         * no new blob to bake. Rendering each one is six points, and
+         * six points give ee = base + k x commands -- which is the
+         * decomposition P3d actually needs, because a precompiled
+         * chain removes the PER-COMMAND term and leaves the fixed one.
+         * If ee is mostly base, P3d buys almost nothing at any content
+         * scale. If it is mostly k, the gate can open and this says at
+         * what size.
+         *
+         * The x-axis is `c`, NOT `p`. p is stats.prims -- draws
+         * submitted, which is painting commands that survived
+         * visibility PLUS one per slot glyph -- while the loop that
+         * P3d removes trips stats.cmds times. Over these six screens
+         * p/cmds runs 0.94 to 1.90 and the two orderings differ, so p
+         * is not a rescaling of commands and fitting against it would
+         * fit the wrong line.
+         *
+         * `g` is on the readout for a sharper reason. PLAN.md defines
+         * P3d as baking the STATIC geometry and patching the dynamic
+         * tail, and slot glyphs ARE that tail: the pen composes them
+         * per frame from the current string, so a precompiled chain
+         * cannot contain them. Glyph work is EE cost P3d cannot
+         * remove. It correlates with commands only at r = 0.75 here,
+         * so a one-term fit would bury it inside k -- and since the
+         * PR's whole claim is that k BOUNDS what P3d can buy, that
+         * bias runs the way that wrongly opens the gate. Two
+         * regressors, and only k_cmd is the bound.
+         *
+         * The sweep is STATIC BY CONSTRUCTION: the window scroll and
+         * the cover uploads are library-only, so a screen build skips
+         * them and every point is a plain render. That is the
+         * comparison this arm wants; the scrolling library ELF stays
+         * as the reference workload it always was. */
+#ifdef PS2UI_OPLENV_SCREEN
+        if (ps2ui_screen_set(&ui, PS2UI_OPLENV_SCREEN) != 1) {
+#else
         if (ps2ui_screen_set(&ui, "library") != 1) {
+#endif
             /* Solid olive, the "instrument broken" colour every other
              * card here uses, rather than a blank screen that looks
              * like a working console with nothing to draw. */
@@ -1629,9 +1749,37 @@ int main(void)
                 gsKit_sync_flip(gs);
             }
         }
-        ps2ui_slot_set(&ui, "lib-count", "412 titles");
-        oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
-        last_upload = oplenv_bind_window(&ui, gs, &w);
+        /* Skipped on a screen build, and by a CONSTANT rather than a
+         * preprocessor guard: w and the window helpers are static and
+         * would go unused under #ifndef, which is -Werror here. One
+         * code path, and the optimiser drops the branch. */
+        if (OPLENV_IS_LIBRARY) {
+            ps2ui_slot_set(&ui, "lib-count", "412 titles");
+            oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
+            last_upload = oplenv_bind_window(&ui, gs, &w);
+        }
+#ifdef PS2UI_OPLENV_SCREEN
+        /* AND THE CONSTANT DOES NOT COVER last_upload, which is what
+         * the comment above got wrong. It reasons about a variable
+         * going UNUSED under #ifndef, and the constant does fix that --
+         * w stays syntactically used either way. This is the
+         * NEIGHBOURING diagnostic: the screen arm's readout trades `up`
+         * away for `c`, `g` and `u`, which leaves last_upload written
+         * four times and read nowhere, and -Wall -Werror here includes
+         * -Wunused-but-set-variable. Same flag, different rule, and it
+         * broke the elf job on all six sweep builds.
+         *
+         * A cast rather than a preprocessor guard around the
+         * declaration and its four writes, for two reasons. It keeps
+         * the screen arm ONE code path, which is the property the
+         * constant was introduced to buy. And it keeps the variable
+         * that would show `up` non-zero on a screen build, so the arm's
+         * own claim -- no window, so no upload, so nothing to report --
+         * stays inspectable rather than compiled out because it is
+         * asserted to be true. Scoped to this arm, so a build that
+         * SHOULD print `up` and stops doing it still fails here. */
+        (void)last_upload;
+#endif
 
         /* ZERO THE BOOT PHASE before starting the clock.
          *
@@ -1749,7 +1897,8 @@ int main(void)
             }
             t_prev = t0;
 
-            if (frame && frame % OPLENV_SCROLL_EVERY == 0) {
+            if (OPLENV_IS_LIBRARY
+                && frame && frame % OPLENV_SCROLL_EVERY == 0) {
                 /* window.h reports whether that actually scrolled --
                  * moving inside the window costs nothing, and
                  * conflating the two would make `up` meaningless. */
@@ -2046,8 +2195,11 @@ int main(void)
                         (unsigned long)(gs_pk_us / 1000),
                         (unsigned long)((gs_pk_us % 1000) / 10),
                         (unsigned long)gs_pk_at_us);
-                ps2ui_slot_set(&ui, "telem", telem);
-                /* n is the run's frame count, and m without it is half
+                ps2ui_slot_set(&ui, nm_telem, telem);
+                /* WHAT EACH BUILD PRINTS, AND WHY THE SCREEN ARM
+                 * PRINTS SOMETHING ELSE.
+                 *
+                 * n is the run's frame count, and m without it is half
                  * a reading. S14 got m29@270 at N=4 and the review was
                  * right that 29 divides nothing: it fits "every scroll
                  * frame from 270 on" and fits "near-margin jitter whose
@@ -2055,9 +2207,27 @@ int main(void)
                  * well, and only n tells them apart --
                  * 29 ~ (n - 270)/OPLENV_SCROLL_EVERY + 1 for the first.
                  * t is the theme row on screen, so a photograph of a
-                 * theme switch says which one it is. */
+                 * theme switch says which one it is.
+                 *
+                 * The line is 314px wide and its worst case already
+                 * reaches 314px, so a field can only be ADDED by
+                 * removing one. On a screen build `up` is dead -- no
+                 * window, so no upload, so it is 0 on every frame of
+                 * every point -- and `p` is the sum of the two numbers
+                 * the sweep actually fits, glyphs and everything else.
+                 * Trading both for `c`, `g` and `u` costs nothing a
+                 * screen build could have read and buys the whole
+                 * x-axis. Worst case measured against the baked font,
+                 * not estimated: 308px of 314, 37 chars of 38.
+                 *
+                 * The library ELF -- the reference workload every
+                 * earlier sitting photographed -- keeps its line
+                 * exactly as it was, so S14's numbers stay comparable
+                 * with the next run of it. */
                 sprintf(telem,
-#ifdef PS2UI_OPLENV_THEME_CYCLE
+#if defined(PS2UI_OPLENV_SCREEN)
+                        "f%lu.%02lu c%lu g%lu u%lu m%lu@%lu n%lu",
+#elif defined(PS2UI_OPLENV_THEME_CYCLE)
                         /* t only in the build that cycles. The slot
                          * truncates rather than overflows, and a
                          * trailing field is the first thing lost, so
@@ -2070,14 +2240,20 @@ int main(void)
 #endif
                         (unsigned long)(fld_us / 1000),
                         (unsigned long)((fld_us % 1000) / 10),
+#if defined(PS2UI_OPLENV_SCREEN)
+                        (unsigned long)ui.stats.cmds,
+                        (unsigned long)ui.stats.slot_glyphs,
+                        (unsigned long)ui.stats.tex_unfilled,
+#else
                         (unsigned long)ui.stats.prims, last_upload,
+#endif
                         (unsigned long)missed, (unsigned long)miss_at,
                         (unsigned long)frame
-#ifdef PS2UI_OPLENV_THEME_CYCLE
+#if !defined(PS2UI_OPLENV_SCREEN) && defined(PS2UI_OPLENV_THEME_CYCLE)
                         , cur_theme
 #endif
                         );
-                ps2ui_slot_set(&ui, "telem2", telem);
+                ps2ui_slot_set(&ui, nm_telem2, telem);
             }
 
             gsKit_queue_exec(gs);

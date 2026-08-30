@@ -445,9 +445,30 @@ h1 {
   flex-direction: column;
   flex-grow: 1;
 }
+/* 11px, not 14. The readout ran out of room: at 14px the worst case
+   of the line the theme arm prints is 43 characters in a 38-character
+   slot and 359px in library's 314px of footer, so its LAST field --
+   which is always the newest one -- is silently clipped on exactly the
+   long runs a sitting cares about. A third line does not fit either:
+   it puts text at y=425, outside the title-safe area, and the lint
+   says so. 11px is F-046's floor, cleared at the bench on the test
+   STLs, and it buys about a third more characters per line. */
 .telem-l {
-  font-size: 14px;
+  font-size: 11px;
   color: var(--ink-dim);
   text-align: right;
-  height: 18px;
+  height: 14px;
 }
+/* The confirm screen is a scrim and a dialog: no footer to donate its
+   leftover width, and no room to add one -- making the scrim a column
+   moved the dialog up far enough to push its title out of the
+   title-safe area, which the lint caught. So the readout goes INSIDE
+   the dialog, in the widest box the dialog has: 296px, which is its
+   340px less padding and border. Every other screen's readout gets at
+   least 314px from its footer, so this is the narrowest of the six and
+   the one the fit check has to clear first. */
+.telem-dlg {
+  flex-direction: column;
+  width: 296px;
+}
+

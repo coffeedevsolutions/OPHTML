@@ -45,10 +45,12 @@
          a scroll step written down. The driver ELF reports them here
          rather than over a serial line nobody at a bench can read, so
          a photograph of this screen carries its own measurement. It is
-         a slot, so it costs nothing when the app leaves it unset. -->
+         a slot, so it costs nothing when the app leaves it unset.
+         Every other screen carries the same block for the same reason;
+         see .telem in opl.css for why the names are screen-scoped. -->
     <div class="telem">
-      <p class="telem-l" data-slot="telem" data-slot-capacity="38">telemetry: waiting</p>
-      <p class="telem-l" data-slot="telem2" data-slot-capacity="38">gs: waiting</p>
+      <p class="telem-l" data-slot="library-telem" data-slot-capacity="48">telemetry: waiting</p>
+      <p class="telem-l" data-slot="library-telem2" data-slot-capacity="48">gs: waiting</p>
     </div>
   </div>
 

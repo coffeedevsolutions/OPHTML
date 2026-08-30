@@ -818,6 +818,115 @@ Then, in an order P3a decides:
    generalises — re-running the same five ELFs against a new blob
    re-prices it in one sitting.
 
+   **And the number it has is still one point.** 2.44 ms is one screen
+   at one command count, which is the shape of the problem F-044 was
+   built to fix — *"the EE side has one number and no model"* — one
+   level up. Dividing it by a command count is a division, not a model.
+
+   **P3d's first slice is therefore the content sweep, not the
+   optimization**, which is also what this section's own ordering rule
+   demands: a phase opening *"optimization against Phase 2's numbers,
+   not vibes"* must not begin with the item those numbers argue
+   against. The blob already carries six screens spanning **110 to 694
+   commands**, a 6.3× range, so six renders price the gate with no new
+   geometry and no new blob.
+
+   **The fit has two regressors, not one.** PLAN.md's own definition of
+   P3d is *"bake each screen's **static** geometry as a ready-to-kick
+   chain; runtime **patches the dynamic tail**"* — and slot glyphs
+   **are** that tail. The pen composes them per frame from the current
+   string, so a precompiled chain cannot contain them: they are EE work
+   P3d does not remove. Over these six screens glyphs track commands
+   only at r = 0.75, so a one-term fit buries glyph cost inside `k` —
+   and since the whole claim is that **k bounds what P3d can buy**,
+   that bias runs in the direction that wrongly *opens* the gate.
+
+   ```
+   ee = base + k_cmd × cmds + k_glyph × glyphs      only k_cmd is the bound
+   ```
+
+   Predicted off the blob, at each screen's initial focus. The
+   photographs are what count — `c` and `g` are on the readout for
+   exactly that reason — but the prediction goes down first, the way
+   F-039's and F-044's did:
+
+   | screen | commands | slot glyphs | drawn | `p` |
+   |---|---:|---:|---:|---:|
+   | confirm | 110 | 145 | 64 | 209 |
+   | detail | 196 | 187 | 99 | 286 |
+   | landing | 331 | 233 | 206 | 439 |
+   | recent | 360 | 344 | 189 | 533 |
+   | filters | 467 | 188 | 253 | 441 |
+   | library | 694 | 376 | 366 | 742 |
+
+   `recent` and `filters` are what make the split possible: 30% more
+   commands, 45% fewer glyphs.
+
+   **Six points are enough, and that is arithmetic rather than hope.**
+   r = 0.751 gives a variance inflation of 2.29, which is mild, and the
+   commands spread over `sqrt(Σ(c - c̄)²)` = 462. Taking
+   `k_cmd ≈ 2.44 ms / 414` as the scale if the walk were the whole
+   per-render cost, and σ as the residual standard error of S14's own
+   `ee` fit — **0.0276 ms**, derived from its five residuals rather
+   than read off its r², which is the step where this first came out
+   2.8× too small — the 95% interval on `k_cmd` with 3 degrees of
+   freedom is:
+
+   | σ | 95% CI on `k_cmd` |
+   |---|---|
+   | 0.028 ms (S14's) | ±4.9% |
+   | 0.055 ms (twice that) | ±9.8% |
+
+   So `k_cmd` separates to about ±5%, and to ±10% even if these six
+   screens are twice as noisy as one screen swept by N. That decides
+   the gate several times over, so **the seventh authored screen is not
+   needed** — a prediction the sitting can falsify, rather than a worry
+   to carry into it. It is falsified by a fitted `k_cmd` whose own
+   standard error exceeds a tenth of it, which would mean the residuals
+   came back far above S14's.
+
+   **That decomposition is the gate.** A precompiled chain removes the
+   per-command term and leaves the fixed one. Mostly `base` and P3d
+   buys little at any content scale — the gate then stays shut on a
+   measurement rather than on an asymmetry, which is a better place to
+   leave it. Mostly `k_cmd` and it scales with content, and the
+   intercept says at what size.
+
+   Static by construction: a screen build skips the window scroll and
+   the cover uploads, which are library-only, so the points differ in
+   content and nothing else.
+
+   **The x-axis is `c`, and `p` is not it.** `p` is `stats.prims` —
+   draws submitted, which is painting commands that survived visibility
+   *plus one per slot glyph* — while the loop P3d removes trips
+   `stats.cmds` times. `p`/`cmds` runs 0.94 to 1.90 across these six
+   screens and the two orderings differ, so `p` is not a rescaling of
+   commands; a plot against it fits a different line. The screen arm
+   therefore prints `c`, `g` and `u` in place of `p` and `up` (which is
+   always 0 with no window to scroll), and the sweep reads its x off
+   the photograph rather than off this table.
+
+   One correction the write-up owes: **cover streaming is not
+   library-only.** `detail.html` carries a `det-art` streamed slot and
+   nothing binds it, so detail draws one texquad whose `Mem` is NULL —
+   counted in `prims`, then skipped before the bind. Library has nine.
+   About 1% of prims, but it lands on both ends of the fit and it
+   *removes* work, which flattens the slope toward "P3d buys little" —
+   one of the two conclusions on offer. `u` is on the readout so the
+   correction is measured rather than argued.
+
+   The readout itself had to move to make room. It is now on **all six
+   screens** rather than only on library — slots are per-screen, so a
+   readout on library draws nothing while any other screen is up, and
+   five of the six points are not library — and it dropped to 11px,
+   F-046's floor. At 14px the theme arm's worst case is 43 characters
+   in a 38-character slot and 359px in library's 314px of footer, so
+   its last field was already being clipped on long runs; a third line
+   does not fit either, the lint puts it at y=425, outside title-safe.
+   `examples/opl-env/check.py` now measures every arm of the driver's
+   own format strings against every screen's slot with the runtime's
+   pen, so "it fits" is a check and not a recollection.
+
    **The missing instrument is the EE analogue of the fill arm**, and
    the obvious version of it does not work. Rendering the UI N extra
    times inside a 1×1 scissor fails because `ps2ui_render` resets the
@@ -839,7 +948,20 @@ Then, in an order P3a decides:
    same way, by predicting the number before the sitting.
 
    Until that sweep exists, this item is deferred on an asymmetry
-   rather than on a measurement.
+   rather than on a measurement — and the content sweep above is the
+   cheaper half of closing that, because it needs no runtime change at
+   all.
+
+   **One thing the sweep does not price, and it belongs in the
+   decision.** A precompiled chain pays off because the geometry is
+   fixed. Nothing in the runtime moves, scales or fades a node today —
+   the whole surface is visibility, slot text, streamed textures,
+   CLUT/theme, screen, focus and list windowing — so "fixed" is
+   currently free. The pull lane's **runtime geometry** item proposes
+   changing that, and the animated share of a screen is a direct
+   discount on what a chain can buy. If it is ever pulled, its scope
+   wants settling before the chain is built rather than after, because
+   the chain's design turns on how much of it has to stay patchable.
 
 The ordering is deliberate: the ungated item first, then the two whose
 justification does not exist yet. A phase that opens "optimization
@@ -914,8 +1036,38 @@ PR merged first.
 ### The pull lane
 
 No phase: `position: absolute` (F8), gradients (F15), localization (F17),
-non-Latin text (F16), full VRAM unload (old F19). Each enters only when a
-concrete use pulls it. Nothing enters because it scores well.
+non-Latin text (F16), full VRAM unload (old F19), **runtime geometry**
+(below). Each enters only when a concrete use pulls it. Nothing enters
+because it scores well.
+
+**Runtime geometry — animation and transitions.** Geometry is baked, and
+the whole runtime surface is `visible_set`, `slot_set`, `tex_set`,
+`clut_set`, `theme_set`, `screen_set`, `focus_set` and `list_*`. Nothing
+moves, scales or fades a node, so a cascade, a coverflow, a slide
+transition or a focus ring that travels cannot be expressed at all — an
+app can only cut between baked states. It is a polish gap rather than a
+correctness one: what ps2ui draws is right, it just arrives instantly.
+
+Three tiers, cheapest first, and they are separable:
+
+| tier | mechanism | notes |
+|---|---|---|
+| offset | `ps2ui_offset_set(ctx, name, dx, dy)` over a subtree | one add per command; an offset table shaped like the visibility bits. Slide-ins, travelling focus rings, parallax |
+| scale + opacity | opacity into the tint alpha; scale recomputes quad corners | opacity is nearly free — the tint table has been per-command since P3b. Scale is where I2's rounding rule and P1k's half-texel bias need re-deriving, not reusing |
+| timelines | a `@keyframes` subset baked into the blob | an app plays a named transition instead of driving a value per frame. The tier that makes it authored in CSS rather than in C |
+
+**What would pull it**, stated so the admission rule has something to
+test: a PSBBN-class animated shell. That is not an anchored use case in
+§5 today — UC-3 asks for none of it — so it stays in this lane. `F8` is
+upstream of the parts that overlap without nesting, and `lint.js`
+already carries forward cover for that.
+
+**It discounts P3d, which is why it is written down now.** A
+precompiled chain pays off because the geometry is fixed, so the
+animated share of a screen subtracts directly from what the chain buys,
+and the chain's design turns on how much has to stay patchable. If this
+is ever pulled, its scope wants settling before the chain is built
+rather than after. That is a sequencing claim, not a measurement.
 
 ## §7 PS2 hardware exploitation map
 

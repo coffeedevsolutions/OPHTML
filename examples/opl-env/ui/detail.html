@@ -28,6 +28,19 @@
     <p class="action" id="act-back" focusable>BACK</p>
   </div>
 
+  <div class="footer">
+    <!-- The readout. On EVERY screen, not only on library: slots are
+         per-screen (render_slots walks the current screen's slot range),
+         so a telemetry line that lives on library draws nothing while
+         anything else is up, and P3d's content sweep renders five
+         screens that are not library. Screen-scoped names because
+         ps2ui_slot_set resolves by FIRST match over the whole file. -->
+    <div class="telem">
+      <p class="telem-l" data-slot="detail-telem" data-slot-capacity="48">telemetry: waiting</p>
+      <p class="telem-l" data-slot="detail-telem2" data-slot-capacity="48">gs: waiting</p>
+    </div>
+  </div>
+
 </div>
 </body>
 </html>

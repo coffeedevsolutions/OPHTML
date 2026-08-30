@@ -2,7 +2,7 @@
 
 The Phase 2 skeleton (`docs/PLAN.md` §6): a game-launcher environment
 built out of the same six mechanisms Phase 1 shipped, at the scale a
-real one runs at. Six screens, 127 slots, ten streamed texture slots,
+real one runs at. Six screens, 137 slots, ten streamed texture slots,
 one overlay composited over whichever screen is beneath it.
 
 It lives in `examples/`, not `fixtures/`, and carries what that
@@ -19,9 +19,9 @@ this blob, and an exemption here would be an exemption on them.
 
 | mechanism | where |
 |---|---|
-| blob-declared working set | 6,759-byte arena for the whole environment |
+| blob-declared working set | 7,319-byte arena for the whole environment |
 | streamed texture slots | nine list thumbnails + one detail cover |
-| slot text at scale | 127 slots, none of them a fixed ceiling |
+| slot text at scale | 137 slots, none of them a fixed ceiling |
 | composition | `confirm` drawn over `library` or `detail`, no clear between |
 | focus routing | 51 nodes, per-screen graphs |
 | repeats | nine library rows, six detail fields, three recent tiles |
@@ -39,10 +39,10 @@ re-deriving them.
 These are the Phase 2 baseline; Phase 3 optimises against them.
 
 ```
-blob            269,232 bytes
-arena             6,759 bytes      (the whole six-screen environment)
+blob            269,824 bytes
+arena             7,319 bytes      (the whole six-screen environment)
 screens                   6
-slots                   127
+slots                   137
 focus nodes              51
 textures                 21        (10 streamed)
 fonts                     6
@@ -56,12 +56,12 @@ Everything else below moved at P3b-6.
 
 | screen | commands | textured | slots | focus |
 |---|---:|---:|---:|---:|
-| landing | 331 | 324 | 15 | 7 |
+| landing | 331 | 324 | 17 | 7 |
 | library | 694 | 669 | 45 | 17 |
-| detail | 196 | 195 | 15 | 4 |
-| filters | 467 | 456 | 20 | 12 |
-| recent | 360 | 341 | 28 | 9 |
-| confirm | 110 | 109 | 4 | 2 |
+| detail | 196 | 195 | 17 | 4 |
+| filters | 467 | 456 | 22 | 12 |
+| recent | 360 | 341 | 30 | 9 |
+| confirm | 110 | 109 | 6 | 2 |
 
 **These moved at P3b-6, and in both directions.** Rounded boxes stopped
 premixing their colour into a texture and became two tinted coverage
@@ -81,6 +81,19 @@ geometries, so it is a fact about the stylesheet.
 The per-screen slot counts also correct a stale figure the headline
 check could not see -- it verifies the seven numbers above and not this
 table, and library had read 43 since before #63 added the telem slot.
+
+**And the readout is now on all six screens, which is the 127 -> 137.**
+Slots are per-screen: `render_slots` walks the current screen's slot
+range, so the telemetry pair that lived only on library drew nothing
+whenever anything else was up. That was invisible while every driver
+ELF rendered library, and it made five of P3d's six content-sweep
+points photograph no numbers at all. Ten slots and 560 bytes of arena
+buy every screen the ability to report its own cost. They are 11px
+rather than 14px for a related reason: at 14px the theme arm's worst
+case is 43 characters in a 38-character slot, so its last field was
+already being clipped on long runs, and `check.py` now measures every
+arm of the driver's format strings against every screen's slot rather
+than trusting that it fits.
 
 Two streamed reservation sizes, because a real environment needs both:
 

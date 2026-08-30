@@ -588,6 +588,28 @@ class Flattener:
                 "initial": self.focus_index.get(initial) if initial is not None else None,
             })
 
+        # SLOT NAMES ARE GLOBAL, even though slots are per-screen.
+        # ps2ui_slot_set walks every slot in the file and takes the
+        # FIRST name that matches, so two screens carrying a slot
+        # called "telem" give the app one slot it can reach and one it
+        # cannot -- and the unreachable one keeps showing its baked
+        # placeholder, which reads as a driver that stopped updating
+        # rather than as a name collision. paint.js checks uniqueness
+        # WITHIN one document, which was enough only while no two
+        # screens shared a vocabulary; P3d's per-screen readout is the
+        # first thing that wants the same field on all six.
+        seen = {}
+        for scr in self.screens:
+            lo = scr["slot_first"]
+            for sl in self.slots[lo:lo + scr["slot_count"]]:
+                if sl["name"] in seen:
+                    raise ValueError(
+                        f"slot name {sl['name']!r} is on screen "
+                        f"{seen[sl['name']]!r} and screen {scr['name']!r}; "
+                        "slot names resolve over the whole file, so only the "
+                        "first would ever be reachable from the app")
+                seen[sl["name"]] = scr["name"]
+
         # Slots registered glyphs into the shared atlases, so they must
         # finish before the atlas textures freeze.
         self._finish_slots()
