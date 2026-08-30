@@ -459,6 +459,41 @@ jobs:
           make -C runtime/sample OPLENV=1 CLEAR_OPAQUE=1 \
             UIB=../../examples/opl-env/build/ui.uib \
             EE_BIN=oplenv-clearopaque.elf
+          # P3d's MISSING NUMBER: how EE cost scales with CONTENT.
+          #
+          # F-044 priced one ps2ui_render at 2.44 ms. That is one point
+          # on one screen -- the same shape as the problem F-044 was
+          # built to fix, one level up -- and dividing it by a command
+          # count is not a model. The blob already carries six screens
+          # spanning 110 to 694 commands, so six renders give
+          # ee = base + k x commands with no new geometry.
+          #
+          # THAT DECOMPOSITION IS THE GATE. A precompiled chain removes
+          # the PER-COMMAND term and leaves the fixed one, so k bounds
+          # what P3d can ever buy. Mostly base -> P3d buys little at any
+          # content scale and the gate stays shut on a measurement
+          # rather than an asymmetry. Mostly k -> it scales with
+          # content, and the intercept says at what size.
+          #
+          # PREDICTED BEFORE THE SITTING. Post-P3b-6 command counts are
+          # confirm 110, detail 196, landing 331, recent 360,
+          # filters 467, library 694. If EE cost is dominated by the
+          # per-command walk, ee should be near-proportional and the
+          # six points near-collinear against those counts. If ee is
+          # flat across a 6.3x content range, the walk is not where the
+          # time goes and P3d is answered outright.
+          #
+          # Static by construction: a screen build skips the window
+          # scroll and cover streaming, which are library-only, so the
+          # points differ in command count and nothing else. p on each
+          # photograph states the count the ELF actually drew, so the
+          # x-axis is read off the screen rather than assumed.
+          for scr in confirm detail landing recent filters library; do
+            make -C runtime/sample objclean
+            make -C runtime/sample OPLENV=1 OPLENV_SCREEN=$scr \
+              UIB=../../examples/opl-env/build/ui.uib \
+              EE_BIN=oplenv-scr-$scr.elf
+          done
           # P3b's EXIT GATE. The one claim in the phase a host cannot
           # check: that a UI recolours every colour it draws from a
           # theme chosen at RUNTIME. The host stub counts primitives
@@ -513,6 +548,9 @@ jobs:
           test -f runtime/sample/oplenv-fill2.elf
           test -f runtime/sample/oplenv-fill4.elf
           test -f runtime/sample/oplenv-fill16.elf
+          for scr in confirm detail landing recent filters library; do
+            test -f runtime/sample/oplenv-scr-$scr.elf
+          done
           test -f runtime/sample/oplenv-theme.elf
           test -f runtime/sample/oplenv-clearopaque.elf
           test -f runtime/sample/oplenv-ee1.elf
@@ -558,6 +596,12 @@ jobs:
             runtime/sample/oplenv-fill2.elf
             runtime/sample/oplenv-fill4.elf
             runtime/sample/oplenv-fill16.elf
+            runtime/sample/oplenv-scr-confirm.elf
+            runtime/sample/oplenv-scr-detail.elf
+            runtime/sample/oplenv-scr-landing.elf
+            runtime/sample/oplenv-scr-recent.elf
+            runtime/sample/oplenv-scr-filters.elf
+            runtime/sample/oplenv-scr-library.elf
             runtime/sample/oplenv-theme.elf
             runtime/sample/oplenv-clearopaque.elf
             runtime/sample/oplenv-ee1.elf

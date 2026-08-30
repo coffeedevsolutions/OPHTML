@@ -126,6 +126,17 @@ endif
 # P3b's exit gate. The opl-env driver cycling its tint rows on a timer,
 # so a photograph shows a theme chosen at RUNTIME rather than baked in.
 # Paired with OPLENV for the same reason FILL, EE and CLEAR_OPAQUE are.
+# P3d's missing number: how EE cost scales with CONTENT. Renders one
+# named screen and skips the library window, so every point in the
+# sweep is a plain render of N commands. Paired with OPLENV for the
+# same reason every other arm is.
+ifdef OPLENV_SCREEN
+ifndef OPLENV
+$(error OPLENV_SCREEN=... requires OPLENV=1: the arm renders one of opl-env's own screens, not a build of its own)
+endif
+EE_CFLAGS += -DPS2UI_OPLENV_SCREEN='"$(OPLENV_SCREEN)"'
+endif
+
 ifdef THEME_CYCLE
 ifndef OPLENV
 $(error THEME_CYCLE=1 requires OPLENV=1: the arm is the opl-env driver switching its own theme, not a build of its own)

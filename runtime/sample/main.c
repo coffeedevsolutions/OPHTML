@@ -1030,6 +1030,16 @@ static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
  * settled screen, fast enough that a sitting sees many steps. */
 #define OPLENV_SCROLL_EVERY 30
 
+/* The screen this driver renders, and whether it is the library.
+ * A screen build is a static render by construction: the window scroll
+ * and cover streaming are library-only, so every point in P3d's
+ * content sweep is a plain render of N commands. */
+#ifdef PS2UI_OPLENV_SCREEN
+#define OPLENV_IS_LIBRARY 0
+#else
+#define OPLENV_IS_LIBRARY 1
+#endif
+
 /* How many full-screen alpha-blended sprites the falsification arm
  * draws. Eight is chosen to be unmissable rather than realistic: at
  * 640x448 that is 2.3 million blended pixels a frame, so if `gs` does
@@ -1619,7 +1629,36 @@ int main(void)
         u32 t_prev = 0;
         char telem[64];
 
+        /* WHICH SCREEN, AND WHY IT IS A BUILD FLAG.
+         *
+         * P3d's gate turns on a number nobody has: how EE cost scales
+         * with CONTENT. F-044 priced one ps2ui_render at 2.44 ms, and
+         * that is one point on one screen -- exactly the shape of the
+         * problem F-044 itself was built to fix ("the EE side has one
+         * number and no model"), one level up. Extrapolating per
+         * command from a single reading is not a model, it is a
+         * division.
+         *
+         * The blob already carries six screens spanning 110 to 694
+         * commands, a 6.3x range, with no new geometry to author and
+         * no new blob to bake. Rendering each one is six points, and
+         * six points give ee = base + k x commands -- which is the
+         * decomposition P3d actually needs, because a precompiled
+         * chain removes the PER-COMMAND term and leaves the fixed one.
+         * If ee is mostly base, P3d buys almost nothing at any content
+         * scale. If it is mostly k, the gate can open and this says at
+         * what size.
+         *
+         * The sweep is STATIC BY CONSTRUCTION: the window scroll and
+         * cover streaming below are library-only, so a screen build
+         * skips them and every point is a plain render of N commands.
+         * That is the comparison this arm wants; the scrolling library
+         * ELF stays as the reference workload it always was. */
+#ifdef PS2UI_OPLENV_SCREEN
+        if (ps2ui_screen_set(&ui, PS2UI_OPLENV_SCREEN) != 1) {
+#else
         if (ps2ui_screen_set(&ui, "library") != 1) {
+#endif
             /* Solid olive, the "instrument broken" colour every other
              * card here uses, rather than a blank screen that looks
              * like a working console with nothing to draw. */
@@ -1629,9 +1668,15 @@ int main(void)
                 gsKit_sync_flip(gs);
             }
         }
-        ps2ui_slot_set(&ui, "lib-count", "412 titles");
-        oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
-        last_upload = oplenv_bind_window(&ui, gs, &w);
+        /* Skipped on a screen build, and by a CONSTANT rather than a
+         * preprocessor guard: w and the window helpers are static and
+         * would go unused under #ifndef, which is -Werror here. One
+         * code path, and the optimiser drops the branch. */
+        if (OPLENV_IS_LIBRARY) {
+            ps2ui_slot_set(&ui, "lib-count", "412 titles");
+            oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
+            last_upload = oplenv_bind_window(&ui, gs, &w);
+        }
 
         /* ZERO THE BOOT PHASE before starting the clock.
          *
@@ -1749,7 +1794,8 @@ int main(void)
             }
             t_prev = t0;
 
-            if (frame && frame % OPLENV_SCROLL_EVERY == 0) {
+            if (OPLENV_IS_LIBRARY
+                && frame && frame % OPLENV_SCROLL_EVERY == 0) {
                 /* window.h reports whether that actually scrolled --
                  * moving inside the window costs nothing, and
                  * conflating the two would make `up` meaningless. */

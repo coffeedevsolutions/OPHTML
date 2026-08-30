@@ -818,6 +818,41 @@ Then, in an order P3a decides:
    generalises — re-running the same five ELFs against a new blob
    re-prices it in one sitting.
 
+   **And the number it has is still one point.** 2.44 ms is one screen
+   at one command count, which is the shape of the problem F-044 was
+   built to fix — *"the EE side has one number and no model"* — one
+   level up. Dividing it by a command count is a division, not a model.
+
+   **P3d's first slice is therefore the content sweep, not the
+   optimization**, which is also what this section's own ordering rule
+   demands: a phase opening *"optimization against Phase 2's numbers,
+   not vibes"* must not begin with the item those numbers argue
+   against. The blob already carries six screens spanning **110 to 694
+   commands**, a 6.3× range, so six renders give `ee = base + k ×
+   commands` with no new geometry and no new blob.
+
+   | screen | commands |
+   |---|---:|
+   | confirm | 110 |
+   | detail | 196 |
+   | landing | 331 |
+   | recent | 360 |
+   | filters | 467 |
+   | library | 694 |
+
+   **That decomposition is the gate.** A precompiled chain removes the
+   per-command term and leaves the fixed one, so **k bounds what P3d
+   can ever buy**. Mostly `base` and P3d buys little at any content
+   scale — the gate then stays shut on a measurement rather than on an
+   asymmetry, which is a better place to leave it. Mostly `k` and it
+   scales with content, and the intercept says at what size.
+
+   Static by construction: a screen build skips the window scroll and
+   cover streaming, which are library-only, so the points differ in
+   command count and nothing else. `p` on each photograph states the
+   count that ELF actually drew, so the x-axis is read off the screen
+   rather than assumed.
+
    **The missing instrument is the EE analogue of the fill arm**, and
    the obvious version of it does not work. Rendering the UI N extra
    times inside a 1×1 scissor fails because `ps2ui_render` resets the
@@ -839,7 +874,9 @@ Then, in an order P3a decides:
    same way, by predicting the number before the sitting.
 
    Until that sweep exists, this item is deferred on an asymmetry
-   rather than on a measurement.
+   rather than on a measurement — and the content sweep above is the
+   cheaper half of closing that, because it needs no runtime change at
+   all.
 
 The ordering is deliberate: the ungated item first, then the two whose
 justification does not exist yet. A phase that opens "optimization
