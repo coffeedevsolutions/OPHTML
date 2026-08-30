@@ -495,6 +495,44 @@ Then, in an order P3a decides:
    | P3b-4 | the baker writes a second row; `PS2UI_FEAT_ROLE_TINTS` is finally set | next |
    | P3b-5 | DX: `ps2ui-check` prints the palette with each entry's var name; the previewer renders every theme; `--strict` on a bare literal in a themed UI | last |
 
+   ### Bench sequencing: two sittings, not one delayed one
+
+   **The open bench queue is entirely P3a's, and none of it waits on
+   P3b.** The EE sweep, F-040's falsifier and the `-fill2` outlier
+   measure per-render EE cost, frame 0's field spill, and an
+   unexplained `gs^` reading. P3b-4 adds a second tint row — bytes in
+   the blob, no change to command count or per-frame work — and P3b-5
+   is `ps2ui-check`, previewer and `--strict` output with no runtime
+   path at all. Neither moves a number the queue reads.
+
+   **Waiting would make the sweep worse, not better.** Its predictions
+   come from F-036 and F-037, measured at v6 with colour inline. Every
+   blob change since is drift between the baseline and the thing being
+   compared to it: v7 put colour behind an indirection, and P3b-3 took
+   opl-env from 12 tints to 13. The N=0 point is already doing double
+   duty as the first check that v7's indirection cost nothing — a
+   question the whole tint-table design quietly assumes the answer to
+   and nobody has measured. Adding two more slices of drift before
+   reading it buys nothing and costs the comparison.
+
+   **And P3b earns its own sitting, later, for a different question.**
+   The exit gate says a UI recolours every colour it draws from a theme
+   chosen at runtime. That is not a host-verifiable claim: the host
+   stub counts primitives and the previewer renders from the same
+   values the baker wrote, so both would agree with a runtime that
+   recoloured nothing on a television. It needs a console and two
+   photographs, and it needs a blob with two rows — which is P3b-4.
+
+   | sitting | when | what |
+   |---|---|---|
+   | **A** | now, artifact hw #309 | the EE sweep (5 ELFs), F-040's falsifier (5 ELFs), the `-fill2` outlier |
+   | **B** | after P3b-4 | a theme switch on hardware — P3b's exit gate, and the one claim in the phase a host cannot check |
+
+   Sitting A decides whether P3d's gate can reopen, which is a
+   phase-level question P3b-4 and P3b-5 do not depend on. Serialising
+   them behind each other would hold a measurement for work that cannot
+   change it.
+
    **P3b-3 and P3b-5 swapped, and the old P3b-3 is gone.** The plan
    said role-keying meant "the IR carries each colour's declaration
    site". That is sound for the runtime and unusable for an author.
