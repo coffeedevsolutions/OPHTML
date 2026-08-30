@@ -52,9 +52,19 @@ from ps2ui_bake import preview
 
 out, shots = sys.argv[1], sys.argv[2]
 uib = read_uib(f"{out}/ui.uib")
-for name in ("landing", "library", "detail", "filters", "recent", "confirm"):
-    preview.render(uib, screen=name).save(f"{shots}/{name}.png")
-print(f"ps2ui-bake: screenshots -> {shots}/", file=sys.stderr)
+# ONE SET PER THEME. Row 0 keeps the plain names the README embeds;
+# every other row gets a suffix. A theme nobody can look at without a
+# PS2 is a theme nobody will get right, and this also puts every row
+# under the existing screenshot drift check for free -- a second row
+# that stopped moving would show up as a diff in these files rather
+# than as a photograph nobody took.
+for theme in range(len(uib.themes)):
+    suffix = "" if theme == 0 else f"-{theme}"
+    for name in ("landing", "library", "detail", "filters", "recent", "confirm"):
+        preview.render(uib, screen=name, theme=theme).save(
+            f"{shots}/{name}{suffix}.png")
+print(f"ps2ui-bake: screenshots ({len(uib.themes)} theme(s)) -> {shots}/",
+      file=sys.stderr)
 PY
 
 echo "opl-env example: $out/ui.uib"

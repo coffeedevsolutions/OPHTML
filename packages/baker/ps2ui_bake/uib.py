@@ -553,8 +553,16 @@ def read_uib(path) -> UibFile:
          tex, u0, v0, u1, v1) = _CMD.unpack_from(data, off_cmd + i * _CMD.size)
         # Scissor commands carry no colour and their tint fields are
         # not indices; a DrawRecord wants a tuple regardless.
+        vec = None
         if op in (OP_QUAD, OP_TEXQUAD):
             rgba = tint("command", "tint", i, tint_idx)
+            # The whole column, not just row 0. Reading the vector back
+            # is what lets the previewer draw a theme nobody can
+            # otherwise look at without a PS2, and it round-trips what
+            # write_uib put in -- a reader that only ever saw row 0
+            # could not tell a correct second row from a copy of the
+            # first.
+            vec = tuple(tuple(themes[t][tint_idx]) for t in range(n_theme))
             # Checked and then discarded. tint_focus is read only while
             # this command's node holds focus, so an out-of-range one
             # is a fault that appears when the cursor lands on it and
@@ -565,6 +573,7 @@ def read_uib(path) -> UibFile:
             rgba = (0, 0, 0, 0)
         out.records.append(DrawRecord(
             op, state, focus, x, y, w, h, tuple(rgba), tex, u0, v0, u1, v1,
+            rgba_themes=vec,
         ))
     for i in range(n_focus):
         (idx, up, down, left, right, _pad, name_off, x, y, w, h,
@@ -606,6 +615,10 @@ def read_uib(path) -> UibFile:
             "letter_spacing": letter_spacing,
             "color_base": (br, bg_, bb, ba), "color_focus": (fr, fg, fb, fa),
             "tint_base": tint_base, "tint_focus": tint_focus,
+            "color_base_themes": tuple(tuple(themes[t][tint_base])
+                                       for t in range(n_theme)),
+            "color_focus_themes": tuple(tuple(themes[t][tint_focus])
+                                        for t in range(n_theme)),
         })
     for i in range(n_screen):
         (name_off, cmd_first, cmd_count, focus_first, focus_count,

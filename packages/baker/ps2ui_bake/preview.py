@@ -124,13 +124,32 @@ def _screen_index(uib: UibFile, screen) -> int:
 
 
 def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),
-           slot_text: dict = None, screen=0, tex_fills: dict = None) -> Image.Image:
+           slot_text: dict = None, screen=0, tex_fills: dict = None,
+           theme: int = 0) -> Image.Image:
     """Replay one screen (index or name; default first) to an RGBA image
     with the given focus-table index current. slot_text overrides
     dynamic-text slots by name (else placeholders). tex_fills supplies
     raw PSMCT32 texels for streamed texture slots by name, the host
     mirror of ps2ui_tex_set; a slot with none draws nothing, which is
-    what the runtime does."""
+    what the runtime does.
+
+    theme selects a tint-table row, the host mirror of ps2ui_theme_set.
+    A theme nobody can look at without a PS2 is a theme nobody will get
+    right, and the screenshot drift check covers every row this can
+    draw -- design-p3b-theming.md 4.2."""
+    if theme < 0 or theme >= max(1, len(uib.themes)):
+        raise ValueError(f"theme {theme} is past the "
+                         f"{max(1, len(uib.themes))}-row tint table")
+
+    def tinted(vec, fallback):
+        """This record's colour in the selected theme.
+
+        Falls back for a blob written before the reader carried
+        vectors, and for the one-theme case where the two are equal by
+        construction; it never reconstructs a non-default row from the
+        default one, which would make a wrong second row invisible
+        here."""
+        return tuple(vec[theme]) if vec else tuple(fallback)
     si = _screen_index(uib, screen)
     sc = uib.screens[si] if uib.screens else {
         "cmd_first": 0, "cmd_count": len(uib.records),
@@ -164,7 +183,7 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
             c = clip_rect(rec.x, rec.y, rec.w, rec.h)
             if not c:
                 continue
-            r, g, b, a_gs = rec.rgba
+            r, g, b, a_gs = tinted(rec.rgba_themes, rec.rgba)
             layer = Image.new("RGBA", (c[2], c[3]), (r, g, b, gs_alpha_to_css(min(a_gs, 128))))
             canvas.alpha_composite(layer, (c[0], c[1]))
             continue
@@ -177,7 +196,7 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
             src = tex_cache[rec.tex].crop((rec.u0, rec.v0, rec.u1, rec.v1))
             if src.size != (rec.w, rec.h):
                 src = src.resize((rec.w, rec.h), Image.BILINEAR)
-            src = _tint(src, rec.rgba)
+            src = _tint(src, tinted(rec.rgba_themes, rec.rgba))
             c = clip_rect(rec.x, rec.y, rec.w, rec.h)
             if not c:
                 continue
@@ -271,7 +290,9 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
             pen += slot["w"] - total
 
         is_focused = slot["focus"] != FOCUS_NONE and slot["focus"] == focus_current
-        color = slot["color_focus"] if is_focused else slot["color_base"]
+        color = (tinted(slot.get("color_focus_themes"), slot["color_focus"])
+                 if is_focused else
+                 tinted(slot.get("color_base_themes"), slot["color_base"]))
 
         if ellipsize and ell:
             cps = cps + [0x2026]
