@@ -524,11 +524,13 @@ Then, in an order P3a decides:
    mechanism**, and opl-env was the wrong example to generalize from.
    Premixed costs one texture per distinct `(radius, bw, fill, border)`
    — call it C. Coverage costs two per distinct `(radius, bw)` — call
-   it G. The split wins when C > 2G. channel6 draws five radii and
-   paints each about twice, so it goes the other way: 23 → 25 textures,
-   280 → 296 KiB, 47% → 50% of budget. The justification is that colour
-   becomes reachable at all; the VRAM followed in one example and
-   opposed in the other. F-043 has both.
+   it G. The split wins when C > 2G, and that rule predicts all three
+   shipped examples including the one it says loses: opl-env 28 → 21
+   textures, memcard 19 → 11 (30% → 21% of budget), channel6 23 → 25
+   (47% → 50%) because it draws six rounded geometries and paints each
+   about 1.5 times. The justification is that colour becomes reachable
+   at all; the VRAM followed in two examples and opposed the third.
+   F-043 has all of them.
 
    The rejected alternative was a per-theme CLUT swap — P3b-0's own
    mechanism, and the obvious reading of "the two compose". It would

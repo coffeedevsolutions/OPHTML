@@ -195,6 +195,12 @@ both.
 Measured, against the ~36 KiB of fixed cost this replaces (a 3,328-byte
 context plus the 32 KiB CLUT pool):
 
+Figures as measured at v6, when this was written. P3b-6 moved two of
+them -- channel-6 to 10,624 and memcard to 1,662 -- by changing what a
+rounded box costs; the ratios are unaffected in kind and the table is
+left at its own moment rather than tracking a number it was never
+about.
+
 | UI | arena (EE) | + context | was | ratio |
 |---|---:|---:|---:|---:|
 | channel-6 | 10,544 | 10,736 | 36,096 | 3.4× |

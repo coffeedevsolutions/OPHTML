@@ -33,10 +33,12 @@ THAT SAVING IS NOT A PROPERTY OF THIS CHANGE. Premixed costs one
 texture per distinct (radius, border_w, fill, border_color); coverage
 costs two per distinct (radius, border_w). The split wins when the
 first count exceeds twice the second -- many colours over few
-geometries. channel6 has five radii painted about twice each and goes
-the other way: 23 textures to 25, 280 KiB to 296. Do not sell this as
-a VRAM optimization; it is what makes the colour reachable, and the
-bytes go whichever way the stylesheet sends them.
+geometries. Checked against all three shipped examples, it
+predicts all three: opl-env and memcard win (28 -> 21 and 19 -> 11
+textures), channel6 loses (23 -> 25) because it draws six rounded
+geometries and paints each about 1.5 times. Do not sell this as a VRAM
+optimization; it is what makes the colour reachable, and the bytes go
+whichever way the stylesheet sends them.
 
 Deliberately NOT a per-theme CLUT swap, which was the other candidate.
 A CLUT costs a full page, the same as the texture: an 11x11 patch would

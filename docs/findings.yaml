@@ -1050,17 +1050,24 @@ findings:
     split wins when C > 2G, which is to say when many colours share
     few geometries:
 
-    | example  | G | C | textures | patch VRAM | total VRAM |
-    |----------|---|---|----------|------------|------------|
-    | opl-env  | 2 | 11| 11 -> 4  | 88 -> 32 KiB | 392 -> 336 KiB |
-    | channel6 | 5 | 9 | 9 -> 11  | 72 -> 88 KiB | 280 -> 296 KiB |
+    | example  | G | C | predicts | textures | total VRAM |
+    |----------|---|---|----------|----------|------------|
+    | opl-env  | 2 | 11| win      | 28 -> 21 | 392 -> 336 KiB |
+    | memcard  | 2 | 11| win      | 19 -> 11 | 30% -> 21% of budget |
+    | channel6 | 6 | 9 | LOSS     | 23 -> 25 | 47% -> 50% of budget |
 
-    channel6 draws five corner radii and paints each about twice, so
-    it pays 16 KiB for the theming rather than being paid for it. The
-    saving is a property of a STYLESHEET, not of the mechanism, and
-    the mechanism's actual justification is that colour becomes
-    reachable at all -- the VRAM went with it in one example and
-    against it in the other.
+    THE RULE WAS CHECKED AGAINST ALL THREE SHIPPED EXAMPLES AND
+    PREDICTED ALL THREE, including the one it says loses. channel6
+    draws six rounded geometries and paints each about 1.5 times, so
+    it pays for the theming rather than being paid for it. (Coverage
+    costs AT MOST 2G: a box with no border needs no ring texture,
+    which is why channel6 lands on 25 rather than the 26 the bound
+    allows.)
+
+    The saving is a property of a STYLESHEET, not of the mechanism,
+    and the mechanism's actual justification is that colour becomes
+    reachable at all -- the VRAM went with it in two examples and
+    against it in the third.
 
     THE CHOSEN FIX IS ALSO PALETTIZATION, which is worth being precise
     about because it reads as the opposite. A coverage patch is PSMT8
