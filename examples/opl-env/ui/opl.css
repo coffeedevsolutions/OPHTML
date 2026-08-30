@@ -1,3 +1,62 @@
+/* The theme's palette, and the only place a colour literal appears.
+ *
+ * Every name here is a ROLE -- what the colour is for, not what it
+ * looks like -- because that is what a theme keys on. A literal
+ * written at a use site still works and is still baked; it simply
+ * stays outside every theme, which is the author declining to offer
+ * it. See docs/design-p3b-theming.md 9.2.
+ *
+ * --bg-page and --ink-on-accent HOLD THE SAME LITERAL AND ARE NOT THE
+ * SAME ROLE. #0b0f16 is the page behind everything and the ink that
+ * sits on the accent; a light theme moves the first and must not move
+ * the second, or the chip labels go light-on-light.
+ *
+ * They were NOT fused before this, and the reason is worth writing
+ * down because the first version of this comment claimed they were.
+ * A background is a QUAD and takes GS flat shading, (11,15,22,128); the
+ * same literal as text is a TEXQUAD and takes the modulate domain,
+ * (6,8,11,128). Two different numbers, so the value-keyed table already
+ * held them apart -- correctly, and for a reason that has nothing to do
+ * with roles. Naming them is what stops that being an accident: the
+ * separation currently depends on the two colours travelling through
+ * different conversions, and nothing guarantees they always will.
+ *
+ * What role-keying actually separated in this file is a role from a
+ * NON-role. #ffffff as text modulates to (128,128,128,128), which is
+ * exactly the identity tint the nine-patch emitter uses on untinted
+ * art. Value-keying made those one entry, so a theme touching --ink-max
+ * would have tinted every nine-patch in the environment. That is the
+ * table's 12 -> 13. */
+:root {
+  --bg-page: #0b0f16;
+  --bg-panel: #101623;
+  --bg-tile: #0e131d;
+  --bg-chip: #141a26;
+  --bg-focus: #1a2740;
+  --edge: #202839;
+  --edge-soft: #1a2233;
+  --accent: #7c9be0;
+  --accent-edge: #a9c0f0;
+  --ink-on-accent: #0b0f16;
+  --ink-title: #f2f5fa;
+  --ink-strong: #dbe2ee;
+  --ink-muted: #8b94a7;
+  --ink-dim: #6b7488;
+  --ink-max: #ffffff;
+  --score: #63b98a;
+  --scrim: rgba(6, 9, 16, 0.62);
+  --bg-dialog: #141c2c;
+  --edge-dialog: #33507f;
+  --ink-dialog-title: #eef3ff;
+  --ink-dialog-body: #9aa6bd;
+  --ink-dialog-btn: #c8d4ea;
+  --bg-dialog-btn: #1b2436;
+  --edge-dialog-btn: #2b3a55;
+  --bg-dialog-btn-focus: #27406b;
+  --bg-danger-focus: #5c2430;
+  --edge-danger: #c86a78;
+}
+
 /* Scoping fixture for Phase 1 sizing. Deliberately realistic rather
  * than minimal: 12 library rows with four fields each, a continue-
  * playing rail, and filter chips, because the question this answers is
@@ -6,7 +65,7 @@
 
 .screen {
   flex-direction: column;
-  background: #0b0f16;
+  background: var(--bg-page);
   padding: 26px 34px 30px;
   gap: 6px;
 }
@@ -18,7 +77,7 @@
 h1 {
   font-size: 22px;
   font-weight: bold;
-  color: #f2f5fa;
+  color: var(--ink-title);
   letter-spacing: 2px;
 }
 
@@ -26,20 +85,20 @@ h1 {
 
 .chip {
   font-size: 14px;
-  color: #8b94a7;
-  background: #141a26;
-  border: 2px solid #202839;
+  color: var(--ink-muted);
+  background: var(--bg-chip);
+  border: 2px solid var(--edge);
   border-radius: 4px;
   padding: 3px 10px;
 }
 
 .chip:focus {
-  color: #0b0f16;
-  background: #7c9be0;
-  border-color: #a9c0f0;
+  color: var(--ink-on-accent);
+  background: var(--accent);
+  border-color: var(--accent-edge);
 }
 
-.counts { font-size: 14px; color: #8b94a7; }
+.counts { font-size: 14px; color: var(--ink-muted); }
 
 /* ---------------------------------------------------------- body */
 
@@ -51,13 +110,13 @@ h1 {
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  background: #101623;
-  border: 2px solid #1a2233;
+  background: var(--bg-panel);
+  border: 2px solid var(--edge-soft);
   border-radius: 3px;
   padding: 0 8px;
 }
 
-.row:focus { background: #1a2740; border-color: #7c9be0; }
+.row:focus { background: var(--bg-focus); border-color: var(--accent); }
 
 /* Two streamed reservation sizes, dogfooding the mechanism at the two
  * scales a real environment needs: a list thumbnail the app fills as
@@ -70,19 +129,19 @@ h1 {
 
 .title {
   font-size: 13px;
-  color: #dbe2ee;
+  color: var(--ink-strong);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
 }
 
-.row:focus .title { color: #ffffff; }
+.row:focus .title { color: var(--ink-max); }
 
-.sub { font-size: 11px; color: #6b7488; }
+.sub { font-size: 11px; color: var(--ink-dim); }
 
-.score { font-size: 14px; color: #63b98a; }
+.score { font-size: 14px; color: var(--score); }
 
-.src { font-size: 12px; color: #8b94a7; }
+.src { font-size: 12px; color: var(--ink-muted); }
 
 /* --------------------------------------------------- continue rail */
 
@@ -90,79 +149,79 @@ h1 {
   flex-direction: column;
   width: 152px;
   gap: 6px;
-  background: #0e131d;
-  border: 2px solid #1a2233;
+  background: var(--bg-tile);
+  border: 2px solid var(--edge-soft);
   border-radius: 4px;
   padding: 8px;
 }
 
 .side-h {
   font-size: 14px;
-  color: #8b94a7;
+  color: var(--ink-muted);
   letter-spacing: 2px;
 }
 
 .cont {
   flex-direction: column;
-  background: #141a26;
-  border: 2px solid #202839;
+  background: var(--bg-chip);
+  border: 2px solid var(--edge);
   border-radius: 3px;
   padding: 3px 7px;
 }
 
-.cont:focus { background: #1a2740; border-color: #7c9be0; }
+.cont:focus { background: var(--bg-focus); border-color: var(--accent); }
 
 .cont-t {
   font-size: 13px;
-  color: #dbe2ee;
+  color: var(--ink-strong);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
 }
 
-.cont-s { font-size: 11px; color: #6b7488; }
+.cont-s { font-size: 11px; color: var(--ink-dim); }
 
 /* -------------------------------------------------------- footer */
 
 .footer { flex-direction: row; gap: 18px; }
 
-.hint { font-size: 14px; color: #6b7488; }
+.hint { font-size: 14px; color: var(--ink-dim); }
 
 /* ================================================= landing screen */
 
 .hero { flex-direction: column; gap: 2px; }
 
-.hero-sub { font-size: 14px; color: #8b94a7; }
+.hero-sub { font-size: 14px; color: var(--ink-muted); }
 
 .sources {
   flex-direction: column;
   width: 190px;
   gap: 5px;
-  background: #0e131d;
-  border: 2px solid #1a2233;
+  background: var(--bg-tile);
+  border: 2px solid var(--edge-soft);
   border-radius: 4px;
   padding: 8px;
 }
 
 .src-tile {
   flex-direction: column;
-  background: #141a26;
-  border: 2px solid #202839;
+  background: var(--bg-chip);
+  border: 2px solid var(--edge);
   border-radius: 3px;
   padding: 4px 8px;
 }
 
-.src-tile:focus { background: #1a2740; border-color: #7c9be0; }
+.src-tile:focus { background: var(--bg-focus); border-color: var(--accent); }
 
-.src-name { font-size: 14px; color: #dbe2ee; }
-.src-count { font-size: 11px; color: #6b7488; }
+.src-name { font-size: 14px; color: var(--ink-strong); }
+.src-count { font-size: 11px; color: var(--ink-dim); }
 
 .resume {
   flex-direction: column;
   flex-grow: 1;
   gap: 5px;
-  background: #0e131d;
-  border: 2px solid #1a2233;
+  background: var(--bg-tile);
+  border: 2px solid var(--edge-soft);
   border-radius: 4px;
   padding: 8px;
 }
@@ -171,13 +230,13 @@ h1 {
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  background: #141a26;
-  border: 2px solid #202839;
+  background: var(--bg-chip);
+  border: 2px solid var(--edge);
   border-radius: 3px;
   padding: 4px 8px;
 }
 
-.resume-card:focus { background: #1a2740; border-color: #7c9be0; }
+.resume-card:focus { background: var(--bg-focus); border-color: var(--accent); }
 
 .res-art { width: 28px; height: 28px; }
 
@@ -185,13 +244,13 @@ h1 {
 
 .res-title {
   font-size: 14px;
-  color: #dbe2ee;
+  color: var(--ink-strong);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
 }
 
-.res-sub { font-size: 11px; color: #6b7488; }
+.res-sub { font-size: 11px; color: var(--ink-dim); }
 
 /* ================================================== detail screen */
 
@@ -201,23 +260,23 @@ h1 {
 
 .field { flex-direction: row; gap: 8px; }
 
-.field-k { font-size: 12px; color: #6b7488; width: 96px; }
-.field-v { font-size: 12px; color: #dbe2ee; }
+.field-k { font-size: 12px; color: var(--ink-dim); width: 96px; }
+.field-v { font-size: 12px; color: var(--ink-strong); }
 
-.blurb { font-size: 12px; color: #8b94a7; }
+.blurb { font-size: 12px; color: var(--ink-muted); }
 
 .actions { flex-direction: row; gap: 8px; }
 
 .action {
   font-size: 14px;
-  color: #8b94a7;
-  background: #141a26;
-  border: 2px solid #202839;
+  color: var(--ink-muted);
+  background: var(--bg-chip);
+  border: 2px solid var(--edge);
   border-radius: 3px;
   padding: 3px 10px;
 }
 
-.action:focus { color: #0b0f16; background: #7c9be0; border-color: #a9c0f0; }
+.action:focus { color: var(--ink-on-accent); background: var(--accent); border-color: var(--accent-edge); }
 
 /* ================================================= filters screen */
 
@@ -231,40 +290,40 @@ h1 {
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  background: #101623;
-  border: 2px solid #1a2233;
+  background: var(--bg-panel);
+  border: 2px solid var(--edge-soft);
   border-radius: 3px;
   padding: 2px 8px;
 }
 
-.facet:focus { background: #1a2740; border-color: #7c9be0; }
+.facet:focus { background: var(--bg-focus); border-color: var(--accent); }
 
-.facet-k { font-size: 14px; color: #8b94a7; flex-grow: 1; }
-.facet-v { font-size: 14px; color: #dbe2ee; }
+.facet-k { font-size: 14px; color: var(--ink-muted); flex-grow: 1; }
+.facet-v { font-size: 14px; color: var(--ink-strong); }
 
 .preview-col {
   flex-direction: column;
   width: 190px;
   gap: 4px;
-  background: #0e131d;
-  border: 2px solid #1a2233;
+  background: var(--bg-tile);
+  border: 2px solid var(--edge-soft);
   border-radius: 4px;
   padding: 8px;
 }
 
 .match {
   flex-direction: column;
-  background: #141a26;
-  border: 2px solid #202839;
+  background: var(--bg-chip);
+  border: 2px solid var(--edge);
   border-radius: 3px;
   padding: 3px 7px;
 }
 
-.match:focus { background: #1a2740; border-color: #7c9be0; }
+.match:focus { background: var(--bg-focus); border-color: var(--accent); }
 
 .match-t {
   font-size: 13px;
-  color: #dbe2ee;
+  color: var(--ink-strong);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -277,7 +336,7 @@ h1 {
  * rather than as clutter. */
 .scrim {
   width: 640px; height: 448px;
-  background: rgba(6, 9, 16, 0.62);
+  background: var(--scrim);
   align-items: center;
   justify-content: center;
 }
@@ -286,15 +345,15 @@ h1 {
   width: 340px;
   flex-direction: column;
   gap: 10px;
-  background: #141c2c;
-  border: 2px solid #33507f;
+  background: var(--bg-dialog);
+  border: 2px solid var(--edge-dialog);
   border-radius: 4px;
   padding: 18px 20px;
 }
 
-.dlg-title { font-size: 16px; color: #eef3ff; letter-spacing: 1px; height: 22px; }
-.dlg-body  { font-size: 12px; color: #9aa6bd; height: 16px; }
-.dlg-path  { font-size: 11px; color: #6b7488; height: 16px; }
+.dlg-title { font-size: 16px; color: var(--ink-dialog-title); letter-spacing: 1px; height: 22px; }
+.dlg-body  { font-size: 12px; color: var(--ink-dialog-body); height: 16px; }
+.dlg-path  { font-size: 11px; color: var(--ink-dim); height: 16px; }
 
 .dlg-row { flex-direction: row; gap: 10px; justify-content: flex-end; height: 32px; }
 
@@ -304,15 +363,15 @@ h1 {
      most consequential text on the screen. The rule caught this. */
   width: 104px; height: 32px;
   font-size: 14px;
-  color: #c8d4ea;
-  background: #1b2436;
-  border: 2px solid #2b3a55;
+  color: var(--ink-dialog-btn);
+  background: var(--bg-dialog-btn);
+  border: 2px solid var(--edge-dialog-btn);
   border-radius: 3px;
   padding: 8px 0;
   text-align: center;
 }
-.dlg-btn:focus { background: #27406b; border-color: #7c9be0; color: #ffffff; }
-.dlg-danger:focus { background: #5c2430; border-color: #c86a78; }
+.dlg-btn:focus { background: var(--bg-dialog-btn-focus); border-color: var(--accent); color: var(--ink-max); }
+.dlg-danger:focus { background: var(--bg-danger-focus); border-color: var(--edge-danger); }
 
 /* The driver's on-screen readout. Right-aligned in the footer so it
  * cannot be confused with the button hints beside it. */
@@ -334,7 +393,7 @@ h1 {
 }
 .telem-l {
   font-size: 14px;
-  color: #6b7488;
+  color: var(--ink-dim);
   text-align: right;
   height: 18px;
 }

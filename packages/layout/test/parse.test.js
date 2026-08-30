@@ -168,3 +168,111 @@ test('css: at-rules are skipped with a warning, not a parse failure', () => {
   assert.equal(rules.length, 1);
   assert.match(warnings[0], /@media/);
 });
+
+// ------------------------------------------------------------------ var()
+//
+// The mechanism P3b's design settled on: a role is the NAME the author
+// wrote, not the value it resolves to and not the site it was written at.
+// docs/design-p3b-theming.md 9.2 has the argument.
+
+test('var: :root collects custom properties as colors', () => {
+  const sheet = parseStylesheet(':root { --panel: #123456; --ring: rgba(1,2,3,0.5) }');
+  assert.equal(sheet.vars.get('--panel').rgba.join(','), '18,52,86,255');
+  assert.equal(sheet.vars.get('--ring').rgba.join(','), '1,2,3,128');
+  // :root is a declaration site, not a selector -- it must not become a
+  // rule that something could match.
+  assert.equal(sheet.rules.length, 0);
+  assert.deepEqual(sheet.warnings, []);
+});
+
+test('var: a use site resolves and keeps the name', () => {
+  const sheet = parseStylesheet(':root{--ink:#ffeedd}\n.a{color:var(--ink)}');
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  const { style } = computeStyle(el, sheet, INITIAL_STYLE, null, []);
+  assert.deepEqual(style.color, [255, 238, 221, 255]);
+  assert.equal(style.colorVar, '--ink');
+});
+
+test('var: a literal resolves with NO name, which is what keeps it unthemed', () => {
+  // The other half of the design: a colour the author did not name is one
+  // they did not offer to a theme. It must not acquire a name by accident.
+  const sheet = parseStylesheet('.a{color:#ffeedd}');
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  const { style } = computeStyle(el, sheet, INITIAL_STYLE, null, []);
+  assert.deepEqual(style.color, [255, 238, 221, 255]);
+  assert.equal(style.colorVar, null);
+});
+
+test('var: one name across three properties is one role', () => {
+  const sheet = parseStylesheet(
+    ':root{--x:#102030}\n.a{color:var(--x);background:var(--x);border:1px solid var(--x)}',
+  );
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  const { style } = computeStyle(el, sheet, INITIAL_STYLE, null, []);
+  assert.equal(style.colorVar, '--x');
+  assert.equal(style.backgroundVar, '--x');
+  // The border shorthand splits on spaces, so var() has to be recognised
+  // there too and not only in `border-color`.
+  assert.equal(style.borderColorVar, '--x');
+});
+
+test('var: colorVar inherits with color', () => {
+  // If it did not, a child would be value-keyed under a role-keyed parent
+  // and a theme would recolour the parent and leave the child behind.
+  const sheet = parseStylesheet(':root{--ink:#010203}\n.p{color:var(--ink)}');
+  const parent = { type: 'element', tag: 'div', classes: ['p'], id: null, children: [] };
+  const { style: pStyle } = computeStyle(parent, sheet, INITIAL_STYLE, null, []);
+  const child = { type: 'element', tag: 'span', classes: [], id: null, children: [] };
+  const { style } = computeStyle(child, sheet, pStyle, null, []);
+  assert.deepEqual(style.color, [1, 2, 3, 255]);
+  assert.equal(style.colorVar, '--ink');
+});
+
+test('var: an undefined name is refused, not silently dropped', () => {
+  const sheet = parseStylesheet('.a{color:var(--nope)}');
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  assert.throws(
+    () => computeStyle(el, sheet, INITIAL_STYLE, null, []),
+    /--nope is not defined in :root/,
+  );
+});
+
+test('var: a fallback is refused, because a role has one value per theme', () => {
+  const sheet = parseStylesheet(':root{--a:#111}\n.a{color:var(--a, #222)}');
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  assert.throws(
+    () => computeStyle(el, sheet, INITIAL_STYLE, null, []),
+    /has a fallback/,
+  );
+});
+
+test('var: a non-color custom property is refused at the definition', () => {
+  assert.throws(
+    () => parseStylesheet(':root{--gap:4px}'),
+    /is not a color/,
+  );
+});
+
+test('var: a custom property outside :root warns and does not define', () => {
+  const sheet = parseStylesheet('.a{--panel:#123456}');
+  assert.equal(sheet.vars.size, 0);
+  assert.match(sheet.warnings.join('\n'), /outside :root is ignored/);
+  assert.equal(sheet.warnings.length, 1);
+  // AND NO SECOND, WRONG DIAGNOSTIC. The declaration still reaches
+  // applyDeclaration during computeStyle, where the default branch would
+  // call it "not supported on this target" -- true of no custom property
+  // and confusing next to the accurate warning above. Checked on the
+  // array computeStyle writes to, which is a DIFFERENT array from the
+  // sheet's: asserting only on sheet.warnings would have proved nothing
+  // about the path that produces the duplicate.
+  const el = { type: 'element', tag: 'div', classes: ['a'], id: null, children: [] };
+  const runtimeWarnings = [];
+  computeStyle(el, sheet, INITIAL_STYLE, null, runtimeWarnings);
+  assert.deepEqual(runtimeWarnings, []);
+});
+
+test('var: ordinary declarations inside :root warn rather than apply', () => {
+  const sheet = parseStylesheet(':root{color:#fff;--a:#111}');
+  assert.match(sheet.warnings.join('\n'), /:root \{ color: \.\.\. \}" is ignored/);
+  assert.equal(sheet.vars.size, 1);
+});

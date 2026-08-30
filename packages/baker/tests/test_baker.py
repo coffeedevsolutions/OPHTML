@@ -2063,6 +2063,132 @@ class TestTintTable(unittest.TestCase):
         self.assertEqual(len(u.themes[0]), 1)
         self.assertEqual(u.themes[0][0], (1, 2, 3, 0x80))
 
+    def test_a_name_is_a_role_and_a_literal_is_not(self):
+        """Two records with the same colour: named ones share an entry,
+        an unnamed one gets its own.
+
+        This is the whole of the keying rule. A role is what somebody
+        called a colour; two literals that happen to agree are two
+        coincidences that nobody offered to a theme, and they still
+        collapse -- but they must not collapse INTO a named entry, or a
+        theme moving the name would move them too.
+        """
+        rgba = (0x40, 0x50, 0x60, 0x80)
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4, rgba,
+                       var="--panel"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4, rgba,
+                       var="--panel"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 8, 0, 4, 4, rgba),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 12, 0, 4, 4, rgba),
+        ]
+        u = self.write(recs)
+        # Two entries, not one and not four: the pair of --panel records
+        # share, the pair of literals share, and the two groups do not.
+        self.assertEqual(len(u.themes[0]), 2)
+        # Both groups still resolve to the same colour, which is what
+        # makes this a keying test rather than a colour test.
+        for r in u.records:
+            self.assertEqual(r.rgba, rgba)
+
+    def test_two_names_on_one_value_are_two_entries(self):
+        """The case role-keying exists for: same colour, different roles.
+
+        Under value-keying these fuse and no theme can tell them apart.
+        """
+        rgba = (0x11, 0x22, 0x33, 0x80)
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4, rgba,
+                       var="--bg-page"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4, rgba,
+                       var="--ink-on-accent"),
+        ]
+        u = self.write(recs)
+        self.assertEqual(len(u.themes[0]), 2)
+        self.assertEqual(u.themes[0][0], u.themes[0][1],
+                         "and they hold the SAME colour -- the split is by "
+                         "name, which is the only thing that distinguishes "
+                         "them")
+
+    def test_a_slot_keys_on_its_name_too(self):
+        """COLOUR LIVES IN TWO TABLES AND THIS SEAM HAS BEEN THE GAP
+        THREE TIMES -- the design missed slots, the v7 tint_focus fence
+        missed them, and ps2ui_theme_set's first check missed them.
+
+        A fourth: stripping the slot's var names from write_uib passed
+        every test in this file and rebuilt opl-env clean, because
+        nothing there happened to collide. This is the case that cannot
+        pass without it -- a slot and a command holding the same colour
+        under different names. Value-keyed, they fuse into one entry and
+        a theme moving either moves both.
+        """
+        # THE DISCRIMINATOR IS SHARING, NOT SPLITTING, and the first
+        # version of this test got that backwards. It gave the command
+        # --panel and the slot --ink and asserted two entries -- which
+        # holds with the slot keyed on the value too, since (None, rgba)
+        # and ("--panel", rgba) are different keys either way. It passed
+        # the sabotage.
+        #
+        # One name on both sides is the case that cannot: keyed on the
+        # name they are ONE entry, and a slot keyed on the value falls
+        # out to (None, rgba) and makes two.
+        rgba = (0x30, 0x40, 0x50, 0x80)
+        recs = [DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                           rgba, var="--ink")]
+        fonts = [{"tex": 0, "size": 12, "weight": 400, "ascent": 10,
+                  "line_height": 14, "glyphs": [], "kerns": []}]
+        slots = [{
+            "name": "s", "placeholder": "", "x": 0, "text_y": 0, "w": 32,
+            "font": 0, "align": 0, "ellipsis": False, "capacity": 8,
+            "focus": FOCUS_NONE,
+            "color_base": rgba, "color_focus": rgba,
+            "color_base_var": "--ink", "color_focus_var": "--ink",
+        }]
+        u = self.write(recs, slots=slots, fonts=fonts)
+        self.assertEqual(
+            len(u.themes[0]), 1,
+            "one name across a command and a slot is ONE role and one "
+            "entry; two means the slot table was keyed on the value while "
+            "the command list was keyed on the name, so a theme would "
+            "recolour the panel and leave the label behind")
+        self.assertEqual(u.slots[0]["tint_base"], 0)
+
+    def test_one_name_is_not_one_entry_when_opacity_folds_in(self):
+        """A ROLE IS NOT A FUNCTION OF ITS NAME ALONE, and P3b-4's
+        row-writer is where that bites.
+
+        `opacity` multiplies into the painted colour's alpha before the
+        name is attached, so the layout output for
+
+            #a { background: var(--panel) }
+            #b { background: var(--panel); opacity: 0.5 }
+
+        is one role carrying two colours. Two entries is the RIGHT
+        answer -- they are different colours on screen and one entry
+        could only serve both by picking a side -- so this is not a
+        fence against fusing them. It is a fence against the belief
+        that fusing them is what happens, held by a future row-writer
+        that looks a theme's literal up by name and copies it into
+        "the" entry: it would move the opaque panel, leave the
+        half-alpha one baked, and change half the screen.
+
+        Keyed on the name alone this collapses to 1 and the test
+        fails. That is the sabotage it exists to catch.
+        """
+        recs = [
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 0, 0, 4, 4,
+                       (51, 102, 153, 0x80), var="--panel"),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE, 4, 0, 4, 4,
+                       (51, 102, 153, 0x40), var="--panel"),
+        ]
+        u = self.write(recs)
+        self.assertEqual(
+            len(u.themes[0]), 2,
+            "one name, two painted colours, two entries -- a theme has "
+            "to move both or half the panels keep the old colour")
+        self.assertEqual(u.themes[0][0][:3], u.themes[0][1][:3])
+        self.assertNotEqual(u.themes[0][0][3], u.themes[0][1][3])
+
     def patched(self, path, mutate):
         """Apply `mutate(bytearray)` to a written blob and re-CRC it."""
         with open(path, "rb") as fh:

@@ -55,11 +55,16 @@ FEAT_SLOT_SPACING = 1 << 2
 # fill one must refuse the file rather than draw an empty slot.
 FEAT_STREAMED_TEX = 1 << 3
 # Tint indices are keyed on the authored DECLARATION, not on the
-# resolved colour. This writer keys on the value and so must not set
-# it -- and the runtime refuses n_theme > 1 without it, because two
-# declarations that happen to share a colour would collapse into one
-# entry that no theme could ever tell apart. Harmless at one theme
-# (nothing to diverge into); wrong at two, silently.
+# resolved colour. The runtime refuses n_theme > 1 without it, because
+# two declarations that happen to share a colour would collapse into
+# one entry that no theme could ever tell apart -- harmless at one
+# theme (nothing to diverge into); wrong at two, silently.
+#
+# This writer HAS keyed on the declaration since P3b-3 (see _tint), so
+# the bit is earned. It stays unset only because the bit gates
+# n_theme > 1 and this writer still emits one row: P3b-4 sets the bit
+# and writes the second row together, so the two cannot get out of
+# step in either direction.
 FEAT_ROLE_TINTS = 1 << 4
 FEAT_KNOWN = (FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING
               | FEAT_STREAMED_TEX | FEAT_ROLE_TINTS)
@@ -158,9 +163,9 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         _align16(blob)
         clut_entries.append((len(c) // 4, 0, off))
 
-    # The tint table. One theme, keyed on the RESOLVED COLOUR -- see
-    # FEAT_ROLE_TINTS above for why that is exact at one theme and
-    # wrong at two, and why this writer therefore does not set the bit.
+    # The tint table. One theme, keyed on the DECLARATION -- see
+    # _tint below for the key, and FEAT_ROLE_TINTS above for why the
+    # bit that advertises it waits for the row that needs it.
     #
     # Order is first appearance: the command list in draw order, then
     # the slot table. Deterministic (a rebuild of the same IR gives the
@@ -174,8 +179,37 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     tint_index = {}
     tint_entries = []
 
-    def _tint(rgba):
-        key = tuple(int(v) & 0xFF for v in rgba)
+    def _tint(rgba, var=None):
+        # KEYED ON THE NAME WHEN THERE IS ONE. A role is what the author
+        # called a colour, so two use sites of var(--focus-ring) are one
+        # entry however they resolve, and two literals that happen to
+        # agree are still one entry -- because nobody named them, so
+        # nobody offered them to a theme. That is the whole of
+        # design-p3b-theming.md 9.2 in one dictionary key.
+        #
+        # THE VALUE RIDES ALONG IN THE KEY FOR NAMED ENTRIES TOO, AND
+        # IT CAN SPLIT A ROLE. The name resolves one way -- definitions
+        # are :root-only and the parser refuses fallbacks -- but what
+        # arrives here is not the declaration, it is the painted colour,
+        # and `opacity` folds into its alpha on the way. So
+        #
+        #     #a { background: var(--panel) }
+        #     #b { background: var(--panel); opacity: 0.5 }
+        #
+        # is one role and two entries, (51,102,153,128) and
+        # (51,102,153,64). That is right: they are different colours on
+        # screen, and one entry could only serve both by picking a side.
+        # What it is not is "one name, one entry" -- do not write code
+        # that assumes the mapping is a function of the name alone.
+        #
+        # It bites at P3b-4, where the row-writer fills a theme's row.
+        # Each entry has to be recomputed from that theme's literal
+        # THROUGH ITS OWN FOLD; a writer that looks up the name and
+        # copies would move whichever entry it found and leave the rest
+        # baked, so half the panels change and half do not. A silent
+        # half-move, through the exact door role-keying exists to close.
+        key = ((var, tuple(int(v) & 0xFF for v in rgba)) if var
+               else (None, tuple(int(v) & 0xFF for v in rgba)))
         i = tint_index.get(key)
         if i is None:
             i = len(tint_entries)
@@ -191,11 +225,17 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
     cmd_tints = []
     for r in records:
         if r.op in (OP_QUAD, OP_TEXQUAD):
-            t = _tint(r.rgba)
+            t = _tint(r.rgba, getattr(r, "var", None))
             cmd_tints.append((t, t))
         else:
             cmd_tints.append((0, 0))
-    slot_tints = [(_tint(sl["color_base"]), _tint(sl["color_focus"]))
+    # SLOTS TOO, and this seam has been the gap three times -- the design
+    # missed it, the v7 fence missed it, and ps2ui_theme_set's first
+    # check missed it. Colour lives in two tables; a theme keyed on names
+    # in one and values in the other would recolour every panel and leave
+    # every score, label and dialog line baked.
+    slot_tints = [(_tint(sl["color_base"], sl.get("color_base_var")),
+                   _tint(sl["color_focus"], sl.get("color_focus_var")))
                   for sl in slots]
 
     id_to_index = {n["id"]: i for i, n in enumerate(focus_nodes)}
@@ -325,9 +365,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         0,  # crc32, patched below
         len(font_entries), len(slot_entries), off_font, off_slot,
         len(screen_entries), len(tint_entries), off_screen,
-        # One theme. More is refused by the runtime until tints are
-        # keyed on the declaration -- FEAT_ROLE_TINTS, which this
-        # writer does not set.
+        # One theme, and so no FEAT_ROLE_TINTS: the bit and the second
+        # row land together at P3b-4. See FEAT_ROLE_TINTS above.
         off_tint, 1, 0,
         int(display_aspect[0]), int(display_aspect[1]),
     )
@@ -349,8 +388,8 @@ def write_uib(path, canvas, records, textures, cluts, focus_nodes,
         out += _SLOT.pack(*e)
     for e in screen_entries:
         out += _SCREEN.pack(*e)
-    for e in tint_entries:
-        out += _TINT.pack(*e)
+    for _var, rgba in tint_entries:
+        out += _TINT.pack(*rgba)
     out += bytes(blob_pad)
     assert len(out) == off_blob, "layout arithmetic and bytes written disagree"
     out += blob

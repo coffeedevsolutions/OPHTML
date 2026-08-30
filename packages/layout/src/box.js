@@ -46,6 +46,10 @@ function anonymousTextStyle(parentStyle) {
   // initial value — an anonymous box has no chrome of its own.
   const s = cloneStyle(INITIAL_STYLE);
   s.color = parentStyle.color.slice();
+  // With the colour, not without it. An anonymous box inheriting the
+  // resolved rgba alone would be value-keyed under a role-keyed parent,
+  // and a theme would recolour the parent's text and not this run of it.
+  s.colorVar = parentStyle.colorVar;
   s.fontSize = parentStyle.fontSize;
   s.fontWeight = parentStyle.fontWeight;
   s.lineHeight = { ...parentStyle.lineHeight };
@@ -54,8 +58,10 @@ function anonymousTextStyle(parentStyle) {
   s.textOverflow = parentStyle.textOverflow;
   s.letterSpacing = parentStyle.letterSpacing;
   s.background = null;
+  s.backgroundVar = null;
   s.borderWidth = 0;
   s.borderColor = null;
+  s.borderColorVar = null;
   return s;
 }
 
