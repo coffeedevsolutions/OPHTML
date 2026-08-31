@@ -1471,18 +1471,31 @@ class TestBlobPen(unittest.TestCase):
     and vram agreement tests and is labelled so rather than dressed up.
     """
 
-    # '?' IS IN HERE ON PURPOSE. Without it, a sabotage that adds a
-    # fallback -- `glyphs.get(cp) or glyphs.get(ord("?"))` -- changes
-    # nothing, because there is nothing to fall back TO, and the
-    # missing-glyph test passes while the rule it names is broken.
-    # Found by running exactly that sabotage against the first version
-    # of this fixture.
+    # '?' IS IN HERE ON PURPOSE, and the first reason given for it was
+    # backwards. It was added because a sabotage inserting a '?'
+    # fallback changed nothing without it -- and that "sabotage" is a
+    # faithful transcription of find_glyph (ps2ui.c:1183). The line
+    # written down as the thing to defend against was the runtime.
+    #
+    # The vacuity and the inversion had one root: a fixture with no '?'
+    # is the single configuration in which skipping IS what the console
+    # does, so it hid the question rather than raising it.
     FONT = {
         "glyphs": {ord("a"): {"advance": 10},
                    ord("b"): {"advance": 20},
                    ord("c"): {"advance": 5},
-                   ord("?"): {"advance": 7}},
-        "kerns": {(ord("a"), ord("b")): -3},
+                   ord("?"): {"advance": 8}},
+        # BOTH pairs around the snowman are here, and both are needed.
+        # The kern is keyed on the codepoint the author wrote, not on
+        # the '?' substituted for it, and that shows up on either side
+        # of the substitution: (a, snowman) is the junction BEFORE it
+        # and (snowman, b) the one AFTER. A sabotage re-keying to '?'
+        # only changes the second, so a fixture carrying just the first
+        # cannot see it -- which is how the first two versions of this
+        # fixture let that sabotage pass.
+        "kerns": {(ord("a"), ord("b")): -3,
+                  (ord("a"), 0x2603): -6,
+                  (0x2603, ord("b")): -4},
     }
 
     def w(self, text, spacing=0):
@@ -1504,18 +1517,40 @@ class TestBlobPen(unittest.TestCase):
         self.assertEqual(self.w("a", 4), 10, "no junction before the first")
         self.assertEqual(self.w("", 4), 0)
 
-    def test_a_codepoint_with_no_glyph_is_skipped_whole(self):
-        """ps2ui.c:1236 is `if (!g) continue;` -- no fallback, and the
-        skipped codepoint does not become the `prev` of the next kern.
-        Both halves matter: substituting '?' would overstate the width,
-        and letting the missing glyph break the kern pair would
-        understate it. The previewer takes the first of those
-        divergences deliberately; see the mirror inventory in PLAN.md.
+    def test_a_codepoint_with_no_glyph_falls_back_to_question_mark(self):
+        """find_glyph (ps2ui.c:1183) returns '?' for a codepoint the
+        atlas lacks. The `if (!g) continue;` four lines further on is
+        the fallback's FALLBACK -- it fires only when '?' is absent too.
 
-        'a?b' must therefore measure exactly what 'ab' does, kern and
-        all -- which is the sharpest available statement of the rule."""
-        self.assertEqual(self.w("a\u2603b"), self.w("ab"))
-        self.assertEqual(self.w("\u2603"), 0)
+        This test previously asserted the opposite, citing that
+        `continue` and pinning a rule the console does not follow. The
+        pen it guards was short by one '?' advance per missing
+        codepoint, which errs toward passing a line the console draws
+        WIDER -- the wrong direction for a fit check.
+
+        Two halves, and the second is the subtle one: the substituted
+        glyph carries '?' metrics but the kern stays keyed on the
+        ORIGINAL codepoint, because the runtime's caller never
+        reassigns `cp` after the lookup."""
+        self.assertEqual(self.w("\u2603"), self.w("?"),
+                         "a lone missing glyph measures as '?'")
+        # 'a<missing>b' takes '?' metrics for the middle glyph, and the
+        # a/b kern does NOT apply -- 'b' kerns against the snowman, not
+        # against 'a'. The (a, snowman) kern DOES apply, which is what
+        # pins the keying to the original codepoint rather than to '?'.
+        self.assertEqual(self.w("a\u2603b"), 10 - 6 + 8 - 4 + 20)
+        self.assertNotEqual(self.w("a\u2603b"), self.w("ab"),
+                            "the old assertion; it must now fail")
+
+    def test_the_fallback_has_a_fallback(self):
+        """With '?' absent from the atlas too, find_glyph returns null
+        and the codepoint really is skipped. That is the only
+        configuration the retired version of this pen described."""
+        from ps2ui_bake import pen
+        glyphs = {k: v for k, v in self.FONT["glyphs"].items()
+                  if k != ord("?")}
+        self.assertEqual(
+            pen.slot_width("a\u2603b", glyphs, self.FONT["kerns"]), 27)
 
     def test_examples_use_the_shared_pen_rather_than_a_copy(self):
         """The private copy in examples/opl-env/check.py is what this

@@ -1230,16 +1230,28 @@ replaces RICE.
   The last row is the weak one and is labelled so rather than dressed
   up: `slot_measure` is static and takes a whole context, so there is
   nothing to link against, and its rules are pinned as cases instead.
+  **It earned that label immediately.** The first version of
+  `pen.slot_width` skipped a codepoint the atlas lacks, and this
+  paragraph said the previewer was the one diverging by substituting
+  `?`. Both were wrong, in the sequencing authority, in the same
+  commit that added the inventory.
 
-  **And the previewer diverges from the runtime there, deliberately or
-  not.** For a codepoint with no glyph, `ps2ui.c:1236` skips it — no
-  fallback, in measure *and* in render — while `preview.py` substitutes
-  `?` and measures its advance. So a string containing an unbaked
-  codepoint previews wider than it draws, and previews a glyph the
-  console will not show. The charset lint covers `cp > 0x24FF`, which
-  leaves Latin-1 characters outside the atlas reachable. **Not fixed
-  here**: whether the previewer should stop lying or the runtime should
-  start drawing is a decision, not a defect to patch in passing.
+  `find_glyph` (`ps2ui.c:1183`) returns `?` for a missing codepoint —
+  *"matching the metrics' missing-glyph convention"*, so it was written
+  to agree with the previewer. The `if (!g) continue;` further down is
+  the fallback's **fallback**, reached only when `?` is absent too. So
+  the runtime and the previewer agree, and the new pen was the odd one
+  out — short by one `?` advance per missing codepoint, in the
+  direction that passes a line the console draws wider. A rule test
+  that pins the wrong rule is worse than none, and this one had cited
+  the `continue` as its authority.
+
+  **What survives is an authoring hazard, not a measurement one.** The
+  charset lint covers `cp > 0x24FF`, so a Latin-1 character outside the
+  baked atlas passes it and reaches the console as `?`. Preview, bake
+  and runtime all agree about that; the author is simply not told.
+  Worth a lint that checks the codepoint against the atlas rather than
+  against a range — filed, not fixed here.
 - **I3** Format moves are loud: stride changes bump the version, additive
   capabilities take a feature bit, readers reject what they don't know.
 - **I4** Previewer parity: no runtime rendering behaviour without its

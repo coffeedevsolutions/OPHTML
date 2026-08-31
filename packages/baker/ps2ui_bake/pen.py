@@ -20,11 +20,18 @@ beats an agreement test where it is available, and here it is.
 
 THE RULES, and each is a place the copies could drift:
 
-  * a codepoint with no glyph is SKIPPED, and does not become the
-    `prev` of the next kern -- ps2ui.c:1236 `if (!g) continue;`. It is
-    not replaced by a fallback. (The previewer DOES substitute '?'
-    here, which is a divergence from the runtime rather than from
-    this; see the note in docs/PLAN.md's mirror inventory.)
+  * a codepoint with no glyph FALLS BACK TO '?', which is
+    `find_glyph` at ps2ui.c:1183 and not the `if (!g) continue;` four
+    lines further on. That `continue` is the fallback's FALLBACK: it
+    fires only when '?' is itself absent from the atlas. The first
+    version of this module read the `continue` and skipped, which made
+    it the only one of the three pens that disagreed with the console
+    -- short by one '?' advance per missing codepoint, in the
+    direction that passes a line the console draws wider.
+  * the kern stays keyed on the ORIGINAL codepoint, not on '?'. The
+    caller never reassigns `cp` after the lookup, so a substituted
+    glyph is drawn with '?' metrics and kerned as the character the
+    author actually wrote.
   * the junction cost between two glyphs is letter_spacing PLUS the
     pair's kern, and there is no junction before the first glyph.
   * width accumulates advances, not bearings or ink extents.
@@ -45,13 +52,16 @@ def slot_width(text, glyphs, kerns, letter_spacing=0):
     """
     width = 0
     prev = None
+    fallback = glyphs.get(ord("?"))
     for ch in text:
         cp = ord(ch)
         g = glyphs.get(cp)
         if g is None:
-            continue
+            g = fallback          # ps2ui.c:1183, not the continue below
+        if g is None:
+            continue              # '?' absent too: the fallback's fallback
         if prev is not None:
             width += letter_spacing + kerns.get((prev, cp), 0)
         width += g["advance"]
-        prev = cp
+        prev = cp                 # the ORIGINAL cp, as the runtime keeps it
     return width
