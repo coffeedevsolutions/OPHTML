@@ -600,8 +600,17 @@ def main():
                         "screen forever and replaces none of the six ELFs")
         else:
             body = step.group(1)
+            # BOTH SLOT NAMES, SEPARATELY. `nm_telem2?` matched
+            # either one, so dropping just the line-1 rebuild passed --
+            # and that is the worse half: line 1 keeps writing to the
+            # PREVIOUS screen's slot, which the render never reaches,
+            # so every step after the first photographs a blank line 1
+            # while line 2 stays correct. Half a readout that looks
+            # right is the most convincing version of the failure, and
+            # line 1 is where ee, gs and gs^@ live.
             for what, pat in (("screen", r"ps2ui_screen_set"),
-                              ("readout slot names", r"nm_telem2?\s*,"),
+                              ("line-1 slot name", r"nm_telem\s*,"),
+                              ("line-2 slot name", r"nm_telem2\s*,"),
                               ("build tag", r"\btag\s*,")):
                 if not re.search(pat, body):
                     fail.append("the cycle arm's dwell step does not update "
