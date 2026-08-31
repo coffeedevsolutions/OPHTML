@@ -1,10 +1,29 @@
 """VRAM accounting (backlog B8).
 
-The GS has exactly 4 MiB of VRAM, allocated in 8 KiB pages whose pixel
-geometry depends on the format: a PSMCT32 page holds 64x32 texels, a
-PSMT8 page 128x64. gsKit allocates page-granular, so a texture's true
-footprint is its page-rounded size — a 256x40 PSMT8 atlas costs a full
-2x1 pages even though its raw bytes are small.
+The GS has exactly 4 MiB of VRAM. This file carries TWO models of what
+a texture costs in it, and the difference between them is large:
+
+  page_rounded_size()  8 KiB pages, the BUDGET model. Deliberately
+                       pessimistic; what the bake refuses against.
+  alloc_size()         256-byte blocks, what gsKit's TexManager
+                       actually commits on the path the runtime takes.
+
+THE DOCSTRING HERE USED TO ASSERT THE FIRST WAS THE SECOND -- "gsKit
+allocates page-granular, so a texture's true footprint is its
+page-rounded size" -- and that is false for this runtime.
+`gsKit_vram_alloc` rounds to 8 KiB only for GSKIT_ALLOC_SYSBUFFER, and
+ps2ui.c:632 does not call it at all: every texture binds through
+gsKit_TexManager_bind, which sizes with gsKit_texture_size(), and that
+counts 256-byte blocks after rounding to a sub-page alignment group.
+A full page is its LARGEST case, not its unit. An 11x11 PSMT8 patch
+costs 256 B there against 8192 B here -- 32x -- and a 256-entry CLUT
+costs 1024 B against 8192 B.
+
+KEEPING THE PESSIMISTIC MODEL FOR THE BUDGET IS DELIBERATE: refusing a
+blob that would have fitted is the safe direction, and ps2ui_upload's
+preflight exists because _blockAlloc hangs rather than failing. What
+does not follow is quoting that number as a saving something could
+reclaim, which is what this file did for one commit.
 
 The baker knows every texture it emits, which means an over-budget UI
 can and should fail at bake time with a breakdown, not at upload time
@@ -24,12 +43,81 @@ _PAGE_DIMS = {
 
 
 def page_rounded_size(width: int, height: int, fmt: int) -> int:
-    """Page-granular VRAM footprint of a texture, in bytes. Mirrors the
-    geometry gsKit's allocator commits pages against."""
+    """Page-granular VRAM footprint, in bytes: the BUDGET model.
+
+    Not what the allocator commits -- see alloc_size() and the module
+    docstring. This is the conservative figure the bake refuses
+    against, and it stays conservative on purpose."""
     pw, ph = _PAGE_DIMS[fmt]
     pages_x = -(-width // pw)
     pages_y = -(-height // ph)
     return pages_x * pages_y * PAGE_BYTES
+
+
+# Block geometry per PSM: (texels per block across, down). Ported from
+# gsKit_texture_size in runtime/vendor/gsKit/src/gsTexture.c, whose own
+# comment reads "A block is 256 bytes in size".
+_BLOCK_DIMS = {
+    gs.PSMCT32: (8, 8),
+    gs.PSMT8: (16, 16),
+}
+BLOCK_BYTES = 256
+
+
+def alloc_size(width: int, height: int, fmt: int) -> int:
+    """What gsKit's TexManager commits for a texture, in bytes.
+
+    A port of gsKit_texture_size(), which is the function
+    gsKit_TexManager_bind sizes its allocation with -- and therefore
+    the only model that describes this runtime's real footprint.
+    Blocks are 256 B, then rounded up to an alignment GROUP (1x1, 2x2,
+    4x4, or 8x4 blocks); 8x4 is one full page, and it is the largest
+    case rather than the unit.
+
+    Checked against the vendored C itself by tools/check-vram-model.py
+    rather than trusted: a second implementation of someone else's
+    arithmetic is exactly the thing this project keeps finding wrong,
+    and here the original is in the tree and compiles."""
+    bw, bh = _BLOCK_DIMS[fmt]
+    wb = -(-width // bw)
+    hb = -(-height // bh)
+    # The CT32/CT24/T8 group table. CT16/CT16S/T4 use different ones and
+    # are not ported: the baker emits neither, and a wrong answer for a
+    # format nobody bakes is worse than no answer.
+    if wb <= 2 and hb <= 1:
+        wa, ha = 1, 1
+    elif wb <= 4 and hb <= 2:
+        wa, ha = 2, 2
+    elif wb <= 8 and hb <= 4:
+        wa, ha = 4, 4
+    else:
+        wa, ha = 8, 4
+    wb = -(-wb // wa) * wa
+    hb = -(-hb // ha) * ha
+    return wb * hb * BLOCK_BYTES
+
+
+def alloc_total(textures) -> int:
+    """What the runtime's own preflight computes for a texture list.
+
+    A MIRROR OF ps2ui.c's LOOP, not a reinvention of it: that loop is
+    `gsKit_texture_size(w, h, psm)` per texture, plus
+    `gsKit_texture_size(16, 16, CT32)` -- 1024 B -- for every INDEXED
+    one, and its comment states why ("the sum mirrors the manager's
+    own appetite exactly"). The result is stored as ctx->vram_need.
+
+    THE CLUT CHARGE IS PER PSMT8 TEXTURE, NOT PER DISTINCT CLUT, which
+    is the detail that makes this a mirror rather than a re-derivation:
+    textures sharing a palette are each charged for one, because the
+    manager appends a CLUT to each texture's own block. Counting
+    distinct CLUTs instead would undercount every blob that shares
+    one -- which is every blob this baker emits."""
+    total = 0
+    for t in textures:
+        total += alloc_size(t.width, t.height, t.fmt)
+        if t.fmt == gs.PSMT8:
+            total += alloc_size(16, 16, gs.PSMCT32)
+    return total
 
 
 def clut_size() -> int:
@@ -109,25 +197,33 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         f"  framebuffers assumed: 2x draw/display + 1x Z @ {canvas_w}x{canvas_h} "
         f"= {3 * fb} B"
     )
-    # THE COLUMN ABOVE HAS NEVER BEEN ADDED UP, and the difference is
-    # the whole of what P3c has left to argue with. Its frame-rate case
-    # is closed [F-037, F-042]: the GS is at 5.6% and no content shape
-    # F-038 named revives it. What survives is footprint -- page-aware
-    # packing to reduce TBP switches and make streamed reservations
-    # exact -- and that case has to be made on bytes. Printing the two
-    # totals side by side is the cheapest possible version of making
-    # it, on every bake rather than once in a document.
+    # THREE NUMBERS, BECAUSE TWO OF THEM WERE BEING CONFLATED.
     #
-    # WHAT THIS IS NOT: a claim that the gap is recoverable. It is the
-    # size of the prize, not the prize. How much a packer could
-    # actually reclaim depends on the GS's texture-base granularity and
-    # on what gsKit's allocator will do with it, neither of which this
-    # tree has verified -- so the number is reported and not spent.
-    waste = total - payload_total
+    # The first version of this line printed payload against the budget
+    # figure and called the difference "what P3c would have to
+    # reclaim". Most of it is not there to reclaim: the budget model
+    # charges 8 KiB pages, and the allocator this runtime actually uses
+    # charges 256-byte blocks (see the module docstring). On channel6
+    # that gap was 178 KiB, of which 84% is pessimism nothing ever
+    # allocated.
+    #
+    # So: payload is what the texels weigh, `allocator` is what
+    # ps2ui_upload's preflight computes and gsKit commits, and
+    # `budget-charged` is the conservative figure the bake refuses
+    # against. Only the first gap is a prize. The second is headroom
+    # the budget is deliberately holding back, and worth seeing for its
+    # own sake -- channel6 books half the budget where the allocator
+    # takes under a third.
+    committed = alloc_total(textures)
     lines.append(
-        f"  payload {payload_total} B -> {total} B in pages: "
-        f"{waste} B ({100 * waste // max(total, 1)}%) is page-rounding, "
-        f"which is what P3c would have to reclaim"
+        f"  payload {payload_total} B -> allocator {committed} B "
+        f"-> budget-charged {total} B"
+    )
+    lines.append(
+        f"  reclaimable {committed - payload_total} B "
+        f"({100 * (committed - payload_total) // max(committed, 1)}% of "
+        f"committed) -- the rest of the gap to {total} B is the budget "
+        f"model's pessimism, which nothing allocates and P3c cannot reclaim"
     )
     lines.append(
         f"  textures {total} B of {budget} B budget "
