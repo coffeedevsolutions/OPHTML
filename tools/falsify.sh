@@ -53,6 +53,16 @@ python3 - "$file" || { echo "SABOTAGE FAILED TO APPLY" >&2; exit 2; }
 # -> `512` read as a HOLE here and as caught when the same edit was
 # made by hand a second later. A falsifier whose verdict depends on how
 # fast the machine is, is not a falsifier.
+#
+# THE FAILURE IS ONE-DIRECTIONAL, which bounds what the bug could have
+# cost before this fix. A stale .pyc makes the sabotage a NO-OP, so the
+# fence sees unmodified behaviour and PASSES -- this script then prints
+# "HOLE". It cannot turn a real hole into a "caught": a caught verdict
+# requires the fence to have failed, which requires the edit to have
+# taken effect. So every "caught" ever recorded is sound, and only
+# "HOLE" verdicts on IMPORTED Python modules were ever suspect. That is
+# a stronger statement than enumerating which sabotages touched
+# modules, and it does not depend on the enumeration being complete.
 find . -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true
 if "$@" >/dev/null 2>&1; then
     echo "PASSED -- HOLE: the fence did not catch it"

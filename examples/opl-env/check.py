@@ -31,6 +31,7 @@ import sys
 
 from ps2ui_bake.quads import OP_QUAD, OP_TEXQUAD
 from ps2ui_bake.uib import _CMD, _HEADER, read_uib
+from ps2ui_bake import pen
 from ps2ui_bake.quads import TEXKIND_STREAMED
 
 _checks = []
@@ -160,18 +161,14 @@ def driver_const(name):
 
 
 def pen_width(text, font, letter_spacing):
-    """Mirror of slot_measure's accumulation in runtime/ps2ui.c."""
-    glyphs, kerns = font["glyphs"], font["kerns"]
-    w, prev = 0, None
-    for ch in text:
-        g = glyphs.get(ord(ch))
-        if g is None:
-            continue
-        if prev is not None:
-            w += letter_spacing + kerns.get((prev, ord(ch)), 0)
-        w += g["advance"]
-        prev = ord(ch)
-    return w
+    """The blob-driven pen, from the baker rather than from here.
+
+    This used to be a private copy of slot_measure's accumulation --
+    the FOURTH implementation of that arithmetic in the tree, and the
+    only one making a load-bearing claim (that the readout fits) on
+    numbers nothing checked. See ps2ui_bake.pen for why it moved."""
+    return pen.slot_width(text, font["glyphs"], font["kerns"],
+                          letter_spacing)
 
 
 def field_ceilings(u, scr):
