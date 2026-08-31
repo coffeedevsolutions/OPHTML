@@ -1042,9 +1042,51 @@ static void draw_ladder2(GSGLOBAL *gs, GSTEXTURE *tex)
  * is why the readout prints tex_unfilled -- the correction is small
  * and it lands on two of the six points, so it is measured rather than
  * assumed away. */
+/* THE SIX SWEEP SCREENS IN ONE BOOT.
+ *
+ * P3d's content sweep is six ELFs rendering six screens, which is six
+ * power cycles at a bench for one line of fit. They are the same
+ * binary shape with a different name compiled in, so one build can
+ * walk them: render a screen for OPLENV_CYCLE_EVERY frames, move on,
+ * repeat forever.
+ *
+ * SAFE FOR THE MEASUREMENT because of how far apart the two clocks
+ * are. The readout is a 60-frame rolling mean that resets every
+ * window, so a screen change contaminates at most the window in
+ * progress and everything from the next one on is clean. At the
+ * default dwell that is one dirty window out of fifteen, and the
+ * dirty one is over a second before the number stops moving. It is
+ * the same argument the theme arm makes for switching tint rows
+ * inside the loop, with more margin.
+ *
+ * REPEATS RATHER THAN RUNNING ONCE: a photograph missed is a
+ * photograph retaken ninety seconds later, not a reboot. */
+#ifndef PS2UI_OPLENV_CYCLE_EVERY
+/* 900 frames, 15 seconds. Ten would settle the NUMBER -- ten windows,
+ * eight of them clean -- and it is the operator this is sized for:
+ * read two lines, satisfy yourself they have stopped moving, take the
+ * photograph, without the screen changing under you. The only cost of
+ * more is a longer lap, and the lap repeats. */
+#define PS2UI_OPLENV_CYCLE_EVERY 900
+#endif
+
+#ifdef PS2UI_OPLENV_CYCLE
+static const char *const oplenv_cycle[] = {
+    "confirm", "detail", "landing", "recent", "filters", "library",
+};
+#define OPLENV_CYCLE_N \
+    ((int)(sizeof oplenv_cycle / sizeof oplenv_cycle[0]))
+#endif
+
 #if defined(PS2UI_OPLENV_SCREEN)
 #define OPLENV_IS_LIBRARY 0
 #define OPLENV_SCREEN_NAME PS2UI_OPLENV_SCREEN
+#elif defined(PS2UI_OPLENV_CYCLE)
+/* Static like the screen arm, and its readout follows the screen: the
+ * slot pair the driver writes to changes with every step, because
+ * slots are per-screen. The name below is only the FIRST one. */
+#define OPLENV_IS_LIBRARY 0
+#define OPLENV_SCREEN_NAME "confirm"
 #elif defined(PS2UI_OPLENV_COMPOSE)
 /* The compose arm is static for the same reason the screen arm is --
  * no window, so no scroll and no uploads -- and its readout goes on
@@ -1695,6 +1737,24 @@ int main(void)
          * keeps them apart, and the baker refuses a blob that repeats
          * a slot name across screens. */
         char nm_telem[48], nm_telem2[48];
+        /* WHICH ARM IS ON SCREEN, so a photograph identifies itself.
+         * Eleven ELFs come back from a sitting as eleven photographs of
+         * two similar lines, and three of them render the library
+         * screen. The tag is prefixed to line 1, which has the room --
+         * line 2's worst case is 260px of confirm's 296px box and a tag
+         * would overflow it.
+         *
+         * EMPTY ON THE ARMS THAT ALREADY HAVE A SITTING. It is a slot
+         * string, so its glyphs are drawn and counted: about ten more
+         * per frame, which is a constant across the sweep and absorbed
+         * into `base`, but would move the plain oplenv, fill and ee
+         * arms away from the numbers S14 photographed and F-039/F-044
+         * were fitted on. An empty tag makes line 1 byte-identical to
+         * what those builds print today. */
+        char tag[24];
+#if defined(PS2UI_OPLENV_CYCLE)
+        int cyc = 0;              /* index into oplenv_cycle */
+#endif
 #ifdef PS2UI_OPLENV_COMPOSE
         /* PER-FRAME, NOT PER-RENDER, and the difference is the whole
          * point of this arm. ps2ui_render memsets ctx->stats on entry
@@ -1709,6 +1769,19 @@ int main(void)
 
         sprintf(nm_telem, "%s-telem", OPLENV_SCREEN_NAME);
         sprintf(nm_telem2, "%s-telem2", OPLENV_SCREEN_NAME);
+#if defined(PS2UI_OPLENV_CYCLE)
+        sprintf(tag, "[c:%s] ", oplenv_cycle[0]);
+#elif defined(PS2UI_OPLENV_SCREEN)
+        sprintf(tag, "[%s] ", PS2UI_OPLENV_SCREEN);
+#elif defined(PS2UI_OPLENV_COMPOSE)
+        strcpy(tag, "[compose] ");
+#elif defined(PS2UI_OPLENV_THEME_CYCLE)
+        strcpy(tag, "[theme] ");
+#elif defined(PS2UI_OPLENV_CLEAR_OPAQUE)
+        strcpy(tag, "[clearopq] ");
+#else
+        tag[0] = '\0';
+#endif
 
         /* WHICH SCREEN, AND WHY IT IS A BUILD FLAG.
          *
@@ -1777,7 +1850,8 @@ int main(void)
             oplenv_window_init(&w, OPLENV_TITLES, OPLENV_ROWS);
             last_upload = oplenv_bind_window(&ui, gs, &w);
         }
-#if defined(PS2UI_OPLENV_SCREEN) || defined(PS2UI_OPLENV_COMPOSE)
+#if defined(PS2UI_OPLENV_SCREEN) || defined(PS2UI_OPLENV_COMPOSE) \
+    || defined(PS2UI_OPLENV_CYCLE)
         /* AND THE CONSTANT DOES NOT COVER last_upload, which is what
          * the comment above got wrong. It reasons about a variable
          * going UNUSED under #ifndef, and the constant does fix that --
@@ -2179,6 +2253,27 @@ int main(void)
                     ps2ui_render(&ui, gs);
             }
 #endif
+#ifdef PS2UI_OPLENV_CYCLE
+            /* STEP TO THE NEXT SCREEN, and take the readout with it.
+             *
+             * The slot pair is per-screen, so the names the driver
+             * writes to have to move too -- writing to confirm's pair
+             * while library is up sets a slot the render never
+             * reaches, and the photograph comes back blank. That is
+             * the same defect the six-ELF sweep shipped with before
+             * #83 caught it, and it is one line away from returning
+             * here.
+             *
+             * The tag moves as well, so the photograph says which
+             * screen it is rather than leaving it to be recognised. */
+            if (frame && frame % PS2UI_OPLENV_CYCLE_EVERY == 0) {
+                cyc = (cyc + 1) % OPLENV_CYCLE_N;
+                ps2ui_screen_set(&ui, oplenv_cycle[cyc]);
+                sprintf(nm_telem, "%s-telem", oplenv_cycle[cyc]);
+                sprintf(nm_telem2, "%s-telem2", oplenv_cycle[cyc]);
+                sprintf(tag, "[c:%s] ", oplenv_cycle[cyc]);
+            }
+#endif
 #ifdef PS2UI_OPLENV_COMPOSE
             /* THE COMPOSITION ARM. F-038's bar for reopening either
              * gate names "a transition compositing two full screens"
@@ -2244,7 +2339,8 @@ int main(void)
             }
             if (ee_us) {
                 sprintf(telem,
-                        "ee%lu.%02lu^%lu.%02lu gs%lu.%02lu^%lu.%02lu@%lu",
+                        "%see%lu.%02lu^%lu.%02lu gs%lu.%02lu^%lu.%02lu@%lu",
+                        tag,
                         (unsigned long)(ee_us / 1000),
                         (unsigned long)((ee_us % 1000) / 10),
                         (unsigned long)(ee_pk_us / 1000),
@@ -2316,7 +2412,8 @@ int main(void)
                  * exactly as it was, so S14's numbers stay comparable
                  * with the next run of it. */
                 sprintf(telem,
-#if defined(PS2UI_OPLENV_SCREEN) || defined(PS2UI_OPLENV_COMPOSE)
+#if defined(PS2UI_OPLENV_SCREEN) || defined(PS2UI_OPLENV_COMPOSE) \
+    || defined(PS2UI_OPLENV_CYCLE)
                         "f%lu.%02lu c%lu g%lu u%lu m%lu@%lu n%lu",
 #elif defined(PS2UI_OPLENV_THEME_CYCLE)
                         /* t only in the build that cycles. The slot
@@ -2335,7 +2432,10 @@ int main(void)
                         /* The frame's totals, not ui.stats -- see the
                          * accumulator's declaration. */
                         fr_cmds, fr_glyphs, fr_unfilled,
-#elif defined(PS2UI_OPLENV_SCREEN)
+#elif defined(PS2UI_OPLENV_SCREEN) || defined(PS2UI_OPLENV_CYCLE)
+                        /* One render per frame here, so ui.stats IS
+                         * the frame's total -- unlike the compose arm
+                         * above, which needs accumulators. */
                         (unsigned long)ui.stats.cmds,
                         (unsigned long)ui.stats.slot_glyphs,
                         (unsigned long)ui.stats.tex_unfilled,
@@ -2345,7 +2445,7 @@ int main(void)
                         (unsigned long)missed, (unsigned long)miss_at,
                         (unsigned long)frame
 #if !defined(PS2UI_OPLENV_SCREEN) && !defined(PS2UI_OPLENV_COMPOSE) \
-    && defined(PS2UI_OPLENV_THEME_CYCLE)
+    && !defined(PS2UI_OPLENV_CYCLE) && defined(PS2UI_OPLENV_THEME_CYCLE)
                         , cur_theme
 #endif
                         );

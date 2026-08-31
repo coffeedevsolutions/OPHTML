@@ -580,6 +580,34 @@ def main():
                             "compose readout reports the LAST render's "
                             "count as the frame's" % acc)
 
+    # AND THE CYCLE ARM'S SLOT NAMES MUST FOLLOW ITS SCREEN.
+    #
+    # Slots are per-screen. The cycling arm changes screen inside the
+    # frame loop, so if the names it writes to do not change with it,
+    # every step after the first sets a slot the render never reaches
+    # and the photograph comes back with no numbers on it. That is
+    # verbatim the defect the six-ELF sweep shipped with before #83
+    # caught it, one line away from returning in a build whose whole
+    # purpose is to replace those six.
+    #
+    # Checked on the SOURCE: at runtime a blank readout and a readout
+    # nobody looked at are the same photograph.
+    if "PS2UI_OPLENV_CYCLE" in text:
+        step = re.search(r"frame % PS2UI_OPLENV_CYCLE_EVERY == 0\s*\)\s*\{"
+                         r"(.*?)\n            \}", block, re.S)
+        if not step:
+            fail.append("the cycle arm has no dwell step, so it renders one "
+                        "screen forever and replaces none of the six ELFs")
+        else:
+            body = step.group(1)
+            for what, pat in (("screen", r"ps2ui_screen_set"),
+                              ("readout slot names", r"nm_telem2?\s*,"),
+                              ("build tag", r"\btag\s*,")):
+                if not re.search(pat, body):
+                    fail.append("the cycle arm's dwell step does not update "
+                                "the %s, so every screen after the first "
+                                "photographs the wrong thing" % what)
+
     if not re.search(r"c%lu g%lu u%lu", formats):
         fail.append("the screen arm's format no longer spends a conversion "
                     "on each of c, g and u, so its arguments misalign and "

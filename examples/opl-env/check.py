@@ -119,7 +119,7 @@ def readout_formats():
     return out
 
 
-_FIELD = re.compile(r"([A-Za-z^@]*)(%l?u(?:\.%02l?u)?)")
+_FIELD = re.compile(r"([A-Za-z^@]*)(%l?u(?:\.%02l?u)?|%s)")
 
 
 def widest(fmt, values):
@@ -145,6 +145,27 @@ def widest(fmt, values):
         return name + values[name]
 
     return _FIELD.sub(sub, fmt), miss
+
+
+def widest_tag(u):
+    """The longest build tag the driver can prefix to line 1.
+
+    Derived, not copied: the tags are string literals in main.c and the
+    cycling arm builds its own from a screen name, so the ceiling is
+    the widest literal with the blob's longest screen name substituted.
+    A new arm with a longer tag then moves this number by itself, which
+    is the property the whole ceiling table is built on.
+    """
+    src = open(DRIVER_C, encoding="utf-8").read()
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    lits = re.findall(r'(?:strcpy|sprintf)\s*\(\s*tag\s*,\s*"([^"]*)"', src)
+    longest_screen = max((s_["name"] for s_ in u.screens), key=len)
+    widest = ""
+    for lit in lits:
+        text = lit.replace("%s", longest_screen)
+        if len(text) > len(widest):
+            widest = text
+    return widest
 
 
 def driver_const(name):
@@ -197,6 +218,9 @@ def field_ceilings(u, scr):
     glyphs = sum(sl["capacity"] for sl in u.slots[lo:lo + n])
     cmds = scr["cmd_count"]
     return {
+        # The build tag, whose conversion is %s and whose "name" is
+        # therefore the empty prefix in front of it.
+        "": widest_tag(u),
         "ee": "16.68", "gs": "16.68", "^": "16.68", "f": "16.68",
         "@": "99999", "m": "99999", "n": "99999",
         "c": str(cmds), "g": str(glyphs), "p": str(cmds + glyphs),

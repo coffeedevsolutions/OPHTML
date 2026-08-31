@@ -137,6 +137,30 @@ endif
 EE_CFLAGS += -DPS2UI_OPLENV_SCREEN='"$(OPLENV_SCREEN)"'
 endif
 
+# P3d's content sweep in ONE BOOT. Renders each of the six screens for
+# CYCLE_EVERY frames in turn, so the sweep is one power cycle at a
+# bench instead of six, and the six points share one thermal state and
+# one clock. Static like OPLENV_SCREEN. Paired with OPLENV as every arm
+# is, and exclusive with the arms that also choose a screen.
+ifdef CYCLE
+ifndef OPLENV
+$(error CYCLE=1 requires OPLENV=1: the arm walks opl-env's own screens, not a build of its own)
+endif
+ifdef OPLENV_SCREEN
+$(error CYCLE=1 and OPLENV_SCREEN=... are exclusive: one walks every screen, the other pins one, and a build claiming both would photograph whichever won the #if)
+endif
+ifdef COMPOSE
+$(error CYCLE=1 and COMPOSE=1 are exclusive: compose layers two screens in a frame, cycle renders one at a time)
+endif
+ifdef THEME_CYCLE
+$(error CYCLE=1 and THEME_CYCLE=1 are exclusive, for the reason OPLENV_SCREEN is: the sweep fits at a FIXED tint row)
+endif
+EE_CFLAGS += -DPS2UI_OPLENV_CYCLE
+ifdef CYCLE_EVERY
+EE_CFLAGS += -DPS2UI_OPLENV_CYCLE_EVERY=$(CYCLE_EVERY)
+endif
+endif
+
 # P3d's other missing number: what LAYERING costs. F-038 names "a
 # transition compositing two full screens" as the likeliest content to
 # push past half a field, and composition is the one Phase 1 contract

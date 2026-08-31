@@ -505,6 +505,17 @@ jobs:
               UIB=../../examples/opl-env/build/ui.uib \
               EE_BIN=oplenv-scr-$scr.elf
           done
+          # THE SAME SWEEP IN ONE BOOT. Walks the six screens on a
+          # dwell, so a bench runs the content sweep as one power
+          # cycle instead of six -- and the six points then share one
+          # thermal state and one clock, which is better data as well
+          # as less handling. The six standalone ELFs stay, because
+          # they are the fallback if a cycling readout is ever in
+          # doubt and because one of them is also F-046's subject.
+          make -C runtime/sample objclean
+          make -C runtime/sample OPLENV=1 CYCLE=1 \
+            UIB=../../examples/opl-env/build/ui.uib \
+            EE_BIN=oplenv-scr-cycle.elf
           # P3d's OTHER missing number: what LAYERING costs. F-038's
           # bar for reopening either gate names "a transition
           # compositing two full screens" as the likeliest content to
@@ -591,6 +602,7 @@ jobs:
           done
           test -f runtime/sample/oplenv-theme.elf
           test -f runtime/sample/oplenv-compose.elf
+          test -f runtime/sample/oplenv-scr-cycle.elf
           test -f runtime/sample/oplenv-clearopaque.elf
           test -f runtime/sample/oplenv-ee1.elf
           test -f runtime/sample/oplenv-ee2.elf
@@ -643,6 +655,7 @@ jobs:
             runtime/sample/oplenv-scr-library.elf
             runtime/sample/oplenv-theme.elf
             runtime/sample/oplenv-compose.elf
+            runtime/sample/oplenv-scr-cycle.elf
             runtime/sample/oplenv-clearopaque.elf
             runtime/sample/oplenv-ee1.elf
             runtime/sample/oplenv-ee2.elf
