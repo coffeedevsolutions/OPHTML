@@ -310,8 +310,11 @@ environment *running* and the first slice only proves it bakes:
 
 1. **The environment exists, bakes and loads.** **[shipped]**
    `examples/opl-env`: six screens, 127 slots, ten streamed texture
-   slots, one overlay. 246,144-byte blob, 7,031-byte arena for the
-   whole environment, VRAM 392 KiB inside a 736 KiB budget. Carries the
+   slots, one overlay. 269,824-byte blob, 7,319-byte arena for the
+   whole environment, VRAM 336 KiB inside a 736 KiB budget. (Those
+   four figures moved at P3b-6 and again when the readout went on
+   every screen; `tools/check-example-figures.py` holds the README's
+   copy to the blob, and this one is now current with it.) Carries the
    `examples/` contract -- warning-free under `--strict`, screenshots
    refreshed by building, `check-blobs` with no exemptions -- and CI
    runs all three, which the first version did not.
@@ -783,8 +786,51 @@ Then, in an order P3a decides:
    reservations exact. **Gate did not open** [F-037]: the GS is at
    5.6%, so there is no frame-rate case. It survives only as what it
    always also was — VRAM tidiness and exact streamed reservations —
-   and must be argued that way, on the 392 KiB footprint rather than on
-   milliseconds.
+   and must be argued that way, on the footprint rather than on
+   milliseconds. That footprint is **336 KiB**, not the 392 KiB this
+   line used to cite: P3b-6 moved it when the rounded boxes stopped
+   premixing their colour.
+
+   **The prize is now measured, and it is a third of what the first
+   attempt at this paragraph claimed.** That version compared payload
+   against the baker's *budget* model — 8 KiB pages — and called the
+   difference reclaimable. It is not. `gsKit_vram_alloc` rounds to
+   8 KiB only for `GSKIT_ALLOC_SYSBUFFER`, and `ps2ui.c:632` does not
+   call it at all: every texture binds through
+   `gsKit_TexManager_bind`, sized by `gsKit_texture_size()`, which
+   counts **256-byte blocks** after rounding to an alignment group. A
+   full page is that function's largest case, not its unit.
+
+   | example | payload | allocator commits | budget charges | reclaimable |
+   |---|---:|---:|---:|---:|
+   | memcard | 130 KiB | 140 KiB | 160 KiB | **10 KiB** |
+   | opl-env | 224 KiB | 257 KiB | 336 KiB | **33 KiB** |
+   | channel6 | 190 KiB | 234 KiB | 368 KiB | **44 KiB** |
+
+   The claim that channel6's nine CLUTs cost 63 KiB of page waste was
+   the worst of it: `ps2ui.c:594` charges `gsKit_texture_size(16, 16,
+   CT32)` = **1024 B** for each, so they cost 9 KiB, not 72 — and it
+   charges that per *indexed texture* rather than per distinct CLUT,
+   which is a detail neither the page model nor a per-CLUT reading
+   gets right.
+
+   **Keeping the budget pessimistic is correct** — refusing a blob that
+   would have fitted is the safe direction, and `ps2ui_upload`'s
+   preflight exists because `_blockAlloc` hangs rather than fails. What
+   does not follow is quoting that pessimism as a saving. The bake now
+   prints all three figures, and the pessimism is worth seeing on its
+   own account: channel6 books half the budget where the allocator
+   takes under a third.
+
+   So P3c's footprint case is **weaker than it looked, and now
+   measured**: about 33 KiB on the anchor example, against 336 KiB
+   committed. Combined with a frame-rate case that F-042 closed
+   outright, that is a fair basis for leaving the item shut — and a far
+   better one than a number a packer author would chase and not find.
+   `tools/check-vram-model.py` holds the baker's port of
+   `gsKit_texture_size` to the vendored original across 45,000 sizes,
+   because a second implementation of someone else's arithmetic is
+   precisely what this file keeps getting wrong.
 
    **And the fill argument is now closed rather than merely unopened**
    [F-042]. F-039's calibrated model prices half a field of GS at 25.9

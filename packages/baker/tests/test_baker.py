@@ -964,6 +964,68 @@ class TestStreamedAuthoring(unittest.TestCase):
         self.assertIn(f"{payload} B payload", row)
         self.assertIn(f"{pages} B in pages", row)
 
+    def test_the_report_totals_the_columns_it_prints(self):
+        """Three figures, and each one had a way of being wrong.
+
+        payload was never summed at all -- the per-texture rows have
+        printed it since v6 and nothing added the column up. The
+        allocator figure was WRONG for a commit: the report compared
+        payload against the 8 KiB budget model and called the gap
+        reclaimable, when gsKit's TexManager commits 256-byte blocks
+        (tools/check-vram-model.py holds the port to the vendored C).
+        And the two are easy to swap, since on a texture that happens
+        to fill its pages they are equal.
+
+        Asserted against the SUM OF THE PRINTED ROWS rather than a
+        recomputed expectation, because a total that agrees with its
+        own arithmetic and disagrees with the lines above it is the
+        failure worth catching."""
+        import re
+        from ps2ui_bake import vram
+        # 20x10, and the size is load-bearing. The three models
+        # coincide for most textures: 64x64 CT32 (the fixture default)
+        # is exactly two pages AND exactly its block group, so all
+        # three are 16384; 100x70 separates payload but leaves
+        # allocator == budget at 49152. Only a texture small enough
+        # that its alignment group is under a page pulls them apart --
+        # 800 / 2048 / 8192 here. Both larger sizes were tried first
+        # and the guards at the bottom rejected them, which is what
+        # those guards are for.
+        uib, err = self.bake(
+            '<div id="r"><img data-tex-slot="cover"></div>',
+            self.CSS.replace("width:64px;height:64px",
+                             "width:20px;height:10px"))
+        self.assertIsNotNone(uib, err)
+        lines, total, _budget, _ok = vram.report(
+            uib.textures, uib.cluts, 640, 448, None)
+
+        rows = sum(int(m.group(1))
+                   for ln in lines
+                   for m in [re.search(r"(\d+) B payload", ln)] if m)
+        rows += vram.CLUT_PAYLOAD * len(uib.cluts)
+
+        summary = [ln for ln in lines if "budget-charged" in ln]
+        self.assertEqual(len(summary), 1, lines)
+        m = re.search(r"payload (\d+) B -> allocator (\d+) B "
+                      r"-> budget-charged (\d+) B", summary[0])
+        self.assertIsNotNone(m, summary[0])
+        payload, committed, charged = (int(g) for g in m.groups())
+
+        self.assertEqual(payload, rows,
+                         "the total disagrees with the rows it summarises")
+        self.assertEqual(charged, total, "and with the budget figure below it")
+        self.assertEqual(committed, vram.alloc_total(uib.textures),
+                         "the allocator column is not the allocator model")
+
+        reclaim = [ln for ln in lines if "reclaimable" in ln][0]
+        self.assertIn(f"reclaimable {committed - payload} B", reclaim)
+
+        # None of the three may coincide, or the assertions above stop
+        # telling them apart -- which is exactly how the budget figure
+        # got printed as the allocator's for a commit.
+        self.assertLess(payload, committed, "no block overhead to see")
+        self.assertLess(committed, charged, "no budget pessimism to see")
+
     def test_the_bake_summary_does_not_call_a_reservation_zero(self):
         """The per-texture row stopped saying '0 B raw'; the total one
         line beneath it summed len(t.data) and said '(0 KiB)' for the

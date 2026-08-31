@@ -115,6 +115,9 @@ jobs:
         run: |
           python3 tools/check-findings.py
           python3 tools/check-findings.py --render
+          # Holds vram.alloc_size() to the gsKit function it ports, by
+          # compiling the vendored original and diffing 45,000 sizes.
+          python3 tools/check-vram-model.py
 
           git diff --exit-code docs/findings.md
 

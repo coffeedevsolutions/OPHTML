@@ -43,6 +43,17 @@ if ! "$@" >/dev/null 2>&1; then
     exit 2
 fi
 python3 - "$file" || { echo "SABOTAGE FAILED TO APPLY" >&2; exit 2; }
+# PURGE CACHED BYTECODE BETWEEN THE TWO RUNS.
+#
+# CPython validates a .pyc against its source's mtime AND SIZE, both to
+# one-second resolution. A sabotage that preserves length -- 256 -> 512,
+# 30 -> 90, `+=` -> `=` -- applied within a second of the baseline run
+# leaves a .pyc that still looks current, so the fence re-runs the
+# ORIGINAL bytecode and reports a pass. Verified: `BLOCK_BYTES = 256`
+# -> `512` read as a HOLE here and as caught when the same edit was
+# made by hand a second later. A falsifier whose verdict depends on how
+# fast the machine is, is not a falsifier.
+find . -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true
 if "$@" >/dev/null 2>&1; then
     echo "PASSED -- HOLE: the fence did not catch it"
     exit 1
