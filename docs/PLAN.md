@@ -309,7 +309,7 @@ Broken out, because three of the gate's four clauses are about the
 environment *running* and the first slice only proves it bakes:
 
 1. **The environment exists, bakes and loads.** **[shipped]**
-   `examples/opl-env`: six screens, 127 slots, ten streamed texture
+   `examples/opl-env`: six screens, 137 slots, ten streamed texture
    slots, one overlay. 269,824-byte blob, 7,319-byte arena for the
    whole environment, VRAM 336 KiB inside a 736 KiB budget. (Those
    four figures moved at P3b-6 and again when the readout went on
@@ -466,10 +466,13 @@ Then, in an order P3a decides:
    half** — see `docs/design-p3b-theming.md`. The mechanism is real and
    measured: gsKit re-sends a palette without its texels, 1,024 bytes
    per drawn texture, lazily [F-041]. But a UI's colour does not live
-   in its palettes. In opl-env, 997 of 1,302 commands carry the
-   identity tint, and every panel, border and background is an
-   untextured quad whose colour is a baked `r,g,b,a`. A CLUT swap
-   cannot reach any of it.
+   in its palettes. In opl-env as it stood when this was written —
+   1,302 commands, before P3b-6 turned the rounded boxes into coverage
+   pairs and took it to 2,158 — 997 carried the identity tint, and
+   every panel, border and background was an untextured quad whose
+   colour is a baked `r,g,b,a`. A CLUT swap cannot reach any of it.
+   The ratio is the argument and it survived the change; the counts
+   are a snapshot and are dated here so they do not read as current.
 
    What the numbers say instead: a UI's colour is a tiny set repeated
    thousands of times. So a theme is a **tint table** — commands store
@@ -514,7 +517,7 @@ Then, in an order P3a decides:
    glyphs are drawn on the console from the slot table — and `compile`
    only ever handed `commands` to the linter. Same colour, same
    background, same geometry as static text; the only difference was
-   the attribute. opl-env is **127 slots**, which is every title, count
+   the attribute. opl-env is **137 slots**, which is every title, count
    and telemetry line in the environment.
 
    Fixed by splicing a linter's-eye view of each slot into the command
