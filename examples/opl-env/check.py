@@ -119,7 +119,7 @@ def readout_formats():
     return out
 
 
-_FIELD = re.compile(r"([A-Za-z^@]*)(%l?u(?:\.%02l?u)?)")
+_FIELD = re.compile(r"([A-Za-z^@]*)(%l?u(?:\.%02l?u)?|%s)")
 
 
 def widest(fmt, values):
@@ -145,6 +145,36 @@ def widest(fmt, values):
         return name + values[name]
 
     return _FIELD.sub(sub, fmt), miss
+
+
+def widest_tag(u):
+    """The longest build tag the driver can prefix to line 1.
+
+    Derived, not copied: the tags are string literals in main.c and the
+    cycling arm builds its own from a screen name, so the ceiling is
+    the widest literal with the blob's longest screen name substituted.
+    A new arm with a longer tag then moves this number by itself, which
+    is the property the whole ceiling table is built on.
+    """
+    src = open(DRIVER_C, encoding="utf-8").read()
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    lits = re.findall(r'(?:strcpy|sprintf)\s*\(\s*tag\s*,\s*"([^"]*)"', src)
+    # WIDEST IN PIXELS, NOT IN CHARACTERS, because the ceiling feeds a
+    # pixel check. Four screen names are seven characters and they are
+    # not the same width: [c:confirm] is 64px where [c:landing] is 62.
+    # Picking by len understated the worst case by 2px in the one
+    # figure whose whole subject is fit.
+    font = u.fonts[0]
+    longest_screen = max(
+        (s_["name"] for s_ in u.screens),
+        key=lambda n: pen.slot_width("[c:%s] " % n,
+                                     font["glyphs"], font["kerns"]))
+    widest = ""
+    for lit in lits:
+        text = lit.replace("%s", longest_screen)
+        if len(text) > len(widest):
+            widest = text
+    return widest
 
 
 def driver_const(name):
@@ -197,6 +227,9 @@ def field_ceilings(u, scr):
     glyphs = sum(sl["capacity"] for sl in u.slots[lo:lo + n])
     cmds = scr["cmd_count"]
     return {
+        # The build tag, whose conversion is %s and whose "name" is
+        # therefore the empty prefix in front of it.
+        "": widest_tag(u),
         "ee": "16.68", "gs": "16.68", "^": "16.68", "f": "16.68",
         "@": "99999", "m": "99999", "n": "99999",
         "c": str(cmds), "g": str(glyphs), "p": str(cmds + glyphs),
@@ -306,10 +339,27 @@ def main(path: str) -> int:
           f"this check measures what main.c actually prints, and finding "
           f"none means it is measuring nothing")
     # Line 1 carries the timings and goes in -telem; every other arm is
-    # a line 2 variant and goes in -telem2. Keyed on the field the
-    # driver leads with, not on the order the literals appear in.
-    lines = {"-telem": [f for f in fmts if f.startswith("ee")],
-             "-telem2": [f for f in fmts if not f.startswith("ee")]}
+    # a line 2 variant and goes in -telem2.
+    #
+    # KEYED ON A FIELD THE PREFIX CANNOT MOVE. This read
+    # `f.startswith("ee")`, which was true until line 1 gained a build
+    # tag and became "%see%lu...". Every format then fell into -telem2,
+    # -telem was measured against nothing, and the suite went from 91
+    # checks to 79 and passed. Proof the coverage was gone rather than
+    # relocated: cutting library-telem's capacity to 12, against a
+    # line needing 45, still passed. `ee%lu` survives any prefix.
+    lines = {"-telem": [f for f in fmts if "ee%lu" in f],
+             "-telem2": [f for f in fmts if "ee%lu" not in f]}
+    # AND NEITHER SIDE MAY BE EMPTY. An empty list is not zero
+    # failures, it is zero questions asked -- which is exactly how the
+    # regression above passed, and the only outward sign was a check
+    # count that read as a fact rather than a twelve-check drop.
+    for suffix, arms in lines.items():
+        check(bool(arms),
+              f"line {'1' if suffix == '-telem' else '2'} has at least one "
+              f"format to measure; an empty set means the driver's formats "
+              f"stopped matching this split and {suffix} is being checked "
+              f"against nothing")
     by_name = {sl["name"]: sl for sl in u.slots}
     for scr in u.screens:
         lo, n = scr["slot_first"], scr["slot_count"]

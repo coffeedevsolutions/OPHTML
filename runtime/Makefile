@@ -163,6 +163,15 @@ syntax-check:
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_COMPOSE \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_COMPOSE"
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_CYCLE \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_OPLENV_CYCLE"
+	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_CYCLE \
+		-DPS2UI_OPLENV_CYCLE_EVERY=300 \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
+	@echo "ok - sample compiles: -DPS2UI_OPLENV_CYCLE_EVERY=300"
 
 # Source-level, because the property it guards is an ORDERING and the
 # compiler has no opinion about it: the opl-env driver's frame timer

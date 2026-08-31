@@ -741,23 +741,34 @@ land in the next sitting alongside `oplenv-clearopaque` and
 
 ## P3d's two arms, both waiting on the next sitting
 
-**What to boot, and in what order.** Seven ELFs, seven photographs, all
-of the same two lines. The six sweep points are interchangeable — take
-them in whatever order the stick lists — but photograph
-`oplenv-scr-library` and `oplenv-scr-confirm` **before**
-`oplenv-compose`, because the composed frame is read as a difference
-against those two and a sitting that ran out of time before them would
-leave the compose reading uninterpretable:
+**What to boot.** Two ELFs cover the whole sweep:
 
 ```
-oplenv-scr-confirm   oplenv-scr-detail    oplenv-scr-landing
-oplenv-scr-recent    oplenv-scr-filters   oplenv-scr-library
-oplenv-compose       <- last, needs the two above it
+oplenv-scr-cycle     all six screens, 15 s each, repeating
+oplenv-compose       <- after the cycle, it is read against two of its screens
 ```
 
-Each screen build settles after a second or two and then holds still;
-there is no scrolling on any of them. Wait for `ee` to stop moving,
-then shoot.
+`oplenv-scr-cycle` walks confirm → detail → landing → recent → filters
+→ library and starts over, so a photograph missed is a photograph
+retaken ninety seconds later rather than a reboot. **Line 1 says which
+screen is up** — `[c:library]` — so the photographs document themselves.
+
+Wait for `ee` to stop moving before shooting. The readout is a
+60-frame mean that resets every window, so a screen change dirties at
+most the window in progress: the number is settled about two seconds
+in, and the dwell is fifteen.
+
+The six standalone `oplenv-scr-*` ELFs are still built and are the
+fallback if a cycling reading is ever in doubt — and
+`oplenv-scr-library` is also F-046's subject, since that one wants a
+photograph from 2–3 m.
+
+**Every arm now names itself on line 1** — `[c:<screen>]`, `[compose]`,
+`[theme]`, `[clearopq]` — except the plain `oplenv`, `fill` and `ee`
+builds, which print exactly what they printed for S14. The tag is slot
+text, so it costs about ten glyphs a frame: a constant across the
+sweep, absorbed into `base`, and deliberately absent from the arms
+whose numbers are already fitted.
 
 
 Neither is measured yet. Both are written down first, the way F-039's
