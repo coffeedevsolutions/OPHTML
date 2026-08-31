@@ -1209,6 +1209,37 @@ replaces RICE.
 - **I2** One rounding rule, three pens: `floor(x + 0.5)` everywhere; no pen
   change lands in fewer than all three implementations plus the agreement
   tests.
+
+  **The mirror inventory**, because I2 names the pens and the same
+  hazard is wider than the pens. Any quantity implemented twice in two
+  languages is a silent divergence waiting to happen, and this tree
+  found two in one day: `vram.py` asserted a page-granular allocator
+  the runtime does not use, and `examples/opl-env/check.py` carried a
+  private fourth copy of the pen while making a load-bearing claim on
+  it. Current state:
+
+  | quantity | implementations | held together by |
+  |---|---|---|
+  | glyph advance + kern | layout JS, baker, runtime C | agreement tests (F9e) |
+  | arena layout | `arena.py`, `arena_compute` | compiled comparison, both sides |
+  | CLUT CSM1 order | `clut_csm1_order`, `permute_clut` | `test_runtime.c:256` |
+  | clip model | baker, validator | **one module**, asserted identical |
+  | VRAM commit | `vram.alloc_size`, `gsKit_texture_size` | `check-vram-model.py`, 45,000 sizes |
+  | blob pen | `pen.slot_width`, `slot_measure`, previewer `width_of` | rule tests; **no compiled comparison** |
+
+  The last row is the weak one and is labelled so rather than dressed
+  up: `slot_measure` is static and takes a whole context, so there is
+  nothing to link against, and its rules are pinned as cases instead.
+
+  **And the previewer diverges from the runtime there, deliberately or
+  not.** For a codepoint with no glyph, `ps2ui.c:1236` skips it — no
+  fallback, in measure *and* in render — while `preview.py` substitutes
+  `?` and measures its advance. So a string containing an unbaked
+  codepoint previews wider than it draws, and previews a glyph the
+  console will not show. The charset lint covers `cp > 0x24FF`, which
+  leaves Latin-1 characters outside the atlas reachable. **Not fixed
+  here**: whether the previewer should stop lying or the runtime should
+  start drawing is a decision, not a defect to patch in passing.
 - **I3** Format moves are loud: stride changes bump the version, additive
   capabilities take a feature bit, readers reject what they don't know.
 - **I4** Previewer parity: no runtime rendering behaviour without its

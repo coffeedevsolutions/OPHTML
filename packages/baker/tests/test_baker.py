@@ -1461,6 +1461,76 @@ class TestArena(unittest.TestCase):
                     f"{nm}: python says {py}, ps2ui_arena_size says {c_value}")
 
 
+class TestBlobPen(unittest.TestCase):
+    """ps2ui_bake.pen, against slot_measure's rules in ps2ui.c.
+
+    Not a comparison against the C -- slot_measure is static and takes
+    a whole ps2ui_ctx, so there is nothing to link against. What is
+    checkable is each RULE the copies could drift on, stated as a case
+    that fails if the rule is dropped. That is weaker than the arena
+    and vram agreement tests and is labelled so rather than dressed up.
+    """
+
+    # '?' IS IN HERE ON PURPOSE. Without it, a sabotage that adds a
+    # fallback -- `glyphs.get(cp) or glyphs.get(ord("?"))` -- changes
+    # nothing, because there is nothing to fall back TO, and the
+    # missing-glyph test passes while the rule it names is broken.
+    # Found by running exactly that sabotage against the first version
+    # of this fixture.
+    FONT = {
+        "glyphs": {ord("a"): {"advance": 10},
+                   ord("b"): {"advance": 20},
+                   ord("c"): {"advance": 5},
+                   ord("?"): {"advance": 7}},
+        "kerns": {(ord("a"), ord("b")): -3},
+    }
+
+    def w(self, text, spacing=0):
+        from ps2ui_bake import pen
+        return pen.slot_width(text, self.FONT["glyphs"],
+                              self.FONT["kerns"], spacing)
+
+    def test_advances_sum_and_the_pair_kern_applies_once(self):
+        self.assertEqual(self.w("a"), 10)
+        self.assertEqual(self.w("ab"), 10 + 20 - 3)
+        self.assertEqual(self.w("ba"), 20 + 10, "the kern is directional")
+
+    def test_letter_spacing_is_a_junction_cost_not_a_per_glyph_one(self):
+        """n glyphs have n-1 junctions. Charging per glyph instead is
+        the off-by-one that makes a measured line one spacing too wide
+        and is invisible at spacing 0, which is every font here."""
+        self.assertEqual(self.w("ac", 4), 10 + 4 + 5)
+        self.assertEqual(self.w("aca", 4), 10 + 4 + 5 + 4 + 10)
+        self.assertEqual(self.w("a", 4), 10, "no junction before the first")
+        self.assertEqual(self.w("", 4), 0)
+
+    def test_a_codepoint_with_no_glyph_is_skipped_whole(self):
+        """ps2ui.c:1236 is `if (!g) continue;` -- no fallback, and the
+        skipped codepoint does not become the `prev` of the next kern.
+        Both halves matter: substituting '?' would overstate the width,
+        and letting the missing glyph break the kern pair would
+        understate it. The previewer takes the first of those
+        divergences deliberately; see the mirror inventory in PLAN.md.
+
+        'a?b' must therefore measure exactly what 'ab' does, kern and
+        all -- which is the sharpest available statement of the rule."""
+        self.assertEqual(self.w("a\u2603b"), self.w("ab"))
+        self.assertEqual(self.w("\u2603"), 0)
+
+    def test_examples_use_the_shared_pen_rather_than_a_copy(self):
+        """The private copy in examples/opl-env/check.py is what this
+        module exists to retire; a fifth one appearing there again is
+        the regression."""
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.normpath(os.path.join(here, "..", "..", ".."))
+        src = open(os.path.join(root, "examples", "opl-env", "check.py"),
+                   encoding="utf-8").read()
+        self.assertIn("pen.slot_width", src)
+        self.assertNotIn('g["advance"]', src,
+                         "check.py is accumulating advances again")
+
+
 class TestVram(unittest.TestCase):
     def test_page_rounding_ct32(self):
         from ps2ui_bake import vram
