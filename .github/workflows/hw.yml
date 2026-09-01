@@ -709,7 +709,7 @@ jobs:
       # misses the cache rather than serving the old binary under a new
       # name. No restore-keys, deliberately: a partial-prefix hit is
       # exactly how the wrong emulator would get served silently.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ${{ env.PLAY_CACHE }}
           key: play-${{ env.PLAY_VERSION }}-${{ env.PLAY_SHA256 }}
