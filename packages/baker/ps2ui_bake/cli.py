@@ -9,6 +9,7 @@ import json
 import os
 import sys
 
+from . import __version__
 from .quads import Flattener
 from .uib import write_uib, read_uib
 from . import preview as preview_mod
@@ -48,6 +49,14 @@ def load_font_manifest(path: str) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="ps2ui-bake")
+    # THE VERSION HAS TO REACH A PERSON. Every claim in the repository
+    # now agrees with every other one (tools/check-versions.py), and
+    # until this flag existed none of them was reachable from the
+    # command someone actually runs -- the one place a stranger with a
+    # bug report would look. Sourced from __init__.py like everything
+    # else, so it cannot become the next number that disagrees.
+    ap.add_argument("--version", action="version",
+                    version="ps2ui-bake %s" % __version__)
     ap.add_argument("ir", nargs="+",
                     help="ui.json file(s) from ps2ui-layout; several files "
                          "become named screens in one blob (screen name = "

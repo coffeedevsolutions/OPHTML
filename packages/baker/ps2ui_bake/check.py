@@ -36,6 +36,7 @@ from . import arena
 from . import caps as caps_mod
 from . import clip as clip_mod
 from . import gs, vram
+from . import __version__
 from .quads import (
     FOCUS_NONE, OP_QUAD, OP_SCISSOR_POP, OP_SCISSOR_PUSH, OP_TEXQUAD,
     STATE_ALWAYS, STATE_FOCUSED, STATE_UNFOCUSED, TEX_NONE,
@@ -680,6 +681,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         prog="ps2ui-check",
         description="Validate a baked .uib against what the C runtime assumes.")
+    ap.add_argument("--version", action="version",
+                    version="ps2ui-check %s" % __version__)
     ap.add_argument("uib", help="path to a .uib blob")
     ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",
                     help="override the default texture VRAM budget")

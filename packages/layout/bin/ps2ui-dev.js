@@ -10,7 +10,7 @@
 // Layout runs in-process; the baker is spawned (python3 -m ps2ui_bake).
 // --once builds a single time and exits — that is what CI smoke-tests.
 
-import { watch, mkdirSync, writeFileSync } from 'node:fs';
+import { watch, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,11 +20,15 @@ import { compileFiles } from '../src/index.js';
 function usage(code) {
   console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
     + '[--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] [--focus-wrap] '
-    + '[--montage] [--palettize-images] [--once]');
+    + '[--montage] [--palettize-images] [--once] [--version]');
   process.exit(code);
 }
 
 import { MODES, parseAspect } from '../src/aspect.js';
+
+// Read from the manifest, not restated here. See ps2ui-layout.js.
+const VERSION = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 const args = process.argv.slice(2);
 const positional = [];
@@ -50,6 +54,8 @@ for (let i = 0; i < args.length; i++) {
     case '--palettize-images': palettize = true; break;
     case '--once': once = true; break;
     case '-h': case '--help': usage(0); break;
+    case '-V': case '--version':
+      console.log(`ps2ui-dev ${VERSION}`); process.exit(0); break;
     default: positional.push(args[i]);
   }
 }

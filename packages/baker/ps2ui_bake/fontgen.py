@@ -14,6 +14,8 @@ import sys
 
 from PIL import ImageFont, features
 
+from . import __version__
+
 # Latin-1 printable + the punctuation the example UI actually uses.
 # chr(32) explicitly: an invisible U+00A0 once impersonated the space
 # in this literal and every space advance fell back to '?' width. A
@@ -97,6 +99,11 @@ def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAUL
 
 def main(argv=None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
+    # Before the Raqm check below, which is a hard refusal: asking a
+    # tool what it is must not be able to fail for an unrelated reason.
+    if argv and argv[0] in ("--version", "-V"):
+        print("ps2ui-fontgen %s" % __version__)
+        return 0
     # Hard requirement, checked before anything is written. Without Raqm
     # the advances come out identical and the kerning table comes out
     # empty -- a diff that deletes every pair while every test still

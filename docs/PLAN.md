@@ -1118,15 +1118,26 @@ Distribution, deliberately last.
 **no git tags at all**, through four format versions of drift (v4-v7),
 and the baker additionally carried `__version__ = "0.1.0"` beside the
 0.2.0 in its own `pyproject.toml`. They now carry a prerelease —
-`0.3.0.dev0` and `0.3.0-dev.0`, one version in two spellings — which is
-the true statement and also the one pip and npm act on, since neither
-installs a prerelease unless asked for it by name. `pyproject.toml`
-derives its version from `__init__.py` rather than restating it, so
-there is no second number left to disagree, and
+`0.3.0.dev0` and `0.3.0-dev.0`, one version in two spellings.
+`pyproject.toml` derives its version from `__init__.py` rather than
+restating it, so there is no second number left to disagree; every CLI
+answers `--version` from that one source, since a number no command
+will print is a number nobody filing a bug can quote; and
 `tools/check-versions.py` reads the package versions, `PS2UI_VERSION`,
 `uib.VERSION`, this file's format-history line and the CHANGELOG's
 format claims against each other on every push. The CHANGELOG's open
 section records v6 and v7, which it had never mentioned.
+
+`docs/releasing.md` carries the order of operations, because the tag
+rule is a trap without one — the first person to cut a release would
+meet a red CI with no idea what satisfies it, and the cheapest way out
+of a rule you do not understand is to delete it. It also states what a
+prerelease is actually worth, which is less than the first draft of
+this claimed: npm resolves the `latest` dist-tag and `npm publish` sets
+it whatever the version says, so `@ps2ui/layout` pins
+`publishConfig.tag` to `next`; and pip's exclusion of prereleases
+lapses when no stable version exists, which for a first upload is
+exactly the case, so the first PyPI upload has to be a real release.
 
 That leaves the version number itself as a judgement no check makes:
 0.3.0 is the tree's own claim about where it is, and nothing verifies

@@ -3,14 +3,22 @@
 //
 // --strict promotes warnings (including CRT lints) to a non-zero exit.
 
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { compileFiles } from '../src/index.js';
 import { MODES, parseAspect } from '../src/aspect.js';
+
+// THE VERSION HAS TO REACH A PERSON, and it comes from the manifest
+// rather than a second literal here. package.json is this package's one
+// version claim; tools/check-versions.py holds it to the baker's, and
+// reading it back means `--version` cannot become the next number that
+// disagrees.
+const VERSION = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 
 function usage(code) {
   console.error('usage: ps2ui-layout <page.html> <page.css> -o <ui.json> '
-    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--focus-wrap] [--strict] [--min-font-size PX]');
+    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--focus-wrap] [--strict] [--min-font-size PX] [--version]');
   process.exit(code);
 }
 
@@ -40,6 +48,8 @@ for (let i = 0; i < args.length; i++) {
     // rather than have the rule quietly not reach its text.
     case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;
     case '-h': case '--help': usage(0); break;
+    case '-V': case '--version':
+      console.log(`ps2ui-layout ${VERSION}`); process.exit(0); break;
     default: positional.push(args[i]);
   }
 }

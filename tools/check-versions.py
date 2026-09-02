@@ -308,6 +308,50 @@ def main():
               "README's Quick start note does not say %s"
               % "; does not say ".join(repr(w) for w in missing))
 
+    # 11. A prerelease may not publish to `latest`. npm resolves
+    #     `npm install <pkg>` against the `latest` dist-tag, and
+    #     `npm publish` sets `latest` regardless of whether the version
+    #     is a prerelease -- so without publishConfig the honesty above
+    #     survives exactly until someone runs publish. Both directions:
+    #     a release version must NOT be pinned to a side channel it
+    #     would then be stuck behind. docs/releasing.md carries the
+    #     reasoning, and pip's weaker guarantee, which has no
+    #     mechanical fix here at all.
+    tag = re.search(r'"publishConfig"\s*:\s*\{[^}]*?"tag"\s*:\s*"([^"]+)"',
+                    open(os.path.join(ROOT, "packages", "layout",
+                                      "package.json"),
+                         encoding="utf-8").read(), re.S)
+    tag = tag.group(1) if tag else "latest"
+    if is_prerelease(layout):
+        check(tag != "latest",
+              "@ps2ui/layout publishes to the %r dist-tag, so a publish of "
+              "this prerelease would not take `latest`" % tag,
+              "@ps2ui/layout is the prerelease %s but would publish to "
+              "`latest`; `npm install @ps2ui/layout` would then hand "
+              "someone an unverified renderer. Set publishConfig.tag "
+              "(see docs/releasing.md)" % layout_raw)
+    else:
+        check(tag == "latest",
+              "@ps2ui/layout %s is a release and publishes to `latest`"
+              % layout_raw,
+              "@ps2ui/layout %s is a release but publishConfig pins it to "
+              "%r, so `npm install @ps2ui/layout` would not find it. Drop "
+              "publishConfig.tag when the version stops being a prerelease "
+              "(see docs/releasing.md)" % (layout_raw, tag))
+
+    # 12. The release procedure exists and covers the rule below, which
+    #     is otherwise a trap: it fails on a version nobody has tagged,
+    #     with nothing to say what would satisfy it, and the cheapest
+    #     way out of a rule you do not understand is to delete it.
+    rel = os.path.join(ROOT, "docs", "releasing.md")
+    steps = (open(rel, encoding="utf-8").read()
+             if os.path.exists(rel) else "")
+    check(bool(steps) and "__version__" in steps and "Tag it" in steps,
+          "docs/releasing.md documents the steps the tag rule demands",
+          "docs/releasing.md is missing or no longer names __version__ and "
+          "the tagging step; the rule below fails a release with no "
+          "instructions for satisfying it")
+
     # 9. The sequencing document's own format lineage. It is the file
     #    people read to decide what to build next, it restates the
     #    history in one arrow chain, and it stopped at v5 through two
@@ -344,7 +388,8 @@ def main():
         check(bool(want & tags),
               "%s is tagged" % BAKER_VERSION,
               "%s is not a prerelease but no tag names it%s. Either tag the "
-              "release or carry a .dev/rc version until you do."
+              "release or carry a .dev/rc version until you do -- "
+              "docs/releasing.md is the order of operations."
               % (BAKER_VERSION,
                  " (this checkout has no tags at all -- if it is a shallow "
                  "clone, fetch them)" if not tags else ""))

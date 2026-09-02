@@ -22,9 +22,11 @@ carries `0.3.0.dev0` and `@ps2ui/layout` carries `0.3.0-dev.0` — one
 prerelease in two spellings, against no git tags. They used to claim
 `0.2.0`, a release that does not exist, through four moves of the `.uib`
 format; the blobs this tree bakes are format **v7** and a 0.2.0-era
-runtime rejects them. Run it from a checkout. Publishing is Phase 4 of
-[docs/PLAN.md](docs/PLAN.md), and `tools/check-versions.py` keeps this
-paragraph honest.
+runtime rejects them. Run it from a checkout. Every CLI answers
+`--version`. Publishing is Phase 4 of [docs/PLAN.md](docs/PLAN.md),
+[docs/releasing.md](docs/releasing.md) is the procedure and what a
+prerelease does and does not protect against, and
+`tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:
 
