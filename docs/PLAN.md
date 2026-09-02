@@ -1176,10 +1176,23 @@ documented nowhere; and a misspelt `data-` attribute was **silent** —
 all, and `data-capacity` for `data-slot-capacity` silently took the
 63-byte default.
 
-All five are fixed, and the layout compiler now reads the same
-`fonts.json` the baker does. None of them was findable from inside the
-repository; all five were findable in ten minutes by running the first
-command from an empty directory.
+All five are fixed. None was findable from inside the repository; all
+five were findable in ten minutes by running the first command from an
+empty directory.
+
+**What the second fix does and does not close.** The layout compiler
+reads the same `fonts.json` the baker does, but `--font-dir` survives
+alongside it, so a project can still compile with one and bake with the
+other. What prevents the damage is that the baker now reads the faces
+the IR was **measured** against — the IR has carried them since v1 and
+the baker had never looked — and refuses a manifest that names a
+different family or weight, since text positioned by one font and drawn
+with another is wrong on every screen with nothing to say so. Two
+builds of the *same* family whose metrics differ still agree on those
+two fields and diverge in the advances; catching that wants a digest of
+the tables in the IR, which is format-visible and is not this. The loud
+case is prevented, the quiet one is avoidable, and a test asserts the
+gap so the claim cannot quietly widen.
 
 Then npm + PyPI + a `ps2ui` wrapper CLI (`build` / `dev` / `check` /
 `fontgen`), and a format stability pledge **post-v7**.

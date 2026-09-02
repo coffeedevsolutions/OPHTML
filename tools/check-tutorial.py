@@ -39,6 +39,23 @@ DOC = os.path.join(ROOT, "docs", "tutorial-uc3.md")
 # ```sh ... ``` followed optionally by ```text ... ```
 BLOCK = re.compile(r"```sh\n(.*?)```(?:\s*\n```text\n(.*?)```)?", re.S)
 
+# WHICH command blocks carry an asserted output block, by 1-based
+# position in the document. Named here rather than counted from the
+# file, because a floor is not a fence.
+#
+# The first version only refused a document with ZERO ```text blocks.
+# Deleting three of the four passed, reporting "1 with asserted
+# output" on the summary line -- a number that reveals the erosion,
+# PRINTED rather than checked, which is the shape of #87's `79` and
+# exactly what this project keeps catching. At 1-of-7 the tutorial is
+# most of the way back to "commands that merely exit 0", the state the
+# guard exists to prevent.
+#
+# An exact SET, not a count: moving an assertion from the bake to the
+# fontgen keeps the count and changes what is covered. Lowering this
+# is now an edit to a check, which is the friction it should have.
+ASSERTED_BLOCKS = {1, 5, 6, 7}
+
 SHIMS = {
     "ps2ui-layout": 'exec node "%s/packages/layout/bin/ps2ui-layout.js" "$@"',
     "ps2ui-dev": 'exec node "%s/packages/layout/bin/ps2ui-dev.js" "$@"',
@@ -98,12 +115,23 @@ def blocks():
 
 def main():
     cmds = blocks()
-    expected = sum(1 for _, out in cmds if out)
-    if not expected:
-        raise SystemExit("not ok - no ```sh block in the tutorial is "
-                         "followed by a ```text block, so nothing about the "
-                         "output is asserted and this would pass on any "
-                         "commands that merely exit 0")
+    asserted = {i + 1 for i, (_, out) in enumerate(cmds) if out}
+    if asserted != ASSERTED_BLOCKS:
+        lost = sorted(ASSERTED_BLOCKS - asserted)
+        gained = sorted(asserted - ASSERTED_BLOCKS)
+        raise SystemExit(
+            "not ok - the tutorial's asserted-output blocks are %s; this "
+            "check expects %s.%s%s\n  Every ```sh block listed in "
+            "ASSERTED_BLOCKS must be followed by a ```text block. A "
+            "tutorial that only checks exit statuses is the thing the "
+            "check exists to prevent, and it gets there one deleted "
+            "block at a time."
+            % (sorted(asserted) or "none", sorted(ASSERTED_BLOCKS),
+               "\n  Lost: %s -- output no longer checked." % lost if lost
+               else "",
+               "\n  Gained: %s -- add it to ASSERTED_BLOCKS." % gained
+               if gained else ""))
+    expected = len(asserted)
 
     tmp = tempfile.mkdtemp(prefix="ps2ui-tutorial-")
     env = dict(os.environ)
@@ -149,8 +177,9 @@ def main():
     for f in fail:
         print("not ok - %s" % f)
     if not fail:
-        print("ok - docs/tutorial-uc3.md: %d block(s), %d with asserted "
-              "output, from an empty directory" % (len(cmds), expected))
+        print("ok - docs/tutorial-uc3.md: %d block(s), %d of %d asserted "
+              "as expected, from an empty directory"
+              % (len(cmds), expected, len(ASSERTED_BLOCKS)))
         shutil.rmtree(tmp, ignore_errors=True)
     else:
         print("# scratch kept at %s" % tmp)

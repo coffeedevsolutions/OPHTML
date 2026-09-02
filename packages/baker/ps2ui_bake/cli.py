@@ -18,6 +18,49 @@ from . import vram
 from . import caps as caps_mod
 
 
+def check_font_agreement(ir, font_paths):
+    """The IR names the faces it was MEASURED against. Compare them.
+
+    ps2ui-layout and ps2ui-bake take font configuration separately --
+    a directory of metrics for the compiler, a manifest for the baker --
+    and until this ran, nothing checked they described the same fonts.
+    Compile against one face and bake with another and every glyph is
+    drawn at the first font's position with the second font's shape:
+    subtly wrong text on every screen, no error anywhere, and only a
+    console to see it on.
+
+    The IR has carried `fonts: {face: {family, weight}}` since v1 and
+    the baker had never read it, so the information needed to catch
+    this was already in the file and ignored.
+
+    WHAT THIS DOES NOT CATCH. Two builds of the same family whose
+    metrics differ -- a re-run of ps2ui-fontgen over a newer TTF, or a
+    different charset -- agree on family and weight and diverge in the
+    advances. Catching that wants a digest of the tables in the IR,
+    which is a format-visible change and is not this. So: the loud
+    case is prevented, the quiet one is still only avoidable, and
+    saying which is which is the point.
+    """
+    declared = ir.get("fonts") or {}
+    out = []
+    for face, spec in sorted(declared.items()):
+        paths = font_paths.get(face)
+        if paths is None:
+            out.append(f"the IR was compiled against a '{face}' face and "
+                       f"the font manifest has none")
+            continue
+        with open(paths["metrics"], encoding="utf-8") as fh:
+            metrics = json.load(fh)
+        for key in ("family", "weight"):
+            want, got = spec.get(key), metrics.get(key)
+            if want is not None and got is not None and want != got:
+                out.append(
+                    f"{face}: the IR was compiled against {key} "
+                    f"{want!r} and the manifest's metrics say {got!r} "
+                    f"({paths['metrics']})")
+    return out
+
+
 def default_fonts_path() -> str:
     """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
 
@@ -158,6 +201,18 @@ def main(argv=None) -> int:
         # caller can fix is not a crash, and a traceback buries the one
         # line they can act on.
         print(f"ps2ui-bake: {exc}", file=sys.stderr)
+        return 1
+
+    # THE COMPILER AND THE BAKER MUST HAVE MEANT THE SAME FONTS.
+    disagree = check_font_agreement(ir, font_paths)
+    if disagree:
+        print("ps2ui-bake: the IR and the font manifest describe "
+              "different fonts:", file=sys.stderr)
+        for line in disagree:
+            print("  " + line, file=sys.stderr)
+        print("  Text would be positioned by one font and drawn with "
+              "another. Pass the same --fonts manifest to ps2ui-layout "
+              "and ps2ui-bake.", file=sys.stderr)
         return 1
 
     flat = Flattener(ir, font_paths, palettize_all=args.palettize_images)
