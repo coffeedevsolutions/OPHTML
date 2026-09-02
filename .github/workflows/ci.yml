@@ -23,6 +23,25 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          # TAGS, NOT JUST THE COMMIT. check-versions.py's last rule is
+          # "a version that is not a prerelease names a tag", and the
+          # default shallow checkout fetches none -- which would make
+          # the rule fail the day someone cuts a real release, for the
+          # wrong reason, and teach whoever hits it to delete the rule.
+          fetch-depth: 0
+
+      # Every version claim in the repository, read against the format
+      # the code actually writes. They sit in two package manifests,
+      # the writer, the runtime header and four documents, and nothing
+      # read any of them: the baker shipped __version__ = "0.1.0"
+      # beside version = "0.2.0" in its own pyproject, and the CHANGELOG
+      # said "format version 5" through two further format breaks.
+      # First step in the job because it needs no build and no
+      # toolchain -- a disagreement here means the rest of the run is
+      # measuring something that does not know what it is.
+      - name: Every version claim agrees
+        run: python3 tools/check-versions.py
 
       - uses: actions/setup-node@v7
         with:

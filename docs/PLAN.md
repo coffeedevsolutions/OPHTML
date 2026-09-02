@@ -68,8 +68,13 @@ refresh their own screenshots.
 
 **Format history:** v1 initial → v2 CRC-32 + feature bits + dynamic-text
 tables → v3 multi-screen + images (0.2.0) → v4 display aspect (76-byte
-header) → v5 kerning (font entry 16→24 bytes, feature bit 1). Struct-size
-changes always bump the version; unknown feature bits reject loudly.
+header) → v5 kerning (font entry 16→24 bytes, feature bit 1) → v6 texture
+kinds (texture entry 16→20, streamed textures, bit 3) → v7 the tint table
+(colour bytes become u16 indices, slot entry 32→28, bit 4). Struct-size
+changes always bump the version; unknown feature bits reject loudly. Four
+of those moves landed after the 0.2.0 metadata both packages still carried,
+which is what Phase 4's first item is about; `tools/check-versions.py` now
+holds this line to `uib.VERSION`.
 
 Work in flight is not listed here. A sequencing document that names
 open pull requests is stale the moment it merges, and `git log` is
@@ -1106,12 +1111,29 @@ panels.
 
 ### Phase 4 — Make it a product
 
-Distribution, deliberately last. Honest versions first (packages claim
-0.2.0 with **no git tags at all** and now **four** format versions of
-drift — v5, v6, v7 shipped under one package version), then npm + PyPI +
-a `ps2ui` wrapper CLI (`build` / `dev` / `check` / `fontgen`), a format
-stability pledge **post-v7**, and a docs pass with UC-3 as the flagship
-tutorial.
+Distribution, deliberately last.
+
+**Honest versions — [shipped].** Both packages claimed 0.2.0 against
+**no git tags at all**, through four format versions of drift (v4-v7),
+and the baker additionally carried `__version__ = "0.1.0"` beside the
+0.2.0 in its own `pyproject.toml`. They now carry a prerelease —
+`0.3.0.dev0` and `0.3.0-dev.0`, one version in two spellings — which is
+the true statement and also the one pip and npm act on, since neither
+installs a prerelease unless asked for it by name. `pyproject.toml`
+derives its version from `__init__.py` rather than restating it, so
+there is no second number left to disagree, and
+`tools/check-versions.py` reads the package versions, `PS2UI_VERSION`,
+`uib.VERSION`, this file's format-history line and the CHANGELOG's
+format claims against each other on every push. The CHANGELOG's open
+section records v6 and v7, which it had never mentioned.
+
+That leaves the version number itself as a judgement no check makes:
+0.3.0 is the tree's own claim about where it is, and nothing verifies
+it is the right next number.
+
+Then npm + PyPI + a `ps2ui` wrapper CLI (`build` / `dev` / `check` /
+`fontgen`), a format stability pledge **post-v7**, and a docs pass with
+UC-3 as the flagship tutorial.
 
 The pledge moved from post-v6 because v7 broke the format inside
 Phase 3 (the tint table), which is the second break since the pledge
@@ -1296,7 +1318,7 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 | Deferred `visible_get/set` conflation fix (PR #16 review) | wants a deliberate API break | Phase 1 API pass |
 | Deferred the deliberately clipped probe quad (PR #15 review) | only observable on hardware | Phase 0 probe |
 | F19 unload parked; streaming re-derived as static reservation | the F19→F20 dependency was inherited, not derived | a shell-and-module use case |
-| No publishing despite 0.2.0 metadata | strangers shouldn't build on an unverified renderer | Phase 4 entry |
+| ~~No publishing despite 0.2.0 metadata~~ **RESOLVED** | Strangers shouldn't build on an unverified renderer, and the metadata now says so: both packages carry a `0.3.0` prerelease against zero tags, which pip and npm refuse to install unless named. Publishing itself is still Phase 4 | — |
 | No self-merging of PRs | process error made once (PR #11), fixed forward | — |
 | RICE retired as sequencing mechanism | §4.6 | — |
 

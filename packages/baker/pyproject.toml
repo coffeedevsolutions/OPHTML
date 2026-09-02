@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ps2ui-bake"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Bakes the ps2ui intermediate representation into .uib blobs for the PlayStation 2 runtime"
 readme = "README.md"
 license = { text = "MIT" }
@@ -18,6 +18,13 @@ Repository = "https://github.com/coffeedevsolutions/OPHTML"
 ps2ui-bake = "ps2ui_bake.cli:main"
 ps2ui-check = "ps2ui_bake.check:main"
 ps2ui-fontgen = "ps2ui_bake.fontgen:main"
+
+[tool.setuptools.dynamic]
+# ps2ui_bake/__init__.py is the source. A literal `version` under
+# [project] here is what let this package carry 0.2.0 while its own
+# __init__ said 0.1.0 for four format versions; deriving it means
+# there is no second number left to disagree.
+version = { attr = "ps2ui_bake.__version__" }
 
 [tool.setuptools]
 packages = ["ps2ui_bake"]
