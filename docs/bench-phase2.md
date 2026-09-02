@@ -765,10 +765,18 @@ photograph from 2–3 m.
 
 **Every arm now names itself on line 1** — `[c:<screen>]`, `[compose]`,
 `[theme]`, `[clearopq]` — except the plain `oplenv`, `fill` and `ee`
-builds, which print exactly what they printed for S14. The tag is slot
-text, so it costs about ten glyphs a frame: a constant across the
-sweep, absorbed into `base`, and deliberately absent from the arms
-whose numbers are already fitted.
+builds, which print exactly what they printed for S14.
+
+**The tag is slot text, so it is in `g`, and it is not a constant.**
+`[c:<screen>] ` is 11 glyphs for `confirm`, `landing`, `filters` and
+`library` and 10 for `detail` and `recent` — the trailing space draws
+nothing, since `render_slots` counts only glyphs with `w > 0`. This
+paragraph first said "about ten glyphs a frame: a constant across the
+sweep, absorbed into `base`", and on that reasoning neither sweep table
+was moved; every row of both was 10-11 short in the same pull request
+that added the tag. The tables below carry it now, and
+`tools/check-sweep-table.py` derives the column from the blob and the
+driver rather than leaving it to be re-derived by hand.
 
 
 Neither is measured yet. Both are written down first, the way F-039's
@@ -787,14 +795,25 @@ Read `c` and `g` off each photograph rather than off this table; they
 are on line 2 for exactly that reason. `p` is **not** the x-axis:
 `p`/`cmds` runs 0.94 to 1.90 across these six and the orderings differ.
 
+Every column is derived by `tools/check-sweep-table.py` — `commands`
+from the screen's `cmd_count`, `drawn` by resolving focus state at the
+screen's initial focus, the static half of `slot glyphs` from the
+placeholders, and the tag from `main.c` — against one number it cannot
+derive, because it depends on how wide the runtime values print: the
+**driver's two telemetry lines reconstruct to 55 glyphs**. That is the
+figure #83 reconstructed from the real format strings, and it is stated
+here rather than buried in a tool. With it, the pre-tag table
+reproduces exactly on all six screens, which is what makes the rest of
+the derivation worth trusting.
+
 | screen | commands | slot glyphs | drawn | `p` |
 |---|---:|---:|---:|---:|
-| confirm | 110 | 145 | 64 | 209 |
-| detail | 196 | 187 | 99 | 286 |
-| landing | 331 | 233 | 206 | 439 |
-| recent | 360 | 344 | 189 | 533 |
-| filters | 467 | 188 | 253 | 441 |
-| library | 694 | 376 | 366 | 742 |
+| confirm | 110 | 156 | 64 | 220 |
+| detail | 196 | 197 | 99 | 296 |
+| landing | 331 | 244 | 206 | 450 |
+| recent | 360 | 354 | 189 | 543 |
+| filters | 467 | 199 | 253 | 452 |
+| library | 694 | 387 | 366 | 753 |
 
 **Six points are enough** — not a hope, arithmetic. r = 0.751 gives a
 variance inflation of 2.29, the commands spread over √Σ(c−c̄)² = 462,
@@ -827,8 +846,13 @@ something *is* reused and F-044's per-render model charges for it
 twice.
 
 **Check the glyph identity first, before trusting the time.** The
-composed frame must read `g` equal to `g(library) + g(confirm)` from
-the two sweep photographs. It is not a formality: the first version of
+composed frame must read `g` equal to `g(library) + g(confirm) - 4`
+from the two sweep photographs — **539**, against 387 + 156. The `-4`
+is the tags and nothing else: this arm carries `[compose] ` (9 glyphs)
+on both of its readout pairs, 18, where the two sweep points carry
+`[c:library] ` and `[c:confirm] ` at 11 each, 22. It is derived by
+`tools/check-sweep-table.py` rather than left to be rediscovered at a
+console with three photographs that refuse to add. It is not a formality: the first version of
 this arm blanked library's readout so the scrim would not show two of
 them, which left the composed frame drawing 466 glyphs against the
 sweep points' 521 — and short by `k_glyph × 55` in exactly the
