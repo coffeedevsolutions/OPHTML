@@ -39,6 +39,28 @@ from ps2ui_bake.arena import arena_size      # noqa: E402
 
 EXAMPLES = [("opl-env", "examples/opl-env")]
 
+# THE SAME FIGURES ARE WRITTEN DOWN TWICE, and only one copy was
+# checked. docs/PLAN.md restates opl-env's blob, arena, slot count and
+# VRAM in prose, and it is the SEQUENCING AUTHORITY -- the file people
+# read to decide what to build next. In one day it was found carrying a
+# 392 KiB footprint that P3b-6 had moved to 336, a Phase 2 record three
+# figures out of date, and a slot count of 127 against a blob holding
+# 137. Every one was a number nobody re-derived, which is precisely the
+# failure the README half of this file exists to close.
+#
+# Patterns rather than a general number-scanner, because PLAN.md also
+# carries HISTORICAL figures that are correct as snapshots ("1,302
+# commands, before P3b-6...") and a scanner would either flag those or
+# need to guess. Each pattern must match EXACTLY ONCE: a rewording that
+# stops it matching is a failure, not a silent skip, or the check
+# quietly stops covering the sentence it was written for.
+PLAN_CLAIMS = [
+    (r"`examples/opl-env`: six screens, ([\d,]+) slots", ["slots"]),
+    (r"([\d,]+)-byte blob, ([\d,]+)-byte arena for the", ["blob", "arena"]),
+    (r"whole environment, VRAM ([\d,]+) KiB inside", ["vram_kib"]),
+    (r"opl-env is \*\*([\d,]+) slots\*\*", ["slots"]),
+]
+
 
 def documented(readme):
     """The fenced `name  value` block under ## Measurements."""
@@ -81,6 +103,36 @@ def actual(dirpath):
     }
 
 
+def plan_claims(act):
+    """Check docs/PLAN.md's prose copy of the same figures."""
+    from ps2ui_bake import vram
+    path = os.path.join(ROOT, "docs", "PLAN.md")
+    text = open(path, encoding="utf-8").read()
+    act = dict(act)
+    act["vram_kib"] = (
+        sum(vram.page_rounded_size(t.width, t.height, t.fmt)
+            for t in read_uib(os.path.join(
+                ROOT, "examples", "opl-env", "build", "ui.uib")).textures)
+        + vram.clut_size() * len(read_uib(os.path.join(
+            ROOT, "examples", "opl-env", "build", "ui.uib")).cluts)) // 1024
+    out = []
+    for pattern, keys in PLAN_CLAIMS:
+        found = re.findall(pattern, text)
+        if len(found) != 1:
+            out.append("not ok - docs/PLAN.md: the claim matching %r appears "
+                       "%d time(s), not once -- reworded or duplicated, and "
+                       "either way this check has stopped reading it"
+                       % (pattern, len(found)))
+            continue
+        got = found[0] if isinstance(found[0], tuple) else (found[0],)
+        for value, key in zip(got, keys):
+            value = int(value.replace(",", ""))
+            if value != act[key]:
+                out.append("not ok - docs/PLAN.md says %s = %s, blob says %s"
+                           % (key, f"{value:,}", f"{act[key]:,}"))
+    return out
+
+
 def main():
     fail = []
     for name, dirpath in EXAMPLES:
@@ -103,6 +155,15 @@ def main():
         print("%s - %s: %d of %d documented figures match the blob"
               % ("ok" if matched == len(act) else "not ok",
                  name, matched, len(act)))
+        if name == "opl-env":
+            bad = plan_claims(act)
+            for line in bad:
+                print(line)
+                fail.append("docs/PLAN.md restates a figure the blob "
+                            "disagrees with")
+            if not bad:
+                print("ok - docs/PLAN.md's %d restated figures match too"
+                      % len(PLAN_CLAIMS))
     for f in fail:
         print("not ok - %s" % f)
     return 1 if fail else 0
