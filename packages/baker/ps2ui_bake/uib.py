@@ -61,10 +61,15 @@ FEAT_STREAMED_TEX = 1 << 3
 # theme (nothing to diverge into); wrong at two, silently.
 #
 # This writer HAS keyed on the declaration since P3b-3 (see _tint), so
-# the bit is earned. It stays unset only because the bit gates
-# n_theme > 1 and this writer still emits one row: P3b-4 sets the bit
-# and writes the second row together, so the two cannot get out of
-# step in either direction.
+# the bit is earned. Since P3b-4 it is SET, from n_theme rather than
+# from that fact -- see the comment on the assignment for why the bit
+# tracks the row count and not the keying. A one-theme blob leaves it
+# clear and stays byte-identical to what v7 first wrote.
+#
+# (This paragraph said "it stays unset ... P3b-4 sets the bit" for as
+# long as P3b-4 had been shipped. A comment written in the future tense
+# about work in flight goes stale the day it lands and nothing reads
+# it after.)
 FEAT_ROLE_TINTS = 1 << 4
 FEAT_KNOWN = (FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING
               | FEAT_STREAMED_TEX | FEAT_ROLE_TINTS)

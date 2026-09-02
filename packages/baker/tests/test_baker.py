@@ -3378,3 +3378,54 @@ class TestScissorDepth(unittest.TestCase):
         errors, _ = caps.check([], [], [], [{"name": "s"}],
                                records=self.records(limit - 1))
         self.assertEqual([e for e in errors if "scissor" in e], [])
+
+
+class TestConsoleScriptVersions(unittest.TestCase):
+    """`--version`, and that it is not a second number."""
+
+    def test_every_console_script_answers_version(self):
+        # THE VERSION HAS TO REACH A PERSON. Every claim in the
+        # repository agrees with every other one
+        # (tools/check-versions.py), and for a long while none of them
+        # was reachable from the command someone actually runs -- the
+        # one place a stranger filing a bug would look.
+        #
+        # Adding the flag creates the obvious next hazard: a literal in
+        # the CLI that starts out right and drifts. So this asserts the
+        # OUTPUT against ps2ui_bake.__version__ and, below, that no CLI
+        # spells a version out at all.
+        import io
+        import contextlib
+        from ps2ui_bake import __version__, cli, check, fontgen
+        for mod, prog in ((cli, "ps2ui-bake"), (check, "ps2ui-check"),
+                          (fontgen, "ps2ui-fontgen")):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                try:
+                    rc = mod.main(["--version"])
+                except SystemExit as e:      # argparse's action="version"
+                    rc = e.code
+            self.assertEqual(rc, 0, prog)
+            self.assertEqual(buf.getvalue().strip(),
+                             "%s %s" % (prog, __version__), prog)
+
+    def test_no_console_script_spells_a_version_out(self):
+        # A literal that HAPPENS to match today passes the test above
+        # and drifts tomorrow. __init__.py is the one place a version is
+        # written in this package; every other module reads it.
+        import os
+        import re
+        pkg = os.path.dirname(os.path.abspath(
+            __import__("ps2ui_bake").__file__))
+        for name in sorted(os.listdir(pkg)):
+            if not name.endswith(".py") or name == "__init__.py":
+                continue
+            src = open(os.path.join(pkg, name), encoding="utf-8").read()
+            # Code only: the docs and comments here quote real version
+            # numbers on purpose (0.2.0, the format history), and a
+            # scanner that flagged those would be deleted within a week.
+            src = re.sub(r"#.*", "", src)
+            src = re.sub(r'"""(?:.|\n)*?"""', "", src)
+            found = re.findall(
+                r"""["'][^"'\n]*\d+\.\d+\.\d+[^"'\n]*["']""", src)
+            self.assertEqual(found, [], "%s spells out %s" % (name, found))

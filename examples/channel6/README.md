@@ -142,7 +142,8 @@ caller's arena, and once it did, those numbers bounded nothing the
 blob's own size did not already bound. `PS2UI_MAX_SLOTS` in particular
 was a wall a real UI hit: the UC-3 scoping fixture measures 121 slots
 across an OPL-class environment, which used to be unbakeable and now
-asks for 8,285 bytes.
+asks for roughly 8 KiB — `fixtures/opl-scope/README.md` carries the
+measured figure and checks it against the blob.
 
 What still refuses a blob is arithmetic rather than a chosen number:
 `arena_compute` will not carve an arena it cannot address, which

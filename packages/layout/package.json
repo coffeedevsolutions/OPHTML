@@ -1,6 +1,9 @@
 {
   "name": "@ps2ui/layout",
-  "version": "0.2.0",
+  "version": "0.3.0-dev.0",
+  "publishConfig": {
+    "tag": "next"
+  },
   "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",
   "license": "MIT",
   "type": "module",

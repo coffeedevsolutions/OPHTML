@@ -1,6 +1,49 @@
 # Changelog
 
-## Unreleased
+## Unreleased — 0.3.0.dev0
+
+`.uib` format **version 7**. v3 through v6 files are rejected; re-bake.
+Four format moves have landed since 0.2.0 — v4 display aspect, v5
+kerning, v6 texture kinds, v7 the tint table — so a blob baked against
+that release will not load.
+
+That count rests on one thing nothing here can check. "0.2.0 shipped
+format v3" is read out of the 0.2.0 section below, and there is no
+0.2.0 tag and no published artifact to hold it to — so the four moves
+and their enumeration are *self-consistent* rather than *measured*.
+That is what "0.2.0 named nothing" means, and it is stated rather than
+left for a reader to assume the arithmetic was verified end to end.
+
+There is no 0.2.0 tag and there never was one, and there is no 0.3.0
+yet. Both packages therefore carry a prerelease: `0.3.0.dev0` for
+`ps2ui-bake`, `0.3.0-dev.0` for `@ps2ui/layout`. That is the true
+statement — past 0.2.0, not yet the next release.
+
+A prerelease is a signal, and it is worth exactly as much as the
+package manager makes it worth, which is less than it sounds and is
+now written down in [docs/releasing.md](docs/releasing.md). npm: a
+range like `^0.3.0` will not match a prerelease, but `npm install`
+resolves the `latest` dist-tag and `npm publish` sets `latest`
+whatever the version says, so `@ps2ui/layout` carries
+`publishConfig.tag = "next"` and a publish of this tree leaves
+`latest` unset. pip has no equivalent and the gap is real: a
+prerelease is excluded from a specifier unless it is requested **or no
+stable version exists**, and for a first upload none would — so a
+plain `pip install ps2ui-bake` would resolve `0.3.0.dev0`. The
+mitigation there is procedural, and releasing.md states it: the first
+PyPI upload must be a real release.
+
+Until Phase 4 publishes, building on this tree means building on an
+unverified renderer, and the version says so.
+
+These numbers used to drift because nothing read them: the baker
+shipped `__version__ = "0.1.0"` beside `version = "0.2.0"` in its own
+`pyproject.toml`, and this section said "format version 5" through two
+further format breaks. `pyproject.toml` now derives its version from
+`__init__.py` instead of restating it, and `tools/check-versions.py`
+reads the package versions, `PS2UI_VERSION`, `uib.VERSION`, the
+paragraph above, `docs/format-uib.md`, `docs/PLAN.md`'s format history
+and the README's Quick start note against each other on every push.
 
 ### Breaking — authoring
 
@@ -25,11 +68,62 @@
   No format change. Existing `.uib` blobs are unaffected; only source
   documents need edits.
 
-`.uib` format **version 5**. v3 and v4 files are rejected; re-bake.
-Two format moves have landed since 0.2.0, so a blob baked against that
-release will not load.
-
 ### Breaking — runtime
+
+- **`ps2ui_load` takes an arena.** The context no longer carries
+  fixed-size tables; it points into caller memory sized from the blob
+  by `ps2ui_arena_size(data, size)`, which reads the header only and
+  returns 0 when the blob is not worth loading at all. The arena must
+  be `PS2UI_ARENA_ALIGN`-aligned and must outlive every render, not
+  just the load, because nothing is copied — a blob that fails
+  validation never touches it.
+
+  **Migrating:** call `ps2ui_arena_size` first and hand `ps2ui_load`
+  the buffer. `PS2UI_ERR_ARENA` is the new failure for one that is too
+  small.
+
+  Why it matters: the fixed tables charged roughly 36 KiB to every
+  blob, a two-slot overlay included. The six-screen UC-3 environment
+  asks for 7,319 bytes.
+
+- **Texture entries grew 16 → 20 bytes (`.uib` v6).** The `pad` byte at
+  offset 1 became `kind` and a `name_off` was added, which is what
+  makes **streamed textures** expressible: an entry carrying geometry
+  and a VRAM reservation but no texel data, pointed at the app's own
+  buffer on the console by `ps2ui_tex_set`. Cover art off a disc, an
+  HDD or a network cannot be baked, because nothing at bake time knows
+  what it is.
+
+  A v5 reader would have walked the texture table at the wrong stride,
+  so this is a version bump rather than a feature bit alone. Feature
+  bit 3 additionally says the blob declares a streamed texture, so a
+  reader that cannot fill one refuses the file instead of drawing an
+  empty slot.
+
+  **Migrating:** re-bake. Every writer before v6 wrote zero in the byte
+  that became `kind`, which is `PS2UI_TEXKIND_BAKED` — the meaning the
+  zeros already had.
+
+- **Commands and slots hold tint indices, not colours (`.uib` v7).**
+  Where they carried rgba bytes they carry a u16 index into a **tint
+  table**: `n_theme × n_tint` entries, theme-major, so one theme's
+  colours are contiguous and selecting a theme is a pointer add rather
+  than a strided walk. `ps2ui_theme_set` moves which row is live, with
+  no `GSGLOBAL` and no upload — it is the cheap half of theming, beside
+  `ps2ui_clut_set` for the palettes.
+
+  The command entry did not change size (four colour bytes became two
+  indices; the two that freed went into `tint_focus`, inside padding
+  that already existed). The slot entry shrank, 32 → 28. Neither the
+  stride nor the meaning of a field survives a v6 reader, which is
+  exactly the case a version bump exists for.
+
+  **Migrating:** re-bake. A one-theme blob draws what v6 drew.
+  `PS2UI_FEAT_ROLE_TINTS` gates more than one row: it says the indices
+  are keyed on the authored *declaration* rather than the resolved
+  colour, and `ps2ui_load` refuses `n_theme > 1` without it, because
+  two declarations that happen to share a colour would otherwise
+  collapse into one entry no theme could tell apart.
 
 - **`PS2UI_MAX_TEXTURES`, `PS2UI_MAX_SLOTS` and `PS2UI_MAX_SCREENS` are
   deleted.** A UI is no longer limited to 32 textures, 16 slots or 8
@@ -54,9 +148,11 @@ release will not load.
   Why it matters: the UC-3 scoping fixture — a five-screen OPL-class
   environment — measures 121 slots and could not be baked at all
   without hand-editing a vendored header. It now bakes on a stock
-  checkout and asks for 8,285 bytes of arena, against roughly 36 KiB
-  that the fixed-maxima context charged every blob including a
-  two-slot overlay.
+  checkout and asks for roughly 8 KiB of arena — the measured figure
+  lives in `fixtures/opl-scope/README.md`, where `figures.py` now reads
+  it back out of the blob — against roughly 36 KiB that the
+  fixed-maxima context charged every blob including a two-slot
+  overlay.
 
 ### Added
 - **Compositing two screens in one frame is a contract**, not an
