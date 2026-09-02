@@ -18,12 +18,39 @@ from . import vram
 from . import caps as caps_mod
 
 
+def default_fonts_path() -> str:
+    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
+
+    Three levels up from this file is the repository root in a
+    checkout and nothing at all in an installed package: pip puts
+    ps2ui_bake in site-packages, and `../../../fonts` from there is
+    somewhere no font has ever been. Phase 4's exit gate reads "a
+    stranger with npm, pip and a TTF"; that stranger got FileNotFound
+    on a path they never chose and could not have created.
+
+    Kept, because every example and build.sh in the repository relies
+    on it. Checked before use, because outside the repository it is
+    wrong, and the caller says what to do instead.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(here, "..", "..", "..", "fonts", "fonts.json")
+
+
 def load_font_manifest(path: str) -> dict:
     """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
     Candidates let one manifest serve machines with fonts in different
     places; the first existing path wins. Paths resolve relative to the
     manifest."""
     base = os.path.dirname(os.path.abspath(path))
+    if not os.path.exists(path):
+        # Named by the caller and not there: a traceback here buries
+        # the one fact they can act on under a stack they cannot.
+        raise FileNotFoundError(
+            f"{path}: no such fonts.json. It maps \"regular\" and \"bold\" "
+            f"to {{ttf: [...], metrics: \"...\"}}; generate the metrics "
+            f"with ps2ui-fontgen, and ps2ui-layout reads the same file "
+            f"via --fonts."
+        )
     with open(path, encoding="utf-8") as fh:
         manifest = json.load(fh)
     out = {}
@@ -99,11 +126,39 @@ def main(argv=None) -> int:
         named_irs.append((name, ir))
     ir = named_irs[0][1]  # canvas / VRAM reference
 
+    # THREE LEVELS UP IS THE REPOSITORY ROOT, AND ONLY IN A CHECKOUT.
+    # Installed from PyPI this resolves somewhere above site-packages,
+    # which does not exist -- so the default font path was reachable
+    # only by people who already had the repo, against an exit gate
+    # that reads "a stranger with npm, pip and a TTF". Kept as the
+    # default because the examples depend on it, but it is a candidate
+    # now, and its absence says what to do instead of raising ENOENT on
+    # a path the caller never chose.
     fonts_path = args.fonts
     if fonts_path is None:
-        here = os.path.dirname(os.path.abspath(__file__))
-        fonts_path = os.path.join(here, "..", "..", "..", "fonts", "fonts.json")
-    font_paths = load_font_manifest(fonts_path)
+        fonts_path = default_fonts_path()
+        if not os.path.exists(fonts_path):
+            print("ps2ui-bake: no font manifest. The built-in default is "
+                  "the repository's fonts/fonts.json, which only exists "
+                  "in a checkout.\n"
+                  "  Write one naming your own TTF and its metrics:\n"
+                  '    { "regular": { "ttf": ["/path/DejaVuSans.ttf"], '
+                  '"metrics": "default.metrics.json" },\n'
+                  '      "bold":    { "ttf": ["/path/DejaVuSans-Bold.ttf"], '
+                  '"metrics": "default-bold.metrics.json" } }\n'
+                  "  Generate the metrics with ps2ui-fontgen, then pass "
+                  "--fonts <fonts.json>.\n"
+                  "  ps2ui-layout reads the same file: --fonts <fonts.json>.",
+                  file=sys.stderr)
+            return 1
+    try:
+        font_paths = load_font_manifest(fonts_path)
+    except (FileNotFoundError, KeyError, ValueError) as exc:
+        # Same rule as the bake diagnostics below: a font manifest the
+        # caller can fix is not a crash, and a traceback buries the one
+        # line they can act on.
+        print(f"ps2ui-bake: {exc}", file=sys.stderr)
+        return 1
 
     flat = Flattener(ir, font_paths, palettize_all=args.palettize_images)
     try:
@@ -148,6 +203,16 @@ def main(argv=None) -> int:
 
     initial = flat.screens[0]["initial"]
     tint_report = []
+    # MAKE THE OUTPUT DIRECTORIES. `-o build/ui.uib` into a tree with
+    # no build/ raised a bare FileNotFoundError traceback -- the same
+    # first-command failure ps2ui-layout had, and the same reason
+    # nobody here saw it: every build.sh mkdir -p's first.
+    for path in (args.out, args.preview, args.montage,
+                 args.preview_display):
+        if path:
+            parent = os.path.dirname(os.path.abspath(path))
+            os.makedirs(parent, exist_ok=True)
+
     write_uib(
         args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
         flat.focus_nodes, initial, flat.fonts, flat.slots, flat.screens,

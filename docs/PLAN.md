@@ -1154,9 +1154,35 @@ That leaves the version number itself as a judgement no check makes:
 0.3.0 is the tree's own claim about where it is, and nothing verifies
 it is the right next number.
 
+**The UC-3 tutorial — [shipped].** `docs/tutorial-uc3.md` builds an
+OPL-class game browser from an empty directory with the reader's own
+TTF, and `tools/check-tutorial.py` executes it in CI: every command
+block in order, in one scratch directory, with the printed numbers
+matched against what actually happens.
+
+Writing it is what found the exit gate's real blocker, and the blocker
+was not a missing document. **Both packages defaulted their font path
+to `../../../fonts`** — the repository root in a checkout, and nothing
+at all in an installed package. A stranger with npm, pip and a TTF met
+a bare ENOENT on a path pointing outside the package they installed,
+and nobody here could see it, because in a checkout the path resolves.
+Four more things surfaced the same way: `-o build/ui.json` failed when
+`build/` did not exist (every `build.sh` in the repository `mkdir -p`s
+first, so the scripts hid it); the layout compiler and the baker took
+two different font configurations for one set of fonts, with nothing
+checking they agreed; `--font-dir`'s two fixed filenames were
+documented nowhere; and a misspelt `data-` attribute was **silent** —
+`data-focus` for `focusable` compiled a screen with no navigation at
+all, and `data-capacity` for `data-slot-capacity` silently took the
+63-byte default.
+
+All five are fixed, and the layout compiler now reads the same
+`fonts.json` the baker does. None of them was findable from inside the
+repository; all five were findable in ten minutes by running the first
+command from an empty directory.
+
 Then npm + PyPI + a `ps2ui` wrapper CLI (`build` / `dev` / `check` /
-`fontgen`), a format stability pledge **post-v7**, and a docs pass with
-UC-3 as the flagship tutorial.
+`fontgen`), and a format stability pledge **post-v7**.
 
 The pledge moved from post-v6 because v7 broke the format inside
 Phase 3 (the tint table), which is the second break since the pledge

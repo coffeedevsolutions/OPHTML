@@ -3429,3 +3429,58 @@ class TestConsoleScriptVersions(unittest.TestCase):
             found = re.findall(
                 r"""["'][^"'\n]*\d+\.\d+\.\d+[^"'\n]*["']""", src)
             self.assertEqual(found, [], "%s spells out %s" % (name, found))
+
+
+class TestNewcomerPath(unittest.TestCase):
+    """What a person with pip, a TTF and no checkout actually meets.
+
+    Every case here was found by writing docs/tutorial-uc3.md and
+    running the commands from an empty directory. None of them could be
+    seen from inside the repository, because the repository supplies
+    exactly the two things that were missing: a fonts/ directory three
+    levels above the package, and a build.sh that mkdir -p's first.
+    """
+
+    def test_the_default_font_manifest_is_a_repo_path(self):
+        # Not an assertion that it is GOOD -- an assertion of what it
+        # is, so the branch that handles its absence cannot be removed
+        # as dead code by someone who only ever runs in a checkout.
+        from ps2ui_bake.cli import default_fonts_path
+        path = os.path.normpath(default_fonts_path())
+        self.assertTrue(path.endswith(os.path.join("fonts", "fonts.json")))
+        pkg = os.path.dirname(os.path.abspath(
+            __import__("ps2ui_bake").__file__))
+        self.assertFalse(
+            os.path.normpath(path).startswith(os.path.normpath(pkg)),
+            "the default manifest is outside the package, which is why "
+            "an installed ps2ui-bake cannot find it")
+
+    def test_a_named_manifest_that_is_absent_is_not_a_traceback(self):
+        from ps2ui_bake.cli import load_font_manifest
+        with self.assertRaises(FileNotFoundError) as cm:
+            load_font_manifest("/nonexistent/fonts.json")
+        msg = str(cm.exception)
+        self.assertIn("ps2ui-fontgen", msg)
+        self.assertIn("ps2ui-layout", msg)
+
+    def test_bake_creates_its_output_directories(self):
+        # `-o build/ui.uib` into a tree with no build/ raised a bare
+        # FileNotFoundError traceback. First command, first failure.
+        import tempfile
+        import json as _json
+        from ps2ui_bake import cli
+        ir = TestDynamicText().slot_ir()
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "ui.json")
+            with open(src, "w", encoding="utf-8") as fh:
+                _json.dump(ir, fh)
+            out = os.path.join(tmp, "deep", "nested", "ui.uib")
+            shot = os.path.join(tmp, "other", "preview.png")
+            rc = cli.main([src, "-o", out, "--preview", shot,
+                           "--fonts", os.path.join(
+                               FONTS, "fonts.json")])
+            self.assertEqual(rc, 0)
+            self.assertTrue(os.path.exists(out), "bake did not create -o's dir")
+            self.assertTrue(os.path.exists(shot),
+                            "bake did not create --preview's dir")
+
