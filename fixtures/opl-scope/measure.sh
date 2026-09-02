@@ -74,11 +74,30 @@ else
     fail=1
 fi
 
+# EVERY OTHER FIGURE THE README QUOTES, read back out of the blob.
+# Until this ran, the checks above were the whole of it -- slot counts
+# and an arena ceiling -- so P3b-6 moved draw records, textures, VRAM,
+# the blob size and the arena underneath a table that kept reporting
+# green. figures.py carries the detail; it is a separate file because a
+# figure check written in shell is a figure check nobody extends.
+if ! echo "$bake" | PYTHONPATH="$repo/packages/baker" \
+        python3 "$here/figures.py" "$out/opl.uib"; then
+    fail=1
+fi
+
 # The arena is the figure the resource model exists to produce. Asserted
 # as a ceiling rather than an equality: this fixture is meant to grow,
 # and a test that fails when a screen gains a label teaches people to
 # edit the number instead of reading it. What it must not do is quietly
 # climb back toward the 36 KiB the fixed model charged every blob.
+#
+# figures.py above ALSO checks this number, for equality, against the
+# README. That is not a contradiction and neither rule replaces the
+# other: this one is the regression guard and stays loose on purpose,
+# that one is the documentation guard and a documented figure has to be
+# true rather than merely under a bound. Growing the fixture means
+# updating the README, which you are editing anyway; it does not mean
+# editing a threshold.
 arena=$(echo "$bake" | sed -n 's/.*arena \([0-9]*\) bytes.*/\1/p')
 if [ -n "$arena" ] && [ "$arena" -lt 16384 ]; then
     echo "ok - arena $arena bytes, under 16 KiB (fixed maxima charged ~36 KiB)"

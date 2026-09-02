@@ -127,9 +127,11 @@ and the README's Quick start note against each other on every push.
   Why it matters: the UC-3 scoping fixture — a five-screen OPL-class
   environment — measures 121 slots and could not be baked at all
   without hand-editing a vendored header. It now bakes on a stock
-  checkout and asks for 8,285 bytes of arena, against roughly 36 KiB
-  that the fixed-maxima context charged every blob including a
-  two-slot overlay.
+  checkout and asks for roughly 8 KiB of arena — the measured figure
+  lives in `fixtures/opl-scope/README.md`, where `figures.py` now reads
+  it back out of the blob — against roughly 36 KiB that the
+  fixed-maxima context charged every blob including a two-slot
+  overlay.
 
 ### Added
 - **Compositing two screens in one frame is a contract**, not an

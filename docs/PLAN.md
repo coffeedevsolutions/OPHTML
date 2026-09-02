@@ -250,8 +250,9 @@ that document also records what would falsify it.
    `PS2UI_MAX_SLOTS`, `PS2UI_MAX_TEXTURES` and `PS2UI_MAX_SCREENS` are
    deleted; a legal count is now bounded by the blob's own size and by
    arena arithmetic that refuses rather than wraps. The UC-3 fixture
-   bakes and loads unmodified for the first time: 121 slots, 8,285
-   bytes of arena. Borrowing the caller's string rather than copying it
+   bakes and loads unmodified for the first time: 121 slots, and an
+   arena of roughly 8 KiB that `fixtures/opl-scope/README.md` measures
+   and now checks against the blob. Borrowing the caller's string rather than copying it
    is declined with the numbers written down — see
    design-v6-resource-model.md, "Slot storage: copied, not borrowed".
 4. **Composition becomes a contract.** Document and test that render

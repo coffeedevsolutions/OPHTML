@@ -93,8 +93,12 @@ anything.
 **[implemented]** Reconstructed from `2290a27^:runtime/ps2ui.h` and
 confirmed at review: `clut_pool[32][1024]` 32,768 + `gs_tex[32]` at EE
 pointer width 1,280 + `slot_text[16][96]` 1,536 + the small arrays 64
-= **35,648 B**. The UC-3 environment now asks for 8,285 bytes and a
-two-slot overlay for a few hundred.
+= **35,648 B**. The UC-3 environment asked for 8,285 bytes when this
+was measured, and a two-slot overlay for a few hundred. (Every figure
+in this document is that measurement, dated here rather than restated
+as current: P3b-6 moved the fixture's records, textures, VRAM, blob and
+arena afterwards. `fixtures/opl-scope/README.md` carries the current
+numbers and `figures.py` checks them.)
 The pool moves into the arena (§2), which also inherits its two hard
 properties: the region must be 16-aligned (the #40 DMA-source
 invariant — a misaligned source truncates silently) and must outlive
@@ -255,9 +259,10 @@ argument above does not survive contact with the implementation.
   not have to edit a vendored header to ship a five-screen UI. The
   UC-3 scoping fixture measures 121 slots and 5 screens; under the
   ceilings it could not be baked at all. It now bakes on a stock
-  checkout and asks for **8,285 bytes** of arena, against roughly
-  36 KiB that the fixed context charged every blob including a
-  two-slot overlay.
+  checkout and asked for **8,285 bytes** of arena when this was
+  written, against roughly 36 KiB that the fixed context charged every
+  blob including a two-slot overlay. The ratio is the argument and it
+  survived the change.
 
 Removing one and keeping the others was not an option worth taking:
 they were a single three-line check and a single idea.
@@ -288,7 +293,8 @@ the way `ps2ui_tex_set` borrows the caller's texels — is **declined**,
 and the reason is that the symmetry is superficial.
 
 What borrowing would save, measured on the largest UI in the
-repository (the UC-3 environment, 121 slots):
+repository (the UC-3 environment, 121 slots) at the time this was
+written:
 
 | arena region | bytes |
 |---|---:|

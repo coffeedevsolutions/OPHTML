@@ -58,18 +58,23 @@ Per screen, from the layout stage:
 | recent | 28 | 9 |
 | **environment** | **121** | **49** |
 
-And from the baked blob:
+And from the baked blob. **Every figure in this table is read back out
+of the blob by `figures.py`, which `measure.sh` runs** — five of them
+were wrong before that existed, because `measure.sh` asserted the slot
+counts and a ceiling on the arena and nothing else, so P3b-6 moved
+records, textures, VRAM, the blob and the arena underneath a table
+nobody re-derived:
 
 | | measured | cap when this was written |
 |---|---|---|
 | **slots** | **121** | **16** |
 | screens | 5 | 8 |
-| textures | 15 | 32 |
+| textures | 12 | 32 |
 | fonts | 5 | — |
-| draw records | 1,232 | — |
-| VRAM | 248 KiB of a 736 KiB budget (33%) | 4 MB total |
-| blob | 210 KiB | — |
-| **arena** | **8,285 B** | — |
+| draw records | 2,048 | — |
+| VRAM | 224 KiB of a 736 KiB budget | 4 MB total |
+| blob | 238,672 B | — |
+| **arena** | **8,165 B** | — |
 
 **The environment needed 7.6× the entire blob-wide slot budget** — and
 the library screen alone needed 2.7×. That is what the bake said in
@@ -84,12 +89,11 @@ return PS2UI_ERR_TOO_MANY.
 What it says now:
 
 ```
-runtime tables: 15 textures, 4 CLUTs, 121 slots, 5 screens
-ps2ui-bake: 5 screen(s), 1232 records, 15 textures (140 KiB baked), 4 CLUTs
-ps2ui-bake: arena 8285 bytes
+ps2ui-bake: 5 screen(s), 2048 records, 12 textures (137 KiB baked), 4 CLUTs
+ps2ui-bake: arena 8165 bytes (static uint8_t arena[8165] __attribute__((aligned(16))))
 ```
 
-8,285 bytes for the largest UI in this repository — against roughly
+8,165 bytes for the largest UI in this repository — against roughly
 36 KiB that the fixed-maxima context charged *every* blob, including a
 two-slot overlay. The environment that could not be loaded at all is
 now the one that fits, and it fits at the EE's 32-bit address width:
