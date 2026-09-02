@@ -231,6 +231,16 @@ def main():
           % (claimed, UIB_VERSION))
 
     # The released section below it, and the drift the prose claims.
+    #
+    # AND THE ONE THING TAKEN ON FAITH. Everything below derives the
+    # four-move count and the v4-v7 enumeration from "0.2.0 shipped
+    # format v3", read out of the CHANGELOG's own 0.2.0 section --
+    # which nothing in the tree can confirm, because there is no 0.2.0
+    # tag and no artifact to inspect. These rules make the CHANGELOG
+    # self-consistent about an anchor that rests on memory. That is
+    # exactly what "0.2.0 named nothing" means, so there is no fix
+    # available now; it is written down here and in the CHANGELOG so
+    # the arithmetic is not mistaken for a measurement.
     released = [(h, b) for h, b in sections[1:]
                 if re.match(r"^\d+\.\d+\.\d+", h)]
     prev_head, prev_body = released[0]
@@ -346,8 +356,17 @@ def main():
     rel = os.path.join(ROOT, "docs", "releasing.md")
     steps = (open(rel, encoding="utf-8").read()
              if os.path.exists(rel) else "")
+    #     EXISTENCE AND KEYWORDS, and the ok-line says so. A procedure
+    #     that drifts out of date keeps passing this: nothing here can
+    #     tell whether step 4 still describes what the CHANGELOG rules
+    #     read. That is the right scope for a rule whose job is to stop
+    #     the tag rule being a trap, but the first version of this line
+    #     read "documents the steps the tag rule demands", which claims
+    #     the correctness it does not check -- the exact overstatement
+    #     this file exists to stop.
     check(bool(steps) and "__version__" in steps and "Tag it" in steps,
-          "docs/releasing.md documents the steps the tag rule demands",
+          "docs/releasing.md exists and still names __version__ and the "
+          "tagging step (keywords, not correctness)",
           "docs/releasing.md is missing or no longer names __version__ and "
           "the tagging step; the rule below fails a release with no "
           "instructions for satisfying it")

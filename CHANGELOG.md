@@ -7,6 +7,13 @@ Four format moves have landed since 0.2.0 — v4 display aspect, v5
 kerning, v6 texture kinds, v7 the tint table — so a blob baked against
 that release will not load.
 
+That count rests on one thing nothing here can check. "0.2.0 shipped
+format v3" is read out of the 0.2.0 section below, and there is no
+0.2.0 tag and no published artifact to hold it to — so the four moves
+and their enumeration are *self-consistent* rather than *measured*.
+That is what "0.2.0 named nothing" means, and it is stated rather than
+left for a reader to assume the arithmetic was verified end to end.
+
 There is no 0.2.0 tag and there never was one, and there is no 0.3.0
 yet. Both packages therefore carry a prerelease: `0.3.0.dev0` for
 `ps2ui-bake`, `0.3.0-dev.0` for `@ps2ui/layout`. That is the true
