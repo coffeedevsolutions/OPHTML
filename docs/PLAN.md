@@ -901,15 +901,23 @@ Then, in an order P3a decides:
 
    | screen | commands | slot glyphs | drawn | `p` |
    |---|---:|---:|---:|---:|
-   | confirm | 110 | 145 | 64 | 209 |
-   | detail | 196 | 187 | 99 | 286 |
-   | landing | 331 | 233 | 206 | 439 |
-   | recent | 360 | 344 | 189 | 533 |
-   | filters | 467 | 188 | 253 | 441 |
-   | library | 694 | 376 | 366 | 742 |
+   | confirm | 110 | 156 | 64 | 220 |
+   | detail | 196 | 197 | 99 | 296 |
+   | landing | 331 | 244 | 206 | 450 |
+   | recent | 360 | 354 | 189 | 543 |
+   | filters | 467 | 199 | 253 | 452 |
+   | library | 694 | 387 | 366 | 753 |
 
    `recent` and `filters` are what make the split possible: 30% more
    commands, 45% fewer glyphs.
+
+   Every column is derived by `tools/check-sweep-table.py` against the
+   blob and the driver, including the `[c:<screen>] ` build tag #87 put
+   on line 1 — the tag is slot text, so its 10-11 glyphs are counted in
+   `g`, and both copies of this table were short by exactly that for a
+   pull request. `bench-phase2.md` states the one input the derivation
+   cannot compute, the 55 glyphs the driver's two telemetry lines
+   reconstruct to.
 
    **Six points are enough, and that is arithmetic rather than hope.**
    r = 0.751 gives a variance inflation of 2.29, which is mild, and the

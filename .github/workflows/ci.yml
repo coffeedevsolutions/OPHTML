@@ -145,6 +145,23 @@ jobs:
       - name: Example figures match their blobs
         run: python3 tools/check-example-figures.py
 
+      # P3d's content sweep is the x-axis of the next bench sitting,
+      # and it is written down in two documents before the sitting so
+      # that it scores a prediction rather than producing one. #87 put
+      # a build tag on the readout's line 1 so the photographs would
+      # document themselves; the tag is slot text, so its glyphs land
+      # in `g`, and every row of both tables went 10-11 short in the
+      # same pull request that added it -- on a comment arguing the
+      # tag was "a constant across the sweep".
+      #
+      # Derived, not restated: commands and the focus-resolved `drawn`
+      # come off the blob, the tag off main.c, and the one number that
+      # cannot be derived is stated in bench-phase2.md and read back.
+      # MUST FOLLOW the opl-env build above, for the same reason the
+      # step before it must.
+      - name: The P3d sweep table is derived from the blob
+        run: python3 tools/check-sweep-table.py
+
       # The scoping fixture is Phase 1 input and its only value is
       # being comparable later, so the number it reports is a
       # tripwire: if an OPL-class screen starts demanding a different
