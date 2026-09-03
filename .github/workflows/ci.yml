@@ -181,6 +181,20 @@ jobs:
       - name: The P3d sweep table is derived from the blob
         run: python3 tools/check-sweep-table.py
 
+      # The tutorial, executed as a stranger would: every ```sh block
+      # in order, in one scratch directory, from empty. Phase 4's exit
+      # gate is a person with npm, pip and a TTF reproducing an
+      # example, and a tutorial nobody re-runs is a document that was
+      # true the day it was written -- which is the failure this
+      # repository has closed for example figures, PLAN's prose, the
+      # sweep table and every version claim in the tree.
+      #
+      # It does NOT prove the packages install: nothing is published,
+      # so the CLI names resolve through shims onto the checkout. That
+      # gap IS the exit gate, and the tutorial says so itself.
+      - name: The tutorial still works from an empty directory
+        run: python3 tools/check-tutorial.py
+
       # The scoping fixture is Phase 1 input and its only value is
       # being comparable later, so the number it reports is a
       # tripwire: if an OPL-class screen starts demanding a different

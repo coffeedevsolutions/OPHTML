@@ -17,6 +17,12 @@ The image above comes from the Python previewer, which replays the baked command
 
 ## Quick start
 
+**New here?** [docs/tutorial-uc3.md](docs/tutorial-uc3.md) builds a
+working OPL-class game browser from an empty directory with your own
+TTF — every command in it is executed by CI, so the numbers it prints
+are the numbers you will get.
+
+
 **Neither package is published, and the versions say so.** `ps2ui-bake`
 carries `0.3.0.dev0` and `@ps2ui/layout` carries `0.3.0-dev.0` — one
 prerelease in two spellings, against no git tags. They used to claim

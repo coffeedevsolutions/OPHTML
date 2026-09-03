@@ -5,6 +5,7 @@ semantics. stdlib unittest + Pillow only, same as the package.
 Run:  cd packages/baker && python3 -m unittest discover -s tests -v
 """
 
+import contextlib
 import io
 import json
 from dataclasses import replace
@@ -3429,3 +3430,137 @@ class TestConsoleScriptVersions(unittest.TestCase):
             found = re.findall(
                 r"""["'][^"'\n]*\d+\.\d+\.\d+[^"'\n]*["']""", src)
             self.assertEqual(found, [], "%s spells out %s" % (name, found))
+
+
+class TestNewcomerPath(unittest.TestCase):
+    """What a person with pip, a TTF and no checkout actually meets.
+
+    Every case here was found by writing docs/tutorial-uc3.md and
+    running the commands from an empty directory. None of them could be
+    seen from inside the repository, because the repository supplies
+    exactly the two things that were missing: a fonts/ directory three
+    levels above the package, and a build.sh that mkdir -p's first.
+    """
+
+    def test_the_default_font_manifest_is_a_repo_path(self):
+        # Not an assertion that it is GOOD -- an assertion of what it
+        # is, so the branch that handles its absence cannot be removed
+        # as dead code by someone who only ever runs in a checkout.
+        from ps2ui_bake.cli import default_fonts_path
+        path = os.path.normpath(default_fonts_path())
+        self.assertTrue(path.endswith(os.path.join("fonts", "fonts.json")))
+        pkg = os.path.dirname(os.path.abspath(
+            __import__("ps2ui_bake").__file__))
+        self.assertFalse(
+            os.path.normpath(path).startswith(os.path.normpath(pkg)),
+            "the default manifest is outside the package, which is why "
+            "an installed ps2ui-bake cannot find it")
+
+    def test_a_named_manifest_that_is_absent_is_not_a_traceback(self):
+        from ps2ui_bake.cli import load_font_manifest
+        with self.assertRaises(FileNotFoundError) as cm:
+            load_font_manifest("/nonexistent/fonts.json")
+        msg = str(cm.exception)
+        self.assertIn("ps2ui-fontgen", msg)
+        self.assertIn("ps2ui-layout", msg)
+
+    def test_bake_creates_its_output_directories(self):
+        # `-o build/ui.uib` into a tree with no build/ raised a bare
+        # FileNotFoundError traceback. First command, first failure.
+        import tempfile
+        import json as _json
+        from ps2ui_bake import cli
+        ir = TestDynamicText().slot_ir()
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "ui.json")
+            with open(src, "w", encoding="utf-8") as fh:
+                _json.dump(ir, fh)
+            out = os.path.join(tmp, "deep", "nested", "ui.uib")
+            shot = os.path.join(tmp, "other", "preview.png")
+            rc = cli.main([src, "-o", out, "--preview", shot,
+                           "--fonts", os.path.join(
+                               FONTS, "fonts.json")])
+            self.assertEqual(rc, 0)
+            self.assertTrue(os.path.exists(out), "bake did not create -o's dir")
+            self.assertTrue(os.path.exists(shot),
+                            "bake did not create --preview's dir")
+
+    def test_the_ir_and_the_manifest_must_mean_the_same_fonts(self):
+        # ps2ui-layout and ps2ui-bake take font configuration
+        # separately, so a project can compile with --font-dir one/ and
+        # bake with --fonts other.json. Every glyph would then be drawn
+        # at the first font's position with the second font's shape:
+        # subtly wrong text on every screen, no error, and only a
+        # console to see it on.
+        #
+        # The IR has carried the faces it was measured against since
+        # v1 and the baker had never read it.
+        from ps2ui_bake.cli import check_font_agreement, load_font_manifest
+        paths = load_font_manifest(os.path.join(FONTS, "fonts.json"))
+
+        agreeing = {"fonts": {"regular": {"family": "DejaVu Sans",
+                                          "weight": 400},
+                              "bold": {"family": "DejaVu Sans",
+                                       "weight": 700}}}
+        self.assertEqual(check_font_agreement(agreeing, paths), [])
+
+        wrong_family = {"fonts": {"regular": {"family": "Liberation Sans",
+                                              "weight": 400}}}
+        out = check_font_agreement(wrong_family, paths)
+        self.assertEqual(len(out), 1, out)
+        self.assertIn("Liberation Sans", out[0])
+        self.assertIn("DejaVu Sans", out[0])
+
+        wrong_weight = {"fonts": {"bold": {"family": "DejaVu Sans",
+                                           "weight": 400}}}
+        self.assertEqual(len(check_font_agreement(wrong_weight, paths)), 1)
+
+        missing_face = {"fonts": {"black": {"family": "DejaVu Sans",
+                                            "weight": 900}}}
+        out = check_font_agreement(missing_face, paths)
+        self.assertEqual(len(out), 1, out)
+        self.assertIn("'black'", out[0])
+
+    def test_font_agreement_does_not_catch_a_same_family_rebuild(self):
+        # STATED, NOT IMPLIED. Two builds of one family whose metrics
+        # differ -- a re-run of fontgen over a newer TTF, or a different
+        # charset -- agree on family and weight and diverge in the
+        # advances. Catching that wants a digest of the tables in the
+        # IR, which is a format-visible change and is not this. The
+        # loud case is prevented; the quiet one is still only
+        # avoidable, and a test says so rather than a comment alone.
+        from ps2ui_bake.cli import check_font_agreement, load_font_manifest
+        paths = load_font_manifest(os.path.join(FONTS, "fonts.json"))
+        same_name = {"fonts": {"regular": {"family": "DejaVu Sans",
+                                           "weight": 400}}}
+        self.assertEqual(check_font_agreement(same_name, paths), [],
+                         "if this starts failing, the check grew teeth "
+                         "and the docs claiming otherwise are now wrong")
+
+    def test_the_bake_actually_refuses_a_disagreeing_manifest(self):
+        # THE CALL SITE, NOT THE FUNCTION. The three tests above pass
+        # with the check unwired from main() -- deleting the call was
+        # sabotaged and nothing failed, which is a fence that exists
+        # and is not connected to anything. So this drives the CLI.
+        import tempfile
+        import json as _json
+        from ps2ui_bake import cli
+        ir = TestDynamicText().slot_ir()
+        ir["fonts"] = {"regular": {"family": "Not A Real Family",
+                                   "weight": 400}}
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "ui.json")
+            with open(src, "w", encoding="utf-8") as fh:
+                _json.dump(ir, fh)
+            out = os.path.join(tmp, "ui.uib")
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = cli.main([src, "-o", out,
+                               "--fonts", os.path.join(FONTS, "fonts.json")])
+            self.assertEqual(rc, 1)
+            self.assertIn("different fonts", err.getvalue())
+            self.assertIn("Not A Real Family", err.getvalue())
+            # And nothing was written: a blob positioned by one font and
+            # drawn with another must not reach a console.
+            self.assertFalse(os.path.exists(out))
+

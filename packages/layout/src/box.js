@@ -82,6 +82,81 @@ function anonymousTextStyle(parentStyle) {
  * subtree). An element with the `focusable` attribute opens a scope; every
  * box inside carries that focusId so the baker can tag paint deltas.
  */
+// Every `data-` attribute this compiler acts on. Anything else is a
+// typo, and a typo in a `data-` attribute is SILENT: the parser keeps
+// it, nothing reads it, and the document compiles.
+//
+// Both of these were written while following the tutorial, and both
+// compiled clean:
+//
+//   data-focus="slot1"      meant `focusable`     -> 0 focusables
+//   data-capacity="40"      meant `data-slot-capacity` -> silent 63
+//
+// The first produced a screen with no navigation at all. The second
+// produced a slot two thirds the size asked for, discoverable only by
+// overrunning it on a console. Neither said a word.
+const KNOWN_DATA_ATTRS = new Set([
+  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',
+  'data-tex-slot', 'data-repeat',
+]);
+
+/** Levenshtein distance, capped: only used to suggest a near miss. */
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i,
+    ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1,
+        d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+  }
+  return d[a.length][b.length];
+}
+
+/** Is `short` a whole-word prefix or suffix of `long`? */
+function wordPrefixOrSuffix(short, long) {
+  if (short === long) return true;
+  if (long.startsWith(short)) return long[short.length] === '-';
+  if (long.endsWith(short)) return long[long.length - short.length - 1] === '-';
+  return false;
+}
+
+/** Warn on a `data-` attribute nothing will ever read. */
+function warnUnknownDataAttrs(el, warnings) {
+  for (const name of Object.keys(el.attrs)) {
+    if (!name.startsWith('data-') || KNOWN_DATA_ATTRS.has(name)) continue;
+    let best = null, bestD = Infinity;
+    for (const known of KNOWN_DATA_ATTRS) {
+      // Compared past the shared `data-` prefix: dropping a middle
+      // word is the commonest mistake and pure edit distance misses
+      // it. The real one was data-capacity for data-slot-capacity --
+      // five edits apart, which no sane threshold would suggest, but
+      // "slot-capacity" ends with "capacity" and that is unambiguous.
+      // ON A WORD BOUNDARY, not any substring. `slotcapacity` starts
+      // with `slot`, which scored a perfect match against data-slot
+      // and beat data-slot-capacity one edit away -- a confident wrong
+      // suggestion, which is worse than the plain list.
+      const a = name.slice(5), b = known.slice(5);
+      const d = a && (wordPrefixOrSuffix(a, b) || wordPrefixOrSuffix(b, a))
+        ? 0 : editDistance(name, known);
+      if (d < bestD) { bestD = d; best = known; }
+    }
+    // Otherwise suggest only a genuine near miss. A wide threshold
+    // turns every unknown attribute into a confident wrong guess.
+    const hint = bestD <= Math.max(3, Math.floor(name.length / 3))
+      ? ` — did you mean ${best}?`
+      : ` — known: ${[...KNOWN_DATA_ATTRS].sort().join(', ')}`;
+    const msg = `unknown attribute: <${el.tag}> line ${el.line}: `
+      + `${name} is not read by anything${hint}`;
+    // ONCE PER TYPO, NOT ONCE PER STAMPED ROW. data-repeat copies the
+    // element before this runs, so a misspelling inside a repeat=6 row
+    // arrived six times -- the same warning, the same line number, and
+    // a reader scrolling past five of them.
+    if (!warnings.includes(msg)) warnings.push(msg);
+  }
+}
+
 export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings, focusScope = null, env = {}) {
   const { style, focusStyle, focusDeclared } = computeStyle(
     el, sheet, parentStyle,
@@ -93,6 +168,7 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   if (style.display === 'none') return null;
 
   const box = new Box('element', el, style, focusStyle);
+  warnUnknownDataAttrs(el, warnings);
   // data-keep: exempt this element's geometry from the baker's
   // dead-geometry trim. The one case that wants it is deliberate
   // observability -- the bring-up probe needs a quad that provably

@@ -4,8 +4,8 @@
 // Everything the console must never do (parse, cascade, measure, wrap,
 // solve) happens inside this call, on the build host.
 
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseHTML, Element, TextNode } from './html.js';
@@ -29,6 +29,21 @@ export { solveFocusGraph } from './focus.js';
 export { lintDocument, DEFAULT_LINT_OPTIONS } from './lint.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+// THREE LEVELS UP IS THE REPOSITORY ROOT, AND ONLY IN A CHECKOUT.
+// Installed from npm this resolves to `<node_modules>/../fonts`, which
+// does not exist and never will -- `files` does not carry `fonts/` and
+// could not, since it sits outside the package. So the toolchain's
+// default font path was reachable only by the people who wrote it, and
+// Phase 4's exit gate is "a stranger with npm, pip and a TTF"; they
+// would have met a bare ENOENT on a path pointing outside the package
+// they installed.
+//
+// Kept as the default because the repository's own scripts and
+// examples depend on it, but it is now a CANDIDATE rather than an
+// assumption: when it is not there, fontContext() raises a message
+// naming --fonts, --font-dir and ps2ui-fontgen, which is what a person
+// with a TTF and no clone actually needs to be told.
 const DEFAULT_FONT_DIR = join(HERE, '..', '..', '..', 'fonts');
 
 export const IR_VERSION = 1;
@@ -47,11 +62,67 @@ export class FontContext {
     return weight >= 600 ? this.bold : this.regular;
   }
   static fromDir(dir = DEFAULT_FONT_DIR) {
-    return new FontContext({
-      regular: loadFont(join(dir, 'default.metrics.json')),
-      bold: loadFont(join(dir, 'default-bold.metrics.json')),
-    });
+    // The two filenames are fixed, which was documented nowhere -- not
+    // in --help, not in the README. A directory of metrics under any
+    // other name failed as if the directory were missing.
+    const regular = join(dir, 'default.metrics.json');
+    const bold = join(dir, 'default-bold.metrics.json');
+    for (const f of [regular, bold]) {
+      if (!existsSync(f)) throw new Error(missingFonts(dir, f));
+    }
+    return new FontContext({ regular: loadFont(regular), bold: loadFont(bold) });
   }
+
+  /**
+   * The same `fonts.json` the baker reads, so one manifest describes
+   * the fonts to both halves of the toolchain.
+   *
+   * Before this there were two font configurations for one set of
+   * fonts: a directory of two fixed filenames here, and a manifest
+   * over there, with nothing checking they agreed. A tutorial had to
+   * explain both, and a project could compile against one face and
+   * bake with another without a word.
+   *
+   * Only the `metrics` paths are read -- `ttf` is the baker's business,
+   * since only the baker rasterizes. Paths resolve relative to the
+   * manifest, so it can be moved with the files it names; an absolute
+   * path stands, which is why this is `resolve` and not `join` -- the
+   * first version joined, and an absolute metrics path came out
+   * appended to the manifest's directory.
+   */
+  static fromManifest(path) {
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(path, 'utf8'));
+    } catch (e) {
+      throw new Error(`${path}: cannot be read as a fonts.json manifest `
+        + `(${e.message}). It maps "regular" and "bold" to `
+        + `{ ttf: [...], metrics: "..." }; ps2ui-bake reads the same file.`);
+    }
+    const base = dirname(path);
+    const face = (name) => {
+      const entry = manifest[name];
+      if (!entry || !entry.metrics) {
+        throw new Error(`${path}: no "${name}" face with a "metrics" path. `
+          + `Generate one with: ps2ui-fontgen <font.ttf> default `
+          + `${name === 'bold' ? '700' : '400'} <out.metrics.json>`);
+      }
+      return loadFont(resolve(base, entry.metrics));
+    };
+    return new FontContext({ regular: face('regular'), bold: face('bold') });
+  }
+}
+
+/** What to tell someone whose font metrics are not where we looked. */
+function missingFonts(dir, missing) {
+  return `no font metrics at ${missing}.\n`
+    + `  ps2ui-layout needs default.metrics.json and `
+    + `default-bold.metrics.json in ${dir}.\n`
+    + `  Generate them from any TTF:\n`
+    + `    ps2ui-fontgen <font.ttf> default 400 default.metrics.json\n`
+    + `    ps2ui-fontgen <font-bold.ttf> default 700 default-bold.metrics.json\n`
+    + `  then pass --font-dir <that directory>, or --fonts <fonts.json> `
+    + `to share one manifest with ps2ui-bake.`;
 }
 
 /**
@@ -68,7 +139,10 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   // The panel's aspect, which is not the framebuffer's. Default 4:3.
   const displayAspect = options.displayAspect ?? [4, 3];
   const par = pixelAspect(canvasW, canvasH, displayAspect);
-  const fonts = options.fonts ?? FontContext.fromDir(options.fontDir);
+  const fonts = options.fonts
+    ?? (options.fontManifest
+        ? FontContext.fromManifest(options.fontManifest)
+        : FontContext.fromDir(options.fontDir));
   const warnings = [];
 
   const dom = parseHTML(htmlSrc);

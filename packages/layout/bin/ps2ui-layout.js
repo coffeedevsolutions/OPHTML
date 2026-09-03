@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// ps2ui-layout <page.html> <page.css> -o ui.json [--canvas 640x448] [--font-dir DIR] [--strict] [--min-font-size PX]
+// ps2ui-layout <page.html> <page.css> -o ui.json [--canvas 640x448]
+//              [--font-dir DIR | --fonts fonts.json] [--strict] [--min-font-size PX]
 //
 // --strict promotes warnings (including CRT lints) to a non-zero exit.
 
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { compileFiles } from '../src/index.js';
 import { MODES, parseAspect } from '../src/aspect.js';
 
@@ -18,7 +20,7 @@ const VERSION = JSON.parse(
 
 function usage(code) {
   console.error('usage: ps2ui-layout <page.html> <page.css> -o <ui.json> '
-    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--focus-wrap] [--strict] [--min-font-size PX] [--version]');
+    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--version]');
   process.exit(code);
 }
 
@@ -30,6 +32,7 @@ let canvas = null;
 let mode = null;
 let aspectArg = null;
 let fontDir;
+let fontManifest;
 let strict = false;
 let minFontSize = null;
 let focusWrap = false;
@@ -41,6 +44,10 @@ for (let i = 0; i < args.length; i++) {
     case '--mode': mode = args[++i]; break;
     case '--display-aspect': aspectArg = args[++i]; break;
     case '--font-dir': fontDir = args[++i]; break;
+    // The SAME manifest ps2ui-bake reads. One set of fonts had two
+    // configurations and nothing checked they agreed, so a project
+    // could compile against one face and bake with another.
+    case '--fonts': fontManifest = args[++i]; break;
     case '--focus-wrap': focusWrap = true; break;
     case '--strict': strict = true; break;
     // A DELIBERATE FLOOR, WRITTEN DOWN. The default 14px is the couch
@@ -55,7 +62,7 @@ for (let i = 0; i < args.length; i++) {
 }
 if (positional.length !== 2 || !out) usage(2);
 
-const options = { fontDir, focusWrap };
+const options = { fontDir, fontManifest, focusWrap };
 if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;
@@ -81,6 +88,13 @@ if (canvas) { // explicit --canvas beats --mode
 try {
   const ir = compileFiles(positional[0], positional[1], options);
   for (const w of ir.warnings) console.warn(`warning: ${w}`);
+  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
+  // build/ failed with a bare ENOENT naming the OUTPUT path, which
+  // reads as "your input is missing" -- the first thing anyone
+  // following the tutorial hit, on the first command. Every build.sh
+  // in this repository does `mkdir -p` before calling this, so the
+  // scripts papered over it and only a newcomer ever saw it.
+  mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(ir, null, 1));
   // Every op in the IR paints -- rect, text and image are the whole
   // set. Counting only rect and text reported "0 paint commands"
