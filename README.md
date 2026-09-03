@@ -41,6 +41,20 @@ Requirements:
 - A C compiler for the host tests
 - DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 
+A project is one file and a build is one command:
+
+```sh
+ps2ui fontgen /path/DejaVuSans.ttf /path/DejaVuSans-Bold.ttf
+cat > ps2ui.json <<'EOF'
+{ "screens": ["ui/library.html"], "css": "ui/app.css" }
+EOF
+ps2ui build          # compile every screen, bake one blob, write a preview
+ps2ui check          # validate it against what the C runtime assumes
+```
+
+The three tools underneath stay, because a person debugging one stage
+wants to run that stage:
+
 ```sh
 # compile HTML+CSS to the IR
 node packages/layout/bin/ps2ui-layout.js \

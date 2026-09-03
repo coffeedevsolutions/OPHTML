@@ -1,27 +1,23 @@
 #!/bin/sh
-# Build the memcard example end to end: HTML+CSS -> ui.json -> ui.uib
-# (+ preview PNGs), then run the host runtime tests over the fresh blob.
+# Build the memcard example end to end, then run the host runtime tests
+# over the fresh blob and refresh the committed screenshots.
+#
+# THE BUILD ITSELF IS ps2ui.json, not this file. Every example here
+# carried the same script with different flags -- compile each screen,
+# bake them together, write a preview -- and a project file describes
+# that once. What is left below is what is genuinely this example's:
+# the runtime tests, and the screenshots the README embeds.
+#
+# `python3 -m ps2ui_bake.ps2ui` rather than `ps2ui` because nothing is
+# published yet; the tutorial's last section carries the same table.
 set -eu
 
 here=$(dirname "$0")
 repo=$(cd "$here/../.." && pwd)
+
+PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
+
 out="$here/build"
-mkdir -p "$out"
-
-node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/library.html" "$here/ui/library.css" \
-    -o "$out/library.json"
-
-node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/saves.html" "$here/ui/library.css" \
-    -o "$out/saves.json"
-
-PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
-    "$out/library.json" "$out/saves.json" \
-    -o "$out/ui.uib" \
-    --preview "$out/preview.png" \
-    --montage "$out/states.png"
-
 make -C "$repo/runtime" UIB="$(cd "$out" && pwd)/ui.uib" test
 
 # The README embeds these, so they are committed -- which only stays
