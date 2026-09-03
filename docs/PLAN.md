@@ -907,12 +907,19 @@ Then, in an order P3a decides:
 
    | screen | commands | slot glyphs | drawn | `p` |
    |---|---:|---:|---:|---:|
-   | confirm | 110 | 156 | 64 | 220 |
-   | detail | 196 | 197 | 99 | 296 |
-   | landing | 331 | 244 | 206 | 450 |
-   | recent | 360 | 354 | 189 | 543 |
-   | filters | 467 | 199 | 253 | 452 |
-   | library | 694 | 387 | 366 | 753 |
+   | confirm | 110 | 153 | 64 | 217 |
+   | detail | 196 | 194 | 99 | 293 |
+   | landing | 331 | 241 | 206 | 447 |
+   | recent | 360 | 351 | 189 | 540 |
+   | filters | 467 | 196 | 253 | 449 |
+   | library | 694 | 384 | 366 | 750 |
+
+   Written at four-digit `n` and `@`. **The `slot glyphs` column was
+   three high on every row until S15**, and `p` with it: the telemetry
+   was a declared 55-glyph constant and it is really 52, rising to 54
+   once the frame counters reach five digits. `check-sweep-table.py`
+   derives it from the format strings now and declares field widths
+   instead. See docs/bench-phase2.md.
 
    `recent` and `filters` are what make the split possible: 30% more
    commands, 45% fewer glyphs.

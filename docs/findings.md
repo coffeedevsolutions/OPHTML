@@ -11,8 +11,8 @@ prose rots like any other document.
 
 | status | count |
 |---|---:|
-| provisional | 3 |
-| confirmed | 24 |
+| provisional | 1 |
+| confirmed | 28 |
 | overturned | 3 |
 
 ## Phase 0 — Verify the metal (locked)
@@ -217,7 +217,7 @@ The USB stack is discovered rather than pinned: BDM in modern SDKs, usbhdfsd in 
 
 **Falsifier:** A realistic environment whose arena exceeds the old fixed ceiling
 
-**Rests on this:** F-032, F-034, F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045
+**Rests on this:** F-032, F-034, F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045, F-047, F-048
 
 THE NUMBER IN THIS CLAIM WAS WRONG FOR TWO PULL REQUESTS AND A PHASE LOCK. It said 6,951 and 125 slots; the blob says 7,003 and 126. #63 added the telem slot to library.html, the library screen went 43 to 44, and every count-derived figure moved with it.
 The finding itself never wavered -- the falsifier is an arena past the old 35,648-byte ceiling and 7,003 is not remotely close, so this was a right conclusion carrying a wrong number, which is the harder kind to notice. Nothing did notice, because `instrument` here names a hand-written README and nothing read the blob header back into it. A figure nobody re-derives is true on the day it is written and unfalsifiable afterwards.
@@ -254,7 +254,7 @@ TWO NUMBERS ABOVE MEAN LESS THAN THEY LOOK, and PR #64's review was right to say
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …)
 
-**Rests on this:** F-034, F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045
+**Rests on this:** F-034, F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045, F-047, F-048
 
 Phase 3's likely answer is to rotate which reservation a row draws from rather than re-upload. The number exists so that is decided by a measurement rather than guessed, and it now is one.
 
@@ -271,7 +271,7 @@ The 0.05 ms gap was first written down here as "0.28% error". It was not error. 
 
 **Depends on:** [F-031](#f-031) (An OPL-class environment costs single-digit KiB …), [F-032](#f-032) (Per-row reservations make a one-row scroll re-up…)
 
-**Rests on this:** F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045
+**Rests on this:** F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045, F-047, F-048
 
 WHAT THIS MEASUREMENT DID NOT MEASURE: headroom. The HW #260 build read the clock after gsKit_sync_flip, which blocks until vsync, so 16.73 ms was dominated by the wait rather than by the work. It establishes that the frame fits inside a field, which is what the Phase 2 gate asks; it said nothing about how much of the field was left. A number that stable, that plausible and that mislabelled is the same shape of defect as the rest of this project, arrived at with a stopwatch instead of a renderer.
 THE INSTRUMENT HAS SINCE CHANGED. The driver now reports `f`, the wall-clock frame period, which is the quantity this finding claims; `ee`, the EE's own work, stopping at the DMA kick before the flip; and `m`, a count of dropped fields cumulative since boot, because a falsifier reading "any dropped field" cannot be served by a rolling mean. So this finding stays falsifiable against the shipping build. The ordering is asserted by tools/check-timing-probe.py, which fails on all eight ways of reinstating the old shape -- including one it did not catch until #64's review found it, where the correct capture is kept and a second one added after the flip.
@@ -289,7 +289,7 @@ A self-consistency check fell out of the prim count: the first photograph reads 
 
 **Falsifier:** A known wall-clock interval that the driver reports at half or double its true length. Read `f` for this, not `ee`: since the headroom change `ee` is the EE's work and is not vsync-locked, so it is not a clock against a known interval.
 
-**Rests on this:** F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045
+**Rests on this:** F-036, F-037, F-038, F-039, F-040, F-042, F-044, F-045, F-047, F-048
 
 Retires the bench marker that had sat on EE_HZ since the telemetry build shipped, which said to treat ee_us as relative rather than absolute. It is absolute. Settled as a side effect of measuring something else, because the field period is a known quantity and the loop was locked to it.
 THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch the claim but is worth recording. 8.34 was the true half-period, not what that build would have printed; #64's review said 8.37, which is the half-period through the truncated divisor before the integer print truncates again. The value is 8.36. The finding survives because a factor of two does not care, but a counterfactual nobody evaluated is not evidence, and this one sat in a confirmed finding through a phase.
@@ -306,7 +306,7 @@ THE COUNTERFACTUAL IN THIS FINDING WAS WRONG TWICE, in a way that does not touch
 
 **Depends on:** [F-034](#f-034) (The OPL-class environment runs at full field rat…), [F-035](#f-035) (COP0 Count ticks once per CPU cycle at 294.912 M…)
 
-**Rests on this:** F-037, F-038, F-039, F-040, F-042, F-044, F-045
+**Rests on this:** F-037, F-038, F-039, F-040, F-042, F-044, F-045, F-047, F-048
 
 WHAT THIS DOES NOT MEASURE: the GS's SHARE of the field. Not GS time outright -- see F-034's note, which corrects the claim that gsKit_queue_exec returns while the GS draws. It does not: it blocks on the previous frame's FINISH first, so a GS over budget would surface inside `ee` and trip `m`. Between them, `ee << f` and `m0` bound GS time below a field. What they cannot do is divide that field: 10% GS and 90% GS look identical from here. Reading the clock after gsKit_finish() rather than after vsync is P3a.
 THIS IS A DUTY-CYCLE MEAN, and the frame that has to fit is not the one printed. Two frames in sixty do the scroll work -- 36 slot_set plus 9 tex_set in oplenv_bind_window -- and a 60-frame mean smears them. Solving mean(11-19) - mean(1-9) = d + u/30 with d from the prim delta puts the scroll frame at roughly 2.4 to 3.9 ms rather than 2.21. The headline survives with room to spare, because m0 already proves none of those frames missed a field, but "an eighth of a field" is the average eighth. A peak-hold beside the mean would make this readable directly, which is the same upgrade `m` was for F-034; it ships with P3a rather than costing a sitting of its own.
@@ -329,7 +329,7 @@ The 2.12 reading is CONFOUNDED and must not be used for a marginal cost: it is t
 
 **Depends on:** [F-036](#f-036) (The OPL-class environment uses about an eighth o…)
 
-**Rests on this:** F-038, F-039, F-040, F-042, F-044, F-045
+**Rests on this:** F-038, F-039, F-040, F-042, F-044, F-045, F-047, F-048
 
 THE ARM IS WHY THIS IS A MEASUREMENT, and it checks against the PART rather than against itself. gs read 0.92 on the plain build and 3.21 on oplenv-fill.elf, so the CSR FINISH bit is not latched. It moved 2.29 ms for 2,293,760 blended pixels: 1.002 Gpix/s. The GS is 16 pixel pipelines at 147.456 MHz -- 2.359 Gpix/s unblended, halved to 1.180 when a blend forces a framebuffer read-modify-write -- so the arm landed at 84.9% of the part's blended peak, and 85.7%/84.2% across the reading's 2.27-2.31 ms spread. 85% of theoretical on real silicon with page breaks is where it belongs. A latched instrument reads 0.00 forever; a broken one does not land within 15% of a spec sheet.
 AND IT MOVED NOTHING ELSE. ee was 2.41 on both builds at p599 and 2.37 on both at p590 -- +0.00 twice. One prim per sprite, so the EE has nothing extra to build. A `gs` that rose while `ee` rose with it would have been measuring the wrong thing.
@@ -345,7 +345,7 @@ THE FILL BUILD REPORTED m1 AND THE CAUSE WAS UNKNOWN -- and this paragraph's ari
 
 *#67*
 
-### F-038 — Neither processor is the constraint on an OPL-class screen *(provisional)*
+### F-038 — Neither processor is the constraint on an OPL-class screen
 
 **Measured:** EE 14.4% and GS 5.6% of a field, measured independently and on the same build (F-036, F-037). Phase 3's headline item was precompiled DMA chains, which remove EE work; its second was page-aware packing, argued on fill. Neither resource is close to its limit, so neither item can improve a vsync-locked frame rate.
 
@@ -359,6 +359,8 @@ PROVISIONAL, and the phase stays open, because this is a claim about a CONTENT S
 HALF THE FALSIFIER IS NOW DISCHARGED, AND THIS NOTE NAMED THE WRONG PROCESSOR [F-042]. It expected a compositing transition to be the shape most likely to move gs, "since fill scales with area and this screen is mostly flat panels". F-039's calibrated model prices that at 0.57 ms. Reaching half a field on the GS takes 25.9 full-screen blended layers; every shape named above costs under 11% of a field at the fitted slope, and under 16% even if textured fill runs at half that rate -- which it may, since the slope was fitted on untextured sprites and three of those shapes are textured. No OPL-class content gets the GS near its limit either way, and that was settled by arithmetic rather than by another sitting.
 SO THE SURVIVING HALF IS THE EE, AND THE EE HAS NO MODEL. gs has five points, a fitted line and r^2 = 0.999998. ee has one number and nothing to extrapolate with, which is why this finding cannot be closed the way its GS half was. The missing instrument is the EE analogue of the fill arm. NOT the 1x1 scissor the first draft proposed: ps2ui_render resets the scissor to the full canvas four lines in (ps2ui.c:1044), so a caller-set clip does not survive being entered. The alpha test does -- ps2ui_render deliberately leaves TEST inherited (ps2ui.c:999-1010) -- so ATE with ATST=NEVER before N extra passes gives the EE all of its work while the GS discards every fragment, with no runtime change. Until that sweep exists, "neither processor is the constraint" is measured on one side and asserted on the other.
 What it does settle is that no Phase 3 item may be justified by frame rate without first showing content that threatens one of these two numbers. That is a higher bar than the phase opened with and it is the point of having measured.
+S15 DISCHARGED THE SURVIVING HALF. oplenv-compose renders library then confirm in one frame -- 804 commands, above every sweep point, and the exact shape this note named as outside what had been measured. It costs 3.62 ms EE and 1.50 ms GS, 22% of a field on the EE. The falsifier named half a field; nothing in the Phase 2 envelope comes close, on either processor.
+AND THE ARM MEASURED base AS A BYPRODUCT. Additivity predicts that summing two frames double-counts the driver's per-frame work, so base = ee(lib) + ee(conf) - ee(compose) - k_glyph x dg. Two photographs at different counter widths, different ee readings and different glyph corrections: 0.0880 and 0.0879 ms, against S14's 0.08 from a completely different design. ps2ui_render reuses nothing between calls, and F-044's per-render model is not charging twice for anything.
 
 *#67*
 
@@ -380,7 +382,7 @@ Worst error one print unit, 0.01 ms, on every point. Least squares through all f
 
 **Depends on:** [F-037](#f-037) (The GS spends about a twentieth of a field on an…)
 
-**Rests on this:** F-040, F-042, F-044, F-045
+**Rests on this:** F-040, F-042, F-044, F-045, F-047, F-048
 
 ONE STEP PROVES NOT-LATCHED; A LINE PROVES MEASURING. That was the argument for building the sweep and it is exactly what came back. A mis-anchored clock can produce a non-zero constant. It cannot produce five points on a straight line whose slope is the part's fill rate and whose intercept is the quantity being measured.
 THE INTERCEPT IS THE MEASUREMENT. 0.9205 ms is the UI's own GS cost extrapolated to zero fill, derived from five points rather than read off one, and it agrees with the directly measured 0.92 to within half a print unit. F-037's headline number is now the y-intercept of a regression rather than a single reading.
@@ -526,6 +528,8 @@ So ONE ps2ui_render is 2.44 ms EE + 0.78 ms GS = 3.22 ms, about 19% of a 16.683 
 
 **Depends on:** [F-039](#f-039) (The GS instrument is linear in fill at 1.002 Gpi…)
 
+**Rests on this:** F-047, F-048
+
 THE PREDICTION WAS RIGHT IN SHAPE AND WRONG IN COEFFICIENT, and the wrongness is the finding. gs was predicted as (N+1) x 0.92 on the grounds that the extra passes are identical draws, so all of gs(0)=0.92 must be render. Measured slope is 0.777, and the miss grows monotonically to -0.57 ms at N=4 -- 57 print units, not noise:
 
     N=0  pred 0.92  meas 0.92   +0.00
@@ -548,7 +552,8 @@ And the shortfall lands on the unblended rate at the same efficiency the fill sw
 
 The intercept also carries any per-frame queue overhead, so 0.145 is an UPPER bound on the clear -- which widens the shortfall rather than closing it.
 "NO MECHANISM PROPOSED" AND "THE ONLY CANDIDATE PRESENT IS EXCLUDED BY OUR OWN NUMBERS" ARE DIFFERENT STATEMENTS, and the first version of this note made the weaker one. Declining to name a cause after F-040 is right; declining to name what the arithmetic already rules out is just less information. Two readings survive: the clear is not actually blending despite ABE being set -- the same class of unasserted-GS-state fault the v2 probe chased, and the ratio being 1.98 rather than arbitrary is what makes it worth asking -- or gs = base + (N+1) x R is wrong in a way that parks 0.14 in the intercept.
-THE DISCRIMINATOR IS ONE ELF AND IT COSTS NOTHING. oplenv-clearopaque turns ABE off for that one draw. It cannot change a pixel: ALPHA is (Cs - Cd) x As >> 7 + Cd and the clear's vertex alpha is 0x80 = 128, so the blend is already the identity Cv = Cs. gs drops ~0.14 and the first reading is right; gs does not move and the second is, which is the more interesting outcome.
+THE DISCRIMINATOR IS ONE ELF AND IT COSTS NOTHING. oplenv-clearopaque turns ABE off for that one draw. It cannot change a pixel: ALPHA is (Cs - Cd) x As >> 7 + Cd and the clear's vertex alpha is 0x80 = 128, so the blend is already the identity Cv = Cs. gs drops ~0.14 and the SECOND reading is right -- the clear was paying the blended rate and this note's model misallocates. gs does not move and the FIRST is: it already cost the opaque rate with ABE on, and turning ABE off cannot make it cheaper than that.
+THAT MAPPING WAS INVERTED HERE AND IN bench-phase2.md UNTIL S15, while main.c:2114 had it right the whole time -- so the sitting's own photograph would have been scored backwards against these documents. A discriminator whose outcomes are mapped to the wrong readings is worse than no discriminator, because it still returns an answer. Measured at S15: gs does not move. See F-048.
 ee SETTLED THE BRANCH THE SWEEP EXISTED TO SPLIT. Predictions written before the sitting put N=4 at 12.05 if the driver's own work is negligible and 8.05 if it is about 1 ms. Measured 12.32. The scroll logic, sprintf and telemetry together are 80 us.
 AND m READ THE SAME QUESTION INDEPENDENTLY, which is why it was worth five ELFs rather than two. The upper branch predicted N=4 at the edge of a field and missing on scroll frames. Measured: m0 through N=3, then m29@270 at N=4, where mean ee+gs is 16.35 (inside a field) and peak ee^+gs^ is 18.08 (outside).
 270 = 9 x 30 against a SCROLL_EVERY of 30, so THE FIRST MISS IS A SCROLL FRAME -- 1-in-30 by luck, which is evidence. It does NOT reach "the mechanism is confirmed", and an earlier version of this note said that. The count is the second read and nothing divides it: 29 misses fits "every scroll frame from 270 on, photographed around frame 1110" and fits "a scattering of near-margin frames whose first happened to be a scroll frame" equally well. At a mean of 16.35 against a 16.683 field there is 0.33 ms of headroom, so ordinary jitter puts non-scroll frames over too.
@@ -581,10 +586,12 @@ ITS ONE AVAILABLE EXPLANATION IS NOW DEAD. S13 recorded this as unexplained and 
 NOT MONOTONIC AND NOT A TREND. N=0 and N=4 bracket it at 0.23 and 0.21, so this is not fill scaling: it is specifically the N=2 build.
 NO MECHANISM IS PROPOSED HERE, deliberately. F-040 spent three passes naming mechanisms for a thing that was not happening, and the pattern was always the same -- a plausible cause written up before the instrument could distinguish it from its rivals.
 THE INSTRUMENT FIX IS THE SAME ONE THAT KILLED F-040. `m` became arguable only when it gained a frame index; @0 on every miss is what made "the clock's own first frame" reachable as a hypothesis. gs^ has no @. Adding one says which frame holds the peak at N=2, and whether the peak-hold is catching the scroll frame at all -- one sitting, and it either explains this or rules out the last explanation standing.
+S15 GAVE THE RE-RUN SOMETHING SPECIFIC TO CHECK. The static screen arm does not scroll and does not upload, and it reads gs^ - gs = 0.09 where the scrolling builds read 0.24 -- so the spread decomposes into about 0.09 of baseline jitter plus about 0.15 for the nine-row texture upload. The N=2 anomaly at 0.075 sits on the NO-UPLOAD figure, not the no-scroll one.
+That is still not a mechanism. It reframes the question from "why is the spread small at N=2" to "what hid the upload spike in that window", which the @ now on gs^ answers directly: at N=0 the peak frame is 1320, 1140 and 3423 across three builds, and every one is a multiple of SCROLL_EVERY. If N=2's is not, the peak-hold is catching something else there.
 
 *#69*
 
-### F-046 — opl-env's 11-13px slot text is legible on an SCPH-50000 and a Hisense panel, so the 14px floor is wrong for secondary text *(provisional)*
+### F-046 — opl-env's secondary text layer clears 15 arcmin of cap height and 2 arcmin of stroke at a seated distance, so the 14px floor is wrong for it
 
 **Measured:** Read off the screen at S14 rather than argued. Every oplenv ELF photographed that sitting renders the full secondary text layer -- row titles at 13px, subtitles, timestamps and counts at 11px, detail fields and dialog body at 12px -- and all of it read clean. The bench operator's verdict on the whole set: perfectly visible.
 What that layer is, and why nothing had ever checked it:
@@ -600,12 +607,68 @@ EVERY string below the floor is a slot and EVERY static string is at or above it
 
 **Instrument:** `docs/bench-phase2.md`
 
-**Falsifier:** A photograph from a seated viewing distance -- 2 to 3 metres, which is what "from a couch" means -- in which the 11px subtitles or the 13px row titles cannot be read. The bench reading was taken at working distance, which is closer.
+**Falsifier:** A reading from a seated viewing distance -- 2 to 3 metres, which is what "from a couch" means -- in which the 11px subtitles or the 13px row titles cannot be read. Discharged at S15 at 2.74 m; it stays live for any panel and distance putting this layer below about 3x the 20/20 threshold, which the note bounds.
 
 THE MEASUREMENT IS NOT THE WHOLE CLAIM, WHICH IS WHY THIS IS PROVISIONAL. The lint's premise is legibility "from a couch", and the S14 photographs were taken at a bench with the panel within arm's reach. Closer than the rule is about. What is settled is that the text is not marginal at working distance -- which was the live worry, since a 2x error would have shown there. What is not settled is the seated case, and one photograph from the sofa closes it.
 THE FLOOR WAS NEVER MET, IT WAS MISSED, and the difference matters for what to conclude. 11 is now a deliberate value in build.sh and measure.sh with a hardware reading behind it, where before P3b-5 it was 14 everywhere and simply unreachable for two thirds of the text. A rule that cannot see the text it governs is not a stricter rule; it is a quieter one.
 AND IT HAD WRITTEN ITSELF INTO THE DOCS. opl.css's comment on .dlg-btn said --strict enforces the floor "on FOCUSABLE text", and the README repeated it. lint.js has always checked every text command. It read as focusable-only because every non-focusable small string in that file is a slot. Corrected in both places at P3b-5, and recorded here because a blind spot that reaches the documentation is the kind that survives a rewrite.
 WHAT THIS DOES NOT LICENSE: 11px as a general floor. It is the smallest size THIS density study uses -- twelve rows of four fields, which is what an OPL-class environment demands -- and the rule stays live below it. A UI that wants 8px still fails.
+S15 CLOSED IT, AND THE READING SCORED ITSELF. oplenv-scr-library at 9 ft (2.74 m), Hisense 58R6+, glasses on and off. The operator read `c694 g382 u9` off the 11px telemetry line; g382 derives exactly from the blob -- static 321 plus a 9-glyph [library] tag plus 52 -- and had appeared in no document and no earlier photograph. n3505 puts the last completed peak window at [3420, 3480) and @3423 falls inside it, so a misread counter digit would have shown. This is a three-digit unguessable value checked against an independent derivation, not an operator's impression.
+AND THE CLAIM IS RESTATED IN THE UNIT THAT TRANSFERS. Pixels mean nothing without a panel size and a viewing distance. 722 mm of panel height over 448 authored lines is 1.612 mm per line, so at 2.74 m:
+
+  11px  em 22.2'  cap 15.6'    .sub, .telem-l
+  13px  em 26.3'  cap 18.4'    row titles
+  14px  em 28.3'  cap 19.8'    chips, scores
+  22px  em 44.4'  cap 31.1'    screen titles
+
+A 20/20 Snellen letter subtends 5' overall with 1' per stroke feature. The 11px cap height is 3.1x that and a 1px stem subtends 2.0', twice the resolution limit -- the strokes resolve, not just the letter mass. Threshold acuity here is about 20/62, which is why correction made no difference.
+WHAT BOUNDS IT. The same arithmetic run backwards: at 9 ft this layer clears the 20/20 threshold on anything above an 18.6" panel and reaches about 3x threshold -- comfortable sustained reading -- at 55.9". The 58" measured sits just above that line. A stranger 9 ft from a 43" set is at about 1.9x threshold: probably readable, not the effortless case measured here. Guidance, not a second falsifier; 3x is a rule of thumb rather than a standard.
 
 *#81*
+
+### F-047 — The readout's glyph count moves with the frame counters' width, so the sweep table's telemetry term is 52 or 54 and never a constant
+
+**Measured:** The sweep table declared "the driver's two telemetry lines reconstruct to 55 glyphs", hand-counted at #83 from the real format strings and read back by the tool. S15 measured 52, then 54, IN THE SAME CONTINUOUS RUN -- six cycle photographs from n1320 to n13082, one boot, g stepping up by two as `@` and `n` crossed 10000 with nothing about the UI changing.
+
+  line 1   11 literals + 12 fixed digits + @   = 23 + digits(@)
+  line 2    8 literals +  9 fixed digits + n   = 21 + digits(n)
+                                                 44 + both
+
+52 at four-digit counters, 54 at five, 50 at three. The compose arm reproduced it independently at a different boundary, reading g529 at n542 and g533 at n1289 on one build.
+
+**Instrument:** `tools/check-sweep-table.py`
+
+**Falsifier:** Two readings of the same screen on the same build at different frame-counter widths whose `g` is identical.
+
+**Depends on:** [F-044](#f-044) (One ps2ui_render costs 2.44 ms of EE and 0.78 ms…)
+
+EVERY ROW OF BOTH SWEEP TABLES WAS THREE HIGH, and so was the compose arm's predicted glyph identity: 539 where the console read 533. The prediction could not have been met, and the arm's own integrity check -- "if g does not add, stop and say so rather than fitting it" -- would have fired on a correct run.
+THE FIX IS NOT A BETTER CONSTANT. A character count nobody is going to redo is the wrong thing to declare. check-sweep-table.py parses the two sprintf formats now and declares twelve FIELD WIDTHS instead -- each one a glance at a photograph, two of them fenced against the blob -- and derives `@` and `n` from each reading's own frame count, since `@` is a frame index from the window just past and stays within two windows of `n`.
+AND THE SITTING'S OWN PHOTOGRAPHS ARE RE-DERIVED NOW, not just the prediction. A table checked before a sitting and transcribed after it is fenced on the half that was already right. Thirteen S15 readings across five arms, three tag lengths, two line-2 formats and three counter widths all derive from the blob and the driver.
+
+### F-048 — gsKit's full-screen clear does not pay the blended fill rate despite ABE being set
+
+**Measured:** Bench S15. oplenv against oplenv-clearopaque in one sitting, the second turning ABE off for that one draw and nothing else.
+
+  oplenv    ee2.77^4.04 gs1.02^1.26@1320 f16.68 p749 up28224 m0@0 n1421
+  clearopq  ee2.81^4.08 gs1.03^1.27@1140 f16.68 p759 up28224 m0@0 n1242
+
+The +10 in p is the [clearopq] tag, which the control arm does not carry -- 10 glyphs, worth 0.050 ms EE and 0.009 ms GS at the fitted slopes, against raw deltas of 0.04 and 0.01. After removing it the ABE change moves gs by +0.001 ms, against the -0.14 that "the clear was paying the blended rate" requires. Fourteen times outside.
+Three independent lines agree, and none is the blended rate:
+
+  S14 residual                        0.145
+  S15 compose arm, by subtraction     0.115
+  opaque theoretical 640x448          0.1215
+  blended theoretical                 0.243
+
+**Instrument:** `docs/bench-phase2.md`
+
+**Falsifier:** A clearopaque build whose gs falls about 0.14 below the plain build's once the tag difference is removed.
+
+**Depends on:** [F-039](#f-039) (The GS instrument is linear in fill at 1.002 Gpi…), [F-044](#f-044) (One ps2ui_render costs 2.44 ms of EE and 0.78 ms…)
+
+THE 0.14 WAS NEVER UNEXPLAINED. It was unexplained only under the assumption that an ABE-on draw pays the blended rate, and this falsifies that assumption directly rather than by residual.
+A THIRD CANDIDATE DIES HERE, and it is the one this project's own history made most likely. The v2 alpha probe found that on this console an ABE-on sprite at alpha 0x7f-0x80 painted NOTHING. If the clear were a no-op for that reason it would cost near zero, and turning ABE off would make it a real full-screen opaque fill -- gs would have RISEN by about 0.145. It did not move.
+THE CONFOUND BIASED AWAY FROM THE FALSIFIER, WHICH IS LUCK. #42 named every arm on the readout after this arm was specified, so the discriminator acquired a 10-glyph tag its control does not have. It pushes gs up, not down, so it cannot have manufactured the null -- but it had to be subtracted rather than ignored, and nothing in the arm's design said so.
+NO MECHANISM IS ASSERTED. Why an ABE-on draw does not pay the blend rate is now a narrow question about GS state this codebase has never written -- ALPHA, PABE and TEST, inherited from whatever gsKit_init_screen left behind -- which is F-001 and F-004's thread rather than a new one.
 

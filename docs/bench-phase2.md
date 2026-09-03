@@ -666,7 +666,17 @@ a way that parks 0.14 ms in the intercept.
 ABE off for that one draw, which cannot change a pixel — `ALPHA` is
 `(Cs − Cd)·As>>7 + Cd` and the clear's vertex alpha is `0x80` = 128, so
 the blend is already the identity `Cv = Cs`. `gs` drops ~0.14 and the
-first reading is right; `gs` does not move and the second is.
+**second** reading is right — the clear was paying the blended rate
+and the model misallocates. `gs` does not move and the **first** is:
+it already cost the opaque rate with ABE on, and turning ABE off
+cannot make it cheaper than that.
+
+**That sentence was inverted here and in `findings.md` until S15**, and
+`main.c:2114` had it right the whole time. Read against the documents
+as they stood, S15's clearopaque photograph reports "the model is
+wrong somewhere"; read against the driver, it reports what it actually
+found. A discriminator whose outcomes are mapped to the wrong readings
+is worse than no discriminator, because it still returns an answer.
 
 ### `m` read the same question independently
 
@@ -798,22 +808,45 @@ are on line 2 for exactly that reason. `p` is **not** the x-axis:
 Every column is derived by `tools/check-sweep-table.py` — `commands`
 from the screen's `cmd_count`, `drawn` by resolving focus state at the
 screen's initial focus, the static half of `slot glyphs` from the
-placeholders, and the tag from `main.c` — against one number it cannot
-derive, because it depends on how wide the runtime values print: the
-**driver's two telemetry lines reconstruct to 55 glyphs**. That is the
-figure #83 reconstructed from the real format strings, and it is stated
-here rather than buried in a tool. With it, the pre-tag table
-reproduces exactly on all six screens, which is what makes the rest of
-the derivation worth trusting.
+placeholders, the tag from the driver's `#if` chain, and the telemetry
+by walking the two `sprintf` formats literal by literal. The only
+hand-supplied numbers left are **what each runtime value prints at**:
+
+```
+telemetry field widths, in digits
+ee 1  ee_peak 1  gs 1  gs_peak 1  gs_peak_at 4
+field 2  cmds 3  glyphs 3  unfilled 1  missed 1  missed_at 1  frame 4
+prims 3  uploaded 5  theme 1
+```
+
+`cmds` and `glyphs` are fenced against the blob, since those two move
+when the blob does. The rest are one glance at a photograph. And `@`
+and `n` are not declared per reading at all: `@` is a frame index from
+the window just past, so it is within two windows of `n` and its width
+follows.
+
+**This paragraph used to declare one scalar and the scalar was wrong.**
+It said "the driver's two telemetry lines reconstruct to 55 glyphs",
+reconstructed by hand at #83 from the real format strings. They
+reconstruct to **52** at four-digit counters, and to **54** once `@`
+and `n` reach five — which is not a subtlety anyone had to reason
+about, because S15 watched it happen inside a single continuous run as
+`n` crossed 10000. Every row of the table below was three high, and so
+was the compose arm's predicted glyph identity. A character count
+nobody was ever going to redo is the wrong thing to declare; twelve
+field widths, two of them fenced, is a better one.
+
+Written at four-digit `n` and `@`, which is where the sitting's first
+lap falls:
 
 | screen | commands | slot glyphs | drawn | `p` |
 |---|---:|---:|---:|---:|
-| confirm | 110 | 156 | 64 | 220 |
-| detail | 196 | 197 | 99 | 296 |
-| landing | 331 | 244 | 206 | 450 |
-| recent | 360 | 354 | 189 | 543 |
-| filters | 467 | 199 | 253 | 452 |
-| library | 694 | 387 | 366 | 753 |
+| confirm | 110 | 153 | 64 | 217 |
+| detail | 196 | 194 | 99 | 293 |
+| landing | 331 | 241 | 206 | 447 |
+| recent | 360 | 351 | 189 | 540 |
+| filters | 467 | 196 | 253 | 449 |
+| library | 694 | 384 | 366 | 750 |
 
 **Six points are enough** — not a hope, arithmetic. r = 0.751 gives a
 variance inflation of 2.29, the commands spread over √Σ(c−c̄)² = 462,
@@ -847,7 +880,7 @@ twice.
 
 **Check the glyph identity first, before trusting the time.** The
 composed frame must read `g` equal to `g(library) + g(confirm) - 4`
-from the two sweep photographs — **539**, against 387 + 156. The `-4`
+from the two sweep photographs — **533**, against 384 + 153. The `-4`
 is the tags and nothing else: this arm carries `[compose] ` (9 glyphs)
 on both of its readout pairs, 18, where the two sweep points carry
 `[c:library] ` and `[c:confirm] ` at 11 each, 22. It is derived by
@@ -866,3 +899,423 @@ Line 2 on this arm prints the frame's totals, not `ui.stats` —
 confirm's 110 as if it were the frame's 804. A plausible wrong number
 on a photograph is the failure mode this file exists to prevent, so
 `check-timing-probe.py` asserts the readout reads the accumulators.
+
+# Bench S15 — the content sweep, F-038, F-040's discriminator, P3b on silicon, and F-046 from the sofa
+
+SCPH-50000, HW #309, into a Hisense 58R6+. Twenty-two photographs
+across five arms. Every prediction in the section above was written
+before this sitting; where one was wrong, it says so below rather than
+being quietly restated.
+
+## Every reading, re-derived
+
+`tools/check-sweep-table.py` derives each row of both tables from the
+blob, the driver's `#if` chain, its two `sprintf` formats and the
+row's own frame count. Nothing here is transcribed and left.
+
+| arm | screen | `n` | `c` | `g` |
+|---|---|---:|---:|---:|
+| cycle | detail | 1320 | 196 | 194 |
+| cycle | filters | 9393 | 467 | 196 |
+| cycle | library | 10399 | 694 | 386 |
+| cycle | confirm | 11283 | 110 | 155 |
+| cycle | detail | 12121 | 196 | 196 |
+| cycle | landing | 13082 | 331 | 243 |
+| compose | compose | 542 | 804 | 529 |
+| compose | compose | 1289 | 804 | 533 |
+| screen | library | 3505 | 694 | 382 |
+
+| arm | `n` | top row | `p` |
+|---|---:|---:|---:|
+| plain | 1421 | 40 | 749 |
+| clearopq | 1242 | 34 | 759 |
+| theme | 823 | 20 | 756 |
+| theme | 1163 | 31 | 758 |
+
+Read the two `detail` rows against each other, and the two `compose`
+rows. Same screen, same commands, `g` two apart both times, and
+nothing about the UI changed between them. That is the whole of the
+next section.
+
+## The telemetry lines are not a constant [F-047]
+
+The sweep table declared **55 glyphs** for the driver's two telemetry
+lines. They measured **52**, and then **54** in the same continuous
+run — the six `cycle` rows above are one uninterrupted boot from
+n1320 to n13082, and `g` steps up by two as `n` and `@` cross 10000.
+
+```
+line 1   11 literals + 12 fixed digits + @        = 23 + digits(@)
+line 2    8 literals +  9 fixed digits + n        = 21 + digits(n)
+                                                    44 + both
+```
+
+52 at four-digit counters, 54 at five, 50 at three — which the compose
+arm then reproduced at a different boundary, reading `g529` at `n542`
+and `g533` at `n1289` on the same build with nothing else changed.
+
+**Three documents carried the wrong number and one tool read it back.**
+Every row of both sweep tables was three high, and so was the compose
+arm's predicted glyph identity: 539 where the console read 533. The
+prediction was never going to be met, and the arm's own integrity
+check — *"if `g` does not add, stop and say so rather than fitting
+it"* — would have fired on a correct run.
+
+The fix is not a better constant. `check-sweep-table.py` parses the
+format strings now and declares field widths instead, `@` and `n` are
+derived from each reading's own frame count, and every photograph
+above is re-derived rather than believed.
+
+## The content sweep [F-044]
+
+Six screens, 110 to 694 commands, glyph counts on the measured
+52-basis.
+
+```
+base    = -0.023 ms       se 0.043
+k_cmd   =  1.276 us/cmd   se 0.109    se/|k| = 0.085
+k_glyph =  5.010 us/glyph se 0.240    se/|k| = 0.048
+R2 = 0.9986    residual sigma = 33 us
+```
+
+| screen | `c` | `g` | `ee` | fit | resid |
+|---|---:|---:|---:|---:|---:|
+| confirm | 110 | 153 | 0.915 | 0.884 | +31 µs |
+| detail | 196 | 194 | 1.203 | 1.199 | +4 µs |
+| landing | 331 | 241 | 1.573 | 1.607 | −33 µs |
+| recent | 360 | 351 | 2.180 | 2.195 | −15 µs |
+| filters | 467 | 196 | 1.540 | 1.555 | −15 µs |
+| library | 694 | 384 | 2.813 | 2.786 | +27 µs |
+
+`f16.68` and `m0@0` on all fifteen photographs. No missed field on any
+screen.
+
+### The falsifier's outcome depends on the intercept, and the sitting cannot hide that
+
+The criterion was **"falsified by a fitted `k_cmd` whose standard error
+exceeds a tenth of it."** Fitted freely it is 0.085 and the arm
+survives. But the compose arm below measures `base` independently at
+**0.088 ms**, S14 measured the same quantity at 0.08, and the sweep's
+own intercept — a six-point extrapolation back to zero commands from a
+nearest observation 110 away — is the outlier at −0.023.
+
+| intercept | `k_cmd` | se | se/\|k\| | σ | |
+|---|---:|---:|---:|---:|---|
+| free (−0.023) | 1.276 | 0.109 | 0.085 | 33 µs | survives |
+| pinned (0.088) | 1.320 | 0.167 | **0.127** | 52 µs | **falsified** |
+
+By the criterion exactly as written — the ±4.9% arithmetic above is a
+free-intercept fit, since the variance inflation only means anything
+there — it survives. Recording that without this table would be
+recording a result that exists because the fit was allowed to choose an
+intercept the hardware says is wrong.
+
+Leave-one-out sharpens the same point. `k_cmd` itself is stable across
+all six refits (1.16 to 1.38, every one inside the full fit's ±1σ), so
+the estimate is not fragile; the *pass* is. Dropping `detail`, `recent`
+or `filters` fires the falsifier.
+
+Adding `drawn` as a third regressor does not rescue the pinned fit: its
+coefficient comes out negative and swamped by its own error in every
+fit that also contains `cmds` (se/|k| 0.75 pinned, 0.94 free). The
+inflated residual is the cost of forcing an intercept the six points do
+not want, not a missing term.
+
+### What the prediction got right, and what it assumed
+
+The design arithmetic held. Predicted `se(k_cmd) = σ√VIF / √Σ(c−c̄)² =
+0.090 µs`; measured 0.109, and the 21% miss is the 20% by which the
+real residual σ exceeds S14's. Six points were enough, in the sense the
+prediction meant.
+
+What the ±4.9% figure silently assumed is `k_cmd ≈ 5.9 µs/cmd`, which
+is S14 dividing one screen's render by its prims. **The measured value
+is 1.28.** A per-prim number taken from a single screen was a blend,
+and separating the two is what this arm existed to do:
+
+| model | slope | se/\|k\| | R² |
+|---|---|---:|---:|
+| cmds only | 2.98 µs/cmd | 0.251 | 0.799 |
+| glyphs only | 7.13 µs/glyph | 0.131 | 0.935 |
+| both | — | — | 0.999 |
+
+### What `k_cmd` bounds, which is the point
+
+```
+k_glyph / k_cmd = 3.93
+```
+
+| screen | `ee` | cmds | glyphs | cmd share |
+|---|---:|---:|---:|---:|
+| confirm | 0.915 | 0.140 | 0.766 | 15.3% |
+| detail | 1.203 | 0.250 | 0.972 | 20.8% |
+| landing | 1.573 | 0.422 | 1.207 | 26.8% |
+| recent | 2.180 | 0.459 | 1.758 | 21.1% |
+| filters | 1.540 | 0.596 | 0.982 | 38.7% |
+| library | 2.813 | 0.885 | 1.924 | 31.5% |
+
+On the heaviest screen a **perfect** precompiled chain removes at most
+0.885 ms of a 2.81 ms frame, and only by eliminating command walking
+rather than making it faster. The dynamic tail the chain cannot contain
+is the larger half on every screen in the sweep. That is the decision
+this arm was built to inform, and it is unaffected by which intercept
+you take: `k_cmd` is 1.28 to 1.32 under every reading. What the sitting
+did not achieve is the precision it pre-registered.
+
+### `gs` is not command-shaped
+
+The same model on the GS readings gives R² 0.78 with both slopes
+swamped (se/|k| 0.84 and 0.91) and a 0.428 ms intercept. Best single
+regressor is prims at R² 0.83, still se/|k| = 0.225. Nothing in this
+sitting's regressor set explains GS time, which is what you would
+expect if it is bound on pixels rather than on draw count. It needs its
+own x-axis, not a better fit to this one.
+
+## The composition arm [F-038]
+
+```
+photo 1   [compose] ee3.62^3.63 gs1.50^1.62@1241   f16.68 c804 g533 u9 m0@0 n1289
+photo 2   [compose] ee3.60^3.62 gs1.50^1.61@517    f16.68 c804 g529 u9 m0@0 n542
+```
+
+**Glyph identity first, as the arm requires.** `c804` is 694 + 110
+exactly, and `g` derives on both photographs — 533 at four-digit
+counters, 529 at three. The two readings differ by 4 and the
+digit-width rule predicts 4. Nothing is blanked and nothing is
+asymmetric.
+
+The mirrored pair agreed on photo 1 (`n1289` on both lines). On photo 2
+the second line's last digit could not be resolved from the
+photograph — `n541` or `n542`. Immaterial: both are three digits, so
+`g529` is predicted either way, and every other field matched. Worth a
+re-read, not a stop.
+
+**Additivity holds.** The composed frame comes in under the naive sum
+of the two sweep frames, which is what the falsifier warned about — but
+the shortfall is exactly one `base`, which is what additivity itself
+predicts, since adding two frames double-counts the driver's per-frame
+work:
+
+```
+base = ee(lib) + ee(conf) - ee(compose) - k_glyph x dg
+photo 1:  2.813 + 0.915 - 3.62 - 4 glyphs  = 0.0880 ms
+photo 2:  2.813 + 0.915 - 3.60 - 8 glyphs  = 0.0879 ms
+```
+
+Two photographs at different counter widths, different `ee` readings
+and different glyph corrections, agreeing to 0.1 µs — against S14's
+0.08 ms for the same quantity, measured by a completely different
+design. **`ps2ui_render` reuses nothing between calls.** F-044's
+per-render model is not charging twice for anything.
+
+Strictly, the difference measures `base_sweep` minus the compose
+build's extra per-frame work (one more `ps2ui_screen_set`, two more
+`ps2ui_slot_set`), so 0.088 is a floor. That only tightens the
+agreement with S14.
+
+**And F-038's worry is not realised.** Two full screens composited —
+804 commands, 533 glyphs — cost 3.62 ms EE and 1.50 ms GS. Twenty-two
+percent of a field on the EE, nowhere near half.
+
+## The clear is not blending [F-048]
+
+```
+oplenv        ee2.77^4.04 gs1.02^1.26@1320   f16.68 p749 up28224 m0@0 n1421
+clearopq      ee2.81^4.08 gs1.03^1.27@1140   f16.68 p759 up28224 m0@0 n1242
+delta         +0.04 +0.04  +0.01 +0.01                 +10      +0
+```
+
+**The +10 is the tag, not the clear.** `[clearopq]` is 10 glyphs and
+the control arm carries none, which nothing in the arm's design
+accounted for. From the fitted slopes the tag costs 0.050 ms EE and
+0.009 ms GS; the raw deltas are 0.04 and 0.01, both inside the
+readout's own quantum. After removing it, the ABE change moves `gs` by
+**+0.001 ms**, against the −0.14 that "the clear was paying the blended
+rate" requires. Fourteen times outside.
+
+The confound biases *away* from the falsifier, so it cannot have
+manufactured the null — but it had to be subtracted rather than
+ignored, and the arm was specified before #42 named it on the readout.
+
+Everything else is identical: `ee^ − ee` 1.27 on both, `gs^ − gs` 0.24
+on both, `up28224` on both, and 1140 = 38 × 30, a scroll frame. The
+screen looks the same, which `main.c:2126` names as the first thing to
+check.
+
+**Read against the correct mapping, this is the first of the two
+readings the discriminator was built to separate.**
+The 0.14 was never unexplained; it was unexplained only under the
+assumption that an ABE-on draw pays the blended rate, and this
+falsifies that assumption directly rather than by residual.
+
+| source | value | method |
+|---|---:|---|
+| S14 residual | 0.145 | render slope subtracted from `gs(N=0)` |
+| compose arm | 0.115 | two sweep frames subtracted from one composed |
+| opaque theoretical, 640×448 | 0.1215 | 2.359 Gpix/s |
+| blended theoretical | 0.243 | 1.180 Gpix/s |
+
+**A third candidate dies here, and it is the one this project's own
+history made most likely.** The v2 alpha probe found that on this
+console an ABE-on sprite at alpha `0x7f`–`0x80` painted *nothing*. If
+the clear were a no-op for that reason, turning ABE off would make it a
+real full-screen opaque fill and `gs` would have **risen** by ~0.145.
+It did not move.
+
+What stays open is the mechanism: why an ABE-on draw does not pay the
+blend rate. That is now a narrow question about GS state this codebase
+has never written — `ALPHA`, `PABE`, `TEST`, inherited from whatever
+`gsKit_init_screen` left behind — which is F-001 and F-004's thread
+rather than a new one.
+
+## Theming costs nothing [P3b]
+
+P3b on silicon for the first time.
+
+```
+t1 light   [theme] ee2.79^4.07 gs1.02^1.27@720    f16.68 p756 up28224 m0@0 n823  t1
+t0 dark    [theme] ee2.80^4.07 gs1.03^1.26@1080   f16.68 p758 up28224 m0@0 n1163 t0
+```
+
+Both `p` values derive, on a fourth telemetry format and a third tag,
+and the two differ by 2 entirely because of counter width.
+
+The clean comparison is theme against theme, everything but the CLUT
+row and two telemetry digits held fixed:
+
+```
+t0 - t1 = 2 glyphs     predicted +10 us     observed +10 us
+```
+
+Against the plain build both themes land 15 µs under the
+glyph-corrected prediction, the same bias in both, half a residual σ.
+`ps2ui_theme_set` is free by construction rather than by measurement —
+`ps2ui.c:780` is a bounds check and a `uint16_t` write, no GSGLOBAL and
+no upload, because the row is read by the EE at draw time.
+
+**No first-draw penalty after a switch, and the 241-coprime choice is
+what bought the observation.** At `n823` the last completed peak window
+is [720, 780). It contains frame **723 = 3 × 241**, a theme switch, and
+frame **720**, a scroll frame. The peak landed on 720. So the first
+frame drawn under a newly selected theme row costs no more than an
+ordinary frame on either clock, which rules out lazy CLUT residency:
+every row's CLUTs are already in VRAM after `ps2ui_upload`.
+
+`main.c:2059` argued for 241 over 240 on the grounds that a multiple of
+`SCROLL_EVERY` would weld the switch's cost to the scroll's and make it
+unmeasurable. It bought exactly the observation it was written for, on
+the first sitting.
+
+`t` tracks: 823 / 241 = 3 switches → `t1`, 1163 / 241 = 4 → `t0`, both
+consistent with two theme rows and with row 0 being the baked default.
+241 frames at 59.94 Hz is 4.02 s, which is what the operator saw.
+`up28224` on both, so a switch does not disturb the streamed art.
+
+**One thing the photographs could not settle.** In the plain build the
+`ALL` chip reads as a filled rounded rect; in both theme photographs
+the chip row reads as five outlined boxes. Angle and glare differ
+enough between the shots that this is not callable either way. What the
+numbers do say is that it is not a missing primitive: `drawn` is 366 on
+both theme readings, identical to the plain build at the same scroll
+position, so any difference is colour and lives in the tint table.
+**The check that settles it is free and sharp** — theme row 0 is the
+baked default, so a `t0` frame must be pixel-identical to plain
+`oplenv`. One straight-on photograph of each, same distance and
+exposure.
+
+## 11px from nine feet [F-046]
+
+`oplenv-scr-library`, static, read at 9 ft with and without correction.
+
+```
+[library] ee2.82^2.83 gs1.01^1.10@3423
+f16.68 c694 g382 u9 m0@0 n3505
+```
+
+**The reading scores itself.** `g382` derives exactly — static 321 plus
+a 9-glyph `[library]` tag plus 52 — and `g382` had appeared in no
+document and in no earlier photograph. `n3505` puts the last completed
+peak window at [3420, 3480) and `@3423` falls inside it, so a misread
+digit in either counter would have shown. `u9` is the nine unbound art
+slots, and the screen carries no cover art, which is what the static
+arm means.
+
+This is not "the operator says it looks fine". It is a three-digit
+value at 11px, read off the panel and checked against an independent
+derivation.
+
+### The finding is about angular size, not pixels
+
+The falsifier named 2–3 m. 9 ft is 2.74 m, and the panel is a 58"
+16:9, so the vertical scale is fixed regardless of how the 4:3 signal
+is fitted horizontally:
+
+```
+722 mm of panel height / 448 authored lines = 1.612 mm per line
+```
+
+| authored | em | cap height |
+|---|---:|---:|
+| **11px** `.sub`, `.telem-l` | 22.2′ | **15.6′** |
+| 13px row titles | 26.3′ | 18.4′ |
+| 14px chips, scores | 28.3′ | 19.8′ |
+| 22px `LIBRARY` | 44.4′ | 31.1′ |
+
+A 20/20 Snellen letter subtends 5′ overall with 1′ per stroke feature.
+The 11px cap height at 15.6′ is **3.1× a 20/20 letter**, and a 1px stem
+subtends **2.0′**, twice the resolution limit. The strokes resolve, not
+just the letter mass. Threshold acuity to read this layer here is about
+**20/62**, which is why correction made no difference.
+
+**Stated in pixels the finding does not transfer, and that is the
+correction this reading forces.** 11px means nothing without a panel
+size and a viewing distance. Stated as *"the secondary text layer
+clears 15′ of cap height and 2′ of stroke at a seated distance"* it
+transfers to any panel, and it survives a future change to the authored
+sizes.
+
+The same numbers bound the claim honestly:
+
+| criterion | panel diagonal at 9 ft |
+|---|---:|
+| 20/20 threshold, readable at all | 18.6″ |
+| ~3× threshold, comfortable | **55.9″** |
+
+58" sits just above the comfortable line. A stranger 9 ft from a 43"
+set is at about 1.9× threshold — probably still readable, but not the
+effortless case measured here. That is guidance rather than a second
+falsifier; the 3× figure is a rule of thumb, not a standard.
+
+## What the peak-hold decomposed, unasked
+
+| build | `ee^ − ee` | `gs^ − gs` |
+|---|---:|---:|
+| `oplenv` (scrolls) | 1.27 | 0.24 |
+| `clearopq` (scrolls) | 1.27 | 0.24 |
+| **`scr-library` (static)** | **0.01** | **0.09** |
+
+`main.c:2224` asserts that the EE peak's excess over the mean *is*
+`oplenv_bind_window`, correcting an earlier comment that contradicted
+the model three lines above it. Remove the bind and the peak collapses
+onto the mean. The claim is now measured from both sides.
+
+And the GS spread decomposes into **0.09 baseline jitter plus 0.15 for
+the texture upload**. F-045's anomaly is that `oplenv-fill2` reads
+`gs^ − gs` = 0.075 while N=0 and N=4 bracket it at 0.23 and 0.21 —
+which sits on the **no-upload** figure, not the no-scroll one. That
+reframes the open question from "why is the spread small at N=2" to
+"what hid the upload spike in that window", and gives the re-run
+something specific to check: whether its peak frame is a scroll frame
+at all.
+
+## What this sitting did not settle
+
+- **F-045 itself.** The control is established and the hypothesis is
+  named; `oplenv-fill2` has not been re-shot with the `@`.
+- **The `t0` versus plain comparison**, one straight-on photograph
+  each, which decides the chip question above.
+- **F-044's precision.** The arm's verdict is conditional on the
+  intercept and is recorded that way. Pinning it to the
+  compose-measured `base` and re-running the sweep with a seventh point
+  further from the others would settle it; nothing in this sitting can.
+- **F-040's mechanism.** Narrowed, not closed.
