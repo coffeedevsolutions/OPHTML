@@ -71,6 +71,13 @@ _SEMVER = re.compile(
     r"^(\d+)\.(\d+)\.(\d+)(?:-(dev|alpha|beta|rc)\.(\d+))?$")
 
 # "one", "two", ... as the CHANGELOG spells small counts.
+# THE NAMES THIS REPOSITORY PUBLISHES UNDER. The `ophtml` organisation
+# is owned, so npm is scoped; PyPI has no scopes, so it is the bare
+# name. Renaming means editing these two lines, deliberately, in the
+# commit that renames -- see the rule that reads them.
+EXPECTED_NPM = "@ophtml/layout"
+EXPECTED_PYPI = "ophtml"
+
 _WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
           "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 
@@ -180,6 +187,11 @@ def main():
 
     # 2. The two packages ship as one product, so they name one version.
     baker = parse(BAKER_VERSION, _PEP440, "ps2ui_bake.__version__")
+    # Read once, up here, because rule 11 needs the npm name too.
+    npm_name = literal("packages/layout/package.json",
+                       r'^\s*"name"\s*:\s*"([^"]+)"', "name")
+    pypi_name = literal("packages/baker/pyproject.toml",
+                        r'^name\s*=\s*"([^"]+)"', "name")
     layout_raw = literal("packages/layout/package.json",
                          r'^\s*"version"\s*:\s*"([^"]+)"',
                          "version")
@@ -332,6 +344,25 @@ def main():
                                       "package.json"),
                          encoding="utf-8").read(), re.S)
     tag = tag.group(1) if tag else "latest"
+    # SCOPED PACKAGES DEFAULT TO `restricted`. There is no `access`
+    # key and no `--access public` anywhere in releasing.md, whose step
+    # 8 reads as the complete procedure -- so the first publish would
+    # either fail or land private. Cheap to fix after the fact, cheaper
+    # to state once next to the tag it already sets.
+    access = re.search(r'"publishConfig"\s*:\s*\{[^}]*?"access"\s*:\s*'
+                       r'"([^"]+)"',
+                       open(os.path.join(ROOT, "packages", "layout",
+                                         "package.json"),
+                            encoding="utf-8").read(), re.S)
+    if npm_name.startswith("@"):
+        check(access is not None and access.group(1) == "public",
+              "@%s is scoped and publishes with access: public"
+              % npm_name.split("/")[0].lstrip("@"),
+              "%s is scoped, and npm defaults a scoped package to "
+              "`restricted`. Set publishConfig.access to \"public\" beside "
+              "the tag, or the first publish lands private or fails."
+              % npm_name)
+
     if is_prerelease(layout):
         check(tag != "latest",
               "@ophtml/layout publishes to the %r dist-tag, so a publish of "
@@ -370,6 +401,80 @@ def main():
           "docs/releasing.md is missing or no longer names __version__ and "
           "the tagging step; the rule below fails a release with no "
           "instructions for satisfying it")
+
+    # 17. THE DISTRIBUTION NAMES, which nothing read until now.
+    #
+    #     The rename to @ophtml/layout and ophtml is the one
+    #     IRREVERSIBLE thing in the release -- npm's unpublish window
+    #     closes in 72 hours and leaves the name blocked, PyPI never
+    #     releases a name -- and it was the one thing with no fence,
+    #     while the versions, which are freely reversible, had sixteen.
+    #
+    #     Demonstrated rather than argued: reverting the rename across
+    #     the whole tree and leaving this file's message strings alone
+    #     left the output BYTE-IDENTICAL at 16/16, printing
+    #     "ok - @ophtml/layout ... and ophtml ..." over manifests that
+    #     said @ps2ui/layout and ps2ui-bake. Every name in this file is
+    #     a literal inside a format string; rule 2 reads `version` and
+    #     rule 11 reads `publishConfig.tag`, and neither has ever read
+    #     `name`. A rename that only prose remembers is one the next
+    #     sed can undo in silence.
+    # NAMED HERE, NOT INFERRED. A consistency rule is not enough: a
+    # wholesale sed back to the old names is SELF-CONSISTENT and passes
+    # it, which is exactly the reversal this rule exists to catch. So
+    # the checker states what the packages are called, and renaming
+    # them means editing this line -- the same friction ASSERTED_BLOCKS
+    # has, for a stronger reason: a published name is permanent, and
+    # npm gives back neither the name nor the 72 hours.
+    for got, want, where in ((npm_name, EXPECTED_NPM,
+                              "packages/layout/package.json"),
+                             (pypi_name, EXPECTED_PYPI,
+                              "packages/baker/pyproject.toml")):
+        check(got == want,
+              "%s is named %s" % (where.split("/")[1], got),
+              "%s is named %r; this repository publishes %r. If that is "
+              "a deliberate rename, change EXPECTED_NPM/EXPECTED_PYPI in "
+              "check-versions.py in the same commit -- a name is "
+              "permanent once published, so it should not be something a "
+              "sed can move in silence." % (where, got, want))
+    check(npm_name.startswith("@") and "/" in npm_name,
+          "the npm package is scoped: %s" % npm_name,
+          "packages/layout/package.json is named %r; the ophtml org is "
+          "owned and the scope is what makes the name unambiguously ours"
+          % npm_name)
+    # Read back where a person is told what to install. Same shape as
+    # rule 10: the document has to carry the fact, and the fact has to
+    # be the one the manifest states.
+    for rel, needles in (
+            ("README.md", (npm_name, pypi_name)),
+            ("CHANGELOG.md", (npm_name, pypi_name)),
+            ("docs/releasing.md", (npm_name, pypi_name)),
+            ("docs/tutorial-uc3.md", ("npm install -g " + npm_name,
+                                      "pip install " + pypi_name))):
+        text = open(os.path.join(ROOT, *rel.split("/")),
+                    encoding="utf-8").read()
+        if rel.endswith("tutorial-uc3.md"):
+            # THE BLOCK A READER COPIES, not the document. Both names
+            # appear twice in the tutorial -- once in the install block
+            # and once in the prose explaining it -- so a search of the
+            # whole file is satisfied by the prose while the block says
+            # something else. Sabotaging the block passed until this
+            # narrowed to it.
+            block = re.search(r"```\n(npm install -g .*?)```", text, re.S)
+            if block is None:
+                check(False, "", "docs/tutorial-uc3.md has no install "
+                                 "block starting `npm install -g`; that "
+                                 "block is what this rule reads")
+                continue
+            text = block.group(1)
+        missing = [n for n in needles if n not in text]
+        check(not missing,
+              "%s names the packages it tells people to install" % rel,
+              "%s does not mention %s. The manifests say %s and %s; a "
+              "document that names something else sends a reader to a "
+              "package that does not exist."
+              % (rel, " or ".join(repr(m) for m in missing),
+                 npm_name, pypi_name))
 
     # 9. The sequencing document's own format lineage. It is the file
     #    people read to decide what to build next, it restates the

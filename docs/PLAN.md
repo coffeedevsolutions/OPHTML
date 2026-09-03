@@ -1229,6 +1229,16 @@ before tagging, because renaming after a published `0.3.0` leaves a
 dead name on two registries permanently, and neither registry reserves
 a name without a publish.
 
+`check-versions.py` reads the two names back out of the manifests and
+holds them to the ones it states, because the rename is the only
+irreversible step in the release and was the only one with no fence:
+reverting it across the whole tree left the checker's output
+byte-identical at 16/16, printing the new names over manifests that
+said the old ones. A consistency rule alone would not have caught that
+either — a wholesale rename is self-consistent — so the names are
+written down in the checker, and moving them is a deliberate edit
+rather than something a `sed` does in silence.
+
 The commands, the Python module and the format keep their names, and
 `docs/releasing.md` says why: OPHTML is the product, ps2ui is the
 format and the tools that speak it, so `pip install ophtml` giving you

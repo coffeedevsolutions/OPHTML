@@ -86,7 +86,12 @@ written twice to avoid.
    either, and it is the rule that fails until you do. CI checks out
    with `fetch-depth: 0` so the tag is visible to it.
 
-8. **Then publish**, npm and PyPI, in that order or either. This is the
+8. **Then publish**, npm and PyPI, in that order or either.
+   `@ophtml/layout` is scoped and npm defaults a scoped package to
+   `restricted`, so `publishConfig.access` is set to `public` beside the
+   tag — `check-versions.py` requires it, because the alternative is a
+   first publish that fails or lands private with nothing having said
+   so. This is the
    step Phase 4's exit gate is about: a stranger with npm, pip and a
    TTF reproduces the memcard example, and its hardware screenshot,
    without cloning the repo. Until that has actually been done by
