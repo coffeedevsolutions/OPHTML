@@ -2,7 +2,7 @@
 
 Stages inside this package:
 
-    fontgen   TTF -> metrics JSON (the seam shared with @ps2ui/layout)
+    fontgen   TTF -> metrics JSON (the seam shared with @ophtml/layout)
     atlas     glyph atlases per (weight, size), 8-bit coverage + CLUT
     ninepatch rounded-rect chrome -> 9-sliced RGBA patches
     quads     IR commands -> flat GS quad records

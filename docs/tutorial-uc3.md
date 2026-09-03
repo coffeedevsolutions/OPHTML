@@ -239,8 +239,24 @@ hardware, each step with its expected result and failure symptom.
 
 ## Running it before publication
 
-`ps2ui-layout` and friends are not on npm and PyPI yet. From a checkout,
-these are the same commands:
+When they are published, the two halves install as:
+
+```
+npm install -g @ophtml/layout    # the compiler
+pip install ophtml               # the baker, and the ps2ui command
+```
+
+Not a `sh` block on purpose: `tools/check-tutorial.py` runs every one
+of those, and these two commands do not work yet. A tutorial that
+executes what it claims cannot be allowed to claim something it cannot
+execute.
+
+**OPHTML is the product; ps2ui is the format and the tools that speak
+it.** So `pip install ophtml` gives you `ps2ui build`, the same way
+installing ripgrep gives you `rg`. The blob is a `.uib`, the runtime
+header is `ps2ui.h`, and none of that changes with the package name.
+
+Neither is published yet. From a checkout, these are the same commands:
 
 ```
 ps2ui         ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake.ps2ui
@@ -254,7 +270,7 @@ ps2ui-fontgen ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake.fontgen
 `ps2ui build` runs the compiler as a subprocess, so it has to find it.
 It looks at `$PS2UI_LAYOUT`, then `ps2ui-layout` on `PATH`, then the
 checkout it might be sitting in — and when none of those has it, says
-`npm install -g @ps2ui/layout` rather than failing on a path you never
+`npm install -g @ophtml/layout` rather than failing on a path you never
 chose.
 
 `tools/check-tutorial.py` puts exactly those on `PATH` as shims and runs

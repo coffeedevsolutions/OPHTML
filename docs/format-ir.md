@@ -1,6 +1,6 @@
 # ui.json — the intermediate representation
 
-The seam between `@ps2ui/layout` (Node) and `ps2ui-bake` (Python). It is
+The seam between `@ophtml/layout` (Node) and `ps2ui-bake` (Python). It is
 deliberately dumb: absolute integer pixel geometry, flat paint order, no
 styles, no tree. A replacement layout engine (or a hand-written
 generator) only has to produce this file.

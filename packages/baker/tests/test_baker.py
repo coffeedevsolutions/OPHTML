@@ -3455,7 +3455,7 @@ class TestNewcomerPath(unittest.TestCase):
         self.assertFalse(
             os.path.normpath(path).startswith(os.path.normpath(pkg)),
             "the default manifest is outside the package, which is why "
-            "an installed ps2ui-bake cannot find it")
+            "an installed ophtml cannot find it")
 
     def test_a_named_manifest_that_is_absent_is_not_a_traceback(self):
         from ps2ui_bake.cli import load_font_manifest

@@ -1,7 +1,8 @@
 {
-  "name": "@ps2ui/layout",
+  "name": "@ophtml/layout",
   "version": "0.3.0-dev.0",
   "publishConfig": {
+    "access": "public",
     "tag": "next"
   },
   "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",
