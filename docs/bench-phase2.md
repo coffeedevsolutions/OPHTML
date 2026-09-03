@@ -848,12 +848,16 @@ lap falls:
 | filters | 467 | 196 | 253 | 449 |
 | library | 694 | 384 | 366 | 750 |
 
-**Six points are enough** — not a hope, arithmetic. r = 0.751 gives a
-variance inflation of 2.29, the commands spread over √Σ(c−c̄)² = 462,
+**Six points are enough** — not a hope, arithmetic. r = 0.753 gives a
+variance inflation of 2.31, the commands spread over √Σ(c−c̄)² = 462,
 and σ is **0.0276 ms**, the residual standard error of S14's own `ee`
 fit computed from its five residuals. That puts `k_cmd` at ±4.9% (95%,
 3 dof), ±9.8% at twice the noise. **Falsified** by a fitted `k_cmd`
 whose standard error exceeds a tenth of it.
+
+*(This paragraph said r = 0.751 and a VIF of 2.29 until #94's review
+recomputed them at 0.7534 and 2.313. The derived 0.090 µs is unchanged
+to three digits, and so is everything downstream of it.)*
 
 ### The composition arm — `oplenv-compose`, one ELF
 
@@ -937,6 +941,22 @@ rows. Same screen, same commands, `g` two apart both times, and
 nothing about the UI changed between them. That is the whole of the
 next section.
 
+**`recent` is in the fit and in no row above, and that is a real gap
+rather than an oversight.** Its photographs' frame counts were not
+transcribed, so its `g = 351` cannot be re-derived here — it is the
+only glyph count in the sweep that is neither checked by
+`check-sweep-table.py` nor cross-read against a second photograph at a
+different counter width. It is also the point the fit most depends on:
+regressed against `c`, `recent` sits +98 glyphs off the line and
+`filters` −106, and those two are what separate `k_glyph` from `k_cmd`
+at all. Dropping `recent` is one of the three drops that fires the
+falsifier below.
+
+`S15_CGU` and `S15_PUP` in the checker name exactly which photographs
+are re-derived, so this gap stays visible instead of being absorbed
+into a count. **Transcribe `n` on every photograph next sitting**; it
+is one more field off a line already being read.
+
 ## The telemetry lines are not a constant [F-047]
 
 The sweep table declared **55 glyphs** for the driver's two telemetry
@@ -978,17 +998,33 @@ k_glyph =  5.010 us/glyph se 0.240    se/|k| = 0.048
 R2 = 0.9986    residual sigma = 33 us
 ```
 
-| screen | `c` | `g` | `ee` | fit | resid |
-|---|---:|---:|---:|---:|---:|
-| confirm | 110 | 153 | 0.915 | 0.884 | +31 µs |
-| detail | 196 | 194 | 1.203 | 1.199 | +4 µs |
-| landing | 331 | 241 | 1.573 | 1.607 | −33 µs |
-| recent | 360 | 351 | 2.180 | 2.195 | −15 µs |
-| filters | 467 | 196 | 1.540 | 1.555 | −15 µs |
-| library | 694 | 384 | 2.813 | 2.786 | +27 µs |
+| screen | `c` | `g` | `ee` | fit | resid | `gs` |
+|---|---:|---:|---:|---:|---:|---:|
+| confirm | 110 | 153 | 0.915 | 0.884 | +31 µs | 0.605 |
+| detail | 196 | 194 | 1.203 | 1.199 | +4 µs | 0.570 |
+| landing | 331 | 241 | 1.573 | 1.607 | −33 µs | 0.920 |
+| recent | 360 | 351 | 2.180 | 2.195 | −15 µs | 0.885 |
+| filters | 467 | 196 | 1.540 | 1.555 | −15 µs | 0.790 |
+| library | 694 | 384 | 2.813 | 2.786 | +27 µs | 1.010 |
 
-`f16.68` and `m0@0` on all fifteen photographs. No missed field on any
-screen.
+`gs` is published here so the GS statistics below, and F-048's tag
+correction, can be re-derived rather than taken. Both `ee` and `gs` are
+means over the two or three photographs each screen contributed.
+
+`f16.68` and `m0@0` on all fifteen cycle photographs. No missed
+field on any screen.
+
+**The fit runs on the 52-basis, and that is a choice worth stating**,
+because it is the same normalisation question F-047 just turned on:
+four of the six screens contributed at least one photograph at
+five-digit counters, where they drew two more glyphs. Each screen's
+true x therefore lies somewhere in [`g`, `g`+2]. Over all sixty-four
+corners of that envelope `k_cmd` moves between **1.240 and 1.311
+µs/cmd** and `se/|k_cmd|` between **0.069 and 0.102** — so the point
+estimate is untouched and the free-fit verdict survives every corner
+but the most adverse, where it grazes 0.102 against a 0.10 line. One
+more reason the verdict below is recorded as conditional rather than
+as a pass.
 
 ### The falsifier's outcome depends on the intercept, and the sitting cannot hide that
 
@@ -1011,9 +1047,10 @@ recording a result that exists because the fit was allowed to choose an
 intercept the hardware says is wrong.
 
 Leave-one-out sharpens the same point. `k_cmd` itself is stable across
-all six refits (1.16 to 1.38, every one inside the full fit's ±1σ), so
-the estimate is not fragile; the *pass* is. Dropping `detail`, `recent`
-or `filters` fires the falsifier.
+all six refits — 1.159 to 1.379, every one within 1.1σ of the full
+fit's 1.276, five of the six inside ±1σ — so the estimate is not
+fragile; the *pass* is. Dropping `detail`, `recent` or `filters` fires
+the falsifier, and those three only.
 
 Adding `drawn` as a third regressor does not rescue the pinned fit: its
 coefficient comes out negative and swamped by its own error in every
@@ -1127,11 +1164,17 @@ delta         +0.04 +0.04  +0.01 +0.01                 +10      +0
 
 **The +10 is the tag, not the clear.** `[clearopq]` is 10 glyphs and
 the control arm carries none, which nothing in the arm's design
-accounted for. From the fitted slopes the tag costs 0.050 ms EE and
-0.009 ms GS; the raw deltas are 0.04 and 0.01, both inside the
-readout's own quantum. After removing it, the ABE change moves `gs` by
-**+0.001 ms**, against the −0.14 that "the clear was paying the blended
-rate" requires. Fourteen times outside.
+accounted for. `gs` moves by **+0.01 ms** against the **−0.14** that
+"the clear was paying the blended rate" requires: fourteen times
+outside, in the wrong direction, before any correction at all.
+
+The tag correction only widens that, and is deliberately left as a note
+rather than put in the headline. At the fitted slopes the ten glyphs
+cost 0.050 ms EE and 0.009 ms GS, against raw deltas of 0.04 and 0.01,
+both inside the readout's own quantum — but the 0.009 comes from a GS
+slope this same document declares unusable four sections up, and a
+finding should not lean on a number its own author disowns. The
+uncorrected +0.01 already decides it.
 
 The confound biases *away* from the falsifier, so it cannot have
 manufactured the null — but it had to be subtracted rather than

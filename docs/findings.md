@@ -653,7 +653,7 @@ AND THE SITTING'S OWN PHOTOGRAPHS ARE RE-DERIVED NOW, not just the prediction. A
   oplenv    ee2.77^4.04 gs1.02^1.26@1320 f16.68 p749 up28224 m0@0 n1421
   clearopq  ee2.81^4.08 gs1.03^1.27@1140 f16.68 p759 up28224 m0@0 n1242
 
-The +10 in p is the [clearopq] tag, which the control arm does not carry -- 10 glyphs, worth 0.050 ms EE and 0.009 ms GS at the fitted slopes, against raw deltas of 0.04 and 0.01. After removing it the ABE change moves gs by +0.001 ms, against the -0.14 that "the clear was paying the blended rate" requires. Fourteen times outside.
+The +10 in p is the [clearopq] tag, which the control arm does not carry -- 10 glyphs, worth 0.050 ms EE and 0.009 ms GS at the fitted slopes, against raw deltas of 0.04 and 0.01. After removing it the ABE change moves gs by +0.001 ms. Stated without any correction at all: gs moves +0.01 against the -0.14 that "the clear was paying the blended rate" requires -- fourteen times outside, and in the wrong direction. The headline is the uncorrected figure on purpose, since the 0.009 GS tag correction leans on a slope this sitting's own GS paragraph disowns.
 Three independent lines agree, and none is the blended rate:
 
   S14 residual                        0.145

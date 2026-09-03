@@ -56,10 +56,10 @@ the two counters are not declared at all.
 
 AND THE SITTING'S OWN PHOTOGRAPHS ARE RE-DERIVED, not just the
 prediction. A table that is checked before a sitting and transcribed
-after it is only half fenced -- the half that was wrong. Every reading
-S15 recorded is derived here from the blob, the format strings and its
-own frame count, across five arms, three tag lengths, two line-2
-formats and three counter widths.
+after it is only half fenced -- the half that was wrong. The readings
+S15 transcribed are derived here from the blob, the format strings and
+each one's own frame count, across five arms, three tag lengths, two
+line-2 formats and three counter widths.
 """
 import os
 import re
@@ -92,6 +92,28 @@ HEADER = "| screen | commands | slot glyphs | drawn | `p` |"
 # print `p up`.
 READ_CGU = "| arm | screen | `n` | `c` | `g` |"
 READ_PUP = "| arm | `n` | top row | `p` |"
+
+# NAMED HERE RATHER THAN COUNTED FROM THE FILE, BECAUSE A FLOOR IS NOT
+# A FENCE. check-tutorial.py's phrase, and #94's review found this file
+# repeating the exact shape it was written to close: check_readings
+# returned a count and main tested `if not n`, so thirteen readings
+# eroding to four still exited 0. Reword either header by one backtick
+# and that whole table silently stops being read; delete a row, or give
+# one an extra column, and it is skipped without a word.
+#
+# The sweep half never had that hole -- it fails per document when its
+# header finds nothing -- and the asymmetry sat inside one file.
+#
+# An exact set, so lowering it is an edit to a check. Keyed by the
+# fields that identify a photograph: which arm, which screen, and the
+# frame count that fixes the telemetry width.
+S15_CGU = {("cycle", "detail", 1320), ("cycle", "filters", 9393),
+           ("cycle", "library", 10399), ("cycle", "confirm", 11283),
+           ("cycle", "detail", 12121), ("cycle", "landing", 13082),
+           ("compose", "compose", 542), ("compose", "compose", 1289),
+           ("screen", "library", 3505)}
+S15_PUP = {("plain", 1421), ("clearopq", 1242),
+           ("theme", 823), ("theme", 1163)}
 
 
 def oplenv_rows():
@@ -389,13 +411,18 @@ def tables(path):
 def check_readings(parts, widths, cyc, std, lit, fail):
     """Re-derive `g` or `p` for every photograph the sitting recorded.
 
-    The prediction table is one width profile on one arm. A sitting is
-    fifteen photographs across five arms at three frame-counter widths,
-    and S15's whole correction came from noticing that `g` moved
+    The prediction table is one width profile on one arm. S15 was
+    twenty-two photographs across five arms at three frame-counter
+    widths, and its whole correction came from noticing that `g` moved
     between two of its own readings. Every row below is derived from
     the blob, the driver's format strings and that row's own `n`.
+
+    Not every photograph left a transcribed `n`, and one sweep screen
+    -- `recent` -- has no row here at all. S15_CGU and S15_PUP name
+    what does, so that gap stays visible instead of being absorbed
+    into a count.
     """
-    ok = 0
+    seen_cgu, seen_pup = set(), set()
     for cells in [r for t in md_rows(BENCH, READ_CGU) for r in t]:
         if len(cells) != 5 or not cells[2].isdigit():
             continue
@@ -431,7 +458,7 @@ def check_readings(parts, widths, cyc, std, lit, fail):
                 % (arm, screen, n, c, g, want_c, want_g, static, tag, tel,
                    dn, dat))
         else:
-            ok += 1
+            seen_cgu.add((arm, screen, n))
 
     for cells in [r for t in md_rows(BENCH, READ_PUP) for r in t]:
         if len(cells) != 4 or not cells[1].isdigit():
@@ -458,8 +485,8 @@ def check_readings(parts, widths, cyc, std, lit, fail):
                 % (arm, n, top, p, want, drawn, static, bound, tag,
                    telemetry(w, font, kind), dn, dat))
         else:
-            ok += 1
-    return ok
+            seen_pup.add((arm, n))
+    return seen_cgu, seen_pup
 def main():
     if not os.path.exists(BLOB):
         # FAIL, never skip: a checker that passes when its subject is
@@ -542,16 +569,23 @@ def main():
         print("ok - the composition arm's glyph identity carries its "
               "%+d tag offset, derived from the driver" % off)
 
-    n = check_readings(parts, widths, cyc, std, lit, fail)
-    if not n:
-        fail.append("docs/bench-phase2.md records no bench readings under "
-                    "%r or %r. A sitting whose photographs are transcribed "
-                    "and never re-derived is how the 55-glyph telemetry "
-                    "constant survived three documents."
-                    % (READ_CGU, READ_PUP))
-    else:
-        print("ok - %d bench reading(s) re-derived from the blob, the "
-              "driver's format strings and each row's own frame count" % n)
+    got_cgu, got_pup = check_readings(parts, widths, cyc, std, lit, fail)
+    for got, want, header in ((got_cgu, S15_CGU, READ_CGU),
+                              (got_pup, S15_PUP, READ_PUP)):
+        if got != want:
+            fail.append(
+                "the S15 readings under %r do not re-derive as the named "
+                "set. Missing: %s. Unexpected: %s. A sitting whose "
+                "photographs are transcribed and never re-derived is how "
+                "the 55-glyph constant survived three documents, and a "
+                "COUNT of them is how that check erodes back to nothing."
+                % (header,
+                   sorted(want - got) or "none",
+                   sorted(got - want) or "none"))
+    if got_cgu == S15_CGU and got_pup == S15_PUP:
+        print("ok - all %d named S15 readings re-derived from the blob, "
+              "the driver's format strings and each row's own frame count"
+              % (len(S15_CGU) + len(S15_PUP)))
 
     for f in fail:
         print("not ok - %s" % f)
