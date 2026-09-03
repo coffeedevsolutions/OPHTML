@@ -3739,30 +3739,41 @@ class TestProjectFile(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = self.write(tmp, {"screens": ["ui/games.html"],
                                     "css": "ui/app.css"})
+            # FULL RELATIVE PATHS, not just the stem. The first version
+            # of this asserted endswith("games.json"), which checks the
+            # filename and says nothing about the DIRECTORY -- and the
+            # directory is the entire reason the `dist/ui.uib` case
+            # below cannot collide. Pinning ir_path to the project's
+            # default build/ passed that assertion. "Covered by
+            # construction" was true of the code and false of the test.
+            def ir(proj):
+                return os.path.relpath(proj.ir_path(proj.screens[0]),
+                                       proj.root)
+
             proj = project.load(path)
-            base = proj.ir_path(proj.screens[0])
-            self.assertTrue(base.endswith("games.json"))
+            self.assertEqual(ir(proj), os.path.join("build", "games.json"))
 
             # Extends the default stem: the remainder is the suffix,
             # which is what restores games-16x9 as a SCREEN NAME -- the
             # blob's screen names are the IR file stems.
             proj.set_out_override("build/ui-16x9.uib")
-            self.assertTrue(proj.ir_path(proj.screens[0])
-                            .endswith("games-16x9.json"))
+            self.assertEqual(ir(proj),
+                             os.path.join("build", "games-16x9.json"))
 
-            # Same stem in another directory: nothing to disambiguate.
+            # Same stem, another directory: nothing to disambiguate,
+            # because the intermediates follow the blob. Asserting the
+            # directory is what makes that a check rather than a claim.
             proj = project.load(path)
             proj.set_out_override("dist/ui.uib")
-            self.assertTrue(proj.ir_path(proj.screens[0])
-                            .endswith("games.json"))
+            self.assertEqual(ir(proj), os.path.join("dist", "games.json"))
 
             # Shares nothing: use the whole name rather than guess a
             # suffix. Two builds that share nothing must still not
             # share intermediates.
             proj = project.load(path)
             proj.set_out_override("build/widescreen.uib")
-            self.assertTrue(proj.ir_path(proj.screens[0])
-                            .endswith("games-widescreen.json"))
+            self.assertEqual(ir(proj),
+                             os.path.join("build", "games-widescreen.json"))
 
     def test_a_second_build_does_not_stand_on_the_first(self):
         """The regression, reproduced: two builds into one directory.
