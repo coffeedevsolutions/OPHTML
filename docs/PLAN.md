@@ -1211,6 +1211,17 @@ channel6's 16:9 build is a second `ps2ui build --mode ntsc16x9 -o …`,
 because a second blob is a second build and a nested dialect is one
 more thing to learn.
 
+That principle then had to be made true. The first version gave
+`ps2ui build` only `--mode` and `-o`, so *"everything a second blob
+needs differently is a flag"* could not be applied to the one second
+blob in the repository: the 16:9 build overwrote the 4:3 build's
+display preview and its intermediate JSON, and because a blob's screen
+names ARE the IR file stems, silently renamed its screens. A second
+build of one project moves its whole build now — `-o` carries its
+suffix down to the intermediates, and `--preview`, `--montage` and
+`--preview-display` override the siblings whose names are documented.
+All four blobs the examples produce are byte-identical.
+
 Then npm + PyPI, and a format stability pledge **post-v7**.
 
 The pledge moved from post-v6 because v7 broke the format inside

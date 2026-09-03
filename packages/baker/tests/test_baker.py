@@ -3733,3 +3733,95 @@ class TestProjectFile(unittest.TestCase):
             self.assertTrue(os.path.exists(
                 os.path.join(proj_dir, "build", "ui.uib")))
 
+    def test_out_override_moves_the_intermediates_with_it(self):
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write(tmp, {"screens": ["ui/games.html"],
+                                    "css": "ui/app.css"})
+            proj = project.load(path)
+            base = proj.ir_path(proj.screens[0])
+            self.assertTrue(base.endswith("games.json"))
+
+            # Extends the default stem: the remainder is the suffix,
+            # which is what restores games-16x9 as a SCREEN NAME -- the
+            # blob's screen names are the IR file stems.
+            proj.set_out_override("build/ui-16x9.uib")
+            self.assertTrue(proj.ir_path(proj.screens[0])
+                            .endswith("games-16x9.json"))
+
+            # Same stem in another directory: nothing to disambiguate.
+            proj = project.load(path)
+            proj.set_out_override("dist/ui.uib")
+            self.assertTrue(proj.ir_path(proj.screens[0])
+                            .endswith("games.json"))
+
+            # Shares nothing: use the whole name rather than guess a
+            # suffix. Two builds that share nothing must still not
+            # share intermediates.
+            proj = project.load(path)
+            proj.set_out_override("build/widescreen.uib")
+            self.assertTrue(proj.ir_path(proj.screens[0])
+                            .endswith("games-widescreen.json"))
+
+    def test_a_second_build_does_not_stand_on_the_first(self):
+        """The regression, reproduced: two builds into one directory.
+
+        channel6 bakes a second blob at 16:9 from the same sources, and
+        `-o` moved only the blob. The second build overwrote the first's
+        intermediate JSON and its display preview -- so `ps2ui check`
+        validated a 4:3 blob while preview-display.png showed the 16:9
+        render under the 4:3 name, and two documents sent a reader to a
+        file that was no longer produced.
+        """
+        import tempfile
+        import json as _json
+        from ps2ui_bake import ps2ui as front
+        from ps2ui_bake.uib import read_uib
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "ui"))
+            with open(os.path.join(tmp, "ui", "games.html"), "w") as fh:
+                fh.write('<screen name="games"><div class="r">Hi</div></screen>')
+            with open(os.path.join(tmp, "ui", "app.css"), "w") as fh:
+                fh.write('.r { color: #fff; background: #000; }')
+            with open(os.path.join(tmp, "ps2ui.json"), "w") as fh:
+                _json.dump({"screens": ["ui/games.html"], "css": "ui/app.css",
+                            "previewDisplay": "build/preview-display.png",
+                            "fonts": os.path.join(FONTS, "fonts.json")}, fh)
+            proj_file = os.path.join(tmp, "ps2ui.json")
+            b = lambda *p: os.path.join(tmp, "build", *p)
+
+            self.assertEqual(front.main(["build", proj_file]), 0)
+            first_display = open(b("preview-display.png"), "rb").read()
+            first_blob = open(b("ui.uib"), "rb").read()
+
+            self.assertEqual(front.main(
+                ["build", proj_file, "--mode", "ntsc16x9",
+                 "-o", "build/ui-16x9.uib",
+                 "--preview-display", "build/preview-16x9-display.png",
+                 "--preview", "none"]), 0)
+
+            # Nothing the first build wrote was touched.
+            self.assertEqual(open(b("preview-display.png"), "rb").read(),
+                             first_display,
+                             "the second build overwrote the first's "
+                             "display preview")
+            self.assertEqual(open(b("ui.uib"), "rb").read(), first_blob)
+            # The second build's own preview exists and differs.
+            self.assertTrue(os.path.exists(b("preview-16x9-display.png")))
+            self.assertNotEqual(
+                open(b("preview-16x9-display.png"), "rb").read(),
+                first_display)
+            # `--preview none` skipped it rather than writing it twice.
+            self.assertEqual(
+                sorted(f for f in os.listdir(b()) if f.endswith(".png")),
+                ["preview-16x9-display.png", "preview-display.png",
+                 "preview.png"])
+            # And the screen NAMES stayed distinct, which is the half
+            # that only the intermediates carry.
+            self.assertEqual([s["name"] for s in read_uib(b("ui.uib")).screens],
+                             ["games"])
+            self.assertEqual(
+                [s["name"] for s in read_uib(b("ui-16x9.uib")).screens],
+                ["games-16x9"])
+

@@ -139,8 +139,41 @@ class Project:
         value = getattr(self, _attr(key))
         return None if value in (None, False) else self._abs(value)
 
+    # A SECOND BUILD OF ONE PROJECT MOVES ITS WHOLE BUILD, not just the
+    # blob. Treating `-o` as "the blob moves, everything else stays"
+    # made channel6's 16:9 build overwrite the 4:3 build's intermediate
+    # JSON and its display preview, and -- because a blob's screen
+    # names are the IR file stems -- silently renamed its screens from
+    # games-16x9/probe-16x9 to games/probe.
+    #
+    # So an overridden output carries its suffix down to the
+    # intermediates: `-o build/ui-16x9.uib` writes build/games-16x9.json,
+    # which is what the hand-written build.sh did before there was a
+    # project file, and what keeps the two builds from standing on each
+    # other. The previews take the same treatment through explicit
+    # flags, because their names are documented and a derived one would
+    # have to guess where the suffix goes.
+    ir_suffix = ""
+
     def ir_path(self, screen):
-        return os.path.join(self.build_dir, screen.name + ".json")
+        return os.path.join(self.build_dir,
+                            screen.name + self.ir_suffix + ".json")
+
+    def set_out_override(self, out):
+        """Point the build at a different blob, and move its
+        intermediates with it."""
+        base = os.path.splitext(os.path.basename(self.out))[0]
+        new = os.path.splitext(os.path.basename(out))[0]
+        self.out = out
+        if new == base:
+            self.ir_suffix = ""
+        elif new.startswith(base):
+            self.ir_suffix = new[len(base):]
+        else:
+            # No shared stem to extend, so there is no suffix to infer.
+            # Use the whole name rather than guess: two builds that
+            # share nothing must still not share intermediates.
+            self.ir_suffix = "-" + new
 
 
 def _attr(key):

@@ -24,7 +24,9 @@ mkdir -p "$out"
 PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 
 PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \
-    --mode ntsc16x9 -o build/ui-16x9.uib
+    --mode ntsc16x9 -o build/ui-16x9.uib \
+    --preview-display build/preview-16x9-display.png \
+    --preview none --montage none
 
 PYTHONPATH="$repo/packages/baker" python3 - "$out" <<'PY'
 import sys

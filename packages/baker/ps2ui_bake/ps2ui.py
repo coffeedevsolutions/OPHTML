@@ -120,7 +120,12 @@ def cmd_build(args):
     if args.mode:
         proj.mode = args.mode
     if args.out:
-        proj.out = args.out
+        proj.set_out_override(args.out)
+    for key, value in (("preview", args.preview),
+                       ("montage", args.montage),
+                       ("preview_display", args.preview_display)):
+        if value is not None:
+            setattr(proj, key, False if value == "none" else value)
     from . import cli as bake_cli
     with in_project(proj):
         irs = compile_screens(proj, extra)
@@ -208,7 +213,18 @@ def main(argv=None):
     b = sub.add_parser("build", help="compile every screen and bake one blob")
     b.add_argument("project", nargs="?", default="ps2ui.json")
     b.add_argument("--mode", help="override the project's video mode")
-    b.add_argument("-o", "--out", help="override the project's output blob")
+    b.add_argument("-o", "--out", help="override the project's output blob; "
+                   "its intermediates move with it")
+    # THE SIBLINGS A SECOND BLOB NEEDS DIFFERENTLY. Without these,
+    # "everything a second blob needs differently is a flag" could not
+    # be applied to the one second blob in this repository: channel6's
+    # 16:9 build wrote its display preview over the 4:3 one.
+    for flag, key in (("--preview", "preview"),
+                      ("--montage", "montage"),
+                      ("--preview-display", "preview_display")):
+        b.add_argument(flag, dest=key, metavar="PNG",
+                       help="override the project's %s ('none' to skip it)"
+                            % flag.lstrip("-"))
     b.set_defaults(fn=cmd_build)
 
     c = sub.add_parser("check", help="validate the blob the project builds")
