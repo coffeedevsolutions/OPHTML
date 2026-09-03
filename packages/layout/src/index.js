@@ -1,4 +1,4 @@
-// @ps2ui/layout — public API.
+// @ophtml/layout — public API.
 //
 // compile(html, css, options) → the ui.json intermediate representation.
 // Everything the console must never do (parse, cascade, measure, wrap,

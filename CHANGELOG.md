@@ -16,7 +16,7 @@ left for a reader to assume the arithmetic was verified end to end.
 
 There is no 0.2.0 tag and there never was one, and there is no 0.3.0
 yet. Both packages therefore carry a prerelease: `0.3.0.dev0` for
-`ps2ui-bake`, `0.3.0-dev.0` for `@ps2ui/layout`. That is the true
+`ophtml` on PyPI, `0.3.0-dev.0` for `@ophtml/layout` on npm. That is the true
 statement — past 0.2.0, not yet the next release.
 
 A prerelease is a signal, and it is worth exactly as much as the
@@ -24,12 +24,12 @@ package manager makes it worth, which is less than it sounds and is
 now written down in [docs/releasing.md](docs/releasing.md). npm: a
 range like `^0.3.0` will not match a prerelease, but `npm install`
 resolves the `latest` dist-tag and `npm publish` sets `latest`
-whatever the version says, so `@ps2ui/layout` carries
+whatever the version says, so `@ophtml/layout` carries
 `publishConfig.tag = "next"` and a publish of this tree leaves
 `latest` unset. pip has no equivalent and the gap is real: a
 prerelease is excluded from a specifier unless it is requested **or no
 stable version exists**, and for a first upload none would — so a
-plain `pip install ps2ui-bake` would resolve `0.3.0.dev0`. The
+plain `pip install ophtml` would resolve `0.3.0.dev0`. The
 mitigation there is procedural, and releasing.md states it: the first
 PyPI upload must be a real release.
 

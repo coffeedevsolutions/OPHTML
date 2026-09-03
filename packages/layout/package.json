@@ -1,5 +1,5 @@
 {
-  "name": "@ps2ui/layout",
+  "name": "@ophtml/layout",
   "version": "0.3.0-dev.0",
   "publishConfig": {
     "tag": "next"

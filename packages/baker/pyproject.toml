@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ps2ui-bake"
+name = "ophtml"
 dynamic = ["version"]
 description = "Bakes the ps2ui intermediate representation into .uib blobs for the PlayStation 2 runtime"
 readme = "README.md"

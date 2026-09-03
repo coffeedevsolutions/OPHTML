@@ -50,7 +50,7 @@ def layout_command():
         return [shutil.which("node"), local]
     raise ProjectError(
         "cannot find ps2ui-layout, which compiles the HTML and CSS.\n"
-        "  Install it:      npm install -g @ps2ui/layout\n"
+        "  Install it:      npm install -g @ophtml/layout\n"
         "  Or point at it:  PS2UI_LAYOUT='node /path/to/ps2ui-layout.js'\n"
         "  (ps2ui-bake is the Python half and is already here; the "
         "compiler is the Node half.)")

@@ -1,7 +1,8 @@
 # Releasing
 
 Nothing here has been released. Both packages carry a prerelease —
-`0.3.0.dev0` for `ps2ui-bake`, `0.3.0-dev.0` for `@ps2ui/layout` — and
+`0.3.0.dev0` for `ophtml` on PyPI, `0.3.0-dev.0` for `@ophtml/layout`
+on npm — and
 there are no git tags at all. This file exists because
 `tools/check-versions.py` enforces a rule that is otherwise a trap:
 
@@ -18,7 +19,7 @@ Less than it looks like, and the exact amount matters.
 
 **npm.** A range like `^0.3.0` does not match `0.3.0-dev.0`, so a
 dependent asking for the package by range never resolves a prerelease.
-But `npm install @ps2ui/layout` resolves the **`latest` dist-tag**, and
+But `npm install @ophtml/layout` resolves the **`latest` dist-tag**, and
 `npm publish` sets `latest` regardless of whether the version is a
 prerelease. `packages/layout/package.json` therefore carries
 
@@ -27,16 +28,16 @@ prerelease. `packages/layout/package.json` therefore carries
 ```
 
 so a publish of the current tree lands under `@next` and leaves
-`latest` unset. `npm install @ps2ui/layout` then fails outright rather
+`latest` unset. `npm install @ophtml/layout` then fails outright rather
 than handing someone an unverified renderer, which is the intended
 answer while the renderer is unverified. `check-versions.py` holds the
 two together: a prerelease version may not publish to `latest`.
 
 **pip has no equivalent, and the gap is real.** Pip excludes
 prereleases from a specifier *unless* one is explicitly requested or
-**no stable version exists that satisfies it**. `ps2ui-bake` has never
+**no stable version exists that satisfies it**. `ophtml` has never
 been published, so if `0.3.0.dev0` were the first upload, a plain
-`pip install ps2ui-bake` would resolve it — the prerelease marker would
+`pip install ophtml` would resolve it — the prerelease marker would
 buy nothing at all.
 
 The mitigation is procedural, not mechanical: **the first PyPI upload
@@ -90,6 +91,25 @@ written twice to avoid.
    TTF reproduces the memcard example, and its hardware screenshot,
    without cloning the repo. Until that has actually been done by
    someone who is not us, the gate is not met.
+
+## Names, and what deliberately did not change
+
+The two **distribution** names are `@ophtml/layout` on npm and `ophtml`
+on PyPI. npm is scoped because the `ophtml` organisation is owned and a
+scope is unambiguously ours; PyPI has no scopes, so it is the bare name.
+
+Nothing else was renamed, and that is a decision rather than an
+oversight:
+
+| | name | why |
+|---|---|---|
+| commands | `ps2ui`, `ps2ui-bake`, `ps2ui-check`, `ps2ui-fontgen`, `ps2ui-layout` | they drive the ps2ui format |
+| Python module | `ps2ui_bake` | imported by nothing outside the package; renaming it churns every import, every `PYTHONPATH`, and every `python3 -m` line in the docs for no reader's benefit |
+| format, runtime | `.uib`, `ps2ui.h`, `ps2ui_load` | the format is ps2ui and always was |
+
+A later change that "finishes the rename" by moving the module or the
+commands is not finishing anything. The product is OPHTML; the format
+and its tooling are ps2ui, and the two names are doing different jobs.
 
 ## What is still not automated
 

@@ -7,7 +7,7 @@ Scaffolded 2026-08-17. An open-source toolchain that compiles HTML + CSS into Pl
 Three stages joined by two documented formats. Any stage can be replaced by someone who reads the format specs.
 
 ```
-ui/*.html,css ──▶ @ps2ui/layout ──▶ ui.json (IR) ──▶ ps2ui-bake ──▶ ui.uib ──▶ runtime (C99 + gsKit)
+ui/*.html,css ──▶ @ophtml/layout ──▶ ui.json (IR) ──▶ ps2ui-bake ──▶ ui.uib ──▶ runtime (C99 + gsKit)
                   Node, zero deps                    Python, Pillow only
 ```
 

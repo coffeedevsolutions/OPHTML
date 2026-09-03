@@ -183,11 +183,11 @@ def main():
     layout_raw = literal("packages/layout/package.json",
                          r'^\s*"version"\s*:\s*"([^"]+)"',
                          "version")
-    layout = parse(layout_raw, _SEMVER, "@ps2ui/layout version")
+    layout = parse(layout_raw, _SEMVER, "@ophtml/layout version")
     check(baker == layout,
-          "@ps2ui/layout %s and ps2ui-bake %s are the same version in the "
+          "@ophtml/layout %s and ophtml %s are the same version in the "
           "two spellings" % (layout_raw, BAKER_VERSION),
-          "@ps2ui/layout is %s and ps2ui-bake is %s; they bake and load one "
+          "@ophtml/layout is %s and ophtml is %s; they bake and load one "
           "format and cannot be released apart" % (layout_raw, BAKER_VERSION))
 
     # 3. The reader and the writer agree on the format they speak.
@@ -334,18 +334,18 @@ def main():
     tag = tag.group(1) if tag else "latest"
     if is_prerelease(layout):
         check(tag != "latest",
-              "@ps2ui/layout publishes to the %r dist-tag, so a publish of "
+              "@ophtml/layout publishes to the %r dist-tag, so a publish of "
               "this prerelease would not take `latest`" % tag,
-              "@ps2ui/layout is the prerelease %s but would publish to "
-              "`latest`; `npm install @ps2ui/layout` would then hand "
+              "@ophtml/layout is the prerelease %s but would publish to "
+              "`latest`; `npm install @ophtml/layout` would then hand "
               "someone an unverified renderer. Set publishConfig.tag "
               "(see docs/releasing.md)" % layout_raw)
     else:
         check(tag == "latest",
-              "@ps2ui/layout %s is a release and publishes to `latest`"
+              "@ophtml/layout %s is a release and publishes to `latest`"
               % layout_raw,
-              "@ps2ui/layout %s is a release but publishConfig pins it to "
-              "%r, so `npm install @ps2ui/layout` would not find it. Drop "
+              "@ophtml/layout %s is a release but publishConfig pins it to "
+              "%r, so `npm install @ophtml/layout` would not find it. Drop "
               "publishConfig.tag when the version stops being a prerelease "
               "(see docs/releasing.md)" % (layout_raw, tag))
 

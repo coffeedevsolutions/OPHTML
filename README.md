@@ -7,7 +7,7 @@ The toolchain does all the heavy lifting on your build machine: parsing, flexbox
 Originally built for UIs shipped on an SD2PSX / PSxMemCard GEN2 virtual memory card. Works for any PS2 homebrew project.
 
 ```
-ui/*.html,css -> @ps2ui/layout -> ui.json (IR) -> ps2ui-bake -> ui.uib -> runtime (C99 + gsKit)
+ui/*.html,css -> @ophtml/layout -> ui.json (IR) -> ps2ui-bake -> ui.uib -> runtime (C99 + gsKit)
                  Node, zero deps                  Python, Pillow only
 ```
 
@@ -23,8 +23,8 @@ TTF — every command in it is executed by CI, so the numbers it prints
 are the numbers you will get.
 
 
-**Neither package is published, and the versions say so.** `ps2ui-bake`
-carries `0.3.0.dev0` and `@ps2ui/layout` carries `0.3.0-dev.0` — one
+**Neither package is published, and the versions say so.** `ophtml`
+(PyPI) carries `0.3.0.dev0` and `@ophtml/layout` (npm) carries `0.3.0-dev.0` — one
 prerelease in two spellings, against no git tags. They used to claim
 `0.2.0`, a release that does not exist, through four moves of the `.uib`
 format; the blobs this tree bakes are format **v7** and a 0.2.0-era
