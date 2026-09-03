@@ -689,7 +689,7 @@ findings:
 
 - id: F-038
   phase: 3
-  status: provisional
+  status: confirmed
   claim: "Neither processor is the constraint on an OPL-class screen"
   evidence:
     instrument: docs/PLAN.md
@@ -741,6 +741,22 @@ findings:
     frame rate without first showing content that threatens one of
     these two numbers. That is a higher bar than the phase opened with
     and it is the point of having measured.
+
+    S15 DISCHARGED THE SURVIVING HALF. oplenv-compose renders library
+    then confirm in one frame -- 804 commands, above every sweep point,
+    and the exact shape this note named as outside what had been
+    measured. It costs 3.62 ms EE and 1.50 ms GS, 22% of a field on the
+    EE. The falsifier named half a field; nothing in the Phase 2
+    envelope comes close, on either processor.
+
+    AND THE ARM MEASURED base AS A BYPRODUCT. Additivity predicts that
+    summing two frames double-counts the driver's per-frame work, so
+    base = ee(lib) + ee(conf) - ee(compose) - k_glyph x dg. Two
+    photographs at different counter widths, different ee readings and
+    different glyph corrections: 0.0880 and 0.0879 ms, against S14's
+    0.08 from a completely different design. ps2ui_render reuses
+    nothing between calls, and F-044's per-render model is not charging
+    twice for anything.
   refs: ["#67"]
 
 - id: F-042
@@ -1222,8 +1238,17 @@ findings:
     oplenv-clearopaque turns ABE off for that one draw. It cannot
     change a pixel: ALPHA is (Cs - Cd) x As >> 7 + Cd and the clear's
     vertex alpha is 0x80 = 128, so the blend is already the identity
-    Cv = Cs. gs drops ~0.14 and the first reading is right; gs does not
-    move and the second is, which is the more interesting outcome.
+    Cv = Cs. gs drops ~0.14 and the SECOND reading is right -- the clear
+    was paying the blended rate and this note's model misallocates. gs
+    does not move and the FIRST is: it already cost the opaque rate with
+    ABE on, and turning ABE off cannot make it cheaper than that.
+
+    THAT MAPPING WAS INVERTED HERE AND IN bench-phase2.md UNTIL S15,
+    while main.c:2114 had it right the whole time -- so the sitting's
+    own photograph would have been scored backwards against these
+    documents. A discriminator whose outcomes are mapped to the wrong
+    readings is worse than no discriminator, because it still returns
+    an answer. Measured at S15: gs does not move. See F-048.
 
     ee SETTLED THE BRANCH THE SWEEP EXISTED TO SPLIT. Predictions
     written before the sitting put N=4 at 12.05 if the driver's own
@@ -1310,12 +1335,26 @@ findings:
     and whether the peak-hold is catching the scroll frame at all --
     one sitting, and it either explains this or rules out the last
     explanation standing.
+
+    S15 GAVE THE RE-RUN SOMETHING SPECIFIC TO CHECK. The static screen
+    arm does not scroll and does not upload, and it reads gs^ - gs =
+    0.09 where the scrolling builds read 0.24 -- so the spread
+    decomposes into about 0.09 of baseline jitter plus about 0.15 for
+    the nine-row texture upload. The N=2 anomaly at 0.075 sits on the
+    NO-UPLOAD figure, not the no-scroll one.
+
+    That is still not a mechanism. It reframes the question from "why
+    is the spread small at N=2" to "what hid the upload spike in that
+    window", which the @ now on gs^ answers directly: at N=0 the peak
+    frame is 1320, 1140 and 3423 across three builds, and every one is
+    a multiple of SCROLL_EVERY. If N=2's is not, the peak-hold is
+    catching something else there.
   refs: ["#69"]
 
 - id: F-046
   phase: 3
-  status: provisional
-  claim: "opl-env's 11-13px slot text is legible on an SCPH-50000 and a Hisense panel, so the 14px floor is wrong for secondary text"
+  status: confirmed
+  claim: "opl-env's secondary text layer clears 15 arcmin of cap height and 2 arcmin of stroke at a seated distance, so the 14px floor is wrong for it"
   evidence:
     instrument: docs/bench-phase2.md
     measurement: >-
@@ -1343,10 +1382,11 @@ findings:
     reproduce: >-
       Boot any oplenv ELF from hw #309 and read the library screen.
   falsifier: >-
-    A photograph from a seated viewing distance -- 2 to 3 metres, which
-    is what "from a couch" means -- in which the 11px subtitles or the
-    13px row titles cannot be read. The bench reading was taken at
-    working distance, which is closer.
+    A reading from a seated viewing distance -- 2 to 3 metres, which is
+    what "from a couch" means -- in which the 11px subtitles or the
+    13px row titles cannot be read. Discharged at S15 at 2.74 m; it
+    stays live for any panel and distance putting this layer below
+    about 3x the 20/20 threshold, which the note bounds.
   note: >-
     THE MEASUREMENT IS NOT THE WHOLE CLAIM, WHICH IS WHY THIS IS
     PROVISIONAL. The lint's premise is legibility "from a couch", and
@@ -1375,4 +1415,143 @@ findings:
     smallest size THIS density study uses -- twelve rows of four
     fields, which is what an OPL-class environment demands -- and the
     rule stays live below it. A UI that wants 8px still fails.
+
+    S15 CLOSED IT, AND THE READING SCORED ITSELF. oplenv-scr-library at
+    9 ft (2.74 m), Hisense 58R6+, glasses on and off. The operator read
+    `c694 g382 u9` off the 11px telemetry line; g382 derives exactly
+    from the blob -- static 321 plus a 9-glyph [library] tag plus 52 --
+    and had appeared in no document and no earlier photograph. n3505
+    puts the last completed peak window at [3420, 3480) and @3423 falls
+    inside it, so a misread counter digit would have shown. This is a
+    three-digit unguessable value checked against an independent
+    derivation, not an operator's impression.
+
+    AND THE CLAIM IS RESTATED IN THE UNIT THAT TRANSFERS. Pixels mean
+    nothing without a panel size and a viewing distance. 722 mm of
+    panel height over 448 authored lines is 1.612 mm per line, so at
+    2.74 m:
+
+      11px  em 22.2'  cap 15.6'    .sub, .telem-l
+      13px  em 26.3'  cap 18.4'    row titles
+      14px  em 28.3'  cap 19.8'    chips, scores
+      22px  em 44.4'  cap 31.1'    screen titles
+
+    A 20/20 Snellen letter subtends 5' overall with 1' per stroke
+    feature. The 11px cap height is 3.1x that and a 1px stem subtends
+    2.0', twice the resolution limit -- the strokes resolve, not just
+    the letter mass. Threshold acuity here is about 20/62, which is why
+    correction made no difference.
+
+    WHAT BOUNDS IT. The same arithmetic run backwards: at 9 ft this
+    layer clears the 20/20 threshold on anything above an 18.6" panel
+    and reaches about 3x threshold -- comfortable sustained reading --
+    at 55.9". The 58" measured sits just above that line. A stranger 9
+    ft from a 43" set is at about 1.9x threshold: probably readable,
+    not the effortless case measured here. Guidance, not a second
+    falsifier; 3x is a rule of thumb rather than a standard.
   refs: ["#81"]
+
+- id: F-047
+  phase: 3
+  status: confirmed
+  claim: "The readout's glyph count moves with the frame counters' width, so the sweep table's telemetry term is 52 or 54 and never a constant"
+  evidence:
+    instrument: tools/check-sweep-table.py
+    measurement: >-
+      The sweep table declared "the driver's two telemetry lines
+      reconstruct to 55 glyphs", hand-counted at #83 from the real
+      format strings and read back by the tool. S15 measured 52, then
+      54, IN THE SAME CONTINUOUS RUN -- six cycle photographs from
+      n1320 to n13082, one boot, g stepping up by two as `@` and `n`
+      crossed 10000 with nothing about the UI changing.
+
+        line 1   11 literals + 12 fixed digits + @   = 23 + digits(@)
+        line 2    8 literals +  9 fixed digits + n   = 21 + digits(n)
+                                                       44 + both
+
+      52 at four-digit counters, 54 at five, 50 at three. The compose
+      arm reproduced it independently at a different boundary, reading
+      g529 at n542 and g533 at n1289 on one build.
+  falsifier: >-
+    Two readings of the same screen on the same build at different
+    frame-counter widths whose `g` is identical.
+  depends_on: [F-044]
+  note: >-
+    EVERY ROW OF BOTH SWEEP TABLES WAS THREE HIGH, and so was the
+    compose arm's predicted glyph identity: 539 where the console read
+    533. The prediction could not have been met, and the arm's own
+    integrity check -- "if g does not add, stop and say so rather than
+    fitting it" -- would have fired on a correct run.
+
+    THE FIX IS NOT A BETTER CONSTANT. A character count nobody is going
+    to redo is the wrong thing to declare. check-sweep-table.py parses
+    the two sprintf formats now and declares twelve FIELD WIDTHS
+    instead -- each one a glance at a photograph, two of them fenced
+    against the blob -- and derives `@` and `n` from each reading's own
+    frame count, since `@` is a frame index from the window just past
+    and stays within two windows of `n`.
+
+    AND THE SITTING'S OWN PHOTOGRAPHS ARE RE-DERIVED NOW, not just the
+    prediction. A table checked before a sitting and transcribed after
+    it is fenced on the half that was already right. Thirteen S15
+    readings across five arms, three tag lengths, two line-2 formats
+    and three counter widths all derive from the blob and the driver.
+
+- id: F-048
+  phase: 3
+  status: confirmed
+  claim: "gsKit's full-screen clear does not pay the blended fill rate despite ABE being set"
+  evidence:
+    instrument: docs/bench-phase2.md
+    measurement: >-
+      Bench S15. oplenv against oplenv-clearopaque in one sitting, the
+      second turning ABE off for that one draw and nothing else.
+
+        oplenv    ee2.77^4.04 gs1.02^1.26@1320 f16.68 p749 up28224 m0@0 n1421
+        clearopq  ee2.81^4.08 gs1.03^1.27@1140 f16.68 p759 up28224 m0@0 n1242
+
+      The +10 in p is the [clearopq] tag, which the control arm does
+      not carry -- 10 glyphs, worth 0.050 ms EE and 0.009 ms GS at the
+      fitted slopes, against raw deltas of 0.04 and 0.01. After
+      removing it the ABE change moves gs by +0.001 ms. Stated without
+      any correction at all: gs moves +0.01 against the -0.14 that "the
+      clear was paying the blended rate" requires -- fourteen times
+      outside, and in the wrong direction. The headline is the
+      uncorrected figure on purpose, since the 0.009 GS tag correction
+      leans on a slope this sitting's own GS paragraph disowns.
+
+      Three independent lines agree, and none is the blended rate:
+
+        S14 residual                        0.145
+        S15 compose arm, by subtraction     0.115
+        opaque theoretical 640x448          0.1215
+        blended theoretical                 0.243
+  falsifier: >-
+    A clearopaque build whose gs falls about 0.14 below the plain
+    build's once the tag difference is removed.
+  depends_on: [F-039, F-044]
+  note: >-
+    THE 0.14 WAS NEVER UNEXPLAINED. It was unexplained only under the
+    assumption that an ABE-on draw pays the blended rate, and this
+    falsifies that assumption directly rather than by residual.
+
+    A THIRD CANDIDATE DIES HERE, and it is the one this project's own
+    history made most likely. The v2 alpha probe found that on this
+    console an ABE-on sprite at alpha 0x7f-0x80 painted NOTHING. If the
+    clear were a no-op for that reason it would cost near zero, and
+    turning ABE off would make it a real full-screen opaque fill --
+    gs would have RISEN by about 0.145. It did not move.
+
+    THE CONFOUND BIASED AWAY FROM THE FALSIFIER, WHICH IS LUCK. #42
+    named every arm on the readout after this arm was specified, so the
+    discriminator acquired a 10-glyph tag its control does not have. It
+    pushes gs up, not down, so it cannot have manufactured the null --
+    but it had to be subtracted rather than ignored, and nothing in the
+    arm's design said so.
+
+    NO MECHANISM IS ASSERTED. Why an ABE-on draw does not pay the blend
+    rate is now a narrow question about GS state this codebase has
+    never written -- ALPHA, PABE and TEST, inherited from whatever
+    gsKit_init_screen left behind -- which is F-001 and F-004's thread
+    rather than a new one.
+

@@ -2353,15 +2353,25 @@ int main(void)
                 ps2ui_slot_set(&ui, nm_telem, telem);
 #ifdef PS2UI_OPLENV_COMPOSE
                 /* MIRRORED INTO LIBRARY'S PAIR, NOT BLANKED, AND THE
-                 * DIFFERENCE IS 55 GLYPHS OF BIAS.
+                 * DIFFERENCE IS ONE TELEMETRY PAIR OF BIAS.
+                 *
+                 * S15 CORRECTION: this said "55 GLYPHS", and the two
+                 * counts below were computed from that. A telemetry
+                 * pair is 52 glyphs at four-digit `@` and `n` and 54
+                 * at five -- S15 watched it step mid-run as n crossed
+                 * 10000 -- so no fixed number belongs in this comment
+                 * at all. tools/check-sweep-table.py walks the format
+                 * strings. The ARGUMENT is unchanged and is what
+                 * matters here; only the magnitude was wrong.
                  *
                  * The first version set these to "" so the scrim would
                  * not show a second readout saying "waiting" forever.
                  * But oplenv-scr-library -- the subtrahend this arm is
                  * read against -- DOES draw its pair, so a blanked
-                 * composed frame carries 466 glyphs where the two sweep
-                 * points sum to 521. Under the sweep's own model that
-                 * makes ee(composed) - ee(library) short by k_g x 55,
+                 * composed frame carries one telemetry pair fewer than
+                 * the two sweep points sum to. Under the sweep's own
+                 * model that makes ee(composed) - ee(library) short by
+                 * k_glyph x 52, about a quarter of a millisecond,
                  * always, and always in the direction of "under" --
                  * which is verbatim this arm's falsification criterion
                  * and would argue for the conclusion F-038 nominated as
@@ -2378,9 +2388,16 @@ int main(void)
                  * same live numbers instead of a stale placeholder.
                  *
                  * AND IT IS CHECKABLE ON THE PHOTOGRAPHS: with this,
-                 * g(composed) must equal g(library) + g(confirm), all
-                 * three read off line 2. If it does not, an asymmetry
-                 * like the one this replaced is back. */
+                 * g(composed) must equal g(library) + g(confirm) minus
+                 * the tag offset, all three read off line 2 -- this arm
+                 * carries [compose] twice where the sweep points carry
+                 * their own longer tags, and check-sweep-table.py
+                 * derives that offset rather than leaving it to be
+                 * rediscovered at a console with three photographs that
+                 * refuse to add. S15 read 533 against 384 + 153 - 4, at
+                 * four-digit counters, and 529 at three. If it does not
+                 * add, an asymmetry like the one this replaced is
+                 * back. */
                 ps2ui_slot_set(&ui, "library-telem", telem);
 #endif
                 /* WHAT EACH BUILD PRINTS, AND WHY THE SCREEN ARM
