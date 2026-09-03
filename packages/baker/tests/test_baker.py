@@ -3398,8 +3398,9 @@ class TestConsoleScriptVersions(unittest.TestCase):
         import io
         import contextlib
         from ps2ui_bake import __version__, cli, check, fontgen
+        from ps2ui_bake import ps2ui as front
         for mod, prog in ((cli, "ps2ui-bake"), (check, "ps2ui-check"),
-                          (fontgen, "ps2ui-fontgen")):
+                          (fontgen, "ps2ui-fontgen"), (front, "ps2ui")):
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 try:
@@ -3563,4 +3564,172 @@ class TestNewcomerPath(unittest.TestCase):
             # And nothing was written: a blob positioned by one font and
             # drawn with another must not reach a console.
             self.assertFalse(os.path.exists(out))
+
+
+class TestProjectFile(unittest.TestCase):
+    """ps2ui.json: what it accepts, and what it refuses by name.
+
+    The point of the file is that a build is one command and a
+    newcomer reads four lines instead of seven invocations. That only
+    holds if a key nobody reads is an error rather than a shrug --
+    the same rule the layout compiler applies to `data-` attributes,
+    and for the same reason: a silently ignored setting is one the
+    author believes is in effect.
+    """
+
+    def write(self, tmp, data, name="ps2ui.json"):
+        import json as _json
+        path = os.path.join(tmp, name)
+        with open(path, "w", encoding="utf-8") as fh:
+            _json.dump(data, fh)
+        return path
+
+    def test_the_minimum_project_is_two_keys(self):
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write(tmp, {"screens": ["ui/a.html"],
+                                    "css": "ui/app.css"})
+            proj = project.load(path)
+            self.assertEqual(len(proj.screens), 1)
+            self.assertEqual(proj.screens[0].name, "a")
+            # Defaults, so the file does not have to say them.
+            self.assertTrue(proj.out_path.endswith(
+                os.path.join("build", "ui.uib")))
+            self.assertTrue(proj.preview_path("preview").endswith(
+                os.path.join("build", "preview.png")))
+            self.assertIsNone(proj.preview_path("montage"))
+            # Every path is relative to the PROJECT, not the cwd.
+            self.assertTrue(proj.screens[0].html.startswith(tmp))
+            self.assertTrue(proj.screens[0].css.endswith("app.css"))
+
+    def test_a_directory_means_the_ps2ui_json_inside_it(self):
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self.write(tmp, {"screens": ["a.html"], "css": "a.css"})
+            self.assertEqual(len(project.load(tmp).screens), 1)
+
+    def test_an_unknown_key_is_refused_by_name(self):
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write(tmp, {"screens": ["a.html"], "css": "a.css",
+                                    "minfontsize": 11, "previews": "x.png"})
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            msg = str(cm.exception)
+            self.assertIn("'minfontsize'", msg)
+            self.assertIn("'previews'", msg)
+            # And it lists what a project does take, so the fix is in
+            # the message rather than in the source.
+            self.assertIn("minFontSize", msg)
+
+    def test_a_screen_may_be_an_object_and_its_keys_are_checked_too(self):
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write(tmp, {
+                "css": "app.css",
+                "screens": ["a.html",
+                            {"html": "b.html", "focusWrap": True},
+                            {"html": "c.html", "css": "other.css"}]})
+            proj = project.load(path)
+            self.assertFalse(proj.screens[0].focus_wrap)
+            self.assertTrue(proj.screens[1].focus_wrap)
+            self.assertTrue(proj.screens[2].css.endswith("other.css"))
+            self.assertTrue(proj.screens[0].css.endswith("app.css"))
+
+            bad = self.write(tmp, {"css": "app.css",
+                                   "screens": [{"html": "b.html",
+                                                "focuswrap": True}]},
+                             name="bad.json")
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(bad)
+            self.assertIn("focuswrap", str(cm.exception))
+
+    def test_a_screen_with_no_stylesheet_says_both_places_to_put_one(self):
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write(tmp, {"screens": ["a.html"]})
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("no stylesheet", str(cm.exception))
+
+    def test_missing_and_malformed_projects_are_not_tracebacks(self):
+        from ps2ui_bake import project
+        import tempfile
+        with self.assertRaises(project.ProjectError) as cm:
+            project.load("/nonexistent/ps2ui.json")
+        self.assertIn("screens", str(cm.exception))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "ps2ui.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("{ not json")
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("not valid JSON", str(cm.exception))
+
+    def test_the_examples_are_the_acceptance_test(self):
+        # The design test: if a project file cannot express the shipped
+        # examples it is the wrong design, and it was written by
+        # converting them. Each one must load and name the same screens
+        # its build.sh used to compile by hand.
+        from ps2ui_bake import project
+        for name, want in (("memcard", ["library", "saves"]),
+                           ("channel6", ["games", "probe"]),
+                           ("opl-env", ["landing", "library", "detail",
+                                        "filters", "recent", "confirm"])):
+            proj = project.load(os.path.join(REPO, "examples", name))
+            self.assertEqual([s.name for s in proj.screens], want, name)
+            for s in proj.screens:
+                self.assertTrue(os.path.exists(s.html), s.html)
+                self.assertTrue(os.path.exists(s.css), s.css)
+
+    def test_build_prints_paths_relative_to_the_project_not_the_cwd(self):
+        """"Every path is relative to the project" must hold for OUTPUT.
+
+        The first version printed the absolute path of everything it
+        wrote, because it passed absolute paths to the two tools it
+        drives. The tutorial caught it -- a machine-specific temp path
+        is not something a document can quote -- but only because the
+        tutorial happens to `cd` into its project first, which makes
+        the fix a no-op there. Sabotaging the chdir passed.
+
+        So this builds from a DIFFERENT directory, which is how every
+        example's build.sh invokes it: `ps2ui build "$here/ps2ui.json"`
+        from the repository root.
+        """
+        import tempfile
+        import json as _json
+        from ps2ui_bake import ps2ui as front
+        with tempfile.TemporaryDirectory() as tmp:
+            proj_dir = os.path.join(tmp, "browser")
+            os.makedirs(os.path.join(proj_dir, "ui"))
+            with open(os.path.join(proj_dir, "ui", "s.html"), "w") as fh:
+                fh.write('<screen name="s"><div class="r">Hi</div></screen>')
+            with open(os.path.join(proj_dir, "ui", "s.css"), "w") as fh:
+                fh.write('.r { color: #fff; background: #000; }')
+            with open(os.path.join(proj_dir, "ps2ui.json"), "w") as fh:
+                _json.dump({"screens": ["ui/s.html"], "css": "ui/s.css",
+                            "fonts": os.path.join(FONTS, "fonts.json")}, fh)
+
+            here = os.getcwd()
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = front.main(["build", os.path.join(proj_dir,
+                                                       "ps2ui.json")])
+            out = err.getvalue()
+            self.assertEqual(rc, 0, out)
+            # The cwd is restored: a tool that leaves you somewhere else
+            # breaks every caller that runs anything after it.
+            self.assertEqual(os.getcwd(), here)
+            self.assertIn("-> build/ui.uib", out)
+            self.assertIn("preview -> build/preview.png", out)
+            self.assertNotIn(tmp, out,
+                             "ps2ui printed an absolute path; every path "
+                             "is supposed to be relative to the project")
+            self.assertTrue(os.path.exists(
+                os.path.join(proj_dir, "build", "ui.uib")))
 

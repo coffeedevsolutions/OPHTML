@@ -1194,8 +1194,24 @@ the tables in the IR, which is format-visible and is not this. The loud
 case is prevented, the quiet one is avoidable, and a test asserts the
 gap so the claim cannot quietly widen.
 
-Then npm + PyPI + a `ps2ui` wrapper CLI (`build` / `dev` / `check` /
-`fontgen`), and a format stability pledge **post-v7**.
+**The `ps2ui` wrapper CLI — [shipped].** `build` / `check` / `fontgen`
+/ `dev` over a toolchain that had three front doors and three argument
+shapes, with `--fonts` meaning the same thing in two of them and absent
+from the third. A project is a `ps2ui.json` whose only required keys
+are `screens` and `css`; everything else defaults, an unknown key is
+refused by name, and every path — including every path the tool
+*prints* — is relative to the project rather than the working
+directory.
+
+The design was settled by conversion rather than by argument: all four
+shipped examples had carried the same `build.sh` with different flags,
+and each now describes itself in a project file and produces a
+**byte-identical blob**. `variants` was considered and dropped —
+channel6's 16:9 build is a second `ps2ui build --mode ntsc16x9 -o …`,
+because a second blob is a second build and a nested dialect is one
+more thing to learn.
+
+Then npm + PyPI, and a format stability pledge **post-v7**.
 
 The pledge moved from post-v6 because v7 broke the format inside
 Phase 3 (the tint table), which is the second break since the pledge

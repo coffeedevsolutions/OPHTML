@@ -1,0 +1,11 @@
+{
+  "screens": [
+    "ui/landing.html", "ui/library.html", "ui/detail.html",
+    "ui/filters.html", "ui/recent.html", "ui/confirm.html"
+  ],
+  "css": "ui/opl.css",
+  "strict": true,
+  "minFontSize": 11,
+  "preview": "build/preview.png",
+  "montage": "build/states.png"
+}

@@ -28,35 +28,24 @@ string. That means the toolchain needs *metrics* for your font, and
 `ps2ui-fontgen` makes them from any TTF.
 
 ```sh
-mkdir -p browser/ui browser/fonts && cd browser
-ps2ui-fontgen "$TTF_REGULAR" default 400 fonts/default.metrics.json
-ps2ui-fontgen "$TTF_BOLD"    default 700 fonts/default-bold.metrics.json
+mkdir -p browser/ui && cd browser
+ps2ui fontgen "$TTF_REGULAR" "$TTF_BOLD"
 ```
 
 ```text
 ps2ui-fontgen: 115 glyphs, 284 kern pairs -> fonts/default.metrics.json
 ps2ui-fontgen: 115 glyphs, 163 kern pairs -> fonts/default-bold.metrics.json
+ps2ui-fontgen: manifest -> fonts/fonts.json
 ```
 
 Two faces, not a weight axis: the PS2 does not have the VRAM for one.
 Anything with `font-weight: 600` or more resolves to bold.
 
-Now a manifest naming both. **Both tools read this same file** — the
-compiler needs the metrics, the baker needs the metrics *and* the TTF,
-because only the baker rasterizes.
-
-```sh
-cat > fonts/fonts.json <<EOF
-{
-  "regular": { "ttf": ["$TTF_REGULAR"], "metrics": "default.metrics.json" },
-  "bold":    { "ttf": ["$TTF_BOLD"],    "metrics": "default-bold.metrics.json" }
-}
-EOF
-```
-
-`ttf` takes a list of candidates and the first one that exists wins, so
-one manifest can serve machines that keep their fonts in different
-places.
+That wrote `fonts/fonts.json` as well, which names both TTFs and both
+metrics files. Everything downstream reads it and you will not have to
+mention fonts again. `ttf` takes a list of candidates and the first one
+that exists wins, so one manifest can serve machines that keep their
+fonts in different places.
 
 ## 2. The screen
 
@@ -126,37 +115,54 @@ designing on.** The linter checks contrast, minimum font size and the
 action-safe margin, and it reads the *resolved* colour of every focus
 state, not just the base one.
 
-## 4. Compile
+## 4. Say what the project is
+
+One file, and the only two keys with no sensible default:
 
 ```sh
-ps2ui-layout ui/library.html ui/library.css -o build/library.json \
-    --fonts fonts/fonts.json --strict
+cat > ps2ui.json <<'EOF'
+{
+  "screens": ["ui/library.html"],
+  "css": "ui/library.css",
+  "strict": true,
+  "montage": "build/states.png"
+}
+EOF
+```
+
+`strict` and `montage` are already optional. Without them the blob still
+lands in `build/ui.uib` with a preview beside it, fonts come from
+`fonts/fonts.json` next to this file, and every path is relative to the
+project rather than to wherever you happen to be standing.
+
+A key nothing reads is an **error**, not a shrug — misspell
+`minFontSize` and the message names it and lists what a project takes.
+The whole set: `screens`, `css`, `fonts`, `out`, `preview`, `montage`,
+`previewDisplay`, `mode`, `canvas`, `displayAspect`, `strict`,
+`minFontSize`, `focusWrap`, `palettizeImages`, `vramBudget`.
+
+A screen is usually a path. When one needs something the others do not,
+it becomes an object — `{ "html": "ui/probe.html", "focusWrap": true }`.
+
+## 5. Build
+
+```sh
+ps2ui build
 ```
 
 ```text
 ps2ui-layout: 14 paint commands, 6 focusables -> build/library.json
-```
-
-`build/library.json` is the intermediate representation: a flat display
-list with the flexbox already solved, every string already measured and
-kerned, and the focus graph already resolved. It is a documented format
-(`docs/format-ir.md`) — you can generate it from something other than
-HTML if you want to.
-
-## 5. Bake
-
-```sh
-ps2ui-bake build/library.json -o build/ui.uib \
-    --fonts fonts/fonts.json \
-    --preview build/preview.png --montage build/states.png
-```
-
-```text
 ps2ui-bake: 1 screen(s), 24 records, 2 textures (32 KiB baked), 1 CLUTs -> build/ui.uib
 ps2ui-bake: arena 1516 bytes (static uint8_t arena[1516] __attribute__((aligned(16))))
 ps2ui-bake: preview -> build/preview.png
 ps2ui-bake: montage -> build/states.png
 ```
+
+Two stages ran. `build/library.json` is the **intermediate
+representation**: a flat display list with the flexbox already solved,
+every string already measured and kerned, and the focus graph resolved.
+It is a documented format (`docs/format-ir.md`), so you can generate it
+from something other than HTML. `build/ui.uib` is what ships.
 
 `ui.uib` is what ships to the console: quads, texture atlases, palettes,
 the slot table, the focus graph and the tint table, in one file the
@@ -174,7 +180,7 @@ CSS means. `states.png` is every focus state as a contact sheet.
 ## 6. Check it
 
 ```sh
-ps2ui-check build/ui.uib
+ps2ui check
 ```
 
 ```text
@@ -237,12 +243,19 @@ hardware, each step with its expected result and failure symptom.
 these are the same commands:
 
 ```
+ps2ui         ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake.ps2ui
 ps2ui-layout  ->  node <repo>/packages/layout/bin/ps2ui-layout.js
 ps2ui-dev     ->  node <repo>/packages/layout/bin/ps2ui-dev.js
 ps2ui-bake    ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake
 ps2ui-check   ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake.check
 ps2ui-fontgen ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake.fontgen
 ```
+
+`ps2ui build` runs the compiler as a subprocess, so it has to find it.
+It looks at `$PS2UI_LAYOUT`, then `ps2ui-layout` on `PATH`, then the
+checkout it might be sitting in — and when none of those has it, says
+`npm install -g @ps2ui/layout` rather than failing on a path you never
+chose.
 
 `tools/check-tutorial.py` puts exactly those on `PATH` as shims and runs
 this document, which is how the commands above stay true: they are

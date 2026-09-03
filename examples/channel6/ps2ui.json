@@ -1,0 +1,10 @@
+{
+  "screens": [
+    "ui/games.html",
+    { "html": "ui/probe.html", "focusWrap": true }
+  ],
+  "css": "ui/channel6.css",
+  "preview": "build/preview.png",
+  "previewDisplay": "build/preview-display.png",
+  "montage": "build/states.png"
+}

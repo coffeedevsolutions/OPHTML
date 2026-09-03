@@ -12,44 +12,20 @@ repo=$(cd "$here/../.." && pwd)
 out="$here/build"
 mkdir -p "$out"
 
+# WHY probe.html SETS focusWrap IN ps2ui.json AND games.html DOES NOT.
 # The browser navigates without wrap on purpose: walking off the cover
 # grid must dead-end, so a stuck D-pad is visible immediately. The probe
-# screen wraps, which exercises the other half of --focus-wrap.
-node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/games.html" "$here/ui/channel6.css" \
-    -o "$out/games.json"
+# screen wraps, which exercises the other half. That is the one setting
+# this project varies per screen, and it is why a screen may be an
+# object rather than a bare path.
+# THE BUILD ITSELF IS ps2ui.json. The 16:9 blob is a SECOND BUILD of
+# the same project, which is why the project file has no `variants`
+# block: everything a second blob needs differently is a flag.
+PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 
-node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/probe.html" "$here/ui/channel6.css" --focus-wrap \
-    -o "$out/probe.json"
+PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \
+    --mode ntsc16x9 -o build/ui-16x9.uib
 
-PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
-    "$out/games.json" "$out/probe.json" \
-    -o "$out/ui.uib" \
-    --preview "$out/preview.png" \
-    --preview-display "$out/preview-display.png" \
-    --montage "$out/states.png"
-
-# The same UI authored for a panel that stretches to 16:9. Same 640x448
-# framebuffer, same command list; only the aspect in the header and the
-# linter's distortion warnings differ. Bringing both blobs to one panel
-# is how you prove the aspect reached the hardware (docs/bringup.md
-# step 10): each should read correct in its own TV mode and wrong in the
-# other.
-node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/games.html" "$here/ui/channel6.css" --mode ntsc16x9 \
-    -o "$out/games-16x9.json"
-
-node "$repo/packages/layout/bin/ps2ui-layout.js" \
-    "$here/ui/probe.html" "$here/ui/channel6.css" --mode ntsc16x9 --focus-wrap \
-    -o "$out/probe-16x9.json"
-
-PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
-    "$out/games-16x9.json" "$out/probe-16x9.json" \
-    -o "$out/ui-16x9.uib" \
-    --preview-display "$out/preview-16x9-display.png"
-
-# ps2ui-bake previews screen 0; the probe screen needs the API directly.
 PYTHONPATH="$repo/packages/baker" python3 - "$out" <<'PY'
 import sys
 from ps2ui_bake.uib import read_uib

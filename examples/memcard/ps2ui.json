@@ -1,0 +1,6 @@
+{
+  "screens": ["ui/library.html", "ui/saves.html"],
+  "css": "ui/library.css",
+  "preview": "build/preview.png",
+  "montage": "build/states.png"
+}

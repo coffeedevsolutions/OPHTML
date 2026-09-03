@@ -34,24 +34,12 @@ mkdir -p "$out"
 # 11 and not 0: the smallest size this design actually uses, so the
 # rule stays live and anything below it still fails the build. A UI
 # that wants 8px is still refused.
-for screen in landing library detail filters recent confirm; do
-    node "$repo/packages/layout/bin/ps2ui-layout.js" \
-        "$here/ui/$screen.html" "$here/ui/opl.css" \
-        -o "$out/$screen.json" --strict --min-font-size 11
-done
+# THE BUILD ITSELF IS ps2ui.json, not this file: six screens, one
+# stylesheet, --strict and the 11px floor. What stays here is what is
+# genuinely this example's -- the blob rules, its contract check, and
+# the per-theme screenshots.
+PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 
-PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake \
-    "$out/landing.json" "$out/library.json" "$out/detail.json" \
-    "$out/filters.json" "$out/recent.json" "$out/confirm.json" \
-    -o "$out/ui.uib" \
-    --preview "$out/preview.png" \
-    --montage "$out/states.png"
-
-# NOT `make -C runtime test UIB=...`: that suite asserts the memcard
-# example's contents by name and refuses any other blob. check-blobs is
-# the blob-generic validator, and it is what this example needs -- it
-# reads the header, walks every table, and checks the runtime's
-# assumptions hold without knowing what the screens are called.
 (cd "$repo" && ./tools/check-blobs.sh examples/opl-env/build/ui.uib)
 
 # And what THIS blob promises, which check-blobs cannot know: that the

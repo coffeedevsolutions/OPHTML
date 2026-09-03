@@ -15,6 +15,10 @@ dependencies = ["Pillow>=9"]
 Repository = "https://github.com/coffeedevsolutions/OPHTML"
 
 [project.scripts]
+# One front door over a toolchain that had three. The three below stay:
+# they are what `ps2ui` drives, and a person debugging one stage wants
+# to run that stage.
+ps2ui = "ps2ui_bake.ps2ui:main"
 ps2ui-bake = "ps2ui_bake.cli:main"
 ps2ui-check = "ps2ui_bake.check:main"
 ps2ui-fontgen = "ps2ui_bake.fontgen:main"
