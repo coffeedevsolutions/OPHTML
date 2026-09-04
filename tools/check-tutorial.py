@@ -118,7 +118,8 @@ def blocks():
     return found
 
 
-def main():
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
     cmds = blocks()
     asserted = {i + 1 for i, (_, out) in enumerate(cmds) if out}
     if asserted != ASSERTED_BLOCKS:
@@ -138,9 +139,36 @@ def main():
                if gained else ""))
     expected = len(asserted)
 
+    # --from-registry: DO NOT SHIM. The commands then resolve to
+    # whatever `pip install ophtml` and `npm install -g @ophtml/layout`
+    # put on PATH, which is a different subject from the default run
+    # and not a replacement for it. The default run tests THIS TREE;
+    # this one tests THE RELEASE, and can only ever test the last
+    # published version, so it belongs on a schedule rather than on a
+    # push. See .github/workflows/registry.yml.
+    #
+    # WHAT IT STILL DOES NOT PROVE. The tutorial text and this script
+    # come from a checkout, because they have to come from somewhere;
+    # only the COMMANDS come from the registries. The exit gate says
+    # "without cloning this repository" and this is the closest an
+    # automated run gets to it. Stated rather than implied, because a
+    # green run here is going to be read as the gate.
+    from_registry = "--from-registry" in argv
     tmp = tempfile.mkdtemp(prefix="ps2ui-tutorial-")
     env = dict(os.environ)
-    env["PATH"] = shim_dir(tmp) + os.pathsep + env["PATH"]
+    if not from_registry:
+        env["PATH"] = shim_dir(tmp) + os.pathsep + env["PATH"]
+    else:
+        missing = [c for c in SHIMS if shutil.which(c) is None]
+        if missing:
+            raise SystemExit(
+                "not ok - --from-registry, but %s not on PATH. This mode "
+                "runs the tutorial against installed packages; install "
+                "them first (pip install ophtml; npm install -g "
+                "@ophtml/layout) or drop the flag to run against the "
+                "checkout." % ", ".join(sorted(missing)))
+        print("# --from-registry: %s" % ", ".join(
+            "%s -> %s" % (c, shutil.which(c)) for c in sorted(SHIMS)))
     env.update(ttfs())
     # One shell for the whole document: `cd browser` in step 1 has to
     # still be in effect at step 5, exactly as it is for a reader.

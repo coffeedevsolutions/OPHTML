@@ -1346,7 +1346,7 @@ the last item goes red on the first three if they land after it:
    minutes bootstrapping CMake. `--no-binary pillow` is the flag.
    `brew --prefix` rather than a literal path, because Intel is
    `/usr/local`.
-4. **A job that installs from the registries**, matrixed over ubuntu
+4. **[done] A job that installs from the registries**, matrixed over ubuntu
    and macOS. `tools/check-tutorial.py`'s docstring already states the
    constraint that is easy to get wrong: this must **not** replace the
    shim job. The shim job tests *this tree*; a registry job tests *the
@@ -1401,6 +1401,33 @@ second thing tried:
   and wrong on a runner that installs the fonts on purpose, and 22
   silent skips there would retire the kern tables, the cross-language
   pen agreement and the slot spacing with the run still green.
+
+**Item 4 shipped as `.github/workflows/registry.yml`**, and the ubuntu
+half of the gate is met today: the tutorial runs clean end to end
+against the published `0.3.0` from PyPI and npm, 7 blocks, 4 of 4
+asserted, with the five console scripts resolving to installed
+packages rather than shims. That was run before the workflow was
+written, so the workflow automates a result rather than hoping for one.
+
+Two jobs, in opposite directions. `tutorial` runs the document against
+whatever the registries hand out today, on ubuntu and on macOS with
+the remedy `fontgen` prints applied exactly as printed -- so the
+printed remedy stops being true the moment that job goes red, which is
+the only way this project would find out. `macos-plain` asserts the
+*absence*: a plain `pip install ophtml` on macOS still has no Raqm and
+still refuses. A red there is good news that makes two documents
+wrong, and it says so in the failure.
+
+**The division of labour caught its own author.** The first draft of
+`macos-plain` asserted the refusal prints `brew install libraqm`. That
+string lands in 0.4.0; the job installs what is *published*, which is
+0.3.0 and says something else, so the assertion would have failed from
+the day it merged, on a schedule, for something that is not a defect.
+The wording of the remedy is a fact about the tree and is fenced in the
+tree; its premise -- that somebody else's wheel has no Raqm -- is the
+only part that can be checked here. Each claim is now asserted where it
+can be true, which is the distinction this whole workflow exists to
+keep.
 
 **What none of that closes.** The gate says the memcard example *and
 its hardware screenshot*. Items 1-4 are the software half. No runner
