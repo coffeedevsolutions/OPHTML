@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="docs/assets/ophtml-logo-releaseVersion030-plain-white-darkbg.png"
+       alt="OPHTML" width="600">
+</p>
+
 # OPHTML / ps2ui
 
 **Build PlayStation 2 homebrew UIs from HTML and CSS.**
