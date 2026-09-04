@@ -54,9 +54,33 @@ SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE
 # and stops before the assembler, so the warnings appear and the asm is
 # never encoded. Verified by injecting an unused static: -fsyntax-only
 # passes it, -S rejects it.
+#
+# AND THAT PARAGRAPH IS WHY THIS TARGET FAILED ON CLANG FOR ITS WHOLE
+# LIFE. `-S` stops before the assembler in GCC. Clang parses inline asm
+# with its INTEGRATED assembler during -S, so `mfc0 %0, $9` is rejected
+# against an x86 host before any of the above applies:
+#
+#     sample/main.c:110:26: error: invalid instruction mnemonic 'mfc0'
+#
+# Reverting to -fsyntax-only is the obvious fix and is wrong -- it is
+# the fix this comment already refuses, and taking it would trade a
+# compiler nobody ran for the warning class that cost the red `elf`
+# job. HOST_NOASM asks the compiler whether it can be told to emit the
+# asm text without parsing it, which is what GCC does unconditionally
+# and clang does under -fno-integrated-as. Both then generate code, so
+# -Wunused-function still fires under both.
+#
+# PROBED BY FEATURE, NOT BY NAME. Matching "clang" in $(CC) --version
+# gets the cross-compilers and the wrappers wrong, and says nothing
+# about a compiler neither of us has heard of. Asking whether the flag
+# is accepted is the question that actually matters, and a compiler
+# that does not need it answers empty.
+HOST_NOASM := $(shell $(CC) -fno-integrated-as -S -o /dev/null -x c /dev/null >/dev/null 2>&1 \
+	&& echo -fno-integrated-as)
+
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \
-		$(CC) -std=c99 -Wall -Werror -S -o /dev/null $$v \
+		$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null $$v \
 			-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c || exit 1; \
 		echo "ok - sample compiles: $$v"; \
 	done
@@ -64,7 +88,7 @@ syntax-check:
 # not survive `for v in $(SAMPLE_VARIANTS)`: the shell strips one layer
 # at expansion and the compiler would be handed a bare identifier.
 # Paired with STATIC, which is how CI builds conform.elf.
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_SCREEN='"probe"' \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_SCREEN"
@@ -96,7 +120,7 @@ syntax-check:
 # is what makes the GS number a measurement rather than a hope, and an
 # arm that quietly stopped building would be discovered at a bench with
 # the console already on.
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL"
@@ -104,18 +128,18 @@ syntax-check:
 # ps2dev toolchain ever sees. The code path is identical, which is why
 # this is close to noise -- but that is exactly the argument that would
 # have left OPLENV+FILL out of this list too.
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_FILL -DPS2UI_OPLENV_FILL_N=16 \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_FILL_N=16"
 # The EE arm and one of its sweep points, for the same reason: it is the
 # instrument P3d's gate now rests on [F-042], and an arm discovered
 # broken at a bench is an arm discovered with the console already on.
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE"
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE -DPS2UI_OPLENV_EE_N=4 \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_EE_N=4"
@@ -123,7 +147,7 @@ syntax-check:
 # work and this multiplies both, so a build carrying both measures
 # neither cleanly. It still has to compile, because the flags are
 # independent and someone will try it.
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_EE -DPS2UI_OPLENV_FILL \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: both arms together (measures neither cleanly)"
@@ -145,29 +169,29 @@ syntax-check:
 # Everything else hw.yml builds is above or in SAMPLE_VARIANTS;
 # checked by diffing the workflows' make invocations against this
 # list, which is worth mechanising the day a third exception appears.
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_CLEAR_OPAQUE \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_CLEAR_OPAQUE"
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_THEME_CYCLE \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_THEME_CYCLE"
 # Quoted separately for the reason SAMPLE_SCREEN is: a stringised name
 # does not survive a `for v in` expansion.
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_SCREEN='"confirm"' \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_SCREEN"
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_COMPOSE \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_COMPOSE"
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_CYCLE \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_OPLENV_CYCLE"
-	@$(CC) -std=c99 -Wall -Werror -S -o /dev/null \
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
 		-DPS2UI_SAMPLE_OPLENV -DPS2UI_OPLENV_CYCLE \
 		-DPS2UI_OPLENV_CYCLE_EVERY=300 \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
