@@ -32,3 +32,13 @@ version = { attr = "ps2ui_bake.__version__" }
 
 [tool.setuptools]
 packages = ["ps2ui_bake"]
+
+# `ps2ui serve`'s page is one HTML file beside the module rather than a
+# quoted string inside it -- a 600-line page embedded in Python is
+# unreadable and unlintable. It is DATA, so it has to be declared here:
+# without this the sdist and the wheel omit it, `ps2ui serve` works in a
+# checkout and raises FileNotFoundError for anyone who installed the
+# package, and nothing in the tree would have said so. That is the same
+# shape as the font path the exit gate found.
+[tool.setuptools.package-data]
+ps2ui_bake = ["serve_page.html"]

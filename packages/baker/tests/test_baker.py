@@ -3428,8 +3428,16 @@ class TestConsoleScriptVersions(unittest.TestCase):
             # scanner that flagged those would be deleted within a week.
             src = re.sub(r"#.*", "", src)
             src = re.sub(r'"""(?:.|\n)*?"""', "", src)
+            # A DOTTED QUAD IS NOT A VERSION. serve.py binds
+            # 127.0.0.1 and prints its URL, and the first version of
+            # this flagged all three as spelled-out versions -- so the
+            # boundaries below require the three parts to stand alone.
+            # Loosening the scanner instead would have been the wrong
+            # fix: it exists to catch a literal that drifts, and an IP
+            # address is simply not one.
             found = re.findall(
-                r"""["'][^"'\n]*\d+\.\d+\.\d+[^"'\n]*["']""", src)
+                r"""["'][^"'\n]*(?<![\d.])\d+\.\d+\.\d+(?![\d.])"""
+                r"""[^"'\n]*["']""", src)
             self.assertEqual(found, [], "%s spells out %s" % (name, found))
 
 

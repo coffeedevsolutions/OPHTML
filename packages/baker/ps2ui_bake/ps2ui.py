@@ -11,6 +11,7 @@ were the same script with different flags.
     ps2ui check          validate the blob the project builds
     ps2ui fontgen        metrics from a TTF, both faces, one command
     ps2ui dev            rebuild on every edit
+    ps2ui serve          the same loop, navigable, in a browser
 
 FINDING THE OTHER HALF. The layout compiler is a Node package, so
 `build` has to reach out of this process to run it. It looks in three
@@ -114,6 +115,33 @@ def compile_screens(proj, argv_extra):
     return irs
 
 
+def bake_argv(proj, irs):
+    """The baker's arguments for a project, minus its preview siblings.
+
+    ONE CONSTRUCTION, TWO CALLERS. `ps2ui serve` builds the same project
+    through the same compiler, and its first version assembled this list
+    itself -- passing --fonts to the compiler and not to the baker, so
+    the IR was measured against the project's manifest and baked against
+    the baker's default. Every other project flag was missing the same
+    way and silently.
+
+    A unit test could not see it: in a CHECKOUT the baker's default font
+    directory is the repository's own fonts/, so the wrong argv produced
+    a byte-identical blob and only the tutorial -- which runs from an
+    empty directory -- failed. So the duplication is gone rather than
+    tested around, because the test that would have caught it is one
+    that cannot exist here.
+    """
+    argv = list(irs) + ["-o", rel(proj, proj.out_path)]
+    if proj.fonts_path:
+        argv += ["--fonts", rel(proj, proj.fonts_path)]
+    if proj.palettize_images:
+        argv += ["--palettize-images"]
+    if proj.vram_budget is not None:
+        argv += ["--vram-budget", str(proj.vram_budget)]
+    return argv
+
+
 def cmd_build(args):
     proj = load(args.project)
     extra = []
@@ -129,19 +157,13 @@ def cmd_build(args):
     from . import cli as bake_cli
     with in_project(proj):
         irs = compile_screens(proj, extra)
-        argv = irs + ["-o", rel(proj, proj.out_path)]
-        if proj.fonts_path:
-            argv += ["--fonts", rel(proj, proj.fonts_path)]
+        argv = bake_argv(proj, irs)
         for key, flag in (("preview", "--preview"),
                           ("montage", "--montage"),
                           ("previewDisplay", "--preview-display")):
             path = proj.preview_path(key)
             if path:
                 argv += [flag, rel(proj, path)]
-        if proj.palettize_images:
-            argv += ["--palettize-images"]
-        if proj.vram_budget is not None:
-            argv += ["--vram-budget", str(proj.vram_budget)]
         return bake_cli.main(argv)
 
 
@@ -277,6 +299,15 @@ def main(argv=None):
     f.add_argument("-o", "--out-dir", default="fonts",
                    help="where to write them (default: fonts/)")
     f.set_defaults(fn=cmd_fontgen)
+
+    # IMPORTED INSIDE THE FUNCTION, DELIBERATELY. serve.py binds a
+    # port and holds an HTTP server; `ps2ui build` in a CI container
+    # has no business loading any of that. The import rule is one-way
+    # and this is the only place that touches it.
+    from . import serve as serve_mod
+    sv = sub.add_parser("serve", help="preview the project in a browser")
+    serve_mod.add_arguments(sv)
+    sv.set_defaults(fn=lambda a: serve_mod.run(a))
 
     d = sub.add_parser("dev", help="rebuild on every edit")
     d.add_argument("project", nargs="?", default="ps2ui.json")

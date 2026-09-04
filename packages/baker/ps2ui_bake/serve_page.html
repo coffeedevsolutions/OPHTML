@@ -1,0 +1,714 @@
+<!--
+  ps2ui serve — the page.
+
+  WHERE THE PIXELS COME FROM
+
+  The server. All of them. `preview.render()` replays the baked blob with
+  the console's quad order, scissor stack, CLUT lookups and GS alpha
+  domain, and those exact bytes arrive here as a PNG in one <img>. This
+  page owns no renderer: the repo already holds three text-layout
+  implementations held to pixel agreement by a cross-language test, and a
+  JavaScript one would be a fourth that nothing validates.
+
+  So everything below is structure over a static image. The command list,
+  the hit-test, the inspector, the warnings and the summary all read
+  /state; the only things drawn on top of the frame are dev chrome that
+  the UI itself never contains — a magenta focus box, a hover/selection
+  highlight, the title-safe rectangle and an 8px grid — and they are SVG
+  elements, not painted pixels.
+-->
+<meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><rect width=%2216%22 height=%2216%22 fill=%22%230b0f16%22/><rect x=%223%22 y=%224%22 width=%2210%22 height=%228%22 fill=%22none%22 stroke=%22%234ea1ff%22 stroke-width=%222%22/></svg>">
+<title>ps2ui serve</title>
+<style>
+:root{
+  --bg:#14171c; --panel:#1c2128; --panel2:#232a33; --line:#333c47;
+  --fg:#e6edf3; --dim:#8b96a3; --accent:#00aeff; --warn:#e3b341; --err:#f85149; --ok:#3fb950;
+  --focus:#ff00ff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:4px 9px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.on{background:var(--accent);border-color:var(--accent);color:#04121c;font-weight:600}
+button:disabled,select:disabled{opacity:.4;cursor:default}
+select,input[type=text]{background:#11151a;border:1px solid var(--line);border-radius:4px;padding:3px 6px}
+label{color:var(--dim)}
+h3{margin:0;padding:7px 10px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+   border-bottom:1px solid var(--line);background:var(--panel2);position:sticky;top:0;z-index:2}
+h3 span{float:right;text-transform:none;letter-spacing:0}
+
+#app{display:grid;grid-template-rows:auto 1fr;height:100%}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+#bar .sep{width:1px;height:20px;background:var(--line);margin:0 2px}
+#bar .grow{flex:1}
+#main{display:grid;grid-template-columns:250px 1fr 330px;min-height:0}
+#left,#right{background:var(--panel);overflow:auto;min-height:0}
+#left{border-right:1px solid var(--line)}
+#right{border-left:1px solid var(--line);display:flex;flex-direction:column}
+#center{display:grid;grid-template-rows:auto auto 1fr auto;min-height:0;min-width:0}
+/* Explicit rows: the notes are display:none most of the time, and without
+   this the stage inherits whichever row is left over and collapses. */
+#offline{grid-row:1}#banner{grid-row:2}#jsonWrap{grid-row:4}
+#stage{grid-row:3;min-height:0;position:relative;overflow:auto;display:grid;place-items:center;padding:18px;background:
+  repeating-conic-gradient(#191d23 0% 25%,#15181d 0% 50%) 50%/16px 16px}
+#stack{position:relative;line-height:0;box-shadow:0 0 0 1px var(--line),0 8px 40px #0008;cursor:crosshair}
+#frame{display:block;width:100%;height:100%;image-rendering:pixelated}
+#stack.smooth #frame{image-rendering:auto}
+#stack.stale #frame{filter:grayscale(1) brightness(.42) contrast(.9)}
+#stack.stale #ov{opacity:.3}
+#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+.note{display:none;padding:6px 10px;font-size:12px;border-bottom:1px solid var(--line)}
+.note.on{display:block}
+#offline{background:#43151a;color:#ffb4ac}
+#offline b{color:var(--err)}
+#banner{background:#3b2f10;color:#f0d79a;font-family:var(--mono);font-size:11.5px;white-space:pre-wrap}
+
+#tree{font-family:var(--mono);font-size:11.5px;padding-bottom:10px}
+.el{padding:3px 8px;border-left:3px solid transparent;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.el:hover{background:#ffffff08}
+.el.sel{background:#00aeff22;border-left-color:var(--accent)}
+.el.cur{background:#ff00ff1f;border-left-color:var(--focus)}
+.el.hid{opacity:.38}
+.el .n{color:var(--dim)}
+.el .b{display:inline-block;margin-left:5px;font-size:9px;padding:0 4px;border-radius:6px;background:#00aeff22;color:var(--accent)}
+.el .b.f{background:#ff00ff22;color:#ff8cff}
+.swatch{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid #ffffff30;vertical-align:-1px;margin-right:5px}
+
+#insp,#slots{padding:6px 10px 12px}
+.row{display:grid;grid-template-columns:92px 1fr;gap:6px;align-items:center;margin:3px 0}
+.row>label{font-size:11.5px;font-family:var(--mono)}
+.row>span{font-family:var(--mono);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row>input{width:100%;font-family:var(--mono);font-size:11.5px}
+
+#diags{overflow:auto;flex:1;min-height:90px}
+.d{display:grid;grid-template-columns:auto 1fr;gap:7px;padding:5px 9px;border-bottom:1px solid #ffffff0d;font-size:11.5px}
+.d.jump{cursor:pointer}
+.d.jump:hover{background:#ffffff08}
+.d .ic{font-weight:700;font-size:10px;letter-spacing:.05em;color:var(--warn)}
+.d code{font-family:var(--mono);font-size:10.5px;color:var(--dim);display:block;margin-top:2px}
+#sum{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+#sum th,#sum td{text-align:left;padding:2px 10px;border-bottom:1px solid #ffffff0d;font-weight:400}
+#sum th{color:var(--dim)}
+#sum td{text-align:right;font-variant-numeric:tabular-nums}
+
+#jsonWrap{display:grid;grid-template-rows:auto 1fr;min-height:0;height:150px;border-top:1px solid var(--line)}
+#json{margin:0;overflow:auto;background:#0f1216;color:#cdd9e5;font-family:var(--mono);font-size:11.5px;padding:8px 10px;white-space:pre}
+.empty{padding:14px 10px;color:var(--dim);font-size:12px}
+#status{color:var(--dim);font-size:11.5px;font-family:var(--mono)}
+#status.bad{color:var(--err)}
+
+body.fullscreen #bar > *:not(#btnFull),
+body.fullscreen #left, body.fullscreen #right, body.fullscreen #jsonWrap{display:none}
+body.fullscreen #bar{position:fixed;top:0;right:0;z-index:20;background:transparent;border:0;padding:6px;opacity:.25}
+body.fullscreen #bar:hover{opacity:1}
+body.fullscreen #app{grid-template-rows:1fr}
+body.fullscreen #main{grid-template-columns:1fr}
+body.fullscreen #stage{background:#000}
+/* In a narrow pane the side panels eat the stage, and the stage is the
+   point. Give it the room back before hiding anything. */
+@media (max-width:1200px){#main{grid-template-columns:196px 1fr 262px}}
+@media (max-height:760px){#jsonWrap{height:112px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app">
+  <div id="bar">
+    <label for="screenSel">Screen</label><select id="screenSel"></select>
+    <label for="themeSel">Theme</label><select id="themeSel"></select>
+    <label for="aspectSel">Aspect</label><select id="aspectSel"></select>
+    <span class="sep"></span>
+    <label for="zoomSel">Zoom</label>
+    <select id="zoomSel">
+      <option value="fit" selected>Fit</option><option value="1">1x</option>
+      <option value="2">2x</option><option value="3">3x</option>
+    </select>
+    <button id="btnSmooth" title="Smooth vs nearest-neighbour upscaling">Smooth</button>
+    <span class="sep"></span>
+    <button id="btnFocus" title="Focus rectangles from /state (magenta, not part of the UI)">Focus boxes</button>
+    <button id="btnGraph" title="D-pad navigation edges between focusables">Focus graph</button>
+    <button id="btnGrid" title="8px grid">Grid</button>
+    <button id="btnSafe" title="Title-safe area — 10% inset, the CRT overscan budget">Safe area</button>
+    <button id="btnFull" title="Screen only (F, Esc to leave)">Full screen</button>
+    <span class="grow"></span>
+    <span id="status">Connecting…</span>
+  </div>
+
+  <div id="main">
+    <div id="left">
+      <h3>Commands <span id="cmdCount"></span></h3>
+      <div id="tree"><div class="empty">Waiting for the server.</div></div>
+      <h3>Focusables</h3>
+      <div id="focusTree"></div>
+    </div>
+
+    <div id="center">
+      <div id="offline" class="note"><b>Server stopped.</b> This frame is the last one it sent — nothing here is live. Leave the tab open; it reconnects on its own.</div>
+      <div id="banner" class="note"></div>
+      <div id="stage">
+        <div id="stack">
+          <img id="frame" alt="rendered frame">
+          <svg id="ov" viewBox="0 0 640 448" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+      <div id="jsonWrap">
+        <h3>Selected record</h3>
+        <pre id="json">Click the frame, or a command in the list.</pre>
+      </div>
+    </div>
+
+    <div id="right">
+      <h3>Slots</h3>
+      <div id="slots"><div class="empty">—</div></div>
+      <h3>Inspector</h3>
+      <div id="insp"><div class="empty">Nothing selected.</div></div>
+      <h3>Warnings <span id="warnCount"></span></h3>
+      <div id="diags"></div>
+      <h3>Build</h3>
+      <table id="sum"></table>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const DIRS = ['up', 'down', 'left', 'right'];
+
+const S = {
+  st: null,          // the last /state payload
+  rev: -1,
+  seq: 0,            // bumps every applied state, so the img src always changes
+  sel: null,         // selected command index
+  hover: null,
+  online: true,
+  zoom: 'fit', smooth: false,
+  focusBox: false,   // permitted chrome, default off
+  graph: false, grid: false, safe: false,
+};
+
+const CW = () => (S.st ? S.st.canvas.w : 640);
+const CH = () => (S.st ? S.st.canvas.h : 448);
+const esc = (s) => String(s).replace(/[&<>"]/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* The GS alpha domain is 0..128, not 0..255 — a swatch that divides by
+ * 255 shows every opaque colour as half transparent. */
+const css = (c) => c ? 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' +
+  Math.min(1, (c[3] == null ? 128 : c[3]) / 128).toFixed(3) + ')' : 'transparent';
+const hex = (c) => '#' + [c[0], c[1], c[2]]
+  .map((v) => v.toString(16).padStart(2, '0')).join('');
+
+function setStatus(msg, bad) {
+  $('status').textContent = msg;
+  $('status').classList.toggle('bad', !!bad);
+}
+
+/* ------------------------------------------------------- the server */
+
+/* A previewer that keeps showing a stale frame after its server died is
+ * the failure this tool exists to avoid, so the connection has a visible
+ * state of its own: grey the frame, say so in words, keep polling. */
+function setOnline(ok) {
+  if (ok === S.online) return ok;
+  S.online = ok;
+  $('offline').classList.toggle('on', !ok);
+  $('stack').classList.toggle('stale', !ok);
+  if (!ok) setStatus('Server stopped — reconnecting…', true);
+  return ok;
+}
+
+async function poll() {
+  try {
+    const r = await fetch('/rev', { cache: 'no-store' });
+    if (!r.ok) throw new Error('rev ' + r.status);
+    const j = await r.json();
+    const wasDown = !S.online;
+    setOnline(true);
+    /* A restarted server can come back on the same revision, so a
+     * reconnection always refetches rather than trusting the number. */
+    if (wasDown || j.revision !== S.rev) await refresh();
+  } catch (e) {
+    setOnline(false);
+  }
+}
+
+async function refresh() {
+  const r = await fetch('/state', { cache: 'no-store' });
+  if (!r.ok) throw new Error('state ' + r.status);
+  apply(await r.json());
+}
+
+async function post(body) {
+  try {
+    const r = await fetch('/input', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error('input ' + r.status);
+    apply(await r.json());
+    setOnline(true);
+  } catch (e) {
+    setOnline(false);
+  }
+}
+
+function apply(st) {
+  const prev = S.st;
+  S.st = st;
+  S.rev = st.revision;
+  S.seq++;
+  if (!prev || prev.screen !== st.screen ||
+      (prev.commands || []).length !== (st.commands || []).length) S.sel = null;
+  $('frame').src = '/frame.png?rev=' + st.revision + '&n=' + S.seq;
+  $('ov').setAttribute('viewBox', '0 0 ' + CW() + ' ' + CH());
+  buildControls(prev);
+  buildCommands();
+  buildFocusables();
+  buildWarnings();
+  buildSummary();
+  buildInspector();
+  drawOverlay();
+  $('banner').textContent = st.error == null ? '' : String(st.error);
+  $('banner').classList.toggle('on', st.error != null);
+  setStatus('rev ' + st.revision + ' · ' + st.screen + ' · theme ' + st.theme +
+    ' · ' + (st.commands || []).length + ' cmds · focus ' + (st.focus || 'none'));
+}
+
+/* -------------------------------------------------------- overlays */
+
+/* Everything here is dev chrome the UI itself never contains, and it is
+ * SVG geometry stretched over the <img> rather than pixels: the viewBox
+ * is canvas space, so a server-side aspect resample moves the overlay
+ * with the frame for free. */
+function el(name, attrs) {
+  const n = document.createElementNS(SVGNS, name);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+
+function box(r, stroke, dash, fill) {
+  return el('rect', {
+    x: r[0] + 0.5, y: r[1] + 0.5, width: Math.max(0, r[2] - 1), height: Math.max(0, r[3] - 1),
+    fill: fill || 'none', stroke: stroke, 'stroke-width': 1,
+    'stroke-dasharray': dash || 'none', 'vector-effect': 'non-scaling-stroke',
+  });
+}
+
+function drawOverlay() {
+  const ov = $('ov');
+  ov.textContent = '';
+  if (!S.st) return;
+  const w = CW(), h = CH();
+
+  if (S.grid) {
+    let d = '';
+    for (let x = 8; x < w; x += 8) d += 'M' + x + ' 0V' + h;
+    for (let y = 8; y < h; y += 8) d += 'M0 ' + y + 'H' + w;
+    ov.appendChild(el('path', {
+      d: d, fill: 'none', stroke: '#ffffff14', 'stroke-width': 1,
+      'vector-effect': 'non-scaling-stroke',
+    }));
+  }
+  if (S.safe) {
+    const ix = Math.round(w * 0.1), iy = Math.round(h * 0.1);
+    ov.appendChild(box([ix, iy, w - ix * 2, h - iy * 2], '#e3b34199', '4 4'));
+  }
+
+  const nodes = S.st.focusables || [];
+  const byName = new Map(nodes.map((n) => [n.name, n]));
+  if (S.graph) {
+    for (const n of nodes) {
+      const cx = n.rect[0] + n.rect[2] / 2, cy = n.rect[1] + n.rect[3] / 2;
+      for (const d of DIRS) {
+        const t = byName.get(n[d]);
+        if (!t) continue;
+        const tx = t.rect[0] + t.rect[2] / 2, ty = t.rect[1] + t.rect[3] / 2;
+        const a = Math.atan2(ty - cy, tx - cx);
+        const ex = tx - Math.cos(a) * 10, ey = ty - Math.sin(a) * 10;
+        ov.appendChild(el('line', {
+          x1: cx, y1: cy, x2: ex, y2: ey, stroke: '#00aeff80',
+          'stroke-width': 1, 'vector-effect': 'non-scaling-stroke',
+        }));
+        const p = [0, 2.6, -2.6].map((o) =>
+          (ex + Math.cos(a + o) * 5) + ',' + (ey + Math.sin(a + o) * 5)).join(' ');
+        ov.appendChild(el('polygon', { points: p, fill: '#00aeff80' }));
+      }
+    }
+  }
+  if (S.focusBox) {
+    for (const n of nodes) {
+      const cur = n.name === S.st.focus;
+      ov.appendChild(box(n.rect, cur ? '#ff00ff' : '#ff00ff77', cur ? '5 3' : '2 3'));
+    }
+  }
+  if (S.hover != null && S.hover !== S.sel) {
+    const r = rectOf(S.st.commands[S.hover]);
+    if (r) ov.appendChild(box(r, '#ffffff66', '3 3'));
+  }
+  if (S.sel != null) {
+    const r = rectOf(S.st.commands[S.sel]);
+    if (r) ov.appendChild(box(r, '#00aeff', 'none', '#00aeff26'));
+  }
+}
+
+const rectOf = (c) => (c && c.rect && c.rect.length === 4) ? c.rect : null;
+
+/* Zoom. The frame's own pixel size already carries the aspect the server
+ * was asked for, so 1x means the PNG's pixels and nothing is inferred. */
+function layout() {
+  const img = $('frame');
+  const nw = img.naturalWidth || CW(), nh = img.naturalHeight || CH();
+  let scale;
+  if (S.zoom === 'fit') {
+    const st = $('stage');
+    scale = Math.min(Math.max(120, st.clientWidth - 36) / nw,
+      Math.max(120, st.clientHeight - 36) / nh);
+  } else scale = parseFloat(S.zoom);
+  $('stack').style.width = Math.round(nw * scale) + 'px';
+  $('stack').style.height = Math.round(nh * scale) + 'px';
+  $('stack').classList.toggle('smooth', S.smooth);
+}
+addEventListener('resize', layout);
+/* The stage also changes size when a banner appears or the panels are
+   hidden, and neither fires a resize. */
+if (window.ResizeObserver) new ResizeObserver(layout).observe($('stage'));
+$('frame').addEventListener('load', layout);
+/* A frame that will not load means the same thing a failed poll does. */
+$('frame').addEventListener('error', () => setOnline(false));
+
+/* ---------------------------------------------------------- panels */
+
+/* ps2ui.c's cmd_visible(): 0 always, 2 when focused, 1 when not — and a
+ * command with no focus name counts as unfocused, so state-1 records
+ * outside any focusable still draw. */
+function visible(c) {
+  if (c.state === 0) return true;
+  const isFocused = c.focus != null && S.st && c.focus === S.st.focus;
+  return c.state === 2 ? isFocused : !isFocused;
+}
+
+function opLabel(c) {
+  const r = c.rect || [];
+  if (c.op === 'texquad') return 'texquad ' + r[2] + 'x' + r[3] + ' tex' + c.tex;
+  if (c.op === 'quad') return 'quad ' + r[2] + 'x' + r[3];
+  if (c.op === 'scissor_push') return 'scissor ' + r[2] + 'x' + r[3];
+  return String(c.op);
+}
+
+function buildCommands() {
+  const t = $('tree'), cmds = S.st.commands || [];
+  t.textContent = '';
+  $('cmdCount').textContent = cmds.length;
+  if (!cmds.length) { t.innerHTML = '<div class="empty">No commands on this screen.</div>'; return; }
+  cmds.forEach((c, i) => {
+    const d = document.createElement('div');
+    d.className = 'el' + (S.sel === i ? ' sel' : '') + (visible(c) ? '' : ' hid');
+    d.dataset.i = i;
+    const sw = c.rgba ? '<span class="swatch" style="background:' + css(c.rgba) + '"></span>' : '';
+    d.innerHTML = '<span class="n">' + String(i).padStart(3, '0') + '</span> ' + sw +
+      esc(opLabel(c)) +
+      (c.state !== 0 ? '<span class="b">' + (c.state === 2 ? 'focused' : 'unfocused') + '</span>' : '') +
+      (c.focus ? '<span class="b f">' + esc(c.focus) + '</span>' : '');
+    d.onclick = () => select(i);
+    d.onmouseenter = () => { S.hover = i; drawOverlay(); };
+    d.onmouseleave = () => { S.hover = null; drawOverlay(); };
+    t.appendChild(d);
+  });
+}
+
+function buildFocusables() {
+  const ft = $('focusTree'), nodes = S.st.focusables || [];
+  ft.textContent = '';
+  if (!nodes.length) { ft.innerHTML = '<div class="empty">No focusables on this screen.</div>'; return; }
+  for (const n of nodes) {
+    const d = document.createElement('div');
+    d.className = 'el' + (n.name === S.st.focus ? ' cur' : '');
+    const nb = DIRS.filter((k) => n[k]).map((k) => k[0] + ':' + n[k]).join(' ');
+    d.innerHTML = '<span class="n">' + esc(n.name) + '</span> ' +
+      '<span class="b">' + n.rect.join(',') + '</span>' +
+      (nb ? '<code style="color:var(--dim)"> ' + esc(nb) + '</code>' : '');
+    d.title = 'Walk the d-pad here (focus only moves by arrow keys)';
+    d.onclick = () => focusTo(n.name);
+    ft.appendChild(d);
+  }
+}
+
+/* /input has no "set focus" verb — focus moves by d-pad and only by
+ * d-pad, which is the console's truth. So clicking a focusable walks the
+ * graph the state already publishes and presses those arrows. */
+function pathTo(target) {
+  const st = S.st;
+  if (!st.focus || st.focus === target) return [];
+  const map = new Map((st.focusables || []).map((n) => [n.name, n]));
+  const seen = new Set([st.focus]);
+  const queue = [[st.focus, []]];
+  while (queue.length) {
+    const [name, path] = queue.shift();
+    if (path.length > 12) break;
+    const n = map.get(name);
+    if (!n) continue;
+    for (const d of DIRS) {
+      const next = n[d];
+      if (!next || seen.has(next)) continue;
+      if (next === target) return path.concat([d]);
+      seen.add(next);
+      queue.push([next, path.concat([d])]);
+    }
+  }
+  return null;
+}
+
+async function focusTo(name) {
+  const path = pathTo(name);
+  if (path === null) {
+    setStatus('No d-pad path from ' + (S.st.focus || 'nothing') + ' to ' + name, true);
+    return;
+  }
+  for (const k of path) {
+    await post({ key: k });
+    if (!S.online) return;
+  }
+}
+
+function select(i) {
+  S.sel = i;
+  $('json').textContent = JSON.stringify(S.st.commands[i], null, 2);
+  buildCommands();
+  buildInspector();
+  drawOverlay();
+  const row = document.querySelector('.el[data-i="' + i + '"]');
+  if (row) row.scrollIntoView({ block: 'nearest' });
+}
+
+function buildInspector() {
+  const ins = $('insp');
+  if (S.sel == null || !S.st.commands || !S.st.commands[S.sel]) {
+    ins.innerHTML = '<div class="empty">Nothing selected. Click the frame or a command.</div>';
+    $('json').textContent = 'Click the frame, or a command in the list.';
+    return;
+  }
+  const c = S.st.commands[S.sel];
+  const rows = [];
+  const add = (k, v) => rows.push('<div class="row"><label>' + k + '</label><span>' + v + '</span></div>');
+  add('index', c.i != null ? c.i : S.sel);
+  add('op', esc(c.op));
+  if (c.rect) {
+    add('position', c.rect[0] + ', ' + c.rect[1]);
+    add('size', c.rect[2] + ' x ' + c.rect[3]);
+  }
+  if (c.rgba) add('rgba', '<span class="swatch" style="background:' + css(c.rgba) + '"></span>' +
+    hex(c.rgba) + ' · a' + c.rgba[3] + '/128');
+  add('tex', c.tex == null ? '—' : String(c.tex));
+  add('state', c.state === 0 ? '0 always' : (c.state === 2 ? '2 focused' : '1 unfocused'));
+  add('focus', c.focus == null ? '—' : esc(c.focus));
+  add('drawn now', visible(c) ? 'yes' : 'no (other focus state)');
+  ins.innerHTML = rows.join('');
+  $('json').textContent = JSON.stringify(c, null, 2);
+}
+
+function buildWarnings() {
+  const d = $('diags'), ws = S.st.warnings || [];
+  d.textContent = '';
+  $('warnCount').textContent = ws.length || '';
+  if (!ws.length) { d.innerHTML = '<div class="empty">No warnings.</div>'; return; }
+  for (const w of ws) {
+    const here = w.screen === S.st.screen;
+    const jump = w.command != null || !here;
+    const e = document.createElement('div');
+    e.className = 'd' + (jump ? ' jump' : '');
+    e.innerHTML = '<span class="ic">!</span><span>' + esc(w.text) +
+      '<code>' + esc(w.screen) + (w.command != null ? ' · command ' + w.command : '') + '</code></span>';
+    if (jump) e.onclick = async () => {
+      /* One click from the lint line to the pixels it is about, even
+       * when those pixels are on another screen. */
+      if (!here) await post({ screen: w.screen });
+      if (w.command != null && S.st.commands && S.st.commands[w.command]) select(w.command);
+    };
+    d.appendChild(e);
+  }
+}
+
+function buildSummary() {
+  const st = S.st, c = st.canvas, dsp = st.display;
+  const counts = {};
+  for (const cmd of (st.commands || [])) counts[cmd.op] = (counts[cmd.op] || 0) + 1;
+  /* Pixel aspect: how much wider a framebuffer pixel is drawn than it is
+   * stored. The one number the old previewer never showed. */
+  const par = (dsp && c && c.w && dsp.h) ? (dsp.w / dsp.h) / (c.w / c.h) : null;
+  const rows = [
+    ['revision', st.revision],
+    ['screen', esc(st.screen) + ' (' + (st.screens || []).length + ')'],
+    ['theme', st.theme + ' of ' + st.themes],
+    ['aspect mode', esc(st.aspect)],
+    ['canvas', c ? c.w + 'x' + c.h : '—'],
+    ['display', dsp ? dsp.w + 'x' + dsp.h : '—'],
+    ['pixel aspect', par != null ? par.toFixed(4) : '—'],
+    ['display aspect', st.display_aspect ? st.display_aspect.join(':') : '—'],
+    ['quad', counts.quad || 0],
+    ['texquad', counts.texquad || 0],
+    ['scissor pairs', counts.scissor_push || 0],
+    ['focusables', (st.focusables || []).length],
+    ['slots', (st.slots || []).length],
+    ['warnings', (st.warnings || []).length],
+  ];
+  $('sum').innerHTML = rows.map((r) => '<tr><th>' + r[0] + '</th><td>' + r[1] + '</td></tr>').join('');
+}
+
+/* ---------------------------------------------------------- controls */
+
+function fillSelect(sel, values, labels, current) {
+  sel.textContent = '';
+  values.forEach((v, i) => {
+    const o = document.createElement('option');
+    o.value = String(v);
+    o.textContent = labels ? labels[i] : String(v);
+    sel.appendChild(o);
+  });
+  sel.value = String(current);
+}
+
+function buildControls(prev) {
+  const st = S.st;
+  const screens = st.screens || [];
+  if (!prev || String(prev.screens) !== String(screens) || prev.screen !== st.screen)
+    fillSelect($('screenSel'), screens, null, st.screen);
+  const themes = [];
+  for (let i = 0; i < (st.themes || 1); i++) themes.push(i);
+  if (!prev || prev.themes !== st.themes || prev.theme !== st.theme)
+    fillSelect($('themeSel'), themes, themes.map((i) => 'theme ' + i), st.theme);
+  $('themeSel').disabled = (st.themes || 1) < 2;
+  if (!prev || String(prev.aspects) !== String(st.aspects) || prev.aspect !== st.aspect)
+    fillSelect($('aspectSel'), st.aspects || [st.aspect], null, st.aspect);
+  buildSlots();
+}
+
+/* Slot inputs are rebuilt only when the slot set itself changes: a
+ * rebuild while someone is mid-word takes the caret with it. */
+function buildSlots() {
+  const wrap = $('slots'), slots = S.st.slots || [];
+  const names = slots.map((s) => s.name).join('|');
+  if (wrap.dataset.names !== names) {
+    wrap.dataset.names = names;
+    wrap.textContent = '';
+    if (!slots.length) { wrap.innerHTML = '<div class="empty">No slots on this screen.</div>'; return; }
+    for (const s of slots) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = '<label title="' + esc(s.name) + '">' + esc(s.name) + '</label>';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = s.text;
+      inp.dataset.slot = s.name;
+      if (s.capacity) inp.maxLength = s.capacity;
+      inp.title = 'capacity ' + s.capacity;
+      inp.onchange = () => post({ slot: { [s.name]: inp.value } });
+      row.appendChild(inp);
+      wrap.appendChild(row);
+    }
+    return;
+  }
+  for (const s of slots) {
+    const inp = wrap.querySelector('input[data-slot="' + s.name + '"]');
+    if (inp && inp !== document.activeElement && inp.value !== s.text) inp.value = s.text;
+  }
+}
+
+$('screenSel').onchange = () => post({ screen: $('screenSel').value });
+$('themeSel').onchange = () => post({ theme: Number($('themeSel').value) });
+$('aspectSel').onchange = () => post({ aspect: $('aspectSel').value });
+$('zoomSel').onchange = () => { S.zoom = $('zoomSel').value; layout(); };
+
+const toggle = (btn, key, after) => {
+  $(btn).onclick = () => {
+    S[key] = !S[key];
+    $(btn).classList.toggle('on', S[key]);
+    after();
+  };
+};
+toggle('btnSmooth', 'smooth', layout);
+toggle('btnFocus', 'focusBox', drawOverlay);
+toggle('btnGraph', 'graph', drawOverlay);
+toggle('btnGrid', 'grid', drawOverlay);
+toggle('btnSafe', 'safe', drawOverlay);
+$('btnFull').onclick = () => {
+  document.body.classList.toggle('fullscreen');
+  $('btnFull').classList.toggle('on');
+  requestAnimationFrame(layout);
+};
+
+/* --------------------------------------------------------- pointer */
+
+function hit(e) {
+  if (!S.st) return null;
+  const r = $('stack').getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * CW();
+  const y = (e.clientY - r.top) / r.height * CH();
+  const cmds = S.st.commands || [];
+  /* Front to back, so the click lands on whatever is actually on top. */
+  for (let i = cmds.length - 1; i >= 0; i--) {
+    const c = cmds[i];
+    if (c.op === 'scissor_push' || c.op === 'scissor_pop') continue;
+    if (!visible(c)) continue;
+    const b = rectOf(c);
+    if (b && x >= b[0] && x <= b[0] + b[2] && y >= b[1] && y <= b[1] + b[3]) return i;
+  }
+  return null;
+}
+
+$('stack').addEventListener('mousemove', (e) => {
+  const i = hit(e);
+  if (i === S.hover) return;
+  S.hover = i;
+  $('stack').title = i == null ? '' : (i + '  ' + opLabel(S.st.commands[i]));
+  drawOverlay();
+});
+$('stack').addEventListener('mouseleave', () => { S.hover = null; drawOverlay(); });
+$('stack').addEventListener('click', (e) => {
+  const i = hit(e);
+  if (i != null) select(i);
+});
+
+/* -------------------------------------------------------- keyboard */
+
+const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+
+addEventListener('keydown', (e) => {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  /* Arrows only, and swallowed so the page does not scroll under the
+   * frame. Tab stays the browser's, not the console's. */
+  if (KEYS[e.key]) {
+    e.preventDefault();
+    post({ key: KEYS[e.key] });
+    return;
+  }
+  if (e.key === 'f') $('btnFull').click();
+  else if (e.key === 'Escape' && document.body.classList.contains('fullscreen')) $('btnFull').click();
+  else if (e.key === 'g') $('btnGrid').click();
+  else if (e.key === 's') $('btnSafe').click();
+  else if (e.key === 'b') $('btnFocus').click();
+  else if (e.key === 'n') $('btnGraph').click();
+  else if (e.key === '[' || e.key === ']') {
+    const sel = $('screenSel'), n = sel.options.length;
+    if (n) {
+      const i = (sel.selectedIndex + (e.key === ']' ? 1 : n - 1)) % n;
+      sel.selectedIndex = i;
+      post({ screen: sel.value });
+    }
+  }
+});
+
+/* ------------------------------------------------------------ boot */
+
+layout();
+poll();
+setInterval(poll, 250);
+</script>

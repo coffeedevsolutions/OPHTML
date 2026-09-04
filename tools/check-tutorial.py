@@ -54,7 +54,7 @@ BLOCK = re.compile(r"```sh\n(.*?)```(?:\s*\n```text\n(.*?)```)?", re.S)
 # An exact SET, not a count: moving an assertion from the bake to the
 # fontgen keeps the count and changes what is covered. Lowering this
 # is now an edit to a check, which is the friction it should have.
-ASSERTED_BLOCKS = {1, 5, 6}
+ASSERTED_BLOCKS = {1, 5, 6, 7}
 
 SHIMS = {
     "ps2ui": 'PYTHONPATH="%s/packages/baker" exec python3 -m ps2ui_bake.ps2ui "$@"',
