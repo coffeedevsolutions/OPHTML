@@ -254,6 +254,46 @@ class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
             self.assertEqual(rc, 2)
             self.assertFalse(os.path.exists(out))
 
+    def test_the_macos_remedy_is_prefix_relative_and_names_the_trap(self):
+        """Two things in that message fail silently if they rot back.
+
+        A LITERAL /opt/homebrew IS WRONG FOR HALF ITS READERS. Intel
+        Macs put Homebrew under /usr/local, and the failure mode is not
+        an error: pkg-config finds nothing at the named path and Pillow
+        builds WITHOUT Raqm, exit 0, so the person follows the
+        instructions, sees a successful build, and gets this same
+        refusal with no idea why.
+
+        AND `--no-binary :all:` IS ONE KEYSTROKE FROM THE FIX. It
+        scopes the source build to the entire dependency graph and goes
+        off bootstrapping CMake from C++ source; it cost roughly forty
+        minutes before anyone worked out what it was doing.
+        """
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        with mock.patch.object(fontgen.sys, "platform", "darwin"):
+            msg = fontgen._raqm_remedy()
+        self.assertIn("brew install libraqm", msg)
+        self.assertIn("$(brew --prefix)", msg)
+        self.assertIn("--no-binary pillow", msg)
+        self.assertNotIn("/opt/homebrew", msg)
+        self.assertNotIn("/usr/local/", msg)
+        # The trap is named, not merely avoided: someone reaching for
+        # the bare form should meet the reason here rather than at
+        # minute forty.
+        self.assertIn(":all:", msg)
+
+    def test_every_platform_says_a_clean_build_is_not_proof(self):
+        """Pillow builds and exits 0 without libraqm, omitting the
+        feature. So pip's return code answers a different question than
+        the one the reader has, and both branches have to say so."""
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        for plat in ("darwin", "linux", "win32"):
+            with mock.patch.object(fontgen.sys, "platform", plat):
+                msg = fontgen._raqm_remedy()
+            self.assertIn("features.check('raqm')", msg, plat)
+
     def test_and_succeeds_with_raqm_present(self):
         # BOTH CONDITIONS. This is the arm that proves kerning is
         # actually extracted, so it needs a font AND the layout engine;

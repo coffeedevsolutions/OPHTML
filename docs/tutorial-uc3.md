@@ -41,6 +41,19 @@ ps2ui-fontgen: manifest -> fonts/fonts.json
 Two faces, not a weight axis: the PS2 does not have the VRAM for one.
 Anything with `font-weight: 600` or more resolves to bold.
 
+> **On macOS this is where the tutorial stops**, with `ps2ui-fontgen:
+> this Pillow has no Raqm layout engine`. That is correct behaviour and
+> not a bug in your setup: pip's macOS Pillow wheel is built without
+> Raqm, and without it every advance comes out identical and the kern
+> table comes out empty, so writing the file would silently un-kern the
+> whole project. `ps2ui fontgen` prints the fix for your platform;
+> the short version is `brew install libraqm` and then a source build
+> of Pillow **alone**, with `--no-binary pillow` rather than
+> `--no-binary :all:`. Then check `features.check('raqm')` rather than
+> pip's exit status, because Pillow builds and exits 0 without libraqm
+> and simply leaves the feature out. This is the first thing Phase 4's
+> exit gate found, and it is tracked in [PLAN.md](PLAN.md).
+
 That wrote `fonts/fonts.json` as well, which names both TTFs and both
 metrics files. Everything downstream reads it and you will not have to
 mention fonts again. `ttf` takes a list of candidates and the first one

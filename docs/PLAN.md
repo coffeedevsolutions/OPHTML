@@ -1334,7 +1334,7 @@ the last item goes red on the first three if they land after it:
 2. **`fonts.json` covers macOS properly**, under a stated principle
    rather than by adding paths as they are met. The Intel/ARM prefix
    split is the same one the Raqm remedy has.
-3. **The Raqm remedy, written where the failure is met.**
+3. **[done] The Raqm remedy, written where the failure is met.**
    `fontgen.py`'s refusal says *"install a Pillow wheel built with
    Raqm (pip's manylinux wheels are)"*, which is true and useless on a
    Mac. The remedy is verified end to end — Pillow 12.3.0 with Raqm
