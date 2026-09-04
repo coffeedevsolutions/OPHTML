@@ -14,11 +14,11 @@ the ELF.
 > happens (`tools/check-tutorial.py`). A tutorial nobody re-runs is a
 > tutorial that was true once. If a number here looks wrong, it is not.
 
-> **The packages are not published yet.** `ps2ui-layout` and
-> `ps2ui-bake` below are the names they will have; today they come from
-> a checkout; see [Running it before publication](#running-it-before-publication)
-> at the end, which is also what CI does. `docs/releasing.md` says what
-> is left.
+> **Both packages are published**, as of 0.3.0:
+> `pip install ophtml` and `npm install -g @ophtml/layout`. CI still
+> runs this document through shims onto a checkout, so every command
+> below is exercised against the tree it is written in; see
+> [Running it from a checkout](#running-it-from-a-checkout) at the end.
 
 ## 1. A place to work, and fonts of your own
 
@@ -342,9 +342,9 @@ with a translucent scrim.
 `docs/bringup.md` is the ordered procedure for the first run on real
 hardware, each step with its expected result and failure symptom.
 
-## Running it before publication
+## Running it from a checkout
 
-When they are published, the two halves install as:
+The two halves install as:
 
 ```
 npm install -g @ophtml/layout    # the compiler
@@ -352,16 +352,16 @@ pip install ophtml               # the baker, and the ps2ui command
 ```
 
 Not a `sh` block on purpose: `tools/check-tutorial.py` runs every one
-of those, and these two commands do not work yet. A tutorial that
-executes what it claims cannot be allowed to claim something it cannot
-execute.
+of those, and running these two would install the published packages
+over the shims this check deliberately puts on `PATH` -- CI would then
+be testing the registry rather than the tree it is validating.
 
 **OPHTML is the product; ps2ui is the format and the tools that speak
 it.** So `pip install ophtml` gives you `ps2ui build`, the same way
 installing ripgrep gives you `rg`. The blob is a `.uib`, the runtime
 header is `ps2ui.h`, and none of that changes with the package name.
 
-Neither is published yet. From a checkout, these are the same commands:
+From a checkout, these are the same commands:
 
 ```
 ps2ui         ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake.ps2ui

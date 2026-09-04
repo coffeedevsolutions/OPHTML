@@ -93,7 +93,7 @@ EXPECTED_PYPI = "ophtml"
 # and rule 5 were in: a document telling you to do the thing a checker
 # forbids. Found before publishing this time, by reading rule 10 while
 # planning step 8 rather than by hitting it.
-PUBLISHED = False
+PUBLISHED = True
 
 # "zero" is not padding. The section opened straight after a release
 # counts its drift from a release that shipped the CURRENT format, so
@@ -187,6 +187,35 @@ def git_tags():
     except (OSError, subprocess.CalledProcessError):
         return None
     return set(out.split())
+
+
+# The paths that end up inside an artifact. A change to any of these
+# between the tag and HEAD means the tag does not name what a publish
+# from HEAD would upload -- which is rule 21 below.
+PACKAGED_PATHS = [
+    "packages/layout/src", "packages/layout/bin",
+    "packages/layout/README.md", "packages/layout/package.json",
+    "packages/baker/ps2ui_bake", "packages/baker/README.md",
+    "packages/baker/pyproject.toml",
+]
+
+
+def git_packaged_diff(tag):
+    """Files under PACKAGED_PATHS differing between `tag` and HEAD.
+
+    None when git cannot answer -- no repository, no such tag, a shallow
+    clone without the tag's objects. A rule that cannot be evaluated
+    must say so rather than pass.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "diff", "--name-only", tag + "^{commit}", "HEAD", "--"]
+            + PACKAGED_PATHS,
+            cwd=ROOT, check=True, capture_output=True, text=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return [ln for ln in out.split("\n") if ln]
+
 
 
 def main(argv=None):
@@ -780,6 +809,47 @@ def main(argv=None):
               % (BAKER_VERSION,
                  " (this checkout has no tags at all -- if it is a shallow "
                  "clone, fetch them)" if not tags else ""))
+
+        # 21. THE TAG NAMES THE TREE THAT WOULD BE PUBLISHED.
+        #
+        #     The rule above asks only whether a tag with that NAME
+        #     exists. It never resolves it to a commit, so a tag
+        #     pointing anywhere at all passes -- and docs/releasing.md
+        #     step 8 says `git checkout v0.3.0` before building. Steps
+        #     7 and 8 are separate events with merges possible in
+        #     between, and nothing re-checked that the packaged tree had
+        #     not moved. That produced a stale v0.3.0 twice: the tag sat
+        #     at the commit that cut the release while main carried
+        #     later edits to both package READMEs, so a publish from the
+        #     tag would have shipped prose nobody had reviewed as the
+        #     release.
+        #
+        #     Sits inside the same --except-tag gate as the rule above,
+        #     and for the same reason: on the release PR the tag does not
+        #     exist yet, and failing a PR for that is the trap the flag
+        #     was added to avoid. It is evaluated on the authoritative
+        #     unflagged run, where the tag is on main and can be wrong.
+        tag = next((t for t in ("v" + BAKER_VERSION, BAKER_VERSION)
+                    if t in tags), None)
+        if tag is not None:
+            moved = git_packaged_diff(tag)
+            if moved is None:
+                check(False, "", "%s exists but git cannot diff it against "
+                                 "HEAD, so it cannot be shown to name the "
+                                 "tree a publish would upload (shallow "
+                                 "clone? fetch the tag's objects)" % tag)
+            else:
+                check(not moved,
+                      "%s names the packaged tree at HEAD" % tag,
+                      "%s does not name the tree a publish from HEAD would "
+                      "upload: %s %s under %s. docs/releasing.md step 8 "
+                      "builds from the tag, so publishing now ships the "
+                      "tag's version of %s and not HEAD's. Either move the "
+                      "tag to the commit being published or cut the next "
+                      "version from HEAD."
+                      % (tag, ", ".join(moved),
+                         "differs" if len(moved) == 1 else "differ",
+                         "the packaged paths", "them"))
 
     if fail:
         print("not ok - %d version claim(s) above disagree with the code"

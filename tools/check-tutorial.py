@@ -16,12 +16,16 @@ non-empty line of it must appear in what actually happened.
 
 WHAT THIS PROVES AND WHAT IT DOES NOT. It proves the commands run in
 the order given, from an empty directory, and produce the numbers
-printed. It does NOT prove they work from an npm and pip install --
-nothing is published, so the CLI names resolve through shims onto the
-checkout. That gap is the exit gate itself, it is stated in the
-tutorial's own last section, and it is the reason the shims are written
-here rather than hidden: the day the packages go up, deleting this
-function is the whole change.
+printed. It does NOT prove they work from an npm and pip install: the
+CLI names resolve through shims onto the checkout, which is what makes
+this a check of THIS tree rather than of whatever is on the registries.
+Both packages are published as of 0.3.0, and deleting these shims is
+still not the change that closes the gap -- it would point this job at
+the last published version instead of the tree under test. Closing it
+means a SEPARATE job that installs from the registries and runs this
+document, on more than one platform: the first real attempt at the exit
+gate failed on macOS, where pip's Pillow wheel has no Raqm, and this
+job on ubuntu could never have seen it.
 
 The TTFs come from fonts/fonts.json, so the tutorial exercises the
 "bring your own font" path against a real file rather than a fixture.
