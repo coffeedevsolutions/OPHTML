@@ -1,39 +1,83 @@
 # OPHTML / ps2ui
 
-Build PlayStation 2 homebrew UIs from HTML and CSS.
+**Build PlayStation 2 homebrew UIs from HTML and CSS.**
 
-The toolchain does all the heavy lifting on your build machine: parsing, flexbox layout, text wrapping, D-pad navigation, and chrome rasterization. The output is a single `.uib` blob that a small C99 runtime replays through [gsKit]. The PS2 itself never parses, lays out, rasterizes, or allocates.
-
-Originally built for UIs shipped on an SD2PSX / PSxMemCard GEN2 virtual memory card. Works for any PS2 homebrew project.
+Your build machine does the expensive work: parsing, flexbox layout, text
+wrapping and kerning, D-pad navigation, chrome rasterization. What ships to
+the console is a single `.uib` blob that a small C99 runtime replays through
+[gsKit]. The PS2 never parses, lays out, rasterizes, or allocates.
 
 ```
 ui/*.html,css -> @ophtml/layout -> ui.json (IR) -> ps2ui-bake -> ui.uib -> runtime (C99 + gsKit)
                  Node, zero deps                  Python, Pillow only
 ```
 
-![memcard example preview](examples/memcard/screenshots/preview.png)
+Originally built for UIs shipped on an SD2PSX / PSxMemCard GEN2 virtual
+memory card. Works for any PS2 homebrew project.
 
-The image above comes from the Python previewer, which replays the baked command list with the same quad order, scissor stack, CLUT lookups, and GS alpha domain the console uses. It can also render [every focus state on one sheet](examples/memcard/screenshots/states.png).
+## What it looks like
+
+One blob, two themes, swapped on the console at runtime by
+`ps2ui_theme_set`. No rebuild, no second asset set: the palette is a CLUT
+row and switching it is a table swap.
+
+<table>
+<tr>
+<td><img src="examples/opl-env/screenshots/library.png" alt="OPL-class library screen, dark theme" width="100%"></td>
+<td><img src="examples/opl-env/screenshots/library-1.png" alt="the same screen and the same blob, light theme" width="100%"></td>
+</tr>
+</table>
+
+A memory-card browser and an overlay that composites over a running game:
+
+<table>
+<tr>
+<td><img src="examples/memcard/screenshots/preview.png" alt="memory card browser" width="100%"></td>
+<td><img src="examples/channel6/screenshots/in-game.png" alt="game browser composited over a game frame" width="100%"></td>
+</tr>
+</table>
+
+Every image here is rendered by the Python previewer, which replays the
+baked command list with the same quad order, scissor stack, CLUT lookups
+and GS alpha domain the console uses. It can also put
+[every focus state on one sheet](examples/memcard/screenshots/states.png),
+which is how you review a whole screen's navigation without a console.
+
+Three shipped examples, each buildable in one command:
+
+- **[`examples/opl-env`](examples/opl-env)** is the largest: six screens,
+  a windowed library, filters, a detail view, a confirm dialog, two themes.
+- **[`examples/memcard`](examples/memcard)** is the memory-card browser
+  above, and the smallest place to start reading.
+- **[`examples/channel6`](examples/channel6)** is an overlay that draws
+  over a live game frame, plus the `probe` screen this project uses as its
+  console conformance target.
 
 ## Quick start
 
-**New here?** [docs/tutorial-uc3.md](docs/tutorial-uc3.md) builds a
-working OPL-class game browser from an empty directory with your own
-TTF — every command in it is executed by CI, so the numbers it prints
-are the numbers you will get.
+Three ways in, depending on what you want:
+
+- **Follow the tutorial.** [docs/tutorial-uc3.md](docs/tutorial-uc3.md)
+  builds a working OPL-class game browser from an empty directory with
+  your own TTF. Every command in it is executed by CI, so the numbers it
+  prints are the numbers you will get.
+- **Look at a UI in your browser.** `ps2ui serve` puts a real baked frame
+  behind a localhost page with arrow-key navigation, screen and theme
+  switching. See [Previewing in a browser](#previewing-in-a-browser).
+- **Put it on a console.** [docs/deploying.md](docs/deploying.md) covers
+  memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 
 **Neither package is published yet, so a checkout is still the only way
 in.** `ophtml` (PyPI) and `@ophtml/layout` (npm) both carry `0.3.0`,
-tagged `v0.3.0` — the first release this repository has ever had, and
-the first of these numbers that names a tag rather than a number
+tagged `v0.3.0`, which is the first release this repository has ever had
+and the first of these numbers that names a tag rather than a number
 somebody typed. They used to claim `0.2.0`, a release that does not
-exist, through four moves of the `.uib` format; the blobs this tree
-bakes are format **v7** and a 0.2.0-era runtime rejects them. Run it
-from a checkout. Every CLI answers `--version`. Uploading is the last
-step of Phase 4 in [docs/PLAN.md](docs/PLAN.md),
-[docs/releasing.md](docs/releasing.md) is the procedure and what a
-prerelease did and did not protect against on the way here, and
+exist, through four moves of the `.uib` format; the blobs this tree bakes
+are format **v7** and a 0.2.0-era runtime rejects them. Run it from a
+checkout, and note that every CLI answers `--version`. Uploading is the
+last step of Phase 4 in [docs/PLAN.md](docs/PLAN.md);
+[docs/releasing.md](docs/releasing.md) is the procedure, and
 `tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:
@@ -55,8 +99,8 @@ pip install -e packages/baker
 `ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare
 commands on `PATH`, and `-e` points them at this tree, so editing the
 baker takes effect without reinstalling. The `PYTHONPATH=` spelling
-stays documented everywhere below because it needs no install at all —
-it is what CI runs and what works in a clone you have just made.
+stays documented everywhere below because it needs no install at all. It
+is what CI runs, and what works in a clone you have just made.
 
 A project is one file and a build is one command:
 
@@ -117,7 +161,7 @@ if (pad_pressed & PAD_CROSS) launch(ps2ui_focus_name(&ui));
 
 ## Supported CSS
 
-- Flexbox: direction, wrap, grow/shrink/basis, gap, justify/align. **`flex-direction` has no default** — see below
+- Flexbox: direction, wrap, grow/shrink/basis, gap, justify/align. **`flex-direction` has no default** (see below)
 - Box model (border-box): padding, margin, borders, border-radius (baked as nine-patch textures)
 - Flat colors with real translucency
 - `font-size`, `font-weight`, `line-height`, `letter-spacing`, `text-align`
@@ -131,14 +175,14 @@ Unknown properties warn. Unsupported values error with line numbers.
 
 ### `data-keep`
 
-The baker drops draw commands that cannot produce a pixel — geometry
+The baker drops draw commands that cannot produce a pixel: geometry
 entirely outside its `overflow: hidden` clip is submitted every frame
 and can never be seen. `data-keep` on an element exempts its own
 geometry from that trim (it does not cascade to children).
 
 There is one good reason to want it: an instrument. The channel-6
 probe parks a magenta quad outside a clip rect so that a console
-showing it proves the scissor is not being applied — a test that only
+showing it proves the scissor is not being applied, a test that only
 works while the quad provably cannot draw, which is exactly what the
 trim would otherwise remove.
 
@@ -153,7 +197,7 @@ Any container laying out two or more children must say which way they go:
 
 Omitting it is a compile error naming the element and line. Containers with one child or none are never asked, because the answer cannot change what is drawn.
 
-This deviates from CSS, which defaults to `row`, and it is deliberate. ps2ui previously defaulted to `column` and documented it nowhere, so authors who knew CSS got the opposite of what they wrote — and the shipped examples had already worked around it, stating `row` twenty times against `column` four. Switching the default would have silently relaid out every existing document; keeping it taught a permanent exception to CSS. Requiring the answer is the only version that cannot surprise anyone, and migrating both examples left their previews byte-identical — the evidence that nothing was relying on a guess.
+This deviates from CSS, which defaults to `row`, and it is deliberate. ps2ui previously defaulted to `column` and documented it nowhere, so authors who knew CSS got the opposite of what they wrote, and the shipped examples had already worked around it, stating `row` twenty times against `column` four. Switching the default would have silently relaid out every existing document; keeping it taught a permanent exception to CSS. Requiring the answer is the only version that cannot surprise anyone, and migrating both examples left their previews byte-identical, which is the evidence that nothing was relying on a guess.
 
 ## Kerning
 
@@ -161,7 +205,7 @@ This deviates from CSS, which defaults to `row`, and it is deliberate. ps2ui pre
 
 The pairs reach the console already resolved to pixels at each font's size, because the EE is not going to divide by 1000 per glyph pair. That makes the table per-size, and it means kerning is a **large-text feature**: `To` is -170 font units, which is -5px at 32px, -2px at 14px, and gone below about 10px. Headings tighten; body text does not measurably move. That is the honest behaviour of an integer pen on a machine with no subpixel glyph placement, not a knob that needs turning up.
 
-All three pens walk a string the same way — kern, place, advance — and they have to agree to the pixel, because layout sizes the box and the other two draw into it. `TestCrossLanguagePen` runs the Node and Python pens over a corpus and compares every glyph position; the runtime suite checks the C pen against an independent scan of the same tables. If you write a fourth implementation, the rule is in [docs/format-uib.md](docs/format-uib.md).
+All three pens walk a string the same way (kern, place, advance) and they have to agree to the pixel, because layout sizes the box and the other two draw into it. `TestCrossLanguagePen` runs the Node and Python pens over a corpus and compares every glyph position; the runtime suite checks the C pen against an independent scan of the same tables. If you write a fourth implementation, the rule is in [docs/format-uib.md](docs/format-uib.md).
 
 Regenerate the committed metrics after changing `fontgen`:
 
@@ -174,7 +218,7 @@ Regenerate the committed metrics after changing `fontgen`:
 - Keep art in an `assets/` folder next to your HTML: `<img src="assets/badge.png">` (PNG only at build time)
 - Paths resolve relative to the HTML document
 - The baker decodes, pre-scales to the laid-out size, and packs the pixels into the `.uib`. The console never touches a filesystem
-- **Art the app supplies at runtime** — cover art off a disc, HDD or network — is a *streamed slot*: `<img data-tex-slot="cover">` with an explicit `width` and `height` in CSS. No `src`: nothing at bake time knows what the picture is. The blob carries geometry, the name and a VRAM reservation but no texels, and the app fills it with `ps2ui_tex_set(&ui, gs, "cover", texels, len)`. `len` is the **payload** figure on that slot's row in the bake's VRAM breakdown (`28000 B payload`), not the page-rounded `B in pages` next to it — the allocator commits whole 8 KiB pages, `tex_set` wants the linear texels, and passing the larger number is `PS2UI_ERR_SIZE`. Slot names are matched byte for byte, so a leading or trailing space in `data-tex-slot` is a build error rather than a name that silently never matches. Two elements naming the same slot share one reservation and draw in both places; the same name at two different sizes is a build error, because a slot has one reservation and the app is told one number. Nothing is copied — the buffer you pass becomes the DMA source and must stay alive, unmoved and 16-aligned for as long as the slot can be drawn. PSMCT32 only for now
+- **Art the app supplies at runtime**, cover art off a disc, HDD or network, is a *streamed slot*: `<img data-tex-slot="cover">` with an explicit `width` and `height` in CSS. No `src`: nothing at bake time knows what the picture is. The blob carries geometry, the name and a VRAM reservation but no texels, and the app fills it with `ps2ui_tex_set(&ui, gs, "cover", texels, len)`. `len` is the **payload** figure on that slot's row in the bake's VRAM breakdown (`28000 B payload`), not the page-rounded `B in pages` next to it. The allocator commits whole 8 KiB pages, `tex_set` wants the linear texels, and passing the larger number is `PS2UI_ERR_SIZE`. Slot names are matched byte for byte, so a leading or trailing space in `data-tex-slot` is a build error rather than a name that silently never matches. Two elements naming the same slot share one reservation and draw in both places; the same name at two different sizes is a build error, because a slot has one reservation and the app is told one number. Nothing is copied: the buffer you pass becomes the DMA source and must stay alive, unmoved and 16-aligned for as long as the slot can be drawn. PSMCT32 only for now
 - Add the `palettize` attribute (or bake with `--palettize-images`) to quantize an image to 8-bit indexed + CLUT. 4x less VRAM per texel for art within 256 colors. An already-indexed PNG keeps its own palette and index values instead of being requantized. Laying one out at a size other than its own is a build error when `palettize` asked for that image; under the project-wide `--palettize-images` it warns and requantizes instead, since that flag is a VRAM request rather than a claim about any one asset
 - One deliberate CSS deviation: flex `stretch` never distorts an image's aspect ratio. Give it an explicit size if you want stretching
 
@@ -244,7 +288,7 @@ already baked, so a UI that never uses one pays nothing.
 
 `display: none` is compile-time: it deletes the box before layout, so
 the geometry closes up around it. `ps2ui_visible_set` is the other
-thing, and the only one a fixed command list can offer — the subtree
+thing, and the only one a fixed command list can offer. The subtree
 keeps its space and stops being painted:
 
 ```c
@@ -304,7 +348,7 @@ showing the base.
 - **`ctx->stats` describes one render, not the frame.** It resets at the
   top of every call, so a composited frame ends holding the overlay's
   counters. Read them between renders to sum a frame.
-- **Call `gsKit_TexManager_nextFrame` once per frame, after the flip** —
+- **Call `gsKit_TexManager_nextFrame` once per frame, after the flip**,
   not between the two renders. It is the residency ageing tick; running
   it between them makes the overlay age the base's atlases, and an open
   dialog then re-uploads them every frame.
@@ -313,12 +357,12 @@ showing the base.
 
 There is deliberately no `ps2ui_overlay_push`. The one thing it would
 buy that this cannot express is keeping the input screen and the drawn
-screens distinct — a dialog drawn over a base that still receives the
+screens distinct: a dialog drawn over a base that still receives the
 D-pad. Nothing has asked for that yet.
 
 ### Streaming art onto a console
 
-`ps2ui_tex_set` takes **decoded** texels and copies nothing — the
+`ps2ui_tex_set` takes **decoded** texels and copies nothing. The
 pointer becomes the slot's DMA source. There is no image decoder on the
 EE and ps2ui does not want one: the app owns device I/O and decoding,
 the same split dynamic text has. Convert art on the host:
@@ -328,7 +372,7 @@ python3 tools/make_cover_raw.py ~/Art/*.png --size 128x128 --count 4
 ```
 
 That writes bare PSMCT32 of exactly `w × h × 4` bytes per file, with
-alpha in the GS domain (`0x80` is opaque, not `0xFF` — writing `0xFF`
+alpha in the GS domain (`0x80` is opaque, not `0xFF`; writing `0xFF`
 asks the GS for about twice the coverage it has). The console reads
 one into a 16-aligned buffer and hands that buffer over.
 
@@ -388,17 +432,17 @@ Your desktop preview won't show you what a 2001 television does. The compiler wa
 - Low-contrast text
 - Focusables unreachable by D-pad
 
-The baker refuses a build outright when it would exceed what the runtime can load: the texture VRAM budget, `overflow: hidden` nested deeper than the scissor stack (`PS2UI_MAX_SCISSOR_DEPTH`, the one remaining fixed-size thing in the runtime), or a table past the format's own `uint16` count field. The four static table caps that used to sit here are gone — the context is sized from the blob through your arena, so a UI with 121 slots is a UI with 121 slots. Every bake prints the arena it needs, and that number is what `ps2ui_load` is handed.
+The baker refuses a build outright when it would exceed what the runtime can load: the texture VRAM budget, `overflow: hidden` nested deeper than the scissor stack (`PS2UI_MAX_SCISSOR_DEPTH`, the one remaining fixed-size thing in the runtime), or a table past the format's own `uint16` count field. The four static table caps that used to sit here are gone. The context is sized from the blob through your arena, so a UI with 121 slots is a UI with 121 slots. Every bake prints the arena it needs, and that number is what `ps2ui_load` is handed.
 
 ## Render telemetry
 
-`ps2ui_render` fills `ctx.stats` every frame: primitives submitted, command records and slots skipped by visibility, slot glyphs composed, scissor overflows. Counters only — the runtime does no timing and no I/O; where a log goes is the app's decision, the same split as slot data. The sample has a build that reads them:
+`ps2ui_render` fills `ctx.stats` every frame: primitives submitted, command records and slots skipped by visibility, slot glyphs composed, scissor overflows. Counters only: the runtime does no timing and no I/O; where a log goes is the app's decision, the same split as slot data. The sample has a build that reads them:
 
 ```sh
 make -C runtime/sample TELEMETRY=1 EE_BIN=telemetry.elf
 ```
 
-It prints one line per elapsed second on stdout — measured frame rate, missed vsyncs, frame time for `ps2ui_render` in EE microseconds (min/avg/max), and the interval's counters (peaks for the budgeting numbers, a sum for scissor overflows so one bad frame in sixty is still visible). `printf` from the EE reaches PCSX2's console log and ps2link with no IRX modules, so it works on the very first boot; USB and UDP sinks can come later without touching the runtime.
+It prints one line per elapsed second on stdout: measured frame rate, missed vsyncs, frame time for `ps2ui_render` in EE microseconds (min/avg/max), and the interval's counters (peaks for the budgeting numbers, a sum for scissor overflows so one bad frame in sixty is still visible). `printf` from the EE reaches PCSX2's console log and ps2link with no IRX modules, so it works on the very first boot; USB and UDP sinks can come later without touching the runtime.
 
 ## Repository layout
 
@@ -408,12 +452,43 @@ It prints one line per elapsed second on stdout — measured frame rate, missed 
 | `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow only. |
 | `runtime`         | `.uib` loader, gsKit replay, D-pad nav. C99, no allocation. |
 | `fonts`           | metrics JSON (the layout/baker seam) and `ps2ui-fontgen`. |
-| `docs`            | [plan](docs/PLAN.md) / [architecture](docs/architecture.md) / [IR format](docs/format-ir.md) / [.uib format](docs/format-uib.md) / [v6 design](docs/design-v6-resource-model.md) |
-| `fixtures`        | measurement fixtures — not shipped examples; see [opl-scope](fixtures/opl-scope/README.md) |
+| `docs`            | everything below, see [Documentation](#documentation). |
+| `fixtures`        | measurement fixtures, not shipped examples; see [opl-scope](fixtures/opl-scope/README.md) |
 | `examples/memcard`| the two-screen memory card browser from the screenshots. |
+| `examples/opl-env`| the largest example: six screens, a windowed library, filters, a detail view, a confirm dialog, two themes. |
 | `examples/channel6`| a [game browser for a PSxMemCard GEN2 channel](examples/channel6/README.md), plus a feature probe screen for console bring-up. |
 
 The two interchange formats are fully documented, so any stage can be swapped out for another implementation.
+
+## Documentation
+
+Start here, in roughly this order:
+
+| doc | what it is for |
+|-----|----------------|
+| [tutorial-uc3.md](docs/tutorial-uc3.md) | build a working game browser from an empty directory. Every command is executed by CI. |
+| [deploying.md](docs/deploying.md) | get a UI onto a real console: memory cards, PSxMemCard GEN2 and SD2PSX channels, OPL, autoboot. |
+| [bringup.md](docs/bringup.md) | the hardware log, and the ordered procedure for a first console or emulator run. |
+
+Reference, when you need it:
+
+| doc | what it is for |
+|-----|----------------|
+| [format-ir.md](docs/format-ir.md) | the `ui.json` interchange format, layout stage to baker. |
+| [format-uib.md](docs/format-uib.md) | the `.uib` binary format the runtime reads. |
+| [architecture.md](docs/architecture.md) | the decision log. |
+| [design-v6-resource-model.md](docs/design-v6-resource-model.md) | how the context is sized from the blob rather than from compile-time ceilings. |
+| [design-p3b-theming.md](docs/design-p3b-theming.md) | how runtime theming works, and why it is a CLUT swap. |
+
+Project history and method, if you want to know why things are the way
+they are:
+
+| doc | what it is for |
+|-----|----------------|
+| [PLAN.md](docs/PLAN.md) | the sequencing document and its phase gates. |
+| [findings.md](docs/findings.md) | every measured finding, including the ones later overturned. |
+| [method.md](docs/method.md) | how this project decides something is true. |
+| [releasing.md](docs/releasing.md) | the release procedure, and what it cost to make it followable. |
 
 ## Validating a blob
 
@@ -449,15 +524,15 @@ ps2ui serve --uib build/ui.uib     # a pre-baked blob: no project, no Node
 ```
 
 `[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is
-the whole option list. Everything else — canvas, mode, display aspect,
-fonts, output — comes from `ps2ui.json`, because that is what the
+the whole option list. Everything else (canvas, mode, display aspect,
+fonts, output) comes from `ps2ui.json`, because that is what the
 project file is for.
 
 | in the page | what it drives |
 |------|------|
 | arrow keys | one `ps2ui_move` along the baked focus graph; an edge with no neighbour does nothing, as on the console |
 | screen menu | `ps2ui_screen_set`, with focus remembered per screen |
-| theme menu | `ps2ui_theme_set` — the tint table swaps and no geometry moves |
+| theme menu | `ps2ui_theme_set`, the tint table swaps and no geometry moves |
 | aspect menu | 1:1 framebuffer, as authored, force 4:3, force 16:9 |
 | a slot's text box | `ps2ui_slot_set` with what you type, capacity truncation included |
 | click on the frame | hit-tests front-to-back to the command that drew there and shows its record; warnings jump to the command they name |
@@ -467,7 +542,7 @@ a 4:3 set, and the reverse, is a failure nothing else in the toolchain
 surfaces, because every artifact it writes is already at the aspect you
 asked for.
 
-Editing a stylesheet rebuilds and refreshes without losing your place —
+Editing a stylesheet rebuilds and refreshes without losing your place:
 focus and screen are tracked by **name**, not index, because a rebuild
 renumbers indices and an index-based selection teleports on every save.
 A build error keeps the last good frame on screen and puts the message
@@ -479,7 +554,7 @@ Operational details that are decisions rather than defaults:
 - It binds `127.0.0.1` and only that. This is an unauthenticated dev
   tool and has no business on `0.0.0.0`.
 - Port 8080, incrementing on `EADDRINUSE`, printing the URL it actually
-  bound — two examples side by side is a normal thing to want. An
+  bound, because two examples side by side is a normal thing to want. An
   explicit `--port` fails instead of wandering.
 - Output goes to `build/serve/`, never `build/`. CI, `build.sh` and
   `ps2ui build` all write `build/`, so a server there clobbers artifacts
@@ -489,18 +564,18 @@ Operational details that are decisions rather than defaults:
 previewer rendering server-side and arriving as PNG bytes in an `<img>`;
 the focus rectangle, the 8px grid and the title-safe box are chrome over
 the top of it. A canvas renderer in the page would be a fourth pen
-beside the Node measurer, the Python baker and the C runtime —
+beside the Node measurer, the Python baker and the C runtime.
 `TestCrossLanguagePen` exists because holding three to agreement at the
-pixel is hard — and the only one of the four never diffed against
+pixel is hard, and a fourth would be the only one never diffed against
 hardware. So the page shows what the PS2 will draw, for the same reason
 `preview.png` does.
 
 ### What it will not tell you
 
 **It does not replace hardware testing.** The bug class that has
-justified the bench is not one a replay can see: **F-048** — gsKit's
-full-screen clear not paying the blended fill rate despite ABE being set
-— lives in a GS register `runtime/` has never written, inherited from
+justified the bench is not one a replay can see: **F-048**, gsKit's
+full-screen clear not paying the blended fill rate despite ABE being set,
+lives in a GS register `runtime/` has never written, inherited from
 whatever `gsKit_init_screen` left behind. The command list was faithful
 and the console diverged from it, so no faithful replay of that list can
 catch it. F-047 was caught by an arm's own integrity check on a console,
@@ -512,14 +587,14 @@ first boot.
 boundary. The renderer is parameterised on screen, focus node, theme and
 slot text; it has no visibility parameter, so `ps2ui_visible_set`,
 `ps2ui_list_*` windowing and `ps2ui_list_apply_visibility` do not
-appear — the page shows the baked state. Adding it later means threading
+appear: the page shows the baked state. Adding it later means threading
 a hidden set through the renderer *and* mirroring `ps2ui_move`'s
 skip-hidden walk in the navigation model, and a half-implementation
 would show a D-pad landing where the console's cannot.
 
 ### `--uib`: a blob inspector
 
-`--uib` skips the build entirely — read the blob, serve it, no project
+`--uib` skips the build entirely: read the blob, serve it, no project
 file, no Node, no watching. That makes the same page an inspector for
 **any** `.uib`, including one this toolchain did not bake, which is the
 property `ps2ui-check` above already has. The two pair in that order:
@@ -528,7 +603,7 @@ check it, then look at what passed.
 ## Tests
 
 ```sh
-cd packages/layout && node --test test/*.test.js
+cd packages/layout && npm test
 cd packages/baker  && python3 -m unittest discover -s tests
 cd runtime         && make test test-compat
 ```
@@ -537,23 +612,23 @@ The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit
 
 ## Status
 
-The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain, boots it in the Play! emulator and image-diffs the frame against the previewer's ground truth. That diff is a gating check: it first went green when the DMA-alignment fix landed (#40), has held through every texture-path change since, and a red there is a real rendering regression, not an advisory note. It is a floor, not a proof — at its calibrated tolerance it catches gross corruption, and a green diff does not by itself certify the texture path.
+The host toolchain is verified end to end, and CI builds a bootable PS2 ELF with the ps2dev toolchain, boots it in the Play! emulator and image-diffs the frame against the previewer's ground truth. That diff is a gating check: it first went green when the DMA-alignment fix landed (#40), has held through every texture-path change since, and a red there is a real rendering regression, not an advisory note. It is a floor, not a proof: at its calibrated tolerance it catches gross corruption, and a green diff does not by itself certify the texture path.
 
-**The bring-up matrix is complete on a real PlayStation 2** — a SCPH-50000, NTSC, booted from USB under FreeMcBoot. Steps 1–7, 9 and 10 pass on hardware, including the full memcard UI rendering with legible text. The one caveat: step 8 (interlace field order) is void on the bench panel, whose deinterlacer weaves static fields — the 1px-checker shimmer proves the console outputs real 480i with differing fields, but the 30 Hz rule flicker itself needs a CRT nobody is holding the project for. See [docs/bringup.md](docs/bringup.md) for the hardware log.
+**The bring-up matrix is complete on a real PlayStation 2**, an SCPH-50000, NTSC, booted from USB under FreeMcBoot. Steps 1–7, 9 and 10 pass on hardware, including the full memcard UI rendering with legible text. The one caveat: step 8 (interlace field order) is void on the bench panel, whose deinterlacer weaves static fields. The 1px-checker shimmer proves the console outputs real 480i with differing fields, but the 30 Hz rule flicker itself needs a CRT nobody is holding the project for. See [docs/bringup.md](docs/bringup.md) for the hardware log.
 
 Step 2 found a real fault, of the kind only hardware could find:
 
-- **Alpha ran exactly inverted, and had since the renderer's first line.** Nothing in `runtime/` had ever written the GS `ALPHA` register, and gsKit's default is `GS_BLEND_BACK2FRONT` — `A=Cd B=Cs C=As D=Cs`, the operands swapped — so effective coverage was `128 - As`. A quad the `.uib` calls fully opaque at `As = 0x80` composited to pure background and disappeared; a nearly transparent one painted at almost full strength. Measured on six rungs on hardware and again under Play!, every one fitting `128 - As` to within a unit. `ps2ui_render` now asserts `(Cs - Cd) * As >> 7 + Cd` every frame, and two runtime checks fail if it stops.
+- **Alpha ran exactly inverted, and had since the renderer's first line.** Nothing in `runtime/` had ever written the GS `ALPHA` register, and gsKit's default is `GS_BLEND_BACK2FRONT` (`A=Cd B=Cs C=As D=Cs`, the operands swapped), so effective coverage was `128 - As`. A quad the `.uib` calls fully opaque at `As = 0x80` composited to pure background and disappeared; a nearly transparent one painted at almost full strength. Measured on six rungs on hardware and again under Play!, every one fitting `128 - As` to within a unit. `ps2ui_render` now asserts `(Cs - Cd) * As >> 7 + Cd` every frame, and two runtime checks fail if it stops.
 
-**A correction to what this section used to say.** It claimed "the blend equation is right," citing the probe ladder compositing to `#8c0784` at `0x40` and `#c503c1` at `0x60`. Both colours were indeed on screen — but the ladder was running *backwards*, so they belonged to different rungs than the ones named. `0x40` is the single alpha where the correct and inverted equations agree, which is exactly why a check that looked for the presence of expected colours could not tell the difference. The colours were all there; the mapping was inverted.
+**A correction to what this section used to say.** It claimed "the blend equation is right," citing the probe ladder compositing to `#8c0784` at `0x40` and `#c503c1` at `0x60`. Both colours were indeed on screen, but the ladder was running *backwards*, so they belonged to different rungs than the ones named. `0x40` is the single alpha where the correct and inverted equations agree, which is exactly why a check that looked for the presence of expected colours could not tell the difference. The colours were all there; the mapping was inverted.
 
 Emulator measurements below, under Play! 0.72 (`Play!-8de4a71f-x86_64.AppImage`) on llvmpipe:
 
-- **Textured rendering is correct.** The six most common colours in the captured frame are, apart from the background, all stylesheet text colours matched to within one unit — `#8b94a7` → `#8c94a8`, `#f2f5fa` → `#f2f6fa`, `#e8ecf4` and `#ffffff` exact. That exercises the glyph atlas, the CLUT upload, the CSM1 bit-3/bit-4 swizzle, `TEX0.TFX` modulate and the 0x80-identity colour domain, and the `+1`s are the quantisation `Cv = Ct·Cf >> 7` produces. Bring-up steps 3 and 5.
-- **Solid fills at alpha `0x7f` and `0x80` did not appear.** `0x80` is the value every opaque quad in a `.uib` carries, which is why the UI frame came back 92.8% black with its text intact — text survives because its alpha comes from the atlas, not from `0x80`. This was recorded as a possible Play! HLE artifact. **It was not.** Real silicon does the same thing, for the reason above, and the frame was black because the render loop clears with blending on: under the inverted equation a clear at `0x80` resolves to the *destination*.
+- **Textured rendering is correct.** The six most common colours in the captured frame are, apart from the background, all stylesheet text colours matched to within one unit: `#8b94a7` → `#8c94a8`, `#f2f5fa` → `#f2f6fa`, `#e8ecf4` and `#ffffff` exact. That exercises the glyph atlas, the CLUT upload, the CSM1 bit-3/bit-4 swizzle, `TEX0.TFX` modulate and the 0x80-identity colour domain, and the `+1`s are the quantisation `Cv = Ct·Cf >> 7` produces. Bring-up steps 3 and 5.
+- **Solid fills at alpha `0x7f` and `0x80` did not appear.** `0x80` is the value every opaque quad in a `.uib` carries, which is why the UI frame came back 92.8% black with its text intact. Text survives because its alpha comes from the atlas, not from `0x80`. This was recorded as a possible Play! HLE artifact. **It was not.** Real silicon does the same thing, for the reason above, and the frame was black because the render loop clears with blending on: under the inverted equation a clear at `0x80` resolves to the *destination*.
 - **With the blend asserted**, the same capture returns 52.8% `#0a0e1a` against an expected 58.6%, means within one unit per channel, and global RMSE 22.89 down from 72.89. Of that 22.89, **6.40 is the capture pipeline's own resampling floor**, measured on the runner by round-tripping the previewer PNG through the same resizes with no renderer involved.
 
-For a first console or emulator run, follow [docs/bringup.md](docs/bringup.md). `runtime/sample/` is the standalone ELF. Start with `make -C runtime/sample MINIMAL=1`, which is step 1 alone — clear, hold, exit, three gsKit calls — so that if nothing appears you already know whether the boot path or the drawing failed. `PROBE=1` then builds the step 2 instrument, and `tools/make_testcard.py` builds a texel-alignment card.
+**Getting this onto a console:** [docs/deploying.md](docs/deploying.md) covers memory cards, multi-channel devices like the PSxMemCard GEN2 and SD2PSX, Open PS2 Loader, and autoboot. For a first console or emulator run, work [docs/bringup.md](docs/bringup.md) in order. `runtime/sample/` is the standalone ELF. Start with `make -C runtime/sample MINIMAL=1`, which is step 1 alone (clear, hold, exit, three gsKit calls), so that if nothing appears you already know whether the boot path or the drawing failed. `PROBE=1` then builds the step 2 instrument, and `tools/make_testcard.py` builds a texel-alignment card.
 
 See [docs/architecture.md](docs/architecture.md) for the decision log.
 
@@ -563,7 +638,7 @@ Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 
 - [x] Hardware bring-up ([docs/bringup.md](docs/bringup.md) carries the log; step 8 stays open for a CRT, non-blocking)
 - [x] Browser previewer with D-pad navigation, theme and aspect switching (`ps2ui serve`)
-- [ ] Working emulator screenshot job in CI
+- [x] Emulator screenshot job in CI (Play!, headless, image-diffed against the previewer, and gating)
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)

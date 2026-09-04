@@ -2,7 +2,7 @@
 
 The Node half of the OPHTML toolchain, published to npm as
 `@ophtml/layout`. It provides the `ps2ui-layout` and `ps2ui-dev`
-commands — OPHTML is the product, ps2ui is the format and the tools
+commands. OPHTML is the product, ps2ui is the format and the tools
 that speak it.
 
 First stage of the [ps2ui toolchain](https://github.com/coffeedevsolutions/OPHTML/blob/main/README.md): parses HTML and
@@ -20,7 +20,7 @@ the paint order. The console never does any of it.
 
 ## What it decides
 
-- **Layout.** A flexbox subset — `flex-direction` is required on any
+- **Layout.** A flexbox subset. `flex-direction` is required on any
   container with two or more children, because the old implicit default
   was `column` where CSS's initial value is `row`, and requiring the
   answer is the only version with no silent victims.
@@ -35,8 +35,8 @@ the paint order. The console never does any of it.
 
 `ps2ui-dev` watches one screen's HTML and CSS, recompiles and re-bakes
 on change, and writes a preview PNG to `build/dev/`. For an interactive
-version — arrow-key navigation, screen and theme switching, aspect
-toggles — see `ps2ui serve` in the Python package, which renders
+version with arrow-key navigation, screen and theme switching and
+aspect toggles, see `ps2ui serve` in the Python package, which renders
 through the previewer rather than in the browser.
 
 ## Numbers, not opinions
