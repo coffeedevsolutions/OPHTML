@@ -3733,6 +3733,168 @@ class TestProjectFile(unittest.TestCase):
             self.assertTrue(os.path.exists(
                 os.path.join(proj_dir, "build", "ui.uib")))
 
+    # ------------------------------------------------------ ps2ui dev
+
+    @contextlib.contextmanager
+    def captured_fd2(self):
+        """Capture fd 2, not sys.stderr.
+
+        `ps2ui dev` is entirely a subprocess, and contextlib's
+        redirect_stderr only rebinds Python's sys.stderr -- a child
+        writes to the real fd 2 and the assertion sees an empty string.
+        The first version of this test read that emptiness as "no
+        absolute paths were printed", which is a check that passes
+        because it looked at nothing.
+        """
+        import tempfile as _tf
+        sink = []
+        with _tf.TemporaryFile(mode="w+") as fh:
+            saved = os.dup(2)
+            os.dup2(fh.fileno(), 2)
+            try:
+                yield sink
+            finally:
+                os.dup2(saved, 2)
+                os.close(saved)
+                fh.seek(0)
+                sink.append(fh.read())
+
+    def dev_project(self, tmp, screens, fonts=True):
+        """A project on disk, with real HTML/CSS the compiler accepts."""
+        import json as _json
+        os.makedirs(os.path.join(tmp, "ui"), exist_ok=True)
+        for name in screens:
+            with open(os.path.join(tmp, "ui", name + ".html"), "w") as fh:
+                fh.write('<screen name="%s"><div class="r">Hi</div></screen>'
+                         % name)
+        with open(os.path.join(tmp, "ui", "app.css"), "w") as fh:
+            fh.write('.r { color: #fff; background: #000; '
+                     'width: 200px; height: 60px; }')
+        data = {"screens": ["ui/%s.html" % n for n in screens],
+                "css": "ui/app.css"}
+        if fonts:
+            data["fonts"] = os.path.join(FONTS, "fonts.json")
+        path = os.path.join(tmp, "ps2ui.json")
+        with open(path, "w") as fh:
+            _json.dump(data, fh)
+        return path
+
+    def test_dev_names_every_screen_not_just_the_first(self):
+        """THE REMEDY IT PRINTED DID NOT EXIST.
+
+        `ps2ui dev` on a multi-screen project said "Name it: ps2ui dev
+        --screen <first>", and the parser had no --screen at all, so the
+        one thing it told you to do failed with "unrecognized
+        arguments". Every example in this repository has more than one
+        screen, so that was the only outcome available for any of them.
+
+        It also named screens[0] as if it were a recommendation. The
+        caller is choosing; a chooser needs the list.
+        """
+        from ps2ui_bake import ps2ui as front
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.dev_project(tmp, ["library", "saves", "settings"])
+            # --once even though this must never reach a build. If the
+            # screen check regresses, `dev` proceeds instead of erroring
+            # -- and without --once it proceeds into a watch loop that
+            # never returns, so the suite HANGS rather than failing.
+            # A test that can hang is a test that reports nothing.
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = front.main(["dev", path, "--once"])
+            out = err.getvalue()
+            self.assertEqual(rc, 1)
+            for name in ("library", "saves", "settings"):
+                self.assertIn(name, out,
+                              "the error must name every screen, not one")
+            self.assertIn("--screen", out)
+
+    def test_dev_screen_selects_by_name_and_refuses_an_unknown_one(self):
+        from ps2ui_bake import ps2ui as front, project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.dev_project(tmp, ["library", "saves"])
+            proj = project.load(path)
+            self.assertEqual(front.pick_screen(proj, "saves").name, "saves")
+            with self.assertRaises(front.ProjectError) as cm:
+                front.pick_screen(proj, "nope")
+            msg = str(cm.exception)
+            self.assertIn("nope", msg)
+            self.assertIn("library", msg)
+            self.assertIn("saves", msg)
+
+    def test_dev_one_screen_needs_no_flag(self):
+        from ps2ui_bake import ps2ui as front, project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = project.load(self.dev_project(tmp, ["only"]))
+            self.assertEqual(front.pick_screen(proj, None).name, "only")
+
+    def test_dev_builds_with_a_fonts_manifest_and_stays_out_of_build(self):
+        """TWO FAILURES THAT MADE `ps2ui dev` UNRUNNABLE, together.
+
+        It appended `--fonts <manifest>` to a tool that did not accept
+        the flag, so both landed in ps2ui-dev's positional list and it
+        exited 2 with a bare usage dump. Every project here has a
+        manifest, so the only configuration that ever reached a build
+        was a single-screen project with no fonts at all.
+
+        And it wrote into build/, where `ps2ui build` and every
+        build.sh put the blob CI verifies -- clobbering ui.uib and
+        preview.png, and leaving a ui.json that `ps2ui build` never
+        writes, since it names intermediates after the screen.
+        """
+        from ps2ui_bake import ps2ui as front
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.dev_project(tmp, ["library", "saves"])
+            build = os.path.join(tmp, "build")
+            os.makedirs(build, exist_ok=True)
+            sentinel = os.path.join(build, "ui.uib")
+            with open(sentinel, "wb") as fh:
+                fh.write(b"NOT-A-BLOB")
+
+            here = os.getcwd()
+            with self.captured_fd2() as sink:
+                rc = front.main(["dev", path, "--screen", "saves", "--once"])
+            out = sink[0]
+            self.assertEqual(rc, 0, out)
+            self.assertTrue(out.strip(), "captured nothing; the assertions "
+                                         "below would pass vacuously")
+            self.assertEqual(os.getcwd(), here)
+
+            # It built, into its own directory. The IR is named after
+            # the SCREEN, because a blob's screen names are its IR file
+            # stems -- ps2ui-dev wrote a fixed ui.json, so every blob it
+            # made had one screen called `ui`.
+            for name in ("saves.json", "ui.uib", "preview.png"):
+                self.assertTrue(
+                    os.path.exists(os.path.join(build, "dev", name)),
+                    "%s missing from build/dev: %s" % (name, out))
+            # And left the build directory alone.
+            with open(sentinel, "rb") as fh:
+                self.assertEqual(fh.read(), b"NOT-A-BLOB",
+                                 "ps2ui dev overwrote build/ui.uib")
+            # Every path printed is relative to the project, the same
+            # rule `ps2ui build` follows.
+            self.assertNotIn(tmp, out,
+                             "ps2ui dev printed an absolute path")
+            self.assertIn("build/dev/preview.png", out)
+
+            # AND IT BUILT THE SCREEN THAT WAS NAMED. Everything above
+            # holds whichever screen `cmd_dev` picks, so without this
+            # the --screen flag could be accepted and ignored and this
+            # file would stay green -- pick_screen is unit-tested just
+            # above, and a unit test of a helper says nothing about
+            # whether the caller reached it. That is the shape this
+            # repository keeps finding: a fence connected to nothing.
+            from ps2ui_bake.uib import read_uib
+            blob = read_uib(os.path.join(build, "dev", "ui.uib"))
+            self.assertEqual([sc["name"] for sc in blob.screens], ["saves"],
+                             "ps2ui dev built a screen other than the one "
+                             "--screen named")
+
     def test_out_override_moves_the_intermediates_with_it(self):
         from ps2ui_bake import project
         import tempfile

@@ -68,9 +68,11 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake build/library.json \
 # or run both stages plus all tests for the example:
 ./examples/memcard/build.sh
 
-# or live-rebuild on every edit (~200ms per build):
-node packages/layout/bin/ps2ui-dev.js \
-    examples/memcard/ui/library.html examples/memcard/ui/library.css -o build/dev
+# or live-rebuild on every edit (~200ms per build). --screen picks one
+# when the project has more than one; the output lands in build/dev/ so
+# it never collides with build/:
+PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui dev \
+    examples/memcard/ps2ui.json --screen library
 ```
 
 Console side: drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKit project.
