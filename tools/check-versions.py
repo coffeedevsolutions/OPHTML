@@ -78,6 +78,23 @@ _SEMVER = re.compile(
 EXPECTED_NPM = "@ophtml/layout"
 EXPECTED_PYPI = "ophtml"
 
+# HAS EITHER PACKAGE ACTUALLY BEEN UPLOADED? A hand-set fact, flipped
+# by the commit that publishes, for the same reason EXPECTED_NPM is
+# written down rather than inferred: nothing here may ask the network,
+# and a rule that guesses is a rule that is wrong on the day it
+# matters.
+#
+# It exists because the README's Quick start note is the one place a
+# stranger is told what to run, and the true sentence is different on
+# either side of the upload. Keying rule 10 to a literal
+# "Neither package is published" meant that rewriting the note the day
+# it stopped being true FAILED the check -- the paragraph it searches
+# for would be gone -- which is the same trap docs/releasing.md step 4
+# and rule 5 were in: a document telling you to do the thing a checker
+# forbids. Found before publishing this time, by reading rule 10 while
+# planning step 8 rather than by hitting it.
+PUBLISHED = False
+
 # "zero" is not padding. The section opened straight after a release
 # counts its drift from a release that shipped the CURRENT format, so
 # the count is 0 and the prose has to be able to say so in words like
@@ -386,13 +403,16 @@ def main(argv=None):
     #     toolchain is unpublished, so it names all four facts and is
     #     read back here rather than trusted.
     readme = open(os.path.join(ROOT, "README.md"), encoding="utf-8").read()
-    m = re.search(r"\*\*Neither package is published.*?\n\n", readme, re.S)
+    opener = ("Both packages are published" if PUBLISHED
+              else "Neither package is published")
+    m = re.search(r"\*\*" + opener + r".*?\n\n", readme, re.S)
     if m is None:
-        check(False, "", "README.md has no '**Neither package is "
-                         "published' paragraph under Quick start; that is "
-                         "the only place a stranger is told this tree is "
-                         "not a release, and this check has stopped "
-                         "reading it")
+        check(False, "", "README.md has no '**%s' paragraph under Quick "
+                         "start. That is the only place a stranger is told "
+                         "how to get this toolchain, and PUBLISHED is %s in "
+                         "check-versions.py -- flip it in the same commit "
+                         "that uploads, and rewrite the paragraph to match "
+                         "(docs/releasing.md step 8)." % (opener, PUBLISHED))
     else:
         note = m.group(0)
         missing = [w for w in (BAKER_VERSION, layout_raw,
@@ -517,6 +537,89 @@ def main(argv=None):
               "check-versions.py in the same commit -- a name is "
               "permanent once published, so it should not be something a "
               "sed can move in silence." % (where, got, want))
+    # 19. EACH PACKAGE HAS THE README ITS REGISTRY PAGE RENDERS.
+    #
+    #     Found by running `npm pack --dry-run` before the first
+    #     publish rather than after: packages/layout/ had no README.md
+    #     and @ophtml/layout's npm page would have been blank. npm
+    #     takes a version once, so the repair would have been 0.3.1 and
+    #     0.3.0's page would stay empty for good.
+    #
+    #     THE TWO HALVES ARE NOT THE SAME CHECK, and the first version
+    #     of this rule pretended they were. It required `files` to name
+    #     README.md and shared one failure message -- "the package
+    #     would publish with no front page" -- across both. Measured on
+    #     this package, npm ships README.md whatever `files` says:
+    #
+    #         files: [src/, bin/, README.md]  -> 17 files, README in
+    #         files: [src/, bin/]             -> 17 files, README in
+    #         README.md deleted               -> 16 files
+    #
+    #     So on the npm side the FILE is load-bearing and the manifest
+    #     entry is not, and the rule asserted the consequence backwards:
+    #     dropping the entry fired a failure claiming a blank page for a
+    #     package that packs the README anyway. A check that misdescribes
+    #     what the tool does is the thing this repository spends its time
+    #     undoing, so the npm half now checks only what npm acts on.
+    #
+    #     setuptools is the opposite and the rule stays strict there:
+    #     with `readme` removed, the wheel's METADATA loses
+    #     Description-Content-Type entirely and the description is 0
+    #     bytes, so PyPI really does render nothing. Measured the same
+    #     way, by building the wheel and reading its METADATA.
+    for what, declared, path in (
+            ("npm always ships README.md whatever `files` says, so the "
+             "file itself is the whole of it", True,
+             "packages/layout/README.md"),
+            ("setuptools renders it from `readme` in pyproject.toml, and "
+             "without that key the wheel's description is 0 bytes",
+             bool(re.search(r'^readme\s*=\s*"README\.md"\s*$',
+                            open(os.path.join(ROOT, "packages", "baker",
+                                              "pyproject.toml"),
+                                 encoding="utf-8").read(), re.M)),
+             "packages/baker/README.md")):
+        exists = os.path.exists(os.path.join(ROOT, *path.split("/")))
+        check(declared and exists,
+              "%s is there%s" % (path, "" if path.endswith("layout/README.md")
+                                 else " and pyproject.toml declares it"),
+              "%s: %s%s. %s"
+              % (path,
+                 "the file is missing" if not exists
+                 else "packages/baker/pyproject.toml does not declare "
+                      "readme = \"README.md\"",
+                 "", "The registry page would be blank, and neither "
+                     "packager calls that an error -- " + what))
+
+    # 20. THE RELEASE NOTES DO NOT OUTLIVE THEIR OWN CLAIM.
+    #
+    #     docs/releasing.md step 8 lists three edits the upload
+    #     requires. PUBLISHED and the README's Quick start note were
+    #     fenced against each other in both directions; the CHANGELOG's
+    #     "Tagged is not published" paragraph was the third, and
+    #     nothing read it -- so the upload could happen with the
+    #     release notes still telling a reader neither package exists
+    #     on a registry, and no check would say so. Two of three edits
+    #     mechanical and the third a matter of remembering is the
+    #     arrangement this file exists to end.
+    #
+    #     Raised in review of the commit that added the other two.
+    changelog = open(os.path.join(ROOT, "CHANGELOG.md"),
+                     encoding="utf-8").read()
+    claim = "**Tagged is not published.**"
+    present = claim in changelog
+    check(present != PUBLISHED,
+          "CHANGELOG's %s paragraph is %s, matching PUBLISHED = %s"
+          % (claim.strip("*."), "present" if present else "gone", PUBLISHED),
+          "CHANGELOG.md %s %r while PUBLISHED is %s in check-versions.py. "
+          "%s (docs/releasing.md step 8 lists all three edits: this "
+          "paragraph, the README's Quick start note, and PUBLISHED "
+          "itself)."
+          % ("still says" if present else "no longer says", claim, PUBLISHED,
+             "The release notes tell a reader nothing has been uploaded "
+             "when it has." if present else
+             "Nothing has been uploaded, so the release notes should "
+             "still say so."))
+
     check(npm_name.startswith("@") and "/" in npm_name,
           "the npm package is scoped: %s" % npm_name,
           "packages/layout/package.json is named %r; the ophtml org is "

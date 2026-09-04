@@ -147,16 +147,91 @@ written twice to avoid.
    unflagged invocation of itself, as the last `run:` step in the
    file. Moving it means editing that rule in the same commit.
 
-8. **Then publish**, npm and PyPI, in that order or either.
+8. **Then publish, npm and PyPI in one sitting.** Not staggered: the
+   two halves are one product on one version number, and
+   `check-versions.py` rule 2 exists to keep them that way. A stagger
+   leaves a window where `npm install` works and `pip install` does
+   not, which is the exact confusion the shared number prevents.
+
    `@ophtml/layout` is scoped and npm defaults a scoped package to
-   `restricted`, so `publishConfig.access` is set to `public` beside the
-   tag — `check-versions.py` requires it, because the alternative is a
-   first publish that fails or lands private with nothing having said
-   so. This is the
-   step Phase 4's exit gate is about: a stranger with npm, pip and a
-   TTF reproduces the memcard example, and its hardware screenshot,
-   without cloning the repo. Until that has actually been done by
-   someone who is not us, the gate is not met.
+   `restricted`, so `publishConfig.access` is `public` —
+   `check-versions.py` requires it, because the alternative is a first
+   publish that fails or lands private with nothing having said so.
+
+   **Build and look at the artifacts before uploading either.** Both
+   packagers ship what exists and say nothing about what does not:
+
+   ```sh
+   git checkout v0.3.0
+
+   cd packages/layout && npm pack --dry-run
+   cd ../baker && rm -rf dist/ && python3 -m build && python3 -m twine check dist/*
+   ```
+
+   Read the file lists. `npm pack --dry-run` before the first publish
+   is what caught `packages/layout/README.md` missing while
+   `package.json` named it in `files` — the tarball was 16 files, the
+   installed package was `bin src package.json`, and the npm page would
+   have been blank. Rule 19 fences that now, but the habit is the point:
+   a manifest naming a file that is not there is not an error to either
+   tool.
+
+   Then install what you built and run it from outside the checkout,
+   which is the only way to see a packaging bug at all:
+
+   ```sh
+   python3 -m venv /tmp/v && /tmp/v/bin/pip install dist/*.whl
+   /tmp/v/bin/ps2ui --version
+   cd /tmp && /tmp/v/bin/ps2ui serve --uib <any>.uib --selftest
+   ```
+
+   That last command is the real smoke test: it exercises
+   `serve_page.html`, which is package DATA and was omitted from both
+   artifacts until `[tool.setuptools.package-data]` declared it. In a
+   checkout the page is simply there, so nothing local can fail.
+
+   Rehearse the PyPI upload on TestPyPI first —
+   `twine upload --repository testpypi dist/*`. **PyPI never re-accepts
+   a version**, so a bad `0.3.0` means `0.3.1` and the bad one is
+   permanent; npm gives 72 hours and then blocks the name. These are
+   the only genuinely irreversible steps in this document.
+
+   **The upload is three edits, not one command.** Publishing makes the
+   README's Quick start note false, and the note is checked:
+
+   - `PUBLISHED = False` → `True` in `tools/check-versions.py`.
+   - the README's Quick start paragraph, which must then open
+     `**Both packages are published` instead of `**Neither package is
+     published` — rule 10 reads whichever opener `PUBLISHED` selects,
+     in both directions, so flipping one without the other fails.
+
+     **Rewriting that paragraph is not just changing its opener.**
+     Rule 10 applies the same four-fact list to whichever state it is
+     in: the note must still name both versions, `format **v7**`, and
+     the drift since the last release in words (`four moves`). A
+     natural rewrite drops them — "`pip install ophtml` gives you the
+     toolchain" is a true sentence that fails the check — so carry the
+     facts across. Found by following this step literally in a scratch
+     checkout and reading the four `does not say` lines it produced.
+   - the CHANGELOG's **"Tagged is not published"** paragraph in the
+     `0.3.0` section, which is present-tense and stops being true.
+     Rule 20 keys it to `PUBLISHED` in both directions, so this edit is
+     fenced too — it was the one item on this list that was a matter of
+     remembering, and it is not any more.
+
+   Rule 10 used to key on the literal `Neither package is published`,
+   which meant rewriting the note the day it stopped being true would
+   have *failed the check* — a document instructing you to do the thing
+   a checker forbids, the same trap step 4 and rule 5 were in. That was
+   found by reading rule 10 while writing this step rather than by
+   hitting it, which is the only time in this file's history that has
+   happened.
+
+   This is the step Phase 4's exit gate is about: a stranger with npm,
+   pip and a TTF reproduces the memcard example, and its hardware
+   screenshot, without cloning the repo. Until that has actually been
+   done by someone who is not us, the gate is not met — uploading is
+   necessary for it and not sufficient.
 
 9. **Back to development**, once the tag is pushed. This is the other
    half of the old step 4, and it is four edits that move together:
