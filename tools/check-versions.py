@@ -172,7 +172,41 @@ def git_tags():
     return set(out.split())
 
 
-def main():
+def main(argv=None):
+    # `--except-tag` runs every rule BUT the tag rule.
+    #
+    # WHY A FLAG AND NOT A REORDER. Rule 8 is the only rule here that
+    # compares the tree against something the tree cannot contain: the
+    # repository's tag namespace. Every other rule reads two claims
+    # inside the checkout and holds them to each other, and the step's
+    # comment in ci.yml is right about those -- a disagreement means
+    # the rest of the run is measuring something that does not know
+    # what it is, so failing before the toolchain is even installed is
+    # correct.
+    #
+    # Rule 8 is different in kind, and cutting 0.3.0 is what showed it.
+    # A release commit on a branch CANNOT satisfy it: the tag has to
+    # name a commit on the default branch, and with squash merges the
+    # branch commit is not that commit. So the rule failed at step one
+    # and took the whole job with it -- 242 baker tests, both example
+    # builds, the tutorial and every other check never ran on the
+    # commit that cut the release. A cheap check placed first had
+    # hidden every expensive check behind it, which is the same shape
+    # as the baker tests that ran before the builds they needed.
+    #
+    # So CI runs this file twice: `--except-tag` early, where a real
+    # disagreement still fails fast, and the FULL command at the end,
+    # unflagged and authoritative. The late run is the complete check,
+    # so a rule added later is covered by it whatever this flag does --
+    # the flag can only ever subtract from a run that is not the one
+    # the verdict comes from.
+    argv = sys.argv[1:] if argv is None else list(argv)
+    except_tag = "--except-tag" in argv
+    for a in argv:
+        if a != "--except-tag":
+            raise SystemExit("check-versions: unknown argument %r. The only "
+                             "flag is --except-tag, and the unflagged run "
+                             "is the authoritative one." % a)
     fail = []
 
     def check(ok, ok_msg, bad_msg):
@@ -547,7 +581,13 @@ def main():
     # 8. A release version names a tag. A prerelease is allowed to name
     #    nothing, which is the whole reason to carry one.
     tags = git_tags()
-    if is_prerelease(baker):
+    if except_tag:
+        # SAID OUT LOUD. A green `--except-tag` run is not a pass, and
+        # the one thing that would make this flag dangerous is someone
+        # reading its exit status as one.
+        print("skip - the tag rule, deferred to the full unflagged run at "
+              "the end of this job (--except-tag)")
+    elif is_prerelease(baker):
         print("ok - %s is a prerelease, so it is not claiming to be a "
               "release that has no tag" % BAKER_VERSION)
     elif tags is None:

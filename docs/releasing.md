@@ -128,6 +128,17 @@ written twice to avoid.
    green before the merge; if a second one is red, that is a real
    failure and not this ordering.
 
+   Cutting 0.3.0 is also what showed that this rule, sitting in CI's
+   first step, took the whole job down with it — the baker suite, both
+   example builds and the tutorial never ran on the commit that cut
+   the release, because a check needing no toolchain had been placed
+   in front of every check that does. `ci.yml` runs
+   `check-versions.py --except-tag` first, so a real disagreement
+   still fails before anything is installed, and the full unflagged
+   command last, where its failure can no longer hide a suite. So the
+   red on this rule now sits at the *end* of a job that otherwise
+   passed, and the rest of the run means something.
+
 8. **Then publish**, npm and PyPI, in that order or either.
    `@ophtml/layout` is scoped and npm defaults a scoped package to
    `restricted`, so `publishConfig.access` is set to `public` beside the
