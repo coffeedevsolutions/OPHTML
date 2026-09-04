@@ -78,7 +78,11 @@ _SEMVER = re.compile(
 EXPECTED_NPM = "@ophtml/layout"
 EXPECTED_PYPI = "ophtml"
 
-_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+# "zero" is not padding. The section opened straight after a release
+# counts its drift from a release that shipped the CURRENT format, so
+# the count is 0 and the prose has to be able to say so in words like
+# every other count here.
+_WORDS = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
           "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 
 
@@ -226,15 +230,48 @@ def main():
           "docs/format-uib.md's Versioning list has no `- **v%d** —` entry, "
           "so the current format is undocumented" % UIB_VERSION)
 
-    # 5-7. The open CHANGELOG section states the same facts.
+    # 5-7. The newest CHANGELOG section states the same facts.
+    #
+    #     TWO HEADING SHAPES, ONE INVARIANT. The rule being enforced is
+    #     "the newest section names the version the packages carry" --
+    #     the heading shape then says which state the tree is in:
+    #
+    #         prerelease  ->  ## Unreleased — 0.4.0.dev0
+    #         release     ->  ## 0.3.0 — 2026-09-04
+    #
+    #     The first version of this rule demanded `Unreleased — X`
+    #     unconditionally, which made docs/releasing.md's own step 4
+    #     UNSATISFIABLE: that step says to retitle the open section to
+    #     `## <version> — <date>` and open a fresh `## Unreleased —
+    #     <next>.dev0` above it, and doing exactly that put a heading
+    #     naming the NEXT version where this rule reads the current
+    #     one. Nobody noticed because nobody had cut a release -- the
+    #     runbook and its checker had never been run against each
+    #     other. Found by applying releasing.md literally and reading
+    #     the output, which is the only way that class of disagreement
+    #     surfaces.
+    #
+    #     So the retitle and the fresh Unreleased section are now two
+    #     steps in releasing.md rather than one, and this rule tracks
+    #     both states instead of forbidding half of the procedure.
     sections = changelog_sections()
     head, body = sections[0]
-    m = re.match(r"^Unreleased — (\S+)$", head)
-    check(m is not None and m.group(1) == BAKER_VERSION,
-          "CHANGELOG's open section is headed with %s" % BAKER_VERSION,
-          "CHANGELOG's first heading is %r; it must read "
-          "'Unreleased — %s' so the notes and the packages carry one "
-          "number" % (head, BAKER_VERSION))
+    if is_prerelease(baker):
+        m = re.match(r"^Unreleased — (\S+)$", head)
+        check(m is not None and m.group(1) == BAKER_VERSION,
+              "CHANGELOG's open section is headed with %s" % BAKER_VERSION,
+              "CHANGELOG's first heading is %r; %s is a prerelease, so it "
+              "must read 'Unreleased — %s' -- the notes and the packages "
+              "carry one number" % (head, BAKER_VERSION, BAKER_VERSION))
+    else:
+        m = re.match(r"^(\S+) — (\d{4}-\d{2}-\d{2})$", head)
+        check(m is not None and m.group(1) == BAKER_VERSION,
+              "CHANGELOG's newest section is headed '%s', dated, and is "
+              "the release the packages carry" % head,
+              "CHANGELOG's first heading is %r; %s is a release, so it "
+              "must read '%s — <YYYY-MM-DD>'. A section still headed "
+              "'Unreleased' over a tagged version says the notes were "
+              "never cut" % (head, BAKER_VERSION, BAKER_VERSION))
 
     claimed = format_version_in(body)
     check(claimed == UIB_VERSION,
@@ -264,7 +301,15 @@ def main():
           "CHANGELOG's %s section names no `.uib` format version, so the "
           "drift since it cannot be counted" % prev_ver)
 
-    m = re.search(r"^(\w+) format moves have landed since (\S+)", body, re.M)
+    # `(\S+)` here used to swallow whatever punctuation followed the
+    # version, so "since 0.3.0, which shipped v7" captured "0.3.0,"
+    # and failed against "0.3.0". A rule that a comma defeats is the
+    # same species of trap as the tag rule: the failure names a
+    # mismatch that is not one, and the reader's cheapest way out is
+    # to stop believing the check. A version is the only thing that
+    # goes there, so it says so.
+    m = re.search(r"^(\w+) format moves have landed since (\d+\.\d+\.\d+)",
+                  body, re.M)
     if m is None:
         check(False, "", "CHANGELOG's open section has no 'N format moves "
                          "have landed since X' line; that sentence is the "
@@ -318,7 +363,8 @@ def main():
         note = m.group(0)
         missing = [w for w in (BAKER_VERSION, layout_raw,
                                "format **v%d**" % UIB_VERSION,
-                               "%s moves" % {2: "two", 3: "three",
+                               "%s moves" % {0: "zero", 1: "one",
+                                             2: "two", 3: "three",
                                              4: "four", 5: "five"}.get(
                                    UIB_VERSION - (prev_fmt or 0),
                                    str(UIB_VERSION - (prev_fmt or 0))))

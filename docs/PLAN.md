@@ -1135,8 +1135,9 @@ Distribution, deliberately last.
 **Honest versions — [shipped].** Both packages claimed 0.2.0 against
 **no git tags at all**, through four format versions of drift (v4-v7),
 and the baker additionally carried `__version__ = "0.1.0"` beside the
-0.2.0 in its own `pyproject.toml`. They now carry a prerelease —
-`0.3.0.dev0` and `0.3.0-dev.0`, one version in two spellings.
+0.2.0 in its own `pyproject.toml`. They carried a prerelease —
+`0.3.0.dev0` and `0.3.0-dev.0`, one version in two spellings — until
+`v0.3.0`, which is the first tag this repository has ever had.
 `pyproject.toml` derives its version from `__init__.py` rather than
 restating it, so there is no second number left to disagree; every CLI
 answers `--version` from that one source, since a number no command
@@ -1149,7 +1150,11 @@ section records v6 and v7, which it had never mentioned.
 `docs/releasing.md` carries the order of operations, because the tag
 rule is a trap without one — the first person to cut a release would
 meet a red CI with no idea what satisfies it, and the cheapest way out
-of a rule you do not understand is to delete it. It also states what a
+of a rule you do not understand is to delete it. Cutting `0.3.0`
+proved that a written order of operations is not the same as a
+correct one: releasing.md's step 4 and check-versions.py's rule 5
+were mutually unsatisfiable, and neither document said so until the
+steps were actually run. It also states what a
 prerelease is actually worth, which is less than the first draft of
 this claimed: npm resolves the `latest` dist-tag and `npm publish` sets
 it whatever the version says, so `@ophtml/layout` pins
@@ -1436,7 +1441,7 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 | Deferred `visible_get/set` conflation fix (PR #16 review) | wants a deliberate API break | Phase 1 API pass |
 | Deferred the deliberately clipped probe quad (PR #15 review) | only observable on hardware | Phase 0 probe |
 | F19 unload parked; streaming re-derived as static reservation | the F19→F20 dependency was inherited, not derived | a shell-and-module use case |
-| ~~No publishing despite 0.2.0 metadata~~ **RESOLVED** | Strangers shouldn't build on an unverified renderer, and the metadata now says so: both packages carry a `0.3.0` prerelease against zero tags, which pip and npm refuse to install unless named. Publishing itself is still Phase 4 | — |
+| ~~No publishing despite 0.2.0 metadata~~ **RESOLVED** | Strangers shouldn't build on an unverified renderer, and the metadata says so: the packages carried a `0.3.0` prerelease against zero tags until `v0.3.0`, the first tag here. Tagged is not uploaded — neither package is on npm or PyPI, and the Phase 4 exit gate is unmet until someone who is not us installs them | — |
 | No self-merging of PRs | process error made once (PR #11), fixed forward | — |
 | RICE retired as sequencing mechanism | §4.6 | — |
 

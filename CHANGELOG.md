@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 0.3.0.dev0
+## 0.3.0 — 2026-09-04
 
 `.uib` format **version 7**. v3 through v6 files are rejected; re-bake.
 Four format moves have landed since 0.2.0 — v4 display aspect, v5
@@ -14,27 +14,33 @@ and their enumeration are *self-consistent* rather than *measured*.
 That is what "0.2.0 named nothing" means, and it is stated rather than
 left for a reader to assume the arithmetic was verified end to end.
 
-There is no 0.2.0 tag and there never was one, and there is no 0.3.0
-yet. Both packages therefore carry a prerelease: `0.3.0.dev0` for
-`ophtml` on PyPI, `0.3.0-dev.0` for `@ophtml/layout` on npm. That is the true
-statement — past 0.2.0, not yet the next release.
+**This is the first tagged release this repository has ever had.**
+There is no 0.2.0 tag and there never was one — 0.2.0 was a number in
+two manifests and nothing else — so `v0.3.0` is the first version of
+this toolchain anyone can name and get the same bytes back twice.
 
-A prerelease is a signal, and it is worth exactly as much as the
-package manager makes it worth, which is less than it sounds and is
-now written down in [docs/releasing.md](docs/releasing.md). npm: a
-range like `^0.3.0` will not match a prerelease, but `npm install`
-resolves the `latest` dist-tag and `npm publish` sets `latest`
-whatever the version says, so `@ophtml/layout` carries
-`publishConfig.tag = "next"` and a publish of this tree leaves
-`latest` unset. pip has no equivalent and the gap is real: a
-prerelease is excluded from a specifier unless it is requested **or no
-stable version exists**, and for a first upload none would — so a
-plain `pip install ophtml` would resolve `0.3.0.dev0`. The
-mitigation there is procedural, and releasing.md states it: the first
-PyPI upload must be a real release.
+Both packages carried a prerelease until that tag existed: `0.3.0.dev0`
+for `ophtml` on PyPI, `0.3.0-dev.0` for `@ophtml/layout` on npm. What
+that bought is written down in [docs/releasing.md](docs/releasing.md),
+and it was less than it sounds. npm: a range like `^0.3.0` will not
+match a prerelease, but `npm install` resolves the `latest` dist-tag
+and `npm publish` sets `latest` whatever the version says, so
+`@ophtml/layout` carried `publishConfig.tag = "next"`. This release
+drops it, because a release pinned to a side channel is one
+`npm install @ophtml/layout` cannot find. pip has no equivalent and
+that gap was real: a prerelease is excluded from a specifier unless it
+is requested **or no stable version exists**, and for a first upload
+none would — so a plain `pip install ophtml` would have resolved
+`0.3.0.dev0` and the marker would have bought nothing at all. That is
+why the first PyPI upload is a real release rather than a `.dev` build
+uploaded to reserve the name.
 
-Until Phase 4 publishes, building on this tree means building on an
-unverified renderer, and the version says so.
+**Tagged is not published.** `v0.3.0` exists in git; neither package
+has been uploaded. Phase 4's exit gate is not met until a stranger with
+npm, pip and a TTF reproduces the memcard example — and its hardware
+screenshot — without cloning this repository, and nobody who is not us
+has done that. Until the upload happens, a checkout is still the only
+way in, and it is still an unverified renderer.
 
 These numbers used to drift because nothing read them: the baker
 shipped `__version__ = "0.1.0"` beside `version = "0.2.0"` in its own

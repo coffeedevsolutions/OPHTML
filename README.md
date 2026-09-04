@@ -23,15 +23,17 @@ TTF — every command in it is executed by CI, so the numbers it prints
 are the numbers you will get.
 
 
-**Neither package is published, and the versions say so.** `ophtml`
-(PyPI) carries `0.3.0.dev0` and `@ophtml/layout` (npm) carries `0.3.0-dev.0` — one
-prerelease in two spellings, against no git tags. They used to claim
-`0.2.0`, a release that does not exist, through four moves of the `.uib`
-format; the blobs this tree bakes are format **v7** and a 0.2.0-era
-runtime rejects them. Run it from a checkout. Every CLI answers
-`--version`. Publishing is Phase 4 of [docs/PLAN.md](docs/PLAN.md),
+**Neither package is published yet, so a checkout is still the only way
+in.** `ophtml` (PyPI) and `@ophtml/layout` (npm) both carry `0.3.0`,
+tagged `v0.3.0` — the first release this repository has ever had, and
+the first of these numbers that names a tag rather than a number
+somebody typed. They used to claim `0.2.0`, a release that does not
+exist, through four moves of the `.uib` format; the blobs this tree
+bakes are format **v7** and a 0.2.0-era runtime rejects them. Run it
+from a checkout. Every CLI answers `--version`. Uploading is the last
+step of Phase 4 in [docs/PLAN.md](docs/PLAN.md),
 [docs/releasing.md](docs/releasing.md) is the procedure and what a
-prerelease does and does not protect against, and
+prerelease did and did not protect against on the way here, and
 `tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:

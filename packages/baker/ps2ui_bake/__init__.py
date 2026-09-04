@@ -17,12 +17,15 @@ The one rule: everything the console would otherwise compute happens here.
 # this file said 0.1.0 while pyproject said 0.2.0 -- two numbers for one
 # package, neither read by anything, so neither could be wrong out loud.
 #
-# `.dev0` is not decoration. There is no 0.2.0 tag and never was; the
-# tree is past that release by four format moves (v4-v7) and is not the
-# next one either. What a prerelease does and does NOT protect against
-# is in docs/releasing.md -- pip's exclusion of prereleases lapses when
-# no stable version exists, which is precisely the case here.
-# tools/check-versions.py holds all of it together.
-__version__ = "0.3.0.dev0"
+# 0.3.0 is a release and names the tag `v0.3.0`. It carried `.dev0`
+# until that tag existed, because there is no 0.2.0 tag and never was:
+# the tree was past that release by four format moves (v4-v7) and was
+# not yet the next one. What a prerelease does and does NOT protect
+# against is in docs/releasing.md -- pip's exclusion of prereleases
+# lapses when no stable version exists, which is why the first PyPI
+# upload has to be a real release rather than a reserved name.
+# tools/check-versions.py holds all of it together, and its rule 8
+# fails this line the moment it names a release nothing has tagged.
+__version__ = "0.3.0"
 
 from .rounding import round_half_up, css_alpha_to_gs, gs_alpha_to_css  # noqa: F401
