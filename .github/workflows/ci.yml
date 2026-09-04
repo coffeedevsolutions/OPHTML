@@ -191,6 +191,17 @@ jobs:
           # skip, which is the failure mode the comment above already
           # describes happening once.
           PS2UI_REQUIRE_EXAMPLES: "1"
+          # AND THE SAME TRIPWIRE FOR THE FONTS, WHICH IS THE NEWEST
+          # OF THE THREE AND THE ONE WITH THE LARGEST BLAST RADIUS.
+          # With no DejaVu the suite used to report 22 errors across
+          # seven classes; it now skips those instead, which is right
+          # on a stranger's laptop and wrong here, where the runner
+          # installs the fonts on purpose. Twenty-two silent skips in
+          # CI would mean the kern tables, the cross-language pen
+          # agreement and the slot spacing all stopped being checked
+          # with the run still green -- the exact shape of the two
+          # failures the comments above record.
+          PS2UI_REQUIRE_FONTS: "1"
         run: python3 -m unittest discover -s tests -v
 
 

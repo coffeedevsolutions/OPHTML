@@ -1286,9 +1286,9 @@ here:
 
 | | |
 |---|---|
-| `test_baker.py:49` | discovers a TTF from two Linux paths, while `fonts/fonts.json` already lists four including two macOS ones. Two lists for one job, and the test's is the poorer |
-| the skip guards | with no TTF the suite is **22 errors across 7 classes**, not a row of skips. Four `skipIf(TTF is None)` sites exist, only two of them class-level, against seven classes that need one |
-| `fonts/fonts.json` | has `/opt/homebrew/share/fonts/` and `/Library/Fonts/`, misses `~/Library/Fonts/` where per-user installs land, and `/usr/local/share/fonts/` which is Intel Homebrew |
+| `test_baker.py:49` | **[fixed]** discovered a TTF from two Linux paths, while `fonts/fonts.json` already lists four including two macOS ones. Two lists for one job, and the test's is the poorer |
+| the skip guards | **[fixed]** with no TTF the suite is **22 errors across 7 classes**, not a row of skips. Four `skipIf(TTF is None)` sites exist, only two of them class-level, against seven classes that need one |
+| `fonts/fonts.json` | **[fixed]** had `/opt/homebrew/share/fonts/` and `/Library/Fonts/`, misses `~/Library/Fonts/` where per-user installs land, and `/usr/local/share/fonts/` which is Intel Homebrew |
 | `make -C runtime syntax-check` | **[fixed]** could not pass under clang at all. Misfiled as macOS; it is a compiler problem, reproducible on Linux, and ci.yml now runs a clang arm |
 
 **The shape of all five is one shape: this project is verifiable on
@@ -1355,6 +1355,52 @@ the last item goes red on the first three if they land after it:
    install the last published version — so it belongs on `schedule:`
    and `release:` rather than per-push, in its own workflow, where a
    registry outage cannot redden ordinary CI.
+
+**Items 1 and 2 are done**, and doing them turned up a sixth thing
+neither the exit-gate attempt nor its review had separated out. The
+"22 errors" both measurements produced came from a machine where
+`test_baker.py` could not find a font *while `fonts.json` still could*
+— which is a real machine (a Mac with DejaVu installed), and is the
+case those items fix. It is not the only one. On a machine with **no**
+DejaVu at all the manifest does not resolve either, and the tests that
+drive the CLI with `--fonts` fail rather than skip: 24 errors and 17
+failures before this work, 2 and 17 after. The remaining two are
+`TestNewcomerPath`, and they are the same family as the 17.
+
+So there are two distinct machines behind one number, and only the
+first is closed:
+
+| machine | before | after |
+|---|---|---|
+| DejaVu installed, at a macOS path | 22 errors | passes, nothing skipped |
+| no DejaVu anywhere | 24 errors, 17 failures | 2 errors, 17 failures |
+
+**The second is item 1b**, still open: the manifest-driven tests need
+the same treatment the suite's own font access just got. It is not the
+same fix — those tests exercise `--fonts` end to end, so the question
+is what the CLI should do when a manifest names nothing that exists,
+which is a product question and not a test one.
+
+Three things about the fix are worth keeping, because each was the
+second thing tried:
+
+- **The guard is not on `font_paths()`.** Putting it there looked
+  structural and cost 43 tests that hand a Flattener an IR with no
+  text and pass with no font at all. Trading an error a reader can see
+  for a skip they cannot is the worse of the two, so the guard sits on
+  the measured methods instead.
+- **`~` had to be taught first.** `os.path.isabs("~/Library/Fonts/…")`
+  is False, so adding that path to `fonts.json` without teaching
+  `load_font_manifest` to expand it would have joined it to the
+  manifest's own directory and never matched — silently, since a
+  candidate that does not exist is just the next one tried. The one
+  spelling a Mac reader would reach for was the one that could not
+  work.
+- **`PS2UI_REQUIRE_FONTS=1`**, the third tripwire of its kind, is what
+  keeps the new skips honest. A skip is right on a stranger's laptop
+  and wrong on a runner that installs the fonts on purpose, and 22
+  silent skips there would retire the kern tables, the cross-language
+  pen agreement and the slot spacing with the run still green.
 
 **What none of that closes.** The gate says the memcard example *and
 its hardware screenshot*. Items 1-4 are the software half. No runner
