@@ -33,14 +33,26 @@ row and switching it is a table swap.
 </tr>
 </table>
 
-A memory-card browser and an overlay that composites over a running game:
+A memory-card browser, and an overlay. The blob carries no background of
+its own beyond a translucent scrim, and `ps2ui_render()` draws into
+whatever is already in the framebuffer, so if your app skips the clear,
+the scene it drew stays visible underneath.
 
 <table>
 <tr>
 <td><img src="examples/memcard/screenshots/preview.png" alt="memory card browser" width="100%"></td>
-<td><img src="examples/channel6/screenshots/in-game.png" alt="game browser composited over a game frame" width="100%"></td>
+<td><img src="examples/channel6/screenshots/in-game.png" alt="the channel6 browser composited over a synthetic game scene" width="100%"></td>
 </tr>
 </table>
+
+**The scene on the right is synthetic**, drawn from flat shapes by
+[`preview_in_game.py`](examples/channel6/preview_in_game.py) rather than
+captured, because shipping a real game's pixels is a licensing problem
+and a made-up frame puts the bright band exactly where a too-thin scrim
+would show first. It demonstrates the compositing the GS performs. It is
+not a photograph of this UI over a commercial game, and it is not a
+mechanism for drawing over one: ps2ui renders inside your own app's frame
+loop, so the scene underneath has to be one your app drew.
 
 Every image here is rendered by the Python previewer, which replays the
 baked command list with the same quad order, scissor stack, CLUT lookups
