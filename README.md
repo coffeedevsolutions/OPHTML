@@ -41,6 +41,21 @@ Requirements:
 - A C compiler for the host tests
 - DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 
+**Install the baker once.** Every `python3 -m ps2ui_bake` line in this
+file carries a `PYTHONPATH=packages/baker` in front of it. That is
+tolerable for a command you run occasionally and grating for one you
+start every session, so from a checkout:
+
+```sh
+pip install -e packages/baker
+```
+
+`ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare
+commands on `PATH`, and `-e` points them at this tree, so editing the
+baker takes effect without reinstalling. The `PYTHONPATH=` spelling
+stays documented everywhere below because it needs no install at all —
+it is what CI runs and what works in a clone you have just made.
+
 A project is one file and a build is one command:
 
 ```sh
@@ -50,6 +65,7 @@ cat > ps2ui.json <<'EOF'
 EOF
 ps2ui build          # compile every screen, bake one blob, write a preview
 ps2ui check          # validate it against what the C runtime assumes
+ps2ui serve          # and drive it in a browser: arrows, screens, themes
 ```
 
 The three tools underneath stay, because a person debugging one stage
@@ -73,6 +89,9 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake build/library.json \
 # it never collides with build/:
 PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui dev \
     examples/memcard/ps2ui.json --screen library
+
+# `dev` is headless and writes PNGs, which is what keeps it useful in
+# CI. For an edit loop you can navigate, use `ps2ui serve` below.
 ```
 
 Console side: drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKit project.
@@ -416,6 +435,94 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake.check build/ui.uib
 Output is TAP. Useful on any blob, including ones this toolchain didn't
 bake.
 
+## Previewing in a browser
+
+`ps2ui build` writes one frame in one state. `ps2ui serve` puts the same
+renderer behind a localhost page and gives it a D-pad:
+
+```sh
+ps2ui serve                        # the ps2ui.json in this directory
+ps2ui serve examples/memcard       # or a directory containing one
+ps2ui serve --uib build/ui.uib     # a pre-baked blob: no project, no Node
+```
+
+`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is
+the whole option list. Everything else — canvas, mode, display aspect,
+fonts, output — comes from `ps2ui.json`, because that is what the
+project file is for.
+
+| in the page | what it drives |
+|------|------|
+| arrow keys | one `ps2ui_move` along the baked focus graph; an edge with no neighbour does nothing, as on the console |
+| screen menu | `ps2ui_screen_set`, with focus remembered per screen |
+| theme menu | `ps2ui_theme_set` — the tint table swaps and no geometry moves |
+| aspect menu | 1:1 framebuffer, as authored, force 4:3, force 16:9 |
+| a slot's text box | `ps2ui_slot_set` with what you type, capacity truncation included |
+| click on the frame | hit-tests front-to-back to the command that drew there and shows its record; warnings jump to the command they name |
+
+The forced aspect modes are the ones worth having: a 16:9-authored UI on
+a 4:3 set, and the reverse, is a failure nothing else in the toolchain
+surfaces, because every artifact it writes is already at the aspect you
+asked for.
+
+Editing a stylesheet rebuilds and refreshes without losing your place —
+focus and screen are tracked by **name**, not index, because a rebuild
+renumbers indices and an index-based selection teleports on every save.
+A build error keeps the last good frame on screen and puts the message
+in a banner; a watch server that dies on a typo is worse than no watch
+server.
+
+Operational details that are decisions rather than defaults:
+
+- It binds `127.0.0.1` and only that. This is an unauthenticated dev
+  tool and has no business on `0.0.0.0`.
+- Port 8080, incrementing on `EADDRINUSE`, printing the URL it actually
+  bound — two examples side by side is a normal thing to want. An
+  explicit `--port` fails instead of wandering.
+- Output goes to `build/serve/`, never `build/`. CI, `build.sh` and
+  `ps2ui build` all write `build/`, so a server there clobbers artifacts
+  CI just verified, and a build clobbers the blob under a live server.
+
+**The browser draws no UI content.** Every pixel is the Python
+previewer rendering server-side and arriving as PNG bytes in an `<img>`;
+the focus rectangle, the 8px grid and the title-safe box are chrome over
+the top of it. A canvas renderer in the page would be a fourth pen
+beside the Node measurer, the Python baker and the C runtime —
+`TestCrossLanguagePen` exists because holding three to agreement at the
+pixel is hard — and the only one of the four never diffed against
+hardware. So the page shows what the PS2 will draw, for the same reason
+`preview.png` does.
+
+### What it will not tell you
+
+**It does not replace hardware testing.** The bug class that has
+justified the bench is not one a replay can see: **F-048** — gsKit's
+full-screen clear not paying the blended fill rate despite ABE being set
+— lives in a GS register `runtime/` has never written, inherited from
+whatever `gsKit_init_screen` left behind. The command list was faithful
+and the console diverged from it, so no faithful replay of that list can
+catch it. F-047 was caught by an arm's own integrity check on a console,
+not by any previewer either. [docs/findings.md](docs/findings.md) is the
+log and [docs/bringup.md](docs/bringup.md) is still the procedure for a
+first boot.
+
+**Runtime visibility is not previewable in v1**, and that is a stated
+boundary. The renderer is parameterised on screen, focus node, theme and
+slot text; it has no visibility parameter, so `ps2ui_visible_set`,
+`ps2ui_list_*` windowing and `ps2ui_list_apply_visibility` do not
+appear — the page shows the baked state. Adding it later means threading
+a hidden set through the renderer *and* mirroring `ps2ui_move`'s
+skip-hidden walk in the navigation model, and a half-implementation
+would show a D-pad landing where the console's cannot.
+
+### `--uib`: a blob inspector
+
+`--uib` skips the build entirely — read the blob, serve it, no project
+file, no Node, no watching. That makes the same page an inspector for
+**any** `.uib`, including one this toolchain did not bake, which is the
+property `ps2ui-check` above already has. The two pair in that order:
+check it, then look at what passed.
+
 ## Tests
 
 ```sh
@@ -453,6 +560,7 @@ See [docs/architecture.md](docs/architecture.md) for the decision log.
 Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
 
 - [x] Hardware bring-up ([docs/bringup.md](docs/bringup.md) carries the log; step 8 stays open for a CRT, non-blocking)
+- [x] Browser previewer with D-pad navigation, theme and aspect switching (`ps2ui serve`)
 - [ ] Working emulator screenshot job in CI
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
 - [ ] `position: absolute` for overlays and dialogs

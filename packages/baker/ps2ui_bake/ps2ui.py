@@ -11,6 +11,7 @@ were the same script with different flags.
     ps2ui check          validate the blob the project builds
     ps2ui fontgen        metrics from a TTF, both faces, one command
     ps2ui dev            rebuild on every edit
+    ps2ui serve          the same loop, navigable, in a browser
 
 FINDING THE OTHER HALF. The layout compiler is a Node package, so
 `build` has to reach out of this process to run it. It looks in three
@@ -114,6 +115,33 @@ def compile_screens(proj, argv_extra):
     return irs
 
 
+def bake_argv(proj, irs):
+    """The baker's arguments for a project, minus its preview siblings.
+
+    ONE CONSTRUCTION, TWO CALLERS. `ps2ui serve` builds the same project
+    through the same compiler, and its first version assembled this list
+    itself -- passing --fonts to the compiler and not to the baker, so
+    the IR was measured against the project's manifest and baked against
+    the baker's default. Every other project flag was missing the same
+    way and silently.
+
+    A unit test could not see it: in a CHECKOUT the baker's default font
+    directory is the repository's own fonts/, so the wrong argv produced
+    a byte-identical blob and only the tutorial -- which runs from an
+    empty directory -- failed. So the duplication is gone rather than
+    tested around, because the test that would have caught it is one
+    that cannot exist here.
+    """
+    argv = list(irs) + ["-o", rel(proj, proj.out_path)]
+    if proj.fonts_path:
+        argv += ["--fonts", rel(proj, proj.fonts_path)]
+    if proj.palettize_images:
+        argv += ["--palettize-images"]
+    if proj.vram_budget is not None:
+        argv += ["--vram-budget", str(proj.vram_budget)]
+    return argv
+
+
 def cmd_build(args):
     proj = load(args.project)
     extra = []
@@ -129,19 +157,13 @@ def cmd_build(args):
     from . import cli as bake_cli
     with in_project(proj):
         irs = compile_screens(proj, extra)
-        argv = irs + ["-o", rel(proj, proj.out_path)]
-        if proj.fonts_path:
-            argv += ["--fonts", rel(proj, proj.fonts_path)]
+        argv = bake_argv(proj, irs)
         for key, flag in (("preview", "--preview"),
                           ("montage", "--montage"),
                           ("previewDisplay", "--preview-display")):
             path = proj.preview_path(key)
             if path:
                 argv += [flag, rel(proj, path)]
-        if proj.palettize_images:
-            argv += ["--palettize-images"]
-        if proj.vram_budget is not None:
-            argv += ["--vram-budget", str(proj.vram_budget)]
         return bake_cli.main(argv)
 
 
@@ -234,11 +256,39 @@ def cmd_dev(args):
         os.makedirs(rel(proj, out_dir), exist_ok=True)
         cmd = dev + [rel(proj, screen.html), rel(proj, screen.css),
                      "-o", rel(proj, out_dir)]
+        # EVERY PROJECT SETTING, NOT JUST THE FONTS. This forwarded
+        # --fonts alone, so `ps2ui dev` and `ps2ui build` compiled the
+        # same project differently: opl-env sets minFontSize 11 and dev
+        # printed 88 warnings the build does not, and channel6's probe
+        # screen sets focusWrap so dev gave it no navigation at all.
+        # Two preview paths for one project that disagree is worse than
+        # one, and `ps2ui serve` reaches this through compile_screens
+        # already.
         if proj.fonts_path:
             cmd += ["--fonts", rel(proj, proj.fonts_path)]
+        if proj.mode:
+            cmd += ["--mode", proj.mode]
+        if proj.canvas:
+            cmd += ["--canvas", proj.canvas]
+        if proj.display_aspect:
+            cmd += ["--display-aspect", proj.display_aspect]
+        if proj.strict:
+            cmd += ["--strict"]
+        if proj.min_font_size is not None:
+            cmd += ["--min-font-size", str(proj.min_font_size)]
+        if screen.focus_wrap:
+            cmd += ["--focus-wrap"]
+        if proj.palettize_images:
+            cmd += ["--palettize-images"]
         if args.once:
             cmd.append("--once")
         return subprocess.call(cmd)
+
+
+def _serve(args):
+    """The one place serve.py is reached from, so the import defers."""
+    from . import serve
+    return serve.run(args)
 
 
 def main(argv=None):
@@ -277,6 +327,32 @@ def main(argv=None):
     f.add_argument("-o", "--out-dir", default="fonts",
                    help="where to write them (default: fonts/)")
     f.set_defaults(fn=cmd_fontgen)
+
+    # DECLARED HERE, NOT DELEGATED TO serve.py, AND THAT IS THE WHOLE
+    # POINT. The first version called `serve.add_arguments(sv)` from an
+    # import inside main() and claimed `ps2ui build` loaded no server
+    # code. It did: main() builds every subparser before it dispatches,
+    # so the import ran on every invocation, and `ps2ui build --help`
+    # pulled in serve plus http.server, socketserver, socket, ssl and
+    # email. The claim was in three places and the test that guarded it
+    # never called main(), so it could not see any of that.
+    #
+    # Nine lines of argparse restated here buys a real deferral: serve
+    # is imported by the dispatch, which only the `serve` subcommand
+    # reaches. test_serve.py asserts it by running `build --help`.
+    sv = sub.add_parser("serve", help="preview the project in a browser")
+    sv.add_argument("project", nargs="?", default="ps2ui.json")
+    sv.add_argument("--uib", metavar="BLOB",
+                    help="serve a pre-baked blob: no Node, no watching")
+    sv.add_argument("--port", type=int, default=None,
+                    help="default 8080, moving up when it is busy")
+    sv.add_argument("--screen", metavar="NAME", help="the screen to open")
+    sv.add_argument("--theme", type=int, default=0, help="the theme row")
+    sv.add_argument("--no-watch", action="store_true",
+                    help="do not rebuild on edits")
+    sv.add_argument("--selftest", action="store_true",
+                    help="build, serve one of every route, and exit")
+    sv.set_defaults(fn=_serve)
 
     d = sub.add_parser("dev", help="rebuild on every edit")
     d.add_argument("project", nargs="?", default="ps2ui.json")

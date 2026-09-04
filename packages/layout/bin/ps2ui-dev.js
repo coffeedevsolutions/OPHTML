@@ -21,7 +21,8 @@ import { compileFiles } from '../src/index.js';
 function usage(code) {
   console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
     + '[--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] '
-    + '[--fonts fonts.json] [--focus-wrap] '
+    + '[--fonts fonts.json] [--focus-wrap] [--strict] '
+    + '[--min-font-size PX] '
     + '[--montage] [--palettize-images] [--once] [--version]');
   process.exit(code);
 }
@@ -41,6 +42,8 @@ let canvas = null;
 let fontDir;
 let fontManifest;
 let focusWrap = false;
+let strict = false;
+let minFontSize = null;
 let montage = false;
 let palettize = false;
 let once = false;
@@ -60,6 +63,14 @@ for (let i = 0; i < args.length; i++) {
     // could not be run on any of them.
     case '--fonts': fontManifest = args[++i]; break;
     case '--focus-wrap': focusWrap = true; break;
+    // A PROJECT CAN SET BOTH, AND ps2ui build FORWARDS BOTH. Without
+    // them here, `ps2ui dev` compiled opl-env with the default 14px
+    // floor and printed 88 min-font-size warnings the build does not,
+    // and dropped channel6's focusWrap so its probe screen had no
+    // navigation at all. Two preview paths for one project that
+    // disagreed with each other.
+    case '--strict': strict = true; break;
+    case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;
     case '--montage': montage = true; break;
     case '--palettize-images': palettize = true; break;
     case '--once': once = true; break;
@@ -74,7 +85,8 @@ if (positional.length !== 2 || !outDir) usage(2);
 const [htmlPath, cssPath] = positional.map((p) => resolve(p));
 mkdirSync(outDir, { recursive: true });
 
-const options = { fontDir, fontManifest, focusWrap };
+const options = { fontDir, fontManifest, focusWrap, strict };
+if (minFontSize !== null) options.minFontSize = minFontSize;
 if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;

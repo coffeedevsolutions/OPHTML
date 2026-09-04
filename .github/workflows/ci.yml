@@ -91,20 +91,6 @@ jobs:
           python3 tools/make_cover_raw.py --self-test
           ./fixtures/bench-stream/build.sh
 
-      - name: Baker tests
-        working-directory: packages/baker
-        # The arena's cross-language check compares Python's
-        # hand-modelled GSTEXTURE layout against the real sizeof by
-        # compiling the runtime. It used to skip on every CI run --
-        # its guard looked for an artifact a LATER step builds, so it
-        # printed "skipped" and the suite went green having checked
-        # nothing. It now builds what it needs, and this says a skip
-        # here is a failure: it is the only tripwire on the vendored
-        # gsKit header drifting from what the console compiles against.
-        env:
-          PS2UI_REQUIRE_CROSSCHECK: "1"
-        run: python3 -m unittest discover -s tests -v
-
       - name: Example builds end to end (includes runtime tests)
         run: ./examples/memcard/build.sh
 
@@ -161,6 +147,30 @@ jobs:
       # so there is no blob until that step runs -- which is how the
       # first version of this failed CI, having been placed eleven
       # steps too early on a comment that asserted the opposite.
+      - name: Baker tests
+        working-directory: packages/baker
+        # The arena's cross-language check compares Python's
+        # hand-modelled GSTEXTURE layout against the real sizeof by
+        # compiling the runtime. It used to skip on every CI run --
+        # its guard looked for an artifact a LATER step builds, so it
+        # printed "skipped" and the suite went green having checked
+        # nothing. It now builds what it needs, and this says a skip
+        # here is a failure: it is the only tripwire on the vendored
+        # gsKit header drifting from what the console compiles against.
+        env:
+          PS2UI_REQUIRE_CROSSCHECK: "1"
+          # AND THE SAME TRIPWIRE FOR THE EXAMPLE BLOBS. test_serve.py
+          # reads the shipped blobs, and this step used to run BEFORE
+          # the three builds below -- so twenty of its twenty-one tests
+          # skipped in CI and the suite went green having checked none
+          # of the state machine. The step moved below the builds; this
+          # makes moving it back a loud failure rather than a quiet
+          # skip, which is the failure mode the comment above already
+          # describes happening once.
+          PS2UI_REQUIRE_EXAMPLES: "1"
+        run: python3 -m unittest discover -s tests -v
+
+
       - name: Example figures match their blobs
         run: python3 tools/check-example-figures.py
 

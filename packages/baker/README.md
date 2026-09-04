@@ -14,6 +14,18 @@ replaying that same blob.
 PYTHONPATH=. python3 -m ps2ui_bake ui.json -o ui.uib --preview out.png
 ```
 
+`ps2ui serve` puts that same replay behind a localhost page with
+arrow-key navigation, screen and theme switching, four aspect modes and
+click-to-inspect over the command list — `--uib blob.uib` serves any
+`.uib` with no project and no Node. It renders through the previewer
+rather than in the browser, so it shows what the console draws; it is
+not a substitute for running on one. See the repository README.
+
+`pip install -e .` from this directory puts `ps2ui`, `ps2ui-bake`,
+`ps2ui-check` and `ps2ui-fontgen` on `PATH` as bare commands, pointed at
+the checkout, so the `PYTHONPATH=` prefix is only needed when nothing is
+installed — which is the case CI runs in.
+
 See `docs/format-uib.md` at the repository root for the file format,
 and `ps2ui_bake/rounding.py` for the numeric rules shared with the
 layout stage.
