@@ -78,6 +78,23 @@ _SEMVER = re.compile(
 EXPECTED_NPM = "@ophtml/layout"
 EXPECTED_PYPI = "ophtml"
 
+# HAS EITHER PACKAGE ACTUALLY BEEN UPLOADED? A hand-set fact, flipped
+# by the commit that publishes, for the same reason EXPECTED_NPM is
+# written down rather than inferred: nothing here may ask the network,
+# and a rule that guesses is a rule that is wrong on the day it
+# matters.
+#
+# It exists because the README's Quick start note is the one place a
+# stranger is told what to run, and the true sentence is different on
+# either side of the upload. Keying rule 10 to a literal
+# "Neither package is published" meant that rewriting the note the day
+# it stopped being true FAILED the check -- the paragraph it searches
+# for would be gone -- which is the same trap docs/releasing.md step 4
+# and rule 5 were in: a document telling you to do the thing a checker
+# forbids. Found before publishing this time, by reading rule 10 while
+# planning step 8 rather than by hitting it.
+PUBLISHED = False
+
 # "zero" is not padding. The section opened straight after a release
 # counts its drift from a release that shipped the CURRENT format, so
 # the count is 0 and the prose has to be able to say so in words like
@@ -386,13 +403,16 @@ def main(argv=None):
     #     toolchain is unpublished, so it names all four facts and is
     #     read back here rather than trusted.
     readme = open(os.path.join(ROOT, "README.md"), encoding="utf-8").read()
-    m = re.search(r"\*\*Neither package is published.*?\n\n", readme, re.S)
+    opener = ("Both packages are published" if PUBLISHED
+              else "Neither package is published")
+    m = re.search(r"\*\*" + opener + r".*?\n\n", readme, re.S)
     if m is None:
-        check(False, "", "README.md has no '**Neither package is "
-                         "published' paragraph under Quick start; that is "
-                         "the only place a stranger is told this tree is "
-                         "not a release, and this check has stopped "
-                         "reading it")
+        check(False, "", "README.md has no '**%s' paragraph under Quick "
+                         "start. That is the only place a stranger is told "
+                         "how to get this toolchain, and PUBLISHED is %s in "
+                         "check-versions.py -- flip it in the same commit "
+                         "that uploads, and rewrite the paragraph to match "
+                         "(docs/releasing.md step 8)." % (opener, PUBLISHED))
     else:
         note = m.group(0)
         missing = [w for w in (BAKER_VERSION, layout_raw,
@@ -517,6 +537,48 @@ def main(argv=None):
               "check-versions.py in the same commit -- a name is "
               "permanent once published, so it should not be something a "
               "sed can move in silence." % (where, got, want))
+    # 19. EACH PACKAGE SHIPS THE README ITS OWN MANIFEST NAMES.
+    #
+    #     Found by running `npm pack` before the first publish rather
+    #     than after: package.json's `files` array listed "README.md"
+    #     and packages/layout/ had none. npm does not warn -- it ships
+    #     what exists and says nothing about what does not -- so the
+    #     tarball was 16 files, the installed package was `bin  src
+    #     package.json`, and @ophtml/layout's npm page would have been
+    #     blank. Cosmetic, and not fixable in place: npm takes a
+    #     version once, so the fix would have been 0.3.1 and the 0.3.0
+    #     page would stay empty for good.
+    #
+    #     Two manifests, two spellings of the same claim: npm's `files`
+    #     enumerates what ships, setuptools' `readme` names the file it
+    #     renders on PyPI. Both are checked against the disk, because a
+    #     manifest naming a file that is not there is the failure, and
+    #     neither packager treats it as one.
+    for manifest, named, path in (
+            ("packages/layout/package.json",
+             "README.md" in re.findall(
+                 r'"files"\s*:\s*\[(.*?)\]',
+                 open(os.path.join(ROOT, "packages", "layout",
+                                   "package.json"),
+                      encoding="utf-8").read(), re.S)[0],
+             "packages/layout/README.md"),
+            ("packages/baker/pyproject.toml",
+             bool(re.search(r'^readme\s*=\s*"README\.md"',
+                            open(os.path.join(ROOT, "packages", "baker",
+                                              "pyproject.toml"),
+                                 encoding="utf-8").read(), re.M)),
+             "packages/baker/README.md")):
+        exists = os.path.exists(os.path.join(ROOT, *path.split("/")))
+        check(named and exists,
+              "%s names a README and %s is there" % (manifest, path),
+              "%s %s, and %s %s. The package would publish with no "
+              "front page, and neither npm nor setuptools calls that an "
+              "error -- they ship what exists."
+              % (manifest,
+                 "names README.md in its file list" if named
+                 else "does not name a README at all",
+                 path, "is missing" if not exists else "exists"))
+
     check(npm_name.startswith("@") and "/" in npm_name,
           "the npm package is scoped: %s" % npm_name,
           "packages/layout/package.json is named %r; the ophtml org is "
