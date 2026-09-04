@@ -5,7 +5,7 @@ The Python half of the OPHTML toolchain, published to PyPI as
 `ps2ui-fontgen` commands — OPHTML is the product, ps2ui is the format
 and the tools that speak it.
 
-Second stage of the [ps2ui toolchain](../../README.md): turns the
+Second stage of the [ps2ui toolchain](https://github.com/coffeedevsolutions/OPHTML/blob/main/README.md): turns the
 `ui.json` IR produced by `@ophtml/layout` into a `.uib` blob the C99
 runtime replays on the PlayStation 2, plus PNG previews rendered by
 replaying that same blob.

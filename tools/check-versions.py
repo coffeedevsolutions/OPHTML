@@ -537,47 +537,88 @@ def main(argv=None):
               "check-versions.py in the same commit -- a name is "
               "permanent once published, so it should not be something a "
               "sed can move in silence." % (where, got, want))
-    # 19. EACH PACKAGE SHIPS THE README ITS OWN MANIFEST NAMES.
+    # 19. EACH PACKAGE HAS THE README ITS REGISTRY PAGE RENDERS.
     #
-    #     Found by running `npm pack` before the first publish rather
-    #     than after: package.json's `files` array listed "README.md"
-    #     and packages/layout/ had none. npm does not warn -- it ships
-    #     what exists and says nothing about what does not -- so the
-    #     tarball was 16 files, the installed package was `bin  src
-    #     package.json`, and @ophtml/layout's npm page would have been
-    #     blank. Cosmetic, and not fixable in place: npm takes a
-    #     version once, so the fix would have been 0.3.1 and the 0.3.0
-    #     page would stay empty for good.
+    #     Found by running `npm pack --dry-run` before the first
+    #     publish rather than after: packages/layout/ had no README.md
+    #     and @ophtml/layout's npm page would have been blank. npm
+    #     takes a version once, so the repair would have been 0.3.1 and
+    #     0.3.0's page would stay empty for good.
     #
-    #     Two manifests, two spellings of the same claim: npm's `files`
-    #     enumerates what ships, setuptools' `readme` names the file it
-    #     renders on PyPI. Both are checked against the disk, because a
-    #     manifest naming a file that is not there is the failure, and
-    #     neither packager treats it as one.
-    for manifest, named, path in (
-            ("packages/layout/package.json",
-             "README.md" in re.findall(
-                 r'"files"\s*:\s*\[(.*?)\]',
-                 open(os.path.join(ROOT, "packages", "layout",
-                                   "package.json"),
-                      encoding="utf-8").read(), re.S)[0],
+    #     THE TWO HALVES ARE NOT THE SAME CHECK, and the first version
+    #     of this rule pretended they were. It required `files` to name
+    #     README.md and shared one failure message -- "the package
+    #     would publish with no front page" -- across both. Measured on
+    #     this package, npm ships README.md whatever `files` says:
+    #
+    #         files: [src/, bin/, README.md]  -> 17 files, README in
+    #         files: [src/, bin/]             -> 17 files, README in
+    #         README.md deleted               -> 16 files
+    #
+    #     So on the npm side the FILE is load-bearing and the manifest
+    #     entry is not, and the rule asserted the consequence backwards:
+    #     dropping the entry fired a failure claiming a blank page for a
+    #     package that packs the README anyway. A check that misdescribes
+    #     what the tool does is the thing this repository spends its time
+    #     undoing, so the npm half now checks only what npm acts on.
+    #
+    #     setuptools is the opposite and the rule stays strict there:
+    #     with `readme` removed, the wheel's METADATA loses
+    #     Description-Content-Type entirely and the description is 0
+    #     bytes, so PyPI really does render nothing. Measured the same
+    #     way, by building the wheel and reading its METADATA.
+    for what, declared, path in (
+            ("npm always ships README.md whatever `files` says, so the "
+             "file itself is the whole of it", True,
              "packages/layout/README.md"),
-            ("packages/baker/pyproject.toml",
-             bool(re.search(r'^readme\s*=\s*"README\.md"',
+            ("setuptools renders it from `readme` in pyproject.toml, and "
+             "without that key the wheel's description is 0 bytes",
+             bool(re.search(r'^readme\s*=\s*"README\.md"\s*$',
                             open(os.path.join(ROOT, "packages", "baker",
                                               "pyproject.toml"),
                                  encoding="utf-8").read(), re.M)),
              "packages/baker/README.md")):
         exists = os.path.exists(os.path.join(ROOT, *path.split("/")))
-        check(named and exists,
-              "%s names a README and %s is there" % (manifest, path),
-              "%s %s, and %s %s. The package would publish with no "
-              "front page, and neither npm nor setuptools calls that an "
-              "error -- they ship what exists."
-              % (manifest,
-                 "names README.md in its file list" if named
-                 else "does not name a README at all",
-                 path, "is missing" if not exists else "exists"))
+        check(declared and exists,
+              "%s is there%s" % (path, "" if path.endswith("layout/README.md")
+                                 else " and pyproject.toml declares it"),
+              "%s: %s%s. %s"
+              % (path,
+                 "the file is missing" if not exists
+                 else "packages/baker/pyproject.toml does not declare "
+                      "readme = \"README.md\"",
+                 "", "The registry page would be blank, and neither "
+                     "packager calls that an error -- " + what))
+
+    # 20. THE RELEASE NOTES DO NOT OUTLIVE THEIR OWN CLAIM.
+    #
+    #     docs/releasing.md step 8 lists three edits the upload
+    #     requires. PUBLISHED and the README's Quick start note were
+    #     fenced against each other in both directions; the CHANGELOG's
+    #     "Tagged is not published" paragraph was the third, and
+    #     nothing read it -- so the upload could happen with the
+    #     release notes still telling a reader neither package exists
+    #     on a registry, and no check would say so. Two of three edits
+    #     mechanical and the third a matter of remembering is the
+    #     arrangement this file exists to end.
+    #
+    #     Raised in review of the commit that added the other two.
+    changelog = open(os.path.join(ROOT, "CHANGELOG.md"),
+                     encoding="utf-8").read()
+    claim = "**Tagged is not published.**"
+    present = claim in changelog
+    check(present != PUBLISHED,
+          "CHANGELOG's %s paragraph is %s, matching PUBLISHED = %s"
+          % (claim.strip("*."), "present" if present else "gone", PUBLISHED),
+          "CHANGELOG.md %s %r while PUBLISHED is %s in check-versions.py. "
+          "%s (docs/releasing.md step 8 lists all three edits: this "
+          "paragraph, the README's Quick start note, and PUBLISHED "
+          "itself)."
+          % ("still says" if present else "no longer says", claim, PUBLISHED,
+             "The release notes tell a reader nothing has been uploaded "
+             "when it has." if present else
+             "Nothing has been uploaded, so the release notes should "
+             "still say so."))
 
     check(npm_name.startswith("@") and "/" in npm_name,
           "the npm package is scoped: %s" % npm_name,

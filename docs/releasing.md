@@ -204,8 +204,20 @@ written twice to avoid.
      `**Both packages are published` instead of `**Neither package is
      published` — rule 10 reads whichever opener `PUBLISHED` selects,
      in both directions, so flipping one without the other fails.
+
+     **Rewriting that paragraph is not just changing its opener.**
+     Rule 10 applies the same four-fact list to whichever state it is
+     in: the note must still name both versions, `format **v7**`, and
+     the drift since the last release in words (`four moves`). A
+     natural rewrite drops them — "`pip install ophtml` gives you the
+     toolchain" is a true sentence that fails the check — so carry the
+     facts across. Found by following this step literally in a scratch
+     checkout and reading the four `does not say` lines it produced.
    - the CHANGELOG's **"Tagged is not published"** paragraph in the
      `0.3.0` section, which is present-tense and stops being true.
+     Rule 20 keys it to `PUBLISHED` in both directions, so this edit is
+     fenced too — it was the one item on this list that was a matter of
+     remembering, and it is not any more.
 
    Rule 10 used to key on the literal `Neither package is published`,
    which meant rewriting the note the day it stopped being true would
