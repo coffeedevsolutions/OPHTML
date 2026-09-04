@@ -40,8 +40,19 @@ jobs:
       # First step in the job because it needs no build and no
       # toolchain -- a disagreement here means the rest of the run is
       # measuring something that does not know what it is.
-      - name: Every version claim agrees
-        run: python3 tools/check-versions.py
+      #
+      # EXCEPT THE TAG RULE, which runs at the end instead. It is the
+      # only rule that compares the tree against something the tree
+      # cannot contain -- the repository's tag namespace -- and a
+      # release commit on a branch cannot satisfy it, because the tag
+      # has to name a commit on `main` and squash merges mean the
+      # branch commit is not that commit. Cutting 0.3.0 proved the
+      # cost: the rule failed here, at step one, and took the whole
+      # job with it, so 242 baker tests, both example builds and the
+      # tutorial never ran on the commit that cut the release. A cheap
+      # check placed first had hidden every expensive check behind it.
+      - name: Every version claim agrees (except the tag)
+        run: python3 tools/check-versions.py --except-tag
 
       - uses: actions/setup-node@v7
         with:
@@ -292,3 +303,11 @@ jobs:
             examples/channel6/build/states.png
             examples/channel6/build/probe.png
             examples/channel6/build/probe-states.png
+
+      # THE AUTHORITATIVE RUN, unflagged, after every check it could
+      # otherwise have masked. The early step is a strict subset of
+      # this one, so a rule added to check-versions.py later is
+      # covered here whatever `--except-tag` skips -- the flag can
+      # only subtract from a run the verdict does not come from.
+      - name: Every version claim agrees, the tag rule included
+        run: python3 tools/check-versions.py
