@@ -1266,6 +1266,81 @@ change in the phase; the pledge has to start after it or start again.
 > **Exit gate:** a stranger with npm, pip, and a TTF reproduces the
 > memcard example — and its hardware screenshot — without cloning the repo.
 
+**Both packages are uploaded and the gate is NOT met.** `0.3.0` is on
+PyPI and npm as of 2026-09-04, verified from an empty directory: `pip
+install ophtml` resolves the release rather than a prerelease, `latest`
+points at `0.3.0`, and both registry pages render their READMEs. That
+was necessary for the gate and is not sufficient for it, which is the
+distinction `docs/releasing.md` step 8 was rewritten to keep visible.
+
+The first real attempt failed at the tutorial's first command. **pip's
+macOS Pillow wheel ships no Raqm layout engine**, so `ps2ui fontgen`
+refuses to write a metrics file it cannot kern — correctly, since
+without Raqm every advance comes out identical and the kern table comes
+out empty, and all three pens then agree perfectly on zero kerning.
+The toolchain behaved exactly as designed. Its **reachability** is what
+failed, and reachability is what the gate is about.
+
+That opened onto four more, none of them new and none of them findable
+here:
+
+| | |
+|---|---|
+| `test_baker.py:49` | discovers a TTF from two Linux paths, while `fonts/fonts.json` already lists four including two macOS ones. Two lists for one job, and the test's is the poorer |
+| `TestFontgenRefusesWithoutRaqm` | four other classes carry `skipIf(TTF is None)`; this one uses `TTF` twice with no guard, so it errors instead of skipping |
+| `fonts/fonts.json` | has `/opt/homebrew/share/fonts/` and `/Library/Fonts/`, misses `~/Library/Fonts/` where per-user installs land, and `/usr/local/share/fonts/` which is Intel Homebrew |
+| `make -C runtime syntax-check` | **[fixed]** could not pass under clang at all. Misfiled as macOS; it is a compiler problem, reproducible on Linux, and ci.yml now runs a clang arm |
+
+**The shape of all five is one shape: this project is verifiable on
+Linux, and the gate is about strangers on arbitrary machines.** Every
+runner in `ci.yml` and `hw.yml` is `ubuntu-24.04`, so none of these
+could have been seen from inside CI, and four of the five had been
+true for as long as the code had existed. This is the same class as
+the five defects the tutorial found — *"none was findable from inside
+the repository; all five were findable in ten minutes by running the
+first command from an empty directory"* — with the platform substituted
+for the directory.
+
+**0.4.0's spine is making the gate reachable**, in this order, because
+the last item goes red on the first three if they land after it:
+
+1. **One source of truth for test fonts.** `test_baker.py` reads
+   `fonts.json` rather than carrying its own list, and the Raqm class
+   gets the guard the others have. That guard needs **both** a TTF and
+   Raqm, and it must be loud: silently skipping the test that proves
+   kerning works is how an empty kern table ships while every pen
+   agrees.
+2. **`fonts.json` covers macOS properly**, under a stated principle
+   rather than by adding paths as they are met. The Intel/ARM prefix
+   split is the same one the Raqm remedy has.
+3. **The Raqm remedy, written where the failure is met.**
+   `fontgen.py`'s refusal says *"install a Pillow wheel built with
+   Raqm (pip's manylinux wheels are)"*, which is true and useless on a
+   Mac. The remedy is verified end to end — Pillow 12.3.0 with Raqm
+   0.10.5 reproduces the tutorial's documented numbers exactly — so it
+   can be stated: `brew install libraqm`, then a source build of Pillow
+   alone with `PKG_CONFIG_PATH` pointed at `brew --prefix`. **And the
+   trap beside it**, because it was paid for: `--no-binary :all:` scopes
+   the source build to the whole dependency graph and spends forty
+   minutes bootstrapping CMake. `--no-binary pillow` is the flag.
+   `brew --prefix` rather than a literal path, because Intel is
+   `/usr/local`.
+4. **A job that installs from the registries**, matrixed over ubuntu
+   and macOS. `tools/check-tutorial.py`'s docstring already states the
+   constraint that is easy to get wrong: this must **not** replace the
+   shim job. The shim job tests *this tree*; a registry job tests *the
+   release*; deleting the shims silently swaps one subject for the
+   other. It also cannot gate a PR's own diff — it can only ever
+   install the last published version — so it belongs on `schedule:`
+   and `release:` rather than per-push, in its own workflow, where a
+   registry outage cannot redden ordinary CI.
+
+**What none of that closes.** The gate says the memcard example *and
+its hardware screenshot*. Items 1-4 are the software half. No runner
+has a PlayStation 2, so a green macOS registry job still leaves the
+screenshot half open, and a future green must not be read as the gate
+being met.
+
 ### What the gates do not hold back
 
 The phases sequence **new capability**. They do not queue defect fixes,
