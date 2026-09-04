@@ -17,15 +17,19 @@ The one rule: everything the console would otherwise compute happens here.
 # this file said 0.1.0 while pyproject said 0.2.0 -- two numbers for one
 # package, neither read by anything, so neither could be wrong out loud.
 #
-# 0.3.0 is a release and names the tag `v0.3.0`. It carried `.dev0`
-# until that tag existed, because there is no 0.2.0 tag and never was:
-# the tree was past that release by four format moves (v4-v7) and was
-# not yet the next one. What a prerelease does and does NOT protect
-# against is in docs/releasing.md -- pip's exclusion of prereleases
-# lapses when no stable version exists, which is why the first PyPI
-# upload has to be a real release rather than a reserved name.
-# tools/check-versions.py holds all of it together, and its rule 8
-# fails this line the moment it names a release nothing has tagged.
-__version__ = "0.3.0"
+# 0.4.0.dev0 is the section opened after 0.3.0 shipped. It is a
+# prerelease for the same reason 0.3.0 was one before its tag existed:
+# the tree is past a release and is not yet the next one, so a bare
+# 0.4.0 here would name a release nothing has tagged and rule 8 would
+# fail this line for saying so.
+#
+# WHAT A PRERELEASE DOES AND DOES NOT PROTECT AGAINST is in
+# docs/releasing.md. npm needs `publishConfig.tag = "next"` beside it,
+# because `npm publish` moves `latest` to whatever the version says;
+# that is rule 11, and it runs in both directions. pip's exclusion of
+# prereleases bought nothing at all last time, because it lapses when
+# no stable version exists -- 0.3.0 on PyPI is what ended that, so
+# this is the first `.dev0` the exclusion actually protects.
+__version__ = "0.4.0.dev0"
 
 from .rounding import round_half_up, css_alpha_to_gs, gs_alpha_to_css  # noqa: F401

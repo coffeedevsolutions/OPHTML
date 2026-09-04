@@ -206,6 +206,14 @@ def git_packaged_diff(tag):
     None when git cannot answer -- no repository, no such tag, a shallow
     clone without the tag's objects. A rule that cannot be evaluated
     must say so rather than pass.
+
+    THIS COMPARES TWO COMMITS, SO AN UNCOMMITTED EDIT IS INVISIBLE TO
+    IT. That is correct for CI, which only ever sees commits, and it is
+    a trap for anyone testing this rule by hand: edit a packaged file,
+    run this, see green, and conclude the rule does not work. Commit
+    the edit. Stated here because it has already produced one
+    falsification that proved nothing -- the check was green before and
+    after, so the experiment could not have failed.
     """
     try:
         out = subprocess.run(

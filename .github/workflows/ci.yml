@@ -111,6 +111,18 @@ jobs:
       - name: Sample compiles in every build variant
         run: make -C runtime syntax-check
 
+      # AND UNDER A SECOND COMPILER, because for this target's whole
+      # life it could not pass under clang at all: `-S` makes clang
+      # parse main.c's MIPS inline asm with its integrated assembler
+      # and reject `mfc0` on an x86 host. Every runner here is ubuntu
+      # with gcc, so the failure was invisible from inside CI while
+      # being the first thing a macOS reader meets -- `cc` is clang
+      # there. Found by running the exit gate on a Mac, fixed with a
+      # probed -fno-integrated-as, and this arm is what keeps it fixed.
+      # clang is preinstalled on ubuntu-24.04; nothing is downloaded.
+      - name: ...and under clang, which -S used to reject outright
+        run: make -C runtime syntax-check CC=clang
+
       # The channel-6 game browser: two screens, palettized cover art,
       # slots and the feature probe grid. Its check.py asserts the blob's
       # contract, including the scissor depth from ps2ui.h that
