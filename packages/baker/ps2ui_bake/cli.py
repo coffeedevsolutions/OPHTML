@@ -83,7 +83,16 @@ def load_font_manifest(path: str) -> dict:
     """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
     Candidates let one manifest serve machines with fonts in different
     places; the first existing path wins. Paths resolve relative to the
-    manifest."""
+    manifest.
+
+    `~` EXPANDS FIRST, AND IT HAS TO. os.path.isabs("~/Library/Fonts/
+    DejaVuSans.ttf") is False, so before this a home-relative candidate
+    was joined to the manifest's own directory and could never match --
+    silently, because a candidate that does not exist is simply the
+    next one tried. `~/Library/Fonts` is where macOS puts a font a
+    person installs for themselves, which is where most people's fonts
+    actually are, so the one spelling a Mac reader would reach for was
+    the one spelling that could not work."""
     base = os.path.dirname(os.path.abspath(path))
     if not os.path.exists(path):
         # Named by the caller and not there: a traceback here buries
@@ -101,6 +110,7 @@ def load_font_manifest(path: str) -> dict:
         candidates = spec["ttf"] if isinstance(spec["ttf"], list) else [spec["ttf"]]
         ttf = None
         for cand in candidates:
+            cand = os.path.expanduser(cand)
             resolved = cand if os.path.isabs(cand) else os.path.join(base, cand)
             if os.path.exists(resolved):
                 ttf = resolved
@@ -109,7 +119,7 @@ def load_font_manifest(path: str) -> dict:
             raise FileNotFoundError(
                 f"fonts.json: no candidate TTF for '{face}' exists: {candidates}"
             )
-        metrics = spec["metrics"]
+        metrics = os.path.expanduser(spec["metrics"])
         out[face] = {
             "ttf": ttf,
             "metrics": metrics if os.path.isabs(metrics) else os.path.join(base, metrics),

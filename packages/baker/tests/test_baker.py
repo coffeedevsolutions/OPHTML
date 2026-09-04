@@ -46,18 +46,94 @@ from ps2ui_bake import preview
 
 REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
 FONTS = os.path.join(REPO, "fonts")
-TTF = None
-for cand in (
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/TTF/DejaVuSans.ttf",
-):
-    if os.path.exists(cand):
-        TTF = cand
-        break
-
 METRICS = os.path.join(FONTS, "default.metrics.json")
 
 
+# ONE LIST OF CANDIDATE FONTS, AND IT IS fonts/fonts.json.
+#
+# This used to be two hardcoded Linux paths while fonts.json carried
+# six. Two lists for one job, and the shorter one was the one the test
+# suite believed -- so the suite could not find a font on a machine the
+# baker itself would have been fine on. The manifest is the thing the
+# product reads; the tests read it too, and a path added for a user is
+# added for the suite in the same edit.
+def _manifest_ttf():
+    try:
+        from ps2ui_bake.cli import load_font_manifest
+        return load_font_manifest(os.path.join(FONTS, "fonts.json"))
+    except Exception:
+        # Any reason at all: no manifest, no candidate on this machine,
+        # a face missing. The caller's question is "can I build an
+        # atlas", and every one of those answers it "no".
+        return None
+
+
+_MANIFEST = _manifest_ttf()
+TTF = _MANIFEST["regular"]["ttf"] if _MANIFEST else None
+
+
+# A MISSING FONT IS A SKIP, NOT AN ERROR, AND NOT A DECORATOR.
+#
+# With no TTF this suite used to report `errors=22` across seven
+# classes -- a stranger's first `python3 -m unittest discover`, on any
+# machine without DejaVu at one of two Linux paths, after they had done
+# everything the tutorial asked. Four `skipIf(TTF is None)` sites
+# existed and seven classes needed one.
+#
+# Decorating the other fifteen methods was the obvious fix and is the
+# worse one, twice over. Class-level guards would skip 25 tests that do
+# not touch a font and pass without one; method-level guards are
+# fifteen things to remember, and the sixteenth test to reach for a
+# font gets an error again. So the guard lives where the font is
+# actually fetched: raising SkipTest from inside a test body is a skip,
+# so every present and future path to a font is covered by the fetch
+# rather than by a habit.
+def require_ttf():
+    if TTF is None:
+        _no_fonts("no DejaVu Sans on this machine")
+    return TTF
+
+
+# ...AND WHERE IT MUST NOT BE QUIET, IT IS NOT.
+#
+# The same tripwire and the same wording as PS2UI_REQUIRE_CROSSCHECK
+# and PS2UI_REQUIRE_EXAMPLES. A skip is the right answer on a stranger's
+# laptop and the wrong one in CI, where the fonts are installed on
+# purpose: 22 silent skips there would mean the kerning tables, the
+# cross-language pen agreement and the slot spacing all stopped being
+# checked, with the run still green. CI sets this, so a skip that
+# should be impossible is a failure that names itself.
+def _no_fonts(why):
+    if os.environ.get("PS2UI_REQUIRE_FONTS") == "1":
+        raise AssertionError(
+            "PS2UI_REQUIRE_FONTS=1 but %s. This environment is supposed to "
+            "have the fonts fonts/fonts.json names, so this is a broken "
+            "environment rather than a test to skip." % why)
+    raise unittest.SkipTest(
+        "%s. fonts/fonts.json lists the paths that are looked in; install "
+        "DejaVu Sans or add yours to that file." % why)
+
+
+def require_raqm():
+    """Both conditions, because the test needs both.
+
+    A TTF alone is not enough for the fontgen success path: without
+    Pillow's Raqm layout engine every advance comes out identical and
+    the kern table comes out empty, which is exactly the silent wrong
+    answer fontgen refuses to write. Guarding this on the TTF alone
+    would turn "no Raqm" into a failure that reads like a kerning bug.
+    """
+    require_ttf()
+    from PIL import features
+    if not features.check("raqm"):
+        _no_fonts("this Pillow has no Raqm layout engine")
+
+
+# NOT GUARDED, DELIBERATELY. Most callers hand this to a Flattener over
+# an IR with no text, which needs no atlas and passes with no font at
+# all. An early version raised the skip here and took 43 such tests
+# down with the 22 that needed it -- trading an error a reader can see
+# for a skip they cannot, which is the worse of the two.
 def font_paths():
     return {
         "regular": {"ttf": TTF, "metrics": METRICS},
@@ -159,17 +235,32 @@ class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
     perfectly on zero kerning. fontgen must refuse, before writing."""
 
     def test_main_exits_nonzero_and_writes_nothing(self):
+        # NAMES A TTF THAT DOES NOT EXIST, ON PURPOSE. The claim is
+        # that fontgen refuses BEFORE writing, and the refusal is
+        # checked before anything opens the font -- so a path that
+        # could not be opened proves the ordering rather than relying
+        # on it. It also means this test needs no font, which is why it
+        # is the one test in this class that keeps running on a machine
+        # with none. It used to be handed the module-level TTF and pass
+        # while that was None.
         from unittest import mock
         from ps2ui_bake import fontgen
         with tempfile.TemporaryDirectory() as td:
             out = os.path.join(td, "m.json")
             with mock.patch.object(fontgen.features, "check",
                                    return_value=False):
-                rc = fontgen.main([TTF, "DejaVu Sans", "400", out])
+                rc = fontgen.main([os.path.join(td, "absent.ttf"),
+                                   "DejaVu Sans", "400", out])
             self.assertEqual(rc, 2)
             self.assertFalse(os.path.exists(out))
 
     def test_and_succeeds_with_raqm_present(self):
+        # BOTH CONDITIONS. This is the arm that proves kerning is
+        # actually extracted, so it needs a font AND the layout engine;
+        # guarding it on the font alone turns a Pillow without Raqm
+        # into a failure that reads like a kerning bug. That is not
+        # hypothetical -- it is what pip's macOS wheel ships.
+        require_raqm()
         from ps2ui_bake import fontgen
         with tempfile.TemporaryDirectory() as td:
             out = os.path.join(td, "m.json")
@@ -289,7 +380,7 @@ class TestGS(unittest.TestCase):
 @unittest.skipIf(TTF is None, "DejaVu Sans not installed")
 class TestAtlas(unittest.TestCase):
     def build(self, size=16):
-        return AtlasBuilder(TTF, METRICS, 400, size)
+        return AtlasBuilder(require_ttf(), METRICS, 400, size)
 
     def test_advance_comes_from_metrics_not_freetype(self):
         b = self.build(13)
@@ -2023,25 +2114,25 @@ class TestKerningPen(unittest.TestCase):
     def test_a_kerned_pair_pulls_the_second_glyph_left(self):
         # "To" is -170 units; at 32px that is -5px, and the 'o' must sit
         # 5px left of where an unkerned pen would put it.
-        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        builder = AtlasBuilder(require_ttf(), METRICS, 400, 32)
         self.assertEqual(builder.kern(ord("T"), ord("o")), -5)
         kerned = self.pen_xs("To", size=32)
         unkerned_o = builder.add("T").advance + builder.add("o").bearing_x
         self.assertEqual(kerned[1].x, unkerned_o - 5)
 
     def test_the_first_glyph_is_never_kerned(self):
-        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        builder = AtlasBuilder(require_ttf(), METRICS, 400, 32)
         self.assertEqual(builder.kern(None, ord("o")), 0)
         self.assertEqual(self.pen_xs("To", size=32)[0].x,
                          builder.add("T").bearing_x)
 
     def test_kerning_is_directional(self):
-        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        builder = AtlasBuilder(require_ttf(), METRICS, 400, 32)
         self.assertLess(builder.kern(ord("T"), ord("o")), 0)
         self.assertEqual(builder.kern(ord("o"), ord("T")), 0)
 
     def test_letter_spacing_and_kerning_both_apply(self):
-        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        builder = AtlasBuilder(require_ttf(), METRICS, 400, 32)
         plain = self.pen_xs("To", size=32)
         spaced = self.pen_xs("To", size=32, spacing=3)
         self.assertEqual(spaced[1].x - plain[1].x, 3)
@@ -2051,7 +2142,7 @@ class TestKerningPen(unittest.TestCase):
     def test_an_unkerned_string_is_unchanged(self):
         # The regression guard for every UI that has no kerned pairs:
         # its geometry must be byte-identical to before kerning existed.
-        builder = AtlasBuilder(TTF, METRICS, 400, 32)
+        builder = AtlasBuilder(require_ttf(), METRICS, 400, 32)
         recs = self.pen_xs("iiiii", size=32)
         x = 0
         for r in recs:
@@ -2076,6 +2167,7 @@ class TestKernTable(unittest.TestCase):
             return f, read_uib(path)
 
     def test_pairs_are_pixels_at_this_font_size_not_units(self):
+        require_ttf()
         f, _ = self.bake()
         font = f.fonts[0]
         size = font["size"]
@@ -2086,6 +2178,7 @@ class TestKernTable(unittest.TestCase):
             self.assertEqual(amount, kern_px(units[f"{prev},{cur}"], size))
 
     def test_pairs_that_round_to_zero_are_dropped(self):
+        require_ttf()
         f, _ = self.bake()
         font = f.fonts[0]
         self.assertTrue(all(k["amount"] != 0 for k in font["kerns"]))
@@ -2096,6 +2189,7 @@ class TestKernTable(unittest.TestCase):
                             len(json.load(fh)["kerning"]))
 
     def test_pairs_are_sorted_for_the_runtime_bsearch(self):
+        require_ttf()
         f, _ = self.bake()
         for font in f.fonts:
             keys = [(k["prev"], k["cur"]) for k in font["kerns"]]
@@ -2106,7 +2200,7 @@ class TestKernTable(unittest.TestCase):
         # reason the table is per-size rather than per-face.
         kept = {}
         for size in (10, 14, 24, 40):
-            b = AtlasBuilder(TTF, METRICS, 400, size)
+            b = AtlasBuilder(require_ttf(), METRICS, 400, size)
             for cp_str in b.metrics["advances"]:
                 b.add(chr(int(cp_str)))
             kept[size] = len(Flattener._kern_table(b))
@@ -2114,14 +2208,16 @@ class TestKernTable(unittest.TestCase):
         self.assertLess(kept[24], kept[40])
 
     def test_orphan_pairs_are_not_stored(self):
+        require_ttf()
         # A pair naming a glyph the atlas never baked can never be
         # looked up; storing it would only cost blob.
-        b = AtlasBuilder(TTF, METRICS, 400, 32)
+        b = AtlasBuilder(require_ttf(), METRICS, 400, 32)
         b.add("T")   # deliberately no 'o'
         pairs = Flattener._kern_table(b)
         self.assertFalse([k for k in pairs if k["cur"] == ord("o")])
 
     def test_the_format_carries_the_table_and_declares_it(self):
+        require_ttf()
         f, u = self.bake()
         self.assertEqual(u.feature_flags & FEAT_DYNAMIC_TEXT, FEAT_DYNAMIC_TEXT)
         self.assertEqual(u.feature_flags & FEAT_KERNING, FEAT_KERNING)
@@ -2145,6 +2241,7 @@ class TestKernTable(unittest.TestCase):
         self.assertEqual(VERSION, 7)
 
     def test_the_feature_bit_states_what_the_tables_hold(self):
+        require_ttf()
         # Stated, not inferred: with the bit clear the runtime may skip
         # the lookup wholesale, so a blob that carried pairs without
         # declaring them would kern in the previewer and not on console.
@@ -2313,7 +2410,7 @@ class TestCrossLanguagePen(unittest.TestCase):
         a space would vanish from the comparison and every position
         would carry a bearing the other side does not add.
         """
-        builder = AtlasBuilder(TTF, METRICS, 400, size)
+        builder = AtlasBuilder(require_ttf(), METRICS, 400, size)
         xs = []
         pen = 0
         prev = None
@@ -2342,7 +2439,7 @@ class TestCrossLanguagePen(unittest.TestCase):
         self.assertNotEqual(self.py_pen("To", 32, 0),
                             [0, self.py_pen("To", 32, 0)[1] + 5])
         self.assertEqual(self.py_pen("To", 32, 0)[1],
-                         AtlasBuilder(TTF, METRICS, 400, 32).add("T").advance - 5)
+                         AtlasBuilder(require_ttf(), METRICS, 400, 32).add("T").advance - 5)
 
 
 class TestTintTable(unittest.TestCase):
@@ -2639,6 +2736,7 @@ class TestTintTable(unittest.TestCase):
                 self.assertIn(which, str(cm.exception))
 
     def test_a_slot_index_past_the_table_is_named_too(self):
+        require_ttf()
         # Same fault one table over. Checked separately because slots
         # resolve BOTH indices where a command resolves only `tint`,
         # so a single loop would not have covered them.
@@ -2729,12 +2827,14 @@ class TestSlotSpacing(unittest.TestCase):
         self.assertEqual(_SLOT.size, 28)
 
     def test_spacing_round_trips_and_declares_itself(self):
+        require_ttf()
         u = self.bake(3)
         self.assertEqual(u.slots[0]["letter_spacing"], 3)
         self.assertEqual(u.feature_flags & FEAT_SLOT_SPACING,
                          FEAT_SLOT_SPACING)
 
     def test_zero_spacing_means_what_the_pad_always_meant(self):
+        require_ttf()
         # Every writer before the field wrote zeros there, so a blob
         # with no spacing anywhere must not claim the feature.
         u = self.bake(0)
@@ -2742,11 +2842,13 @@ class TestSlotSpacing(unittest.TestCase):
         self.assertEqual(u.feature_flags & FEAT_SLOT_SPACING, 0)
 
     def test_negative_spacing_survives(self):
+        require_ttf()
         # CSS letter-spacing may be negative; the field is signed.
         u = self.bake(-1)
         self.assertEqual(u.slots[0]["letter_spacing"], -1)
 
     def test_out_of_range_spacing_is_refused_by_name(self):
+        require_ttf()
         # The i16 boundary used to surface as a bare struct.error deep
         # in the packer; it must be an error naming the slot instead.
         ir = TestDynamicText().slot_ir()
@@ -3245,6 +3347,7 @@ class TestDeadGeometryTrim(unittest.TestCase):
         self.assertEqual(list(before.getdata()), list(after.getdata()))
 
     def test_a_texquad_glyph_tail_is_trimmed(self):
+        require_ttf()
         # The case the whole pass exists for: nowrap text inside
         # overflow:hidden bakes every glyph and lets the GS clip.
         # Every other test here uses solid rects.
@@ -3287,6 +3390,7 @@ class TestDeadGeometryTrim(unittest.TestCase):
         self.assertEqual(f.dropped, 1)
 
     def test_two_screens_may_not_share_a_slot_name(self):
+        require_ttf()
         # The runtime resolves a slot name over the WHOLE file and takes
         # the first match, so a duplicate makes one of the two
         # unreachable -- and an unreachable slot shows its placeholder
@@ -3472,6 +3576,37 @@ class TestNewcomerPath(unittest.TestCase):
         msg = str(cm.exception)
         self.assertIn("ps2ui-fontgen", msg)
         self.assertIn("ps2ui-layout", msg)
+
+    def test_a_home_relative_candidate_resolves_to_the_home_directory(self):
+        """`~/Library/Fonts/...` is where macOS puts a user's own fonts.
+
+        os.path.isabs("~/...") is False, so without expanduser the
+        resolver joined it to the manifest's OWN directory and it could
+        never match -- silently, because a candidate that does not
+        exist is just the next one tried. The one spelling a Mac reader
+        would reach for was the one spelling that could not work, and
+        nothing said so.
+        """
+        from unittest import mock
+        from ps2ui_bake.cli import load_font_manifest
+        with tempfile.TemporaryDirectory() as home:
+            face = os.path.join(home, "Library", "Fonts")
+            os.makedirs(face)
+            ttf = os.path.join(face, "Only.ttf")
+            with open(ttf, "wb") as fh:
+                fh.write(b"not a real font, and never opened here")
+            man = os.path.join(home, "fonts.json")
+            with open(man, "w", encoding="utf-8") as fh:
+                json.dump({"regular": {"ttf": ["~/Library/Fonts/Only.ttf"],
+                                       "metrics": "~/m.json"}}, fh)
+            with mock.patch.dict(os.environ, {"HOME": home}):
+                # expanduser reads $HOME, so this is the whole fixture.
+                paths = load_font_manifest(man)
+        self.assertEqual(paths["regular"]["ttf"], ttf)
+        # The metrics path expands too, and for the same reason: it is
+        # written by the same hand into the same file.
+        self.assertEqual(paths["regular"]["metrics"],
+                         os.path.join(home, "m.json"))
 
     def test_bake_creates_its_output_directories(self):
         # `-o build/ui.uib` into a tree with no build/ raised a bare

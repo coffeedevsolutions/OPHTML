@@ -4,7 +4,9 @@
       "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
       "/usr/share/fonts/TTF/DejaVuSans.ttf",
       "/opt/homebrew/share/fonts/DejaVuSans.ttf",
-      "/Library/Fonts/DejaVuSans.ttf"
+      "/Library/Fonts/DejaVuSans.ttf",
+      "/usr/local/share/fonts/DejaVuSans.ttf",
+      "~/Library/Fonts/DejaVuSans.ttf"
     ],
     "metrics": "default.metrics.json"
   },
@@ -13,7 +15,9 @@
       "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
       "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
       "/opt/homebrew/share/fonts/DejaVuSans-Bold.ttf",
-      "/Library/Fonts/DejaVuSans-Bold.ttf"
+      "/Library/Fonts/DejaVuSans-Bold.ttf",
+      "/usr/local/share/fonts/DejaVuSans-Bold.ttf",
+      "~/Library/Fonts/DejaVuSans-Bold.ttf"
     ],
     "metrics": "default-bold.metrics.json"
   }
