@@ -1287,7 +1287,7 @@ here:
 | | |
 |---|---|
 | `test_baker.py:49` | discovers a TTF from two Linux paths, while `fonts/fonts.json` already lists four including two macOS ones. Two lists for one job, and the test's is the poorer |
-| `TestFontgenRefusesWithoutRaqm` | four other classes carry `skipIf(TTF is None)`; this one uses `TTF` twice with no guard, so it errors instead of skipping |
+| the skip guards | with no TTF the suite is **22 errors across 7 classes**, not a row of skips. Four `skipIf(TTF is None)` sites exist, only two of them class-level, against seven classes that need one |
 | `fonts/fonts.json` | has `/opt/homebrew/share/fonts/` and `/Library/Fonts/`, misses `~/Library/Fonts/` where per-user installs land, and `/usr/local/share/fonts/` which is Intel Homebrew |
 | `make -C runtime syntax-check` | **[fixed]** could not pass under clang at all. Misfiled as macOS; it is a compiler problem, reproducible on Linux, and ci.yml now runs a clang arm |
 
@@ -1304,12 +1304,33 @@ for the directory.
 **0.4.0's spine is making the gate reachable**, in this order, because
 the last item goes red on the first three if they land after it:
 
-1. **One source of truth for test fonts.** `test_baker.py` reads
-   `fonts.json` rather than carrying its own list, and the Raqm class
-   gets the guard the others have. That guard needs **both** a TTF and
-   Raqm, and it must be loud: silently skipping the test that proves
-   kerning works is how an empty kern table ships while every pen
-   agrees.
+1. **One source of truth for test fonts, and guards sized against 22.**
+   `test_baker.py` reads `fonts.json` rather than carrying its own
+   list, and every class that needs a TTF says so. Measured rather
+   than estimated, by pointing the discovery at a path that does not
+   exist:
+
+   ```
+   FAILED (errors=22, skipped=38)
+
+     7  TestKernTable          2  TestDeadGeometryTrim
+     5  TestKerningPen         2  TestCrossLanguagePen
+     4  TestSlotSpacing        1  TestTintTable
+                               1  TestFontgenRefusesWithoutRaqm
+   ```
+
+   That is what a stranger's first `python3 -m unittest discover`
+   prints on any machine without DejaVu at one of two Linux paths,
+   after they have done everything the tutorial asked. **The number is
+   the point**: an earlier draft of this row named one class, and a
+   record that says one class produces a remedy sized for one class.
+   Note also that `TestFontgenRefusesWithoutRaqm` contributes **one**
+   of the 22, not two — its other test mocks `features.check` to
+   `False`, so `fontgen` refuses before it ever reaches the TTF.
+
+   The guard on the Raqm test needs **both** a TTF and Raqm, and it
+   must be loud: silently skipping the test that proves kerning works
+   is how an empty kern table ships while every pen agrees on zero.
 2. **`fonts.json` covers macOS properly**, under a stated principle
    rather than by adding paths as they are met. The Intel/ARM prefix
    split is the same one the Raqm remedy has.
