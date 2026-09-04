@@ -437,9 +437,23 @@ class Server:
         if uib is None:
             return
         sc = base.screen(uib)
+        # A REAL SNAPSHOT, NOT A SHARED REFERENCE. `__dict__.update`
+        # copies `slot_text` by reference, so the probe's key() and its
+        # render() were two separate reads of a dict the request thread
+        # mutates -- and a `set_slots` landing between them filed a
+        # frame under the key of the text it was NOT rendered with. The
+        # window is one render (66-218 ms) inside a warm pass that runs
+        # for seconds after every build and every screen switch, and
+        # typing in a slot box during it is ordinary use. Under --uib
+        # there is no rebuild to drop the cache, so a wrong frame stays
+        # wrong for the life of the process. FrameCache's docstring
+        # claims a pure function of (blob, state); this is what makes
+        # that true.
+        frozen = {k: dict(v) for k, v in base.slot_text.items()}
         for node in nodes_of(uib, sc):
             probe = PreviewState()
             probe.__dict__.update(base.__dict__)
+            probe.slot_text = frozen
             probe.focus_name = node["name"]
             key = probe.key(uib)
             with self.cache.lock:

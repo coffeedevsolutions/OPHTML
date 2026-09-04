@@ -32,9 +32,30 @@ OPLENV = os.path.join(ROOT, "examples", "opl-env", "build", "ui.uib")
 
 
 def blob(path):
+    """A shipped example's blob, or a skip -- unless CI says otherwise.
+
+    A SKIP THAT NOBODY SEES IS NOT COVERAGE, AND THIS FILE HAD IT.
+    ci.yml ran the baker suite BEFORE the three example builds, so
+    twenty of this file's twenty-one tests skipped there: every
+    navigation, focus-name, screen, theme, frame and route test -- all
+    of the state machine this module's docstring calls the thing worth
+    fencing. They passed locally and executed nowhere.
+
+    The step has moved below the builds. This variable is the guard on
+    that ordering: with it set, a missing blob is a FAILURE naming the
+    step that should have produced it, so putting the suite back above
+    the builds breaks CI loudly instead of quietly going green. The
+    same tripwire, and the same wording, as PS2UI_REQUIRE_CROSSCHECK --
+    which exists because this exact thing happened once before.
+    """
     if not os.path.exists(path):
-        raise unittest.SkipTest("no blob at %s; run its build.sh"
-                                % os.path.relpath(path, ROOT))
+        rel = os.path.relpath(path, ROOT)
+        if os.environ.get("PS2UI_REQUIRE_EXAMPLES"):
+            raise AssertionError(
+                "no blob at %s, and PS2UI_REQUIRE_EXAMPLES is set. This "
+                "suite must run AFTER the example builds; if it did not, "
+                "twenty tests in this file just checked nothing." % rel)
+        raise unittest.SkipTest("no blob at %s; run its build.sh" % rel)
     return read_uib(path)
 
 
@@ -233,6 +254,113 @@ class TestFrames(unittest.TestCase):
         srv.cache.clear()
         self.assertEqual(srv.frame(), cold)
 
+    def test_every_part_of_the_cache_key_discriminates(self):
+        """IDEMPOTENCE IS NOT DISCRIMINATION, and the test above only
+        checks the first.
+
+        It calls frame() twice with nothing changed in between, so it
+        passes for ANY key -- including a constant. Four of the five key
+        components could be dropped with the whole suite green: the page
+        would serve the wrong screen's frame, the wrong focus highlight,
+        the wrong theme or stale slot text, and nothing would say so.
+        The one that was covered was covered incidentally, by a test
+        written to check that the forced aspects differ.
+
+        So each component gets a mutation of its own: change exactly
+        one, and the frame must change with it.
+        """
+        u = blob(OPLENV)
+        srv = serve.Server(uib=u)
+        srv.apply({"screen": "library"})
+        base = srv.frame()
+
+        def differs(what, mutate, undo):
+            mutate()
+            try:
+                self.assertNotEqual(
+                    srv.frame(), base,
+                    "changing %s did not change the frame -- the cache "
+                    "key does not include it" % what)
+            finally:
+                undo()
+
+        first = srv.state.focus_name
+        moved = srv.state.move(u, "down") or srv.state.move(u, "right")
+        self.assertTrue(moved, "library has no edge to move along")
+        after = srv.state.focus_name
+        srv.state.focus_name = first
+        differs("the focus", lambda: setattr(srv.state, "focus_name", after),
+                lambda: setattr(srv.state, "focus_name", first))
+
+        differs("the screen", lambda: srv.apply({"screen": "confirm"}),
+                lambda: srv.apply({"screen": "library"}))
+
+        # AND THE ONE COMPONENT THIS CANNOT FALSIFY, SAID OUT LOUD.
+        # Replacing the screen name in the key with a constant leaves
+        # the suite green, and the reason is not a missing assertion:
+        # focus indices are BLOB-GLOBAL, so the focus component already
+        # names the screen. The screen name is kept anyway, because a
+        # key that is correct only via an invariant nobody stated is a
+        # key that breaks when the invariant does -- two screens with
+        # no focusables at all would share `initial` and collide.
+        #
+        # So assert the invariant instead of pretending to a fence.
+        seen = {}
+        for sc in u.screens:
+            for n in serve.nodes_of(u, sc):
+                seen.setdefault(n["index"], []).append(sc["name"])
+        shared = {i: names for i, names in seen.items() if len(names) > 1}
+        self.assertEqual(shared, {},
+                         "focus indices are no longer blob-unique, so the "
+                         "screen name in the cache key is now load-bearing "
+                         "and needs a mutation test of its own")
+
+        n_theme = max(1, len(u.themes or ()))
+        if n_theme > 1:
+            differs("the theme", lambda: srv.apply({"theme": 1}),
+                    lambda: srv.apply({"theme": 0}))
+
+        slot = srv.snapshot()["slots"][0]["name"]
+        differs("slot text",
+                lambda: srv.apply({"slot": {slot: "A DIFFERENT STRING"}}),
+                lambda: srv.apply({"slot": {slot: ""}}))
+
+        differs("the aspect", lambda: srv.apply({"aspect": "force-16:9"}),
+                lambda: srv.apply({"aspect": "authored"}))
+
+    def test_the_warm_thread_cannot_file_a_frame_under_a_stale_key(self):
+        """THE PROBE'S SNAPSHOT HAS TO BE ONE.
+
+        `probe.__dict__.update(base.__dict__)` copies slot_text by
+        REFERENCE, so key() and render() became two reads of a dict the
+        request thread mutates -- and a slot edit landing between them
+        files a frame under the key of text it was not rendered with.
+        Under --uib nothing ever drops the cache, so it stays wrong.
+        """
+        u = blob(OPLENV)
+        srv = serve.Server(uib=u)
+        srv.apply({"screen": "library"})
+        slot = srv.snapshot()["slots"][0]["name"]
+        srv.apply({"slot": {slot: "BEFORE"}})
+
+        # What _warm_now does, with a mutation in the window between
+        # taking the key and rendering the frame.
+        with srv.lock:
+            base = srv.state
+        frozen = {k: dict(v) for k, v in base.slot_text.items()}
+        probe = serve.PreviewState()
+        probe.__dict__.update(base.__dict__)
+        probe.slot_text = frozen
+        key = probe.key(u)
+        srv.apply({"slot": {slot: "AFTER"}})       # the racing edit
+        png = serve.render_png(u, probe)
+
+        srv.apply({"slot": {slot: "BEFORE"}})
+        self.assertEqual(key, srv.state.key(u))
+        self.assertEqual(png, srv.frame(),
+                         "the warm thread rendered text other than the "
+                         "one its key names")
+
     def test_every_aspect_mode_renders_and_they_differ(self):
         u = blob(OPLENV)
         srv = serve.Server(uib=u)
@@ -414,6 +542,123 @@ class TestPipelineMatchesTheBuild(unittest.TestCase):
                 "artifacts live")
 
 
+class TestPackaging(unittest.TestCase):
+
+    def test_the_page_is_in_the_wheel(self):
+        """THE COMMENT BESIDE package-data WAS RIGHT AND UNENFORCED.
+
+        It says removing the declaration leaves `ps2ui serve` working in
+        a checkout and raising FileNotFoundError for anyone who
+        installed the package, "and nothing in the tree would have said
+        so". That was still true of removing the declaration: the whole
+        suite stayed green. Six lines make it a fact.
+        """
+        import shutil
+        import subprocess
+        pkg = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if not os.path.exists(os.path.join(pkg, "pyproject.toml")):
+            raise unittest.SkipTest("not a source checkout")
+
+        # `build_py` rather than a whole wheel: it is the step that
+        # decides what package DATA gets copied, which is the thing
+        # under test, and this container's setuptools cannot complete a
+        # wheel at all (a Debian install_layout patch). A fence that
+        # skips is the same nothing as no fence, so it runs the step it
+        # can run rather than the one that reads better.
+        with tempfile.TemporaryDirectory() as tmp:
+            work = os.path.join(tmp, "baker")
+            out = os.path.join(tmp, "lib")
+            shutil.copytree(pkg, work,
+                            ignore=shutil.ignore_patterns(
+                                "build", "dist", "*.egg-info", "__pycache__"))
+            done = subprocess.run(
+                [sys.executable, "-c", "import setuptools; setuptools.setup()",
+                 "build_py", "--build-lib", out],
+                cwd=work, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0,
+                             "build_py failed: %s" % done.stderr[-400:])
+            staged = os.path.join(out, "ps2ui_bake")
+            self.assertTrue(os.path.exists(os.path.join(staged, "serve.py")),
+                            "build_py staged no package at all, so the "
+                            "assertion below would pass vacuously")
+            self.assertTrue(
+                os.path.exists(os.path.join(staged, "serve_page.html")),
+                "serve_page.html is not staged into the distribution; "
+                "`ps2ui serve` would raise FileNotFoundError once "
+                "installed, and only for people who installed it")
+
+    def test_watch_mode_refuses_without_node(self):
+        """require_node() is called, not merely defined.
+
+        Deleting the call left everything green: the failure would then
+        be a layout subprocess that cannot spawn, minutes later and in
+        someone else's words.
+        """
+        import argparse
+        saved_path = os.environ.get("PATH")
+        saved_layout = os.environ.pop("PS2UI_LAYOUT", None)
+        os.environ["PATH"] = tempfile.gettempdir()
+        try:
+            args = argparse.Namespace(uib=None, project="ps2ui.json",
+                                      screen=None, theme=0)
+            with self.assertRaises(serve.ProjectError) as cm:
+                serve.build_server(args)
+            self.assertIn("Node", str(cm.exception))
+            self.assertIn("--uib", str(cm.exception),
+                          "the error must name the path that still works")
+        finally:
+            os.environ["PATH"] = saved_path
+            if saved_layout is not None:
+                os.environ["PS2UI_LAYOUT"] = saved_layout
+
+
+class TestDevAgreesWithBuild(unittest.TestCase):
+
+    def test_dev_compiles_a_screen_the_way_build_does(self):
+        """TWO PREVIEW PATHS FOR ONE PROJECT MUST NOT DISAGREE.
+
+        `ps2ui serve` reaches compile_screens, so it forwards every
+        project setting. `cmd_dev` forwarded --fonts alone, so on
+        channel6 -- whose probe screen sets focusWrap -- dev produced a
+        screen with no navigation at all, and on opl-env, which sets
+        minFontSize 11, it printed 88 warnings the build does not.
+        """
+        import shutil
+        import subprocess
+        from ps2ui_bake import ps2ui as front
+        src = os.path.join(ROOT, "examples", "channel6")
+        if not os.path.exists(os.path.join(src, "ps2ui.json")):
+            raise unittest.SkipTest("no channel6 project")
+        if not (os.environ.get("PS2UI_LAYOUT") or shutil.which("node")):
+            raise unittest.SkipTest("no node for the layout stage")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work = os.path.join(tmp, "channel6")
+            shutil.copytree(src, work,
+                            ignore=shutil.ignore_patterns("build"))
+            cfg = os.path.join(work, "ps2ui.json")
+            self.assertEqual(front.main(["build", cfg]), 0)
+            rc = subprocess.run(
+                [sys.executable, "-m", "ps2ui_bake.ps2ui", "dev", cfg,
+                 "--screen", "probe", "--once"],
+                capture_output=True, text=True,
+                env=dict(os.environ, PYTHONPATH=os.path.dirname(
+                    os.path.dirname(os.path.abspath(__file__)))))
+            self.assertEqual(rc.returncode, 0, rc.stderr)
+
+            def nodes(path):
+                with open(path, encoding="utf-8") as fh:
+                    return [n.get("name")
+                            for n in json.load(fh)["focus"]["nodes"]]
+
+            built = nodes(os.path.join(work, "build", "probe.json"))
+            deved = nodes(os.path.join(work, "build", "dev", "probe.json"))
+            self.assertTrue(built, "the build produced no focusables")
+            self.assertEqual(deved, built,
+                             "ps2ui dev compiled the screen differently "
+                             "from ps2ui build")
+
+
 class TestImportRule(unittest.TestCase):
 
     def test_nothing_pulls_serve_in(self):
@@ -432,8 +677,22 @@ class TestImportRule(unittest.TestCase):
             "import sys\n"
             "import ps2ui_bake, ps2ui_bake.cli, ps2ui_bake.check\n"
             "import ps2ui_bake.uib, ps2ui_bake.preview, ps2ui_bake.project\n"
-            "import ps2ui_bake.ps2ui\n"
+            "import ps2ui_bake.ps2ui, contextlib, io\n"
+            # CALLING main() IS THE POINT. It builds every subparser
+            # before it dispatches, so an import there runs on every
+            # invocation -- which is exactly how `ps2ui build --help`
+            # came to pull in serve, http.server, socketserver, socket,
+            # ssl and email while three places in the tree claimed it
+            # loaded no server code. Importing the module and stopping
+            # reported nothing and passed.
+            "try:\n"
+            "    with contextlib.redirect_stdout(io.StringIO()):\n"
+            "        ps2ui_bake.ps2ui.main(['build', '--help'])\n"
+            "except SystemExit:\n"
+            "    pass\n"
             "bad = [m for m in sys.modules if m.endswith('.serve')]\n"
+            "bad += [m for m in ('http.server', 'socketserver', 'ssl')\n"
+            "        if m in sys.modules]\n"
             "print(','.join(bad))\n")
         env = dict(os.environ, PYTHONPATH=pkg_root)
         out = subprocess.run([sys.executable, "-c", code], env=env,
