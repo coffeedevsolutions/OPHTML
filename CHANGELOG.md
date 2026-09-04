@@ -35,12 +35,16 @@ none would — so a plain `pip install ophtml` would have resolved
 why the first PyPI upload is a real release rather than a `.dev` build
 uploaded to reserve the name.
 
-**Tagged is not published.** `v0.3.0` exists in git; neither package
-has been uploaded. Phase 4's exit gate is not met until a stranger with
-npm, pip and a TTF reproduces the memcard example — and its hardware
-screenshot — without cloning this repository, and nobody who is not us
-has done that. Until the upload happens, a checkout is still the only
-way in, and it is still an unverified renderer.
+**Tagged and published.** `v0.3.0` is in git and both packages are on
+their registries: `ophtml` on PyPI and `@ophtml/layout` on npm, the
+latter on the `latest` dist-tag. Phase 4's exit gate is a separate claim
+and is **not** met: it asks that a stranger with npm, pip and a TTF
+reproduce the memcard example — and its hardware screenshot — without
+cloning this repository, and the first attempt from an install failed.
+On macOS, pip's Pillow wheel ships no Raqm layout engine, so
+`ps2ui fontgen` correctly refuses to write a metrics file it cannot
+kern, and the tutorial stops at its first command. Uploading was
+necessary for the gate and is not sufficient for it.
 
 These numbers used to drift because nothing read them: the baker
 shipped `__version__ = "0.1.0"` beside `version = "0.2.0"` in its own

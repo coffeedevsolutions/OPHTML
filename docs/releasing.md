@@ -1,10 +1,12 @@
 # Releasing
 
-`0.3.0` is released and tagged `v0.3.0` — the first tag this
-repository has ever had. Neither package has been **uploaded** yet;
-tagging and publishing are steps 7 and 8 and they are not the same
-event. This file exists because `tools/check-versions.py` enforces a
-rule that is otherwise a trap:
+`0.3.0` is released, tagged `v0.3.0` — the first tag this repository
+has ever had — and **uploaded**: `ophtml` is on PyPI and
+`@ophtml/layout` on npm, both as of 2026-09-04. Tagging and publishing
+are steps 7 and 8 and they are not the same event; keeping them
+separate in this document is what made the gap between them visible.
+This file exists because `tools/check-versions.py` enforces a rule that
+is otherwise a trap:
 
 > A version that is **not** a prerelease must name a git tag.
 
@@ -53,12 +55,12 @@ says.
 
 **pip has no equivalent, and the gap is real.** Pip excludes
 prereleases from a specifier *unless* one is explicitly requested or
-**no stable version exists that satisfies it**. `ophtml` has still
-never been published, so if `0.3.0.dev0` had been the first upload, a
-plain `pip install ophtml` would have resolved it — the prerelease
-marker would have bought nothing at all. That is still true of the
-next `.dev0`, and stays true until a stable version is actually on
-PyPI.
+**no stable version exists that satisfies it**. `ophtml` had never
+been published, so if `0.3.0.dev0` had been the first upload, a plain
+`pip install ophtml`
+would have resolved it — the prerelease marker would have bought
+nothing at all. `0.3.0` is now on PyPI, so the next `.dev0` is the
+first one the exclusion actually protects.
 
 The mitigation is procedural, not mechanical: **the first PyPI upload
 must be a real release.** Do not upload a `.dev`/`rc` build to PyPI to
@@ -168,8 +170,37 @@ written twice to avoid.
    `check-versions.py` requires it, because the alternative is a first
    publish that fails or lands private with nothing having said so.
 
-   **Build and look at the artifacts before uploading either.** Both
-   packagers ship what exists and say nothing about what does not:
+   **First, re-check that the tag still names what you are about to
+   publish.** Steps 7 and 8 are separate events and a merge can land
+   between them. This step used to open `git checkout v0.3.0` with
+   nothing having re-read the tag since it was written, and the tag was
+   stale twice: it sat at the commit that cut the release while `main`
+   had moved both package READMEs, so building from it would have
+   shipped prose nobody reviewed as the release.
+
+   ```sh
+   git fetch --prune origin --tags
+   git diff --stat v0.3.0 origin/main -- \
+       packages/layout/src packages/layout/bin \
+       packages/layout/README.md packages/layout/package.json \
+       packages/baker/ps2ui_bake packages/baker/README.md \
+       packages/baker/pyproject.toml
+   ```
+
+   `--prune` and no refspec on purpose: `git fetch origin main` updates
+   `main` alone and leaves every other remote-tracking ref at whatever
+   it was, which is its own way to read a branch that no longer exists.
+
+   Empty output is the only acceptable answer. If it is not empty,
+   either move the tag to the commit you are publishing (safe only while
+   nothing has consumed it: no GitHub Release, nothing on either
+   registry) or cut the next patch version from `main` per steps 2-7.
+   **Rule 21 now asserts this**, so a stale tag is a red check rather
+   than something you have to remember to look at -- but it is checked
+   on `main`, after the merge, which is exactly where this went wrong.
+
+   **Then build and look at the artifacts before uploading either.**
+   Both packagers ship what exists and say nothing about what does not:
 
    ```sh
    git checkout v0.3.0

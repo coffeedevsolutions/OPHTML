@@ -84,17 +84,16 @@ Three ways in, depending on what you want:
 - **Put it on a console.** [docs/deploying.md](docs/deploying.md) covers
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
-
-**Neither package is published yet, so a checkout is still the only way
-in.** `ophtml` (PyPI) and `@ophtml/layout` (npm) both carry `0.3.0`,
-tagged `v0.3.0`, which is the first release this repository has ever had
-and the first of these numbers that names a tag rather than a number
-somebody typed. They used to claim `0.2.0`, a release that does not
-exist, through four moves of the `.uib` format; the blobs this tree bakes
-are format **v7** and a 0.2.0-era runtime rejects them. Run it from a
-checkout, and note that every CLI answers `--version`. Uploading is the
-last step of Phase 4 in [docs/PLAN.md](docs/PLAN.md);
-[docs/releasing.md](docs/releasing.md) is the procedure, and
+**Both packages are published**, so `pip install ophtml` and
+`npm install -g @ophtml/layout` are the way in. `ophtml` (PyPI) and
+`@ophtml/layout` (npm) both carry `0.3.0`, tagged `v0.3.0`, which is the
+first release this repository has ever had and the first of these numbers
+that names a tag rather than a number somebody typed. They used to claim
+`0.2.0`, a release that does not exist, through four moves of the `.uib`
+format; the blobs this tree bakes are format **v7** and a 0.2.0-era
+runtime rejects them. Every CLI answers `--version`. Phase 4's exit gate
+in [docs/PLAN.md](docs/PLAN.md) is not met by the upload alone and is
+still open; [docs/releasing.md](docs/releasing.md) is the procedure, and
 `tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:
