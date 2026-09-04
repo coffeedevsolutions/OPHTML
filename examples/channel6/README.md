@@ -25,22 +25,33 @@ across the two screens.
 
 It is an **overlay**, so that is how it should be judged. The blob has no
 background of its own beyond a translucent scrim, and `ps2ui_render()`
-draws straight into the framebuffer — skip the `gsKit_clear()` the sample
-ELF does, and the game underneath stays visible:
+draws straight into the framebuffer rather than clearing it. Skip the
+`gsKit_clear()` the sample ELF does, and whatever your app drew last
+stays visible underneath:
 
-![the browser composited over a game frame](screenshots/in-game.png)
+![the browser composited over a synthetic game scene](screenshots/in-game.png)
+
+**That scene is synthetic.** [preview_in_game.py](preview_in_game.py)
+draws it from flat shapes rather than capturing anything: a real game's
+pixels are a licensing problem, and a made-up frame is the better test
+anyway, because the bright band can go exactly where the UI is darkest
+and a too-thin scrim shows there first. The compositing is the operation
+the GS performs, so the picture is honest about the blend. It is not a
+photograph of this UI running over a game.
+
+**And "underneath" means your own frame.** ps2ui draws inside the caller's
+render loop, so the scene below the scrim has to be one that caller drew.
+Putting a UI over a separate game needs something that injects into that
+game's rendering, which is a different kind of tool and not this one.
+Nothing here has been run over a live scene on a console; the overlay
+path is a property of the blob and the render call, not a measured
+result.
 
 Over flat navy, which is the ground truth every bring-up step compares
 against:
 
 ![games screen](screenshots/games.png)
 ![probe screen](screenshots/probe.png)
-
-The game frame is drawn from flat shapes by
-[preview_in_game.py](preview_in_game.py), not captured — shipping a real
-game's pixels into a repository is a licensing problem, and a synthetic
-frame is the better test anyway because you can put the bright band
-exactly where the UI is darkest.
 
 ## What the device actually does, and what it doesn't
 
