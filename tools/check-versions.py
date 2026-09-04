@@ -578,6 +578,80 @@ def main(argv=None):
               "%s" % (", ".join("v%d" % v for v in chain),
                       ", ".join("v%d" % v for v in want)))
 
+    # 18. THE WORKFLOW ACTUALLY RUNS THE RULE BELOW.
+    #
+    #     `--except-tag` split this file's run in two, and the whole
+    #     arrangement lived in `.github/workflows/ci.yml`, which
+    #     nothing in the tree parsed. Two one-line edits left every
+    #     check green while the tag rule stopped being enforced
+    #     ANYWHERE -- delete the final unflagged step, or give it the
+    #     flag, and no run in either workflow ever evaluates rule 8
+    #     again. `--except-tag` would go on printing its honest `skip`
+    #     line into a log nobody reads, and CI would be green on a
+    #     release naming a tag that does not exist.
+    #
+    #     That is the failure the flag was introduced to fix, one
+    #     level up and inverted: the version that went RED was found
+    #     the day it happened, and this one goes GREEN. A convention
+    #     protecting the one rule whose entire purpose is to be
+    #     un-skippable is not protection, so it becomes a fact the way
+    #     this repository makes other cross-file orderings facts --
+    #     check-timing-probe.py reads main.c, check-tutorial.py names
+    #     ASSERTED_BLOCKS.
+    #
+    #     THIS RULE RUNS IN BOTH INVOCATIONS, deliberately. Only rule
+    #     8 is gated, so the early `--except-tag` step evaluates this
+    #     one -- a rule that could only be checked by the step being
+    #     deleted would protect nothing.
+    wf = os.path.join(ROOT, ".github", "workflows", "ci.yml")
+    if not os.path.exists(wf):
+        check(False, "", ".github/workflows/ci.yml is missing or was "
+                         "renamed, so nothing proves this file is run at "
+                         "all. Point this rule at the workflow that runs "
+                         "it, in the same commit that moves it.")
+    else:
+        # `run:` LINES ONLY. The file names this script in prose twice,
+        # and a rule satisfied by a comment is satisfied by deleting
+        # the step and leaving the comment behind.
+        wf_text = open(wf, encoding="utf-8").read()
+        runs = list(re.finditer(r"^[ \t]*run:[ \t]*python3 "
+                                r"tools/check-versions\.py[ \t]*(.*?)[ \t]*$",
+                                wf_text, re.M))
+        bare = [m for m in runs if not m.group(1)]
+        check(len(bare) == 1,
+              "ci.yml runs this file unflagged exactly once, so the tag "
+              "rule is evaluated (%d invocation(s) in total)" % len(runs),
+              "ci.yml has %d unflagged invocation(s) of check-versions.py "
+              "and needs exactly one. With none, rule 8 below is enforced "
+              "nowhere and a release can name a tag that does not exist; "
+              "the flagged runs would stay green and say nothing."
+              % len(bare))
+        # AND IT IS THE LAST `run:` IN THE FILE. Moving it back in
+        # front of the suite is the regression `--except-tag` exists to
+        # prevent: the run would still evaluate rule 8, and would still
+        # take the 242 baker tests, both example builds and the
+        # tutorial down with it on every release commit.
+        #
+        # ANCHORED TO THE LAST `run:` STEP, NOT TO THIS FILE'S OTHER
+        # INVOCATIONS. The first version compared the unflagged run's
+        # index against the count of check-versions.py invocations and
+        # skipped the comparison whenever there was only one -- so
+        # deleting the final step and un-flagging the first one left a
+        # single unflagged run sitting in front of the whole suite,
+        # which is precisely the arrangement being fixed, and it
+        # PASSED. Found by sabotage; a guard that steps aside in the
+        # case it is meant to catch is not a guard.
+        if len(bare) == 1:
+            last_run = list(re.finditer(r"^[ \t]*run:", wf_text, re.M))[-1]
+            check(bare[0].start() == last_run.start(),
+                  "and it is the last `run:` step in the workflow, so a "
+                  "red tag rule cannot mask the checks before it",
+                  "ci.yml's unflagged check-versions.py run is not the "
+                  "last `run:` step in the file. A release commit cannot "
+                  "satisfy rule 8, so an unflagged run placed before the "
+                  "suite fails there and takes every later step with it -- "
+                  "which is exactly what moving it to the end fixed.")
+
     # 8. A release version names a tag. A prerelease is allowed to name
     #    nothing, which is the whole reason to carry one.
     tags = git_tags()

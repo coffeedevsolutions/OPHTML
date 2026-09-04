@@ -139,6 +139,14 @@ written twice to avoid.
    red on this rule now sits at the *end* of a job that otherwise
    passed, and the rest of the run means something.
 
+   That arrangement is itself checked, and it had to be: it lived
+   entirely in `ci.yml`, which nothing parsed, so deleting the final
+   unflagged step or giving it the flag left every check green while
+   the tag rule stopped being enforced anywhere at all. `check-
+   versions.py` now reads the workflow and requires exactly one
+   unflagged invocation of itself, as the last `run:` step in the
+   file. Moving it means editing that rule in the same commit.
+
 8. **Then publish**, npm and PyPI, in that order or either.
    `@ophtml/layout` is scoped and npm defaults a scoped package to
    `restricted`, so `publishConfig.access` is set to `public` beside the
