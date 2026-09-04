@@ -213,6 +213,17 @@ jobs:
       # It does NOT prove the packages install: nothing is published,
       # so the CLI names resolve through shims onto the checkout. That
       # gap IS the exit gate, and the tutorial says so itself.
+      # The deployment guide is mostly hardware and mostly cannot run
+      # here, which is what its [bench]/[practice] markers are for. The
+      # parts that ARE derivable from this tree are: the four status
+      # fills are literals in runtime/sample/main.c and were written out
+      # by hand in two documents, and the build flags it tells a reader
+      # to type have to exist in the Makefile. Needs no toolchain and no
+      # build, and is clean-checkout safe, so it has no ordering
+      # dependency on the example builds.
+      - name: The deployment guide matches the source it describes
+        run: python3 tools/check-deploying.py
+
       - name: The tutorial still works from an empty directory
         run: python3 tools/check-tutorial.py
 

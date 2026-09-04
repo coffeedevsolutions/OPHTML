@@ -6,7 +6,7 @@ text filled in at runtime from whatever is on the disc. This builds a
 working one from an empty directory.
 
 You will need **Node 18+**, **Python 3 with Pillow**, and **a TTF**.
-Nothing else — no clone, no build system, no C compiler until you want
+Nothing else: no clone, no build system, no C compiler until you want
 the ELF.
 
 > **Every command below is executed by CI**, in order, in a scratch
@@ -16,7 +16,7 @@ the ELF.
 
 > **The packages are not published yet.** `ps2ui-layout` and
 > `ps2ui-bake` below are the names they will have; today they come from
-> a checkout — see [Running it before publication](#running-it-before-publication)
+> a checkout; see [Running it before publication](#running-it-before-publication)
 > at the end, which is also what CI does. `docs/releasing.md` says what
 > is left.
 
@@ -73,7 +73,7 @@ Three things are doing the work:
   fixed; how many *titles* you have is a runtime concern, handled by the
   list window in step 8.
 - **`data-slot`** marks text the console will replace. `data-slot-capacity`
-  is how many bytes to reserve — the runtime copies into that, so a
+  is how many bytes to reserve. The runtime copies into that, so a
   40-byte name cannot overrun into the row below. Get it wrong and the
   text is truncated at a UTF-8 boundary, never split mid-character.
 - **`focusable`** puts the row in the navigation graph. The compiler
@@ -81,7 +81,7 @@ Three things are doing the work:
 
 ## 3. The style
 
-Ordinary CSS, and `var()` is real — those custom properties become a
+Ordinary CSS, and `var()` is real: those custom properties become a
 *tint table* in the blob, which is what makes runtime theming a table
 swap rather than a re-bake.
 
@@ -135,14 +135,14 @@ lands in `build/ui.uib` with a preview beside it, fonts come from
 `fonts/fonts.json` next to this file, and every path is relative to the
 project rather than to wherever you happen to be standing.
 
-A key nothing reads is an **error**, not a shrug — misspell
+A key nothing reads is an **error**, not a shrug. Misspell
 `minFontSize` and the message names it and lists what a project takes.
 The whole set: `screens`, `css`, `fonts`, `out`, `preview`, `montage`,
 `previewDisplay`, `mode`, `canvas`, `displayAspect`, `strict`,
 `minFontSize`, `focusWrap`, `palettizeImages`, `vramBudget`.
 
 A screen is usually a path. When one needs something the others do not,
-it becomes an object — `{ "html": "ui/probe.html", "focusWrap": true }`.
+it becomes an object: `{ "html": "ui/probe.html", "focusWrap": true }`.
 
 ## 5. Build
 
@@ -174,7 +174,7 @@ into your program. Six rows and thirteen slots cost 1,516 bytes, and the
 whole six-screen environment `examples/opl-env` builds asks for 7,319.
 
 `preview.png` replays the blob on the host with the same pen the console
-uses — so it shows what the PS2 will draw, not what a browser thinks the
+uses, so it shows what the PS2 will draw, not what a browser thinks the
 CSS means. `states.png` is every focus state as a contact sheet.
 
 ## 6. Check it
@@ -188,7 +188,7 @@ ps2ui check
 PASS: 51 checks, 0 error(s), 0 warning(s)
 ```
 
-`ps2ui-check` validates the blob against what the C runtime assumes —
+`ps2ui-check` validates the blob against what the C runtime assumes:
 table bounds, texture residency, scissor depth, VRAM budget, palette
 ratios, dead commands outside their clip. It is the same contract the
 runtime enforces at load, run offline so a bad blob never reaches a
@@ -196,7 +196,7 @@ console.
 
 ## 7. Look at it
 
-`build/preview.png` is one frame in one state — the initial focus, theme
+`build/preview.png` is one frame in one state: the initial focus, theme
 row 0, at 1:1. Everything past *does the first frame look right* used to
 mean baking to a card and booting a console: walking the D-pad, the
 light theme, a title long enough to ellipsize, what a 16:9 blob does to
@@ -213,8 +213,8 @@ PASS: 6 route(s)
 ```
 
 That is the form CI can run: build the project, bind an ephemeral port,
-fetch every route once — checking each one's status and content type,
-`/frame.png` down to its PNG magic number — and then the one assertion
+fetch every route once, checking each one's status and content type,
+`/frame.png` down to its PNG magic number, and then the one assertion
 the whole tool rests on: **the frame it serves is byte-for-byte the
 frame `--preview` writes**. If those ever differ, every judgement made
 at the browser is about something the console will not draw, so it is
@@ -231,12 +231,12 @@ display aspect, fonts and output all come from the project file, and the
 server writes to `build/serve/` rather than `build/`, so a `ps2ui build`
 in another terminal and a live server cannot clobber each other. The
 port is 8080, it takes the next free one when that is busy, and it says
-which — two examples side by side is a normal thing to want. It binds
+which, because two examples side by side is a normal thing to want. It binds
 `127.0.0.1` and only that: this is an unauthenticated dev tool.
 
 | in the page | what it drives |
 |---|---|
-| arrow keys | one `ps2ui_move` along the baked focus graph — an edge with no neighbour does nothing, exactly as on the console |
+| arrow keys | one `ps2ui_move` along the baked focus graph; an edge with no neighbour does nothing, exactly as on the console |
 | screen menu | `ps2ui_screen_set`; each screen remembers its own focus |
 | theme menu | `ps2ui_theme_set`; the tint table swaps and no geometry moves |
 | aspect menu | four resamplings of the same framebuffer, below |
@@ -248,7 +248,7 @@ The four aspect modes exist because the framebuffer is not the picture:
 | mode | shows |
 |---|---|
 | 1:1 framebuffer | the pixel grid, identical to `--preview` |
-| as authored | resampled through the blob's own `display_aspect` — what a photograph of the television looks like |
+| as authored | resampled through the blob's own `display_aspect`, which is what a photograph of the television looks like |
 | force 4:3 | this UI on a set the header did not expect |
 | force 16:9 | the same mistake the other way |
 
@@ -260,16 +260,16 @@ every artifact it writes is already at the aspect you asked for.
 renderer running server-side and arriving as PNG bytes in an `<img>`;
 the focus rectangle, the grid and the title-safe box are chrome over the
 top. A JavaScript renderer would be a fourth pen alongside the Node
-measurer, the Python baker and the C runtime — three that
-`TestCrossLanguagePen` holds to agreement at the pixel — and an
-unvalidated one. The rule is the one from step 5: this shows what the
+measurer, the Python baker and the C runtime. Those three are held to
+agreement at the pixel by `TestCrossLanguagePen`, and a fourth would
+be unvalidated. The rule is the one from step 5: this shows what the
 PS2 will draw, not what a browser thinks the CSS means.
 
 ### Two things it will not tell you
 
 **It does not replace hardware testing**, and the finding that says so
-is specific. F-048 — gsKit's full-screen clear not paying the blended
-fill rate despite ABE being set — lives in a GS register `runtime/` has
+is specific. F-048, gsKit's full-screen clear not paying the blended
+fill rate despite ABE being set, lives in a GS register `runtime/` has
 never written, inherited from whatever `gsKit_init_screen` left behind.
 The command list was faithful; the console diverged from it. No replay
 of a command list, however exact, can catch that, and F-047 was caught
@@ -281,7 +281,7 @@ the procedure for the first real boot.
 boundary rather than an oversight. The renderer takes a screen, a focus
 node, a theme and slot text; it has no visibility parameter, so
 `ps2ui_visible_set`, `ps2ui_list_*` windowing and
-`ps2ui_list_apply_visibility` do not appear — the page shows the baked
+`ps2ui_list_apply_visibility` do not appear: the page shows the baked
 state. Adding it means threading a hidden set through the renderer *and*
 mirroring the runtime's skip-hidden walk in the navigation, and a
 half-implemented version would show a D-pad landing where the console's
@@ -294,7 +294,7 @@ ps2ui serve --uib build/ui.uib
 ```
 
 Skips the build: no project, no Node, no watching, just the blob. That
-makes the same page a **blob inspector** for any `.uib` — including one
+makes the same page a **blob inspector** for any `.uib`, including one
 this toolchain did not write, which is the property `ps2ui check` in
 step 6 already advertises. The two pair in that order: check it, then
 look at what passed.
@@ -336,7 +336,7 @@ for (;;) {
 `ps2ui_render` **never clears the frame**, and that is a guarantee, not
 an omission: call `ps2ui_screen_set` and render twice and the second
 screen composites over the first. That is the whole dialog and overlay
-technique — no format flag, no new API, an overlay is an ordinary screen
+technique: no format flag, no new API, an overlay is an ordinary screen
 with a translucent scrim.
 
 `docs/bringup.md` is the ordered procedure for the first run on real
@@ -374,7 +374,7 @@ ps2ui-fontgen ->  PYTHONPATH=<repo>/packages/baker python3 -m ps2ui_bake.fontgen
 
 `ps2ui build` runs the compiler as a subprocess, so it has to find it.
 It looks at `$PS2UI_LAYOUT`, then `ps2ui-layout` on `PATH`, then the
-checkout it might be sitting in — and when none of those has it, says
+checkout it might be sitting in, and when none of those has it, says
 `npm install -g @ophtml/layout` rather than failing on a path you never
 chose.
 
