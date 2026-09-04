@@ -2,7 +2,8 @@
 // ps2ui-dev — the edit loop (backlog F11).
 //
 //   ps2ui-dev <page.html> <page.css> -o <outdir>
-//             [--mode ntsc|pal] [--canvas WxH] [--font-dir DIR]
+//             [--mode ntsc|pal] [--canvas WxH]
+//             [--font-dir DIR | --fonts fonts.json]
 //             [--focus-wrap] [--montage] [--palettize-images] [--once]
 //
 // Watches the HTML, the CSS, and the HTML's directory (assets/ lives
@@ -12,14 +13,15 @@
 
 import { watch, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { compileFiles } from '../src/index.js';
 
 function usage(code) {
   console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
-    + '[--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] [--focus-wrap] '
+    + '[--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] '
+    + '[--fonts fonts.json] [--focus-wrap] '
     + '[--montage] [--palettize-images] [--once] [--version]');
   process.exit(code);
 }
@@ -37,6 +39,7 @@ let mode = null;
 let aspectArg = null;
 let canvas = null;
 let fontDir;
+let fontManifest;
 let focusWrap = false;
 let montage = false;
 let palettize = false;
@@ -49,6 +52,13 @@ for (let i = 0; i < args.length; i++) {
     case '--display-aspect': aspectArg = args[++i]; break;
     case '--canvas': canvas = args[++i]; break;
     case '--font-dir': fontDir = args[++i]; break;
+    // THE SAME MANIFEST ps2ui-bake READS, and ps2ui-layout has taken it
+    // since the font-path fix. This tool had not, so `ps2ui dev` -- which
+    // passes the project's manifest down the way `ps2ui build` does --
+    // handed it two extra positionals and got a bare usage dump. Every
+    // project in this repository has a fonts manifest, so `ps2ui dev`
+    // could not be run on any of them.
+    case '--fonts': fontManifest = args[++i]; break;
     case '--focus-wrap': focusWrap = true; break;
     case '--montage': montage = true; break;
     case '--palettize-images': palettize = true; break;
@@ -64,7 +74,7 @@ if (positional.length !== 2 || !outDir) usage(2);
 const [htmlPath, cssPath] = positional.map((p) => resolve(p));
 mkdirSync(outDir, { recursive: true });
 
-const options = { fontDir, focusWrap };
+const options = { fontDir, fontManifest, focusWrap };
 if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;
@@ -91,7 +101,13 @@ function build() {
     console.error(`\x1b[31mlayout error:\x1b[0m ${err.message}`);
     return false;
   }
-  const irPath = join(outDir, 'ui.json');
+  // NAMED AFTER THE HTML, NOT 'ui'. A blob's screen names ARE its IR
+  // file stems (ps2ui_bake/cli.py), and this wrote ui.json whatever it
+  // was watching -- so every blob this tool produced had exactly one
+  // screen called `ui`, and ps2ui_screen_set(&ui, "saves") against it
+  // failed. The dev blob has to be a drop-in for the built one or the
+  // loop is previewing something the console cannot load.
+  const irPath = join(outDir, `${basename(htmlPath, '.html')}.json`);
   writeFileSync(irPath, JSON.stringify(ir, null, 1));
 
   const bakeArgs = ['-m', 'ps2ui_bake', irPath,
@@ -99,6 +115,11 @@ function build() {
     '--preview', join(outDir, 'preview.png')];
   if (montage) bakeArgs.push('--montage', join(outDir, 'states.png'));
   if (palettize) bakeArgs.push('--palettize-images');
+  // Bake against the manifest the layout was MEASURED against. Without
+  // this the baker falls back to its own default font directory, which
+  // is the repository root in a checkout and nothing at all in an
+  // installed package -- the exit-gate bug, still live on this path.
+  if (fontManifest) bakeArgs.push('--fonts', fontManifest);
   const bake = spawnSync('python3', bakeArgs, {
     stdio: ['ignore', 'inherit', 'inherit'],
     env: { ...process.env, PYTHONPATH: BAKER_DIR },

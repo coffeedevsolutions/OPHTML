@@ -186,20 +186,59 @@ def cmd_fontgen(args):
     return 0
 
 
+def pick_screen(proj, name):
+    """The screen `ps2ui dev` watches, or a message naming the choices.
+
+    THE ERROR USED TO NAME A FLAG THAT DID NOT EXIST. It said
+    "ps2ui dev --screen <first screen>" and the parser had no --screen,
+    so the remedy it printed failed with "unrecognized arguments". Every
+    example in this repository has more than one screen, so that was the
+    only thing `ps2ui dev` could do with any of them.
+
+    It also named screens[0], which is not a recommendation -- it is
+    whichever screen the project happens to list first, offered as if it
+    were the answer. All of them are listed now, because the caller is
+    choosing and cannot choose from one name.
+    """
+    if name is not None:
+        for screen in proj.screens:
+            if screen.name == name:
+                return screen
+        raise ProjectError(
+            "no screen named %r in %s. It has: %s"
+            % (name, os.path.basename(proj.path),
+               ", ".join(s.name for s in proj.screens)))
+    if len(proj.screens) == 1:
+        return proj.screens[0]
+    raise ProjectError(
+        "ps2ui dev watches one screen and this project has %d. Name one: "
+        "ps2ui dev --screen <name>, where <name> is one of: %s"
+        % (len(proj.screens), ", ".join(s.name for s in proj.screens)))
+
+
 def cmd_dev(args):
     base = layout_command()
     dev = [c.replace("ps2ui-layout", "ps2ui-dev") for c in base]
     proj = load(args.project)
-    if len(proj.screens) != 1:
-        raise ProjectError(
-            "ps2ui dev watches one screen and this project has %d. Name it: "
-            "ps2ui dev --screen %s"
-            % (len(proj.screens), proj.screens[0].name))
-    screen = proj.screens[0]
-    cmd = dev + [screen.html, screen.css, "-o", proj.build_dir]
-    if proj.fonts_path:
-        cmd += ["--fonts", proj.fonts_path]
-    return subprocess.call(cmd)
+    screen = pick_screen(proj, args.screen)
+
+    # A SEPARATE OUTPUT DIRECTORY, AND NOT build/. This wrote straight
+    # into the project's build directory, where `ps2ui build` and every
+    # example's build.sh put the blob CI verifies -- so a watch server
+    # running while a build ran clobbered ui.uib and preview.png, and
+    # left a ui.json that `ps2ui build` never writes, since it names its
+    # intermediates after the screen. The README's own ps2ui-dev example
+    # already said `-o build/dev`; this makes the wrapper agree with it.
+    out_dir = os.path.join(proj.build_dir, "dev")
+    with in_project(proj):
+        os.makedirs(rel(proj, out_dir), exist_ok=True)
+        cmd = dev + [rel(proj, screen.html), rel(proj, screen.css),
+                     "-o", rel(proj, out_dir)]
+        if proj.fonts_path:
+            cmd += ["--fonts", rel(proj, proj.fonts_path)]
+        if args.once:
+            cmd.append("--once")
+        return subprocess.call(cmd)
 
 
 def main(argv=None):
@@ -241,6 +280,11 @@ def main(argv=None):
 
     d = sub.add_parser("dev", help="rebuild on every edit")
     d.add_argument("project", nargs="?", default="ps2ui.json")
+    d.add_argument("--screen", metavar="NAME",
+                   help="which screen to watch; required when the project "
+                        "has more than one")
+    d.add_argument("--once", action="store_true",
+                   help="build once and exit, rather than watching")
     d.set_defaults(fn=cmd_dev)
 
     args = ap.parse_args(argv)
