@@ -85,16 +85,17 @@ Three ways in, depending on what you want:
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 **Both packages are published**, so `pip install ophtml` and
-`npm install -g @ophtml/layout` are the way in. `ophtml` (PyPI) and
-`@ophtml/layout` (npm) both carry `0.3.0`, tagged `v0.3.0`, which is the
-first release this repository has ever had and the first of these numbers
-that names a tag rather than a number somebody typed. They used to claim
-`0.2.0`, a release that does not exist, through four moves of the `.uib`
-format; the blobs this tree bakes are format **v7** and a 0.2.0-era
-runtime rejects them. Every CLI answers `--version`. Phase 4's exit gate
-in [docs/PLAN.md](docs/PLAN.md) is not met by the upload alone and is
-still open; [docs/releasing.md](docs/releasing.md) is the procedure, and
-`tools/check-versions.py` keeps this paragraph honest.
+`npm install -g @ophtml/layout` are the way in. Those give you `0.3.0`,
+tagged `v0.3.0` and the first release this repository has ever had. This
+tree has since moved on to `0.4.0.dev0` (`0.4.0-dev.0` on npm), a
+prerelease that is on neither registry and is not meant to be. The two
+still understand each other: the blobs baked here are format **v7**, and
+zero moves of the `.uib` format have landed since 0.3.0, so an install
+and a checkout read the same files. Every CLI answers `--version`.
+Phase 4's exit gate in [docs/PLAN.md](docs/PLAN.md) is not met by the
+upload alone and is still open; [docs/releasing.md](docs/releasing.md)
+is the procedure, and `tools/check-versions.py` keeps this paragraph
+honest.
 
 Requirements:
 

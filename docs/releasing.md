@@ -29,8 +29,10 @@ tracks both headings. A runbook nobody has executed is a draft.
 
 Less than it looks like, and the exact amount matters.
 
-This section is about the state the tree was in before `v0.3.0` and
-will be in again after step 9. It is not describing the tree today.
+This section describes the tree as it stands. Step 9 has been done, so
+`__version__` is `0.4.0.dev0` and `packages/layout/package.json` is
+back on the `next` dist-tag. It stops describing the tree the moment
+step 4 retitles the CHANGELOG for the next release.
 
 **npm.** A range like `^0.3.0` does not match `0.3.0-dev.0`, so a
 dependent asking for the package by range never resolves a prerelease.
@@ -53,14 +55,14 @@ drops the tag and step 9 puts it back. `publishConfig.access` is
 `public` throughout, because the scope needs it whatever the version
 says.
 
-**pip has no equivalent, and the gap is real.** Pip excludes
-prereleases from a specifier *unless* one is explicitly requested or
-**no stable version exists that satisfies it**. `ophtml` had never
-been published, so if `0.3.0.dev0` had been the first upload, a plain
-`pip install ophtml`
-would have resolved it — the prerelease marker would have bought
-nothing at all. `0.3.0` is now on PyPI, so the next `.dev0` is the
-first one the exclusion actually protects.
+**pip has no equivalent, and the gap was real until 0.3.0 shipped.**
+Pip excludes prereleases from a specifier *unless* one is explicitly
+requested or **no stable version exists that satisfies it**. `ophtml`
+had never been published, so if `0.3.0.dev0` had been the first
+upload, a plain `pip install ophtml` would have resolved it and the
+prerelease marker would have bought nothing at all. `0.3.0` is on PyPI
+now, which closes that hole: `0.4.0.dev0` is the first prerelease this
+package has carried that pip will actually decline to install.
 
 The mitigation is procedural, not mechanical: **the first PyPI upload
 must be a real release.** Do not upload a `.dev`/`rc` build to PyPI to
@@ -306,10 +308,32 @@ written twice to avoid.
      Say "format **version 7**" in the words the format-version rule
      reads and leave the `v`-spelling for a paragraph with moves in it.
 
-   Nothing forces this step. It is the one part of the procedure no
-   check demands, because a tree sitting at a tagged release is
-   internally consistent and will stay green indefinitely; the cost of
-   skipping it is that the next change lands with no section to go in.
+   **Rule 21 forces this step, and it is the only thing that does.**
+   This paragraph used to say the opposite: that no check demanded the
+   step, because a tree sitting at a tagged release is internally
+   consistent and stays green indefinitely. That was true until rule 21
+   existed, and rule 21 is the reason it is not. A tagged release sits
+   at a tag that names the packaged tree; the first change to touch
+   `packages/` after it makes the two differ, and rule 21 fails on
+   `main` naming the files. So the tree stays green only for as long as
+   nobody edits package source, which is not indefinitely and is
+   usually not a week.
+
+   The failure reads as a publishing problem — "publishing now ships
+   the tag's version" — because that is the case it was written for.
+   On an ordinary post-release branch it means something narrower:
+   **this step has not been done yet.** Doing it clears the failure,
+   because rule 21 looks up the tag by the version in the tree, and a
+   prerelease names no tag. Do not move the tag to make it go away.
+   `v0.3.0` has been consumed by both registries and a GitHub Release,
+   and moving a tag people can already `pip download` against is the
+   one irreversible mistake this document is otherwise careful to keep
+   out of reach.
+
+   The cost of skipping it is therefore no longer just that the next
+   change lands with no section to go in. It is that the next change to
+   `packages/` lands red, on a rule whose message is about publishing,
+   in a PR that has nothing to do with publishing.
 
 ## Names, and what deliberately did not change
 
