@@ -1,11 +1,11 @@
-# channel6 — a game browser that lives on a PSxMemCard GEN2 channel
+# channel6: a game browser that lives on a PSxMemCard GEN2 channel
 
 The `probe` screen is this repository's conformance target for console bring-up: [docs/bringup.md](../../docs/bringup.md) maps each of its cells to the step that fails when the cell looks wrong.
 
 A two-screen `.uib` for the channel you keep your homebrew on, and the
 starting point this repository recommends for a new UI. It exists to
-answer one question — *does this toolchain's HTML actually come out the
-other end looking like the previewer said it would?* — and to keep
+answer one question, *does this toolchain's HTML actually come out the
+other end looking like the previewer said it would?*, and to keep
 answering it as the toolchain changes.
 
 Copy the directory, keep `build.sh` and `check.py`, replace the markup.
@@ -25,22 +25,33 @@ across the two screens.
 
 It is an **overlay**, so that is how it should be judged. The blob has no
 background of its own beyond a translucent scrim, and `ps2ui_render()`
-draws straight into the framebuffer — skip the `gsKit_clear()` the sample
-ELF does, and the game underneath stays visible:
+draws straight into the framebuffer rather than clearing it. Skip the
+`gsKit_clear()` the sample ELF does, and whatever your app drew last
+stays visible underneath:
 
-![the browser composited over a game frame](screenshots/in-game.png)
+![the browser composited over a synthetic game scene](screenshots/in-game.png)
+
+**That scene is synthetic.** [preview_in_game.py](preview_in_game.py)
+draws it from flat shapes rather than capturing anything: a real game's
+pixels are a licensing problem, and a made-up frame is the better test
+anyway, because the bright band can go exactly where the UI is darkest
+and a too-thin scrim shows there first. The compositing is the operation
+the GS performs, so the picture is honest about the blend. It is not a
+photograph of this UI running over a game.
+
+**And "underneath" means your own frame.** ps2ui draws inside the caller's
+render loop, so the scene below the scrim has to be one that caller drew.
+Putting a UI over a separate game needs something that injects into that
+game's rendering, which is a different kind of tool and not this one.
+Nothing here has been run over a live scene on a console; the overlay
+path is a property of the blob and the render call, not a measured
+result.
 
 Over flat navy, which is the ground truth every bring-up step compares
 against:
 
 ![games screen](screenshots/games.png)
 ![probe screen](screenshots/probe.png)
-
-The game frame is drawn from flat shapes by
-[preview_in_game.py](preview_in_game.py), not captured — shipping a real
-game's pixels into a repository is a licensing problem, and a synthetic
-frame is the better test anyway because you can put the bright band
-exactly where the UI is darkest.
 
 ## What the device actually does, and what it doesn't
 
@@ -67,7 +78,7 @@ image to the console over the memory-card port; every pixel still comes
 from the PS2's Graphics Synthesizer. So:
 
 - This is a **PS2-side** UI at 640×448, drawn by `runtime/ps2ui.c`
-  through gsKit. It is not for the device's OLED — that panel is 128×64
+  through gsKit. It is not for the device's OLED: that panel is 128×64
   and monochrome, and the firmware draws it from its own splash images
   (`splashgen`), nothing to do with this toolchain.
 - "Running on channel 6" means the ELF *and* this blob live inside
@@ -83,7 +94,7 @@ Writes into `examples/channel6/build/`:
 
 | file | what |
 |------|------|
-| `ui.uib` | the console blob — both screens, 25 textures, 50% of the default VRAM budget |
+| `ui.uib` | the console blob: both screens, 25 textures, 50% of the default VRAM budget |
 | `preview.png` / `states.png` | the games screen, and every one of its 9 focus states on one sheet |
 | `probe.png` / `probe-states.png` | the same pair for the probe screen |
 | `in-game.png` | the browser composited over a synthetic game frame |
@@ -92,7 +103,7 @@ Writes into `examples/channel6/build/`:
 | `games.json` / `probe.json` | the IR, if you need to look at what layout decided |
 
 Then it runs [check.py](check.py), which re-reads the blob and asserts
-its contract in TAP — 24 checks; a red one names what broke.
+its contract in TAP. 24 checks, and a red one names what broke.
 
 The 4:3 bake is expected to be **silent**. Earlier revisions emitted
 three `charset` warnings for the ×, ○ and △ face-button glyphs in the
@@ -105,10 +116,10 @@ job. This stylesheet is authored for 4:3 pixels and nothing in it has
 been pre-squashed for a stretching panel.
 
 Both blobs exist so you can run the two-way panel test in
-[docs/bringup.md](../../docs/bringup.md) step 10 — same television,
+[docs/bringup.md](../../docs/bringup.md) step 10: same television,
 same UI, one blob correct in each TV mode.
 
-`ps2ui-check` on either blob is clean. It used to report one warning —
+`ps2ui-check` on either blob is clean. It used to report one warning:
 twenty commands in the CLIP cell falling outside their scissor, the
 tail glyphs of a `nowrap` run that the GS discarded every frame. Since
 F24 the baker drops those at bake time and says so:
@@ -134,15 +145,15 @@ ps2ui-bake: arena 10624 bytes (static uint8_t arena[10624] ...)
 That number, not a fraction, is what an integrator acts on: it is the
 buffer `ps2ui_load` is handed, and the build fails until it is right.
 
-Four constants used to stand here — `PS2UI_MAX_TEXTURES` 32,
-`PS2UI_MAX_SLOTS` 16, `PS2UI_MAX_SCREENS` 8, `PS2UI_SLOT_BUFSZ` 96 —
+Four constants used to stand here (`PS2UI_MAX_TEXTURES` 32,
+`PS2UI_MAX_SLOTS` 16, `PS2UI_MAX_SCREENS` 8, `PS2UI_SLOT_BUFSZ` 96)
 and this blob sat at 23, 15, 2 and 30 against them. All four are gone.
 The v6 resource model sizes the context from the blob through the
 caller's arena, and once it did, those numbers bounded nothing the
 blob's own size did not already bound. `PS2UI_MAX_SLOTS` in particular
 was a wall a real UI hit: the UC-3 scoping fixture measures 121 slots
 across an OPL-class environment, which used to be unbakeable and now
-asks for roughly 8 KiB — `fixtures/opl-scope/README.md` carries the
+asks for roughly 8 KiB. `fixtures/opl-scope/README.md` carries the
 measured figure and checks it against the blob.
 
 What still refuses a blob is arithmetic rather than a chosen number:
@@ -151,16 +162,16 @@ What still refuses a blob is arithmetic rather than a chosen number:
 
 Writing this example is what surfaced the gap: an earlier revision
 declared **seventeen** slots, and it laid out, baked, previewed and
-passed every check while `ps2ui_load()` would have rejected it — the
+passed every check while `ps2ui_load()` would have rejected it: the
 sample ELF's red screen with nothing to explain it. The VRAM budget did
 not catch it because that is a different limit; the blob sat at 43% of
 VRAM and was still unloadable. B10 fixed the blindness by parsing the caps out of `ps2ui.h`; PLAN
 §6.3 removed the caps. What `check.py` asserts today is the pair that
-outlived them: the format's own uint16 count fields, and — from the
-far side, because nothing else here reads the header — that those
+outlived them: the format's own uint16 count fields, and, from the
+far side because nothing else here reads the header, that those
 three `#define`s have not come back.
 
-The counts are still why the stylesheet looks the way it does — see the
+The counts are still why the stylesheet looks the way it does. See the
 [design notes](#deliberate-choices-worth-keeping) below. Not because a
 ceiling forces it, but because VRAM and frame time are real and a page
 built without a budget spends both.
@@ -176,10 +187,10 @@ built without a budget spends both.
    ```
 
    The blob is embedded via `bin2c`, so `ps2ui_sample.elf` is
-   self-contained — no filesystem access at runtime, which matters here
+   self-contained, with no filesystem access at runtime, which matters here
    because you have exactly one card slot and the device is in it.
 3. Write the ELF into the channel-6 image. It is an ordinary PS2 card
-   image, so any of the usual tools work — mymc++ on the `.mcd`
+   image, so any of the usual tools work: mymc++ on the `.mcd`
    directly, or uLaunchELF copying from USB with the device switched to
    channel 6.
 4. Boot the console on the boot channel so FMCB/FunTuna comes up, switch
@@ -188,7 +199,7 @@ built without a budget spends both.
    whatever channel was presented at power-on, and the boot channel is
    the one carrying the exploit.
 
-Emulator first is the cheaper loop — PCSX2 in software-renderer mode is
+Emulator first is the cheaper loop. PCSX2 in software-renderer mode is
 the most trustworthy stand-in short of the console, and Play! needs no
 BIOS. Either way, work [docs/bringup.md](../../docs/bringup.md) in order:
 each of its ten steps isolates one subsystem, and this example was built
@@ -229,12 +240,12 @@ own recognizable way:
 
 | cell | passes when | fails like |
 |------|-------------|------------|
-| ALPHA | four rungs step evenly from 25% to opaque | uniformly dark or double-darkened — GS alpha domain (bring-up step 2) |
+| ALPHA | four rungs step evenly from 25% to opaque | uniformly dark or double-darkened, GS alpha domain (bring-up step 2) |
 | RADIUS | 0/3/8/13px corners, no seams | nine-patch UVs or the half-texel bias (step 6) |
 | TYPE | 14/16/20px, regular vs bold, then wide tracking | banded noise = CLUT/CSM1 (step 3); flat white = no `GSTEXTURE::Function` (step 4); washed out = modulate domain (step 5) |
 | CLIP | the first line ellipsizes, the amber line is cut mid-glyph at the padding edge | 1px bleed = the inclusive-scissor off-by-one (step 7) |
 | IMAGE | the two cards are indistinguishable | CLUT8 wrong = palettization or CLUT upload |
-| ASPECT | exactly one of gold / blue / green reads square | see below — this cell measures the television, not the blob |
+| ASPECT | exactly one of gold / blue / green reads square | see below; this cell measures the television, not the blob |
 | FLEX | bars in a 1:2:3 ratio, three lines left/centre/right | layout, not the GS |
 
 The ASPECT cell is three boxes of equal height, each pre-squashed for a
@@ -261,7 +272,7 @@ ps2ui_slot_set(&ui, "card", "Card 1 · CH 6 · 4,905 KB free");  /* 30 */
 ```
 
 Text longer than the declared capacity is cut at the capacity into a
-fixed per-slot buffer — never overrun, no allocation — and the baked
+fixed per-slot buffer (never overrun, no allocation) and the baked
 ellipsis policy still applies at the box edge. Three of the six cover
 titles ellipsize at their placeholder length on purpose: a library where
 every name happens to fit is not a library you have tested.
@@ -279,7 +290,7 @@ if (pad_pressed & PAD_CROSS) {
 }
 ```
 
-The detail column does not follow focus by itself — the blob has no
+The detail column does not follow focus by itself. The blob has no
 logic in it. Repointing `sel-title`, `sel-sub`, `sel-id`, `sel-from` and
 `sel-save` in your `ps2ui_move()` handler is what makes it live, and it
 costs five `strncpy`s per D-pad press.
@@ -292,7 +303,7 @@ costs five `strncpy`s per D-pad press.
   is a judgement call you should expect to retune: heavier and the game
   disappears, lighter and the text on the scrim starts to struggle over
   bright content. The rule that survives retuning is **the scrim sets
-  the mood, panels guarantee legibility** — every string here sits on an
+  the mood, panels guarantee legibility**. Every string here sits on an
   opaque panel except the footer, which is why the footer grew a backing
   bar of its own (square, so it costs no nine-patch texture).
 - **One panel style, one focus style, five glyph atlases.** Every
@@ -316,14 +327,14 @@ costs five `strncpy`s per D-pad press.
   whatever art pack your launcher ships, the same way OPL's ART folder
   does. They are palettized (PSMT8 + CLUT, a quarter of the VRAM per
   texel) because six PSMCT32 covers would not have fit the budget above.
-- **Sizes are in KB, not blocks.** Blocks are the PS1 unit — 15 to a
+- **Sizes are in KB, not blocks.** Blocks are the PS1 unit, 15 to a
   card. The PS2 browser counts kilobytes, and a fresh 8 MB card reports
   8,135 KB free, so a browser that says "11 blocks" is a browser written
   by someone who never looked at the console.
 - **Nothing below 14px, no 1px borders, no saturated reds.** The CRT
   linter's rules, obeyed, so that a warning from this example means
   something regressed rather than "yes, we know".
-- **The art is generated**, not committed blind — see
+- **The art is generated**, not committed blind. See
   [ui/assets/make_assets.py](ui/assets/make_assets.py). Flat shapes, no
   antialiasing, three colors per cover, so the PSMCT32 and palettized
   copies on the probe screen have no excuse to differ.

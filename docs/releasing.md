@@ -110,6 +110,16 @@ written twice to avoid.
    A published release means rewriting it to say how to install rather
    than why not to.
 
+   **And the header logo, which carries the version in the artwork.**
+   `docs/assets/ophtml-logo-releaseVersion<NNN>-plain-white-darkbg.png`
+   reads "release version 0.3.0" in the image itself and encodes it in
+   the filename. Re-export it for the new version, drop it in
+   `docs/assets/`, and update the `<img src>` at the top of the README.
+   Nothing checks this one: it is a version claim in the most visible
+   place in the project and the only way it stays true is somebody
+   doing it here, which is why it is written down next to the edits
+   that are checked.
+
 6. **`packages/layout/package.json`** — drop `publishConfig.tag` (or
    set it to `latest`) only when the version stops being a prerelease.
    The check requires the two to agree in both directions.
