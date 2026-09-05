@@ -1,0 +1,169 @@
+# Does the PUBLISHED toolchain work, on a machine that is not ours?
+#
+# WHY THIS IS A SECOND WORKFLOW AND NOT A JOB IN ci.yml.
+#
+# ci.yml tests THIS TREE. It runs the tutorial through shims that point
+# the five console scripts at the checkout, which is what makes it a
+# check of the commit under test. This file tests THE RELEASE: the same
+# document, driven by whatever `pip install ophtml` and `npm install -g
+# @ophtml/layout` actually hand a stranger.
+#
+# Those are different subjects and neither replaces the other. Deleting
+# the shims from check-tutorial.py to "modernise" it would silently
+# swap one for the other, and ci.yml would then be testing the last
+# published version instead of the branch in front of it.
+#
+# AND WHY IT IS NOT ON `push`. A registry job can only ever install
+# what is published, so on a pull request it tests the previous
+# release no matter what the pull request changes. It cannot gate a
+# diff, and running it per-push would spend minutes saying nothing
+# about the change. Weekly, on release, and on demand.
+#
+# It is also the only workflow here that depends on two third-party
+# registries and Homebrew being up, which is a second reason to keep it
+# out of the path of every push.
+name: registry
+
+on:
+  schedule:
+    # Monday morning UTC. Nothing depends on the hour; it is offset off
+    # the hour because everybody's cron fires at :00.
+    - cron: "37 6 * * 1"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # PHASE 4'S EXIT GATE, AS CLOSE AS AN AUTOMATED RUN GETS TO IT.
+  #
+  # The gate is "a stranger with npm, pip and a TTF reproduces the
+  # memcard example, and its hardware screenshot, without cloning the
+  # repository". This job clones the repository, because the tutorial
+  # text has to come from somewhere -- only the COMMANDS come from the
+  # registries. So a green run here is necessary for the gate and is
+  # not the gate, and the screenshot half needs a PlayStation 2 that no
+  # runner has.
+  tutorial:
+    name: tutorial from the registries (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      # THE TTF THE GATE'S STRANGER BRINGS. The tutorial's premise is a
+      # person with a font file, so the font is installed the way a
+      # person would rather than vendored.
+      - name: A font, where this platform keeps fonts
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq fonts-dejavu-core
+          else
+            brew install --cask font-dejavu
+          fi
+
+      # THE DOCUMENTED macOS REMEDY, RUN AS DOCUMENTED.
+      #
+      # pip's macOS Pillow wheel ships no Raqm, so ps2ui-fontgen refuses
+      # and the tutorial stops at its first command. fontgen prints this
+      # remedy; running it here is what keeps the printed remedy true.
+      # If Pillow, Homebrew or libraqm move under it, this goes red and
+      # the message in fontgen.py is wrong -- which is the only way we
+      # would find out, since every other runner in this repository is
+      # Linux and never takes that branch.
+      #
+      # --no-binary pillow, NOT :all:. The bare form source-builds the
+      # whole dependency graph, CMake included.
+      - name: macOS only, the remedy fontgen prints
+        if: runner.os == 'macOS'
+        run: |
+          brew install libraqm
+          export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:$(brew --prefix libraqm)/lib/pkgconfig"
+          python3 -m pip install --no-binary pillow --force-reinstall pillow
+          # A CLEAN BUILD IS NOT PROOF: Pillow builds and exits 0
+          # without libraqm and simply omits the feature.
+          python3 -c "from PIL import features; assert features.check('raqm'), 'Pillow built without Raqm'"
+
+      # No version pin, on purpose. The question this job asks is what
+      # a person gets today, not what we last tested.
+      - name: Install what a stranger installs
+        run: |
+          python3 -m pip install ophtml
+          npm install -g @ophtml/layout
+          ps2ui --version
+          ps2ui-layout --version
+
+      - name: The tutorial, against the installed commands
+        run: python3 tools/check-tutorial.py --from-registry
+
+  # THE OTHER DIRECTION: IS THE DOCUMENTED FAILURE STILL THE FAILURE?
+  #
+  # fontgen.py and docs/tutorial-uc3.md both tell a macOS reader that a
+  # plain `pip install ophtml` cannot generate metrics. That is a claim
+  # about somebody else's build, and the day Pillow ships a macOS wheel
+  # with Raqm in it, the claim becomes false and two documents start
+  # sending people to fix a problem they do not have.
+  #
+  # So the absence is asserted rather than assumed. A red here is good
+  # news that needs a documentation change, and the message says so.
+  macos-plain:
+    name: the documented macOS failure is still the failure
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: A plain pip install, and nothing else
+        run: python3 -m pip install ophtml
+      - name: Raqm is absent, and fontgen refuses because of it
+        run: |
+          if python3 -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; then
+            echo "::error::pip's macOS Pillow wheel now HAS Raqm."
+            echo "That is good news and it makes two documents wrong:"
+            echo "  packages/baker/ps2ui_bake/fontgen.py  _raqm_remedy()"
+            echo "  docs/tutorial-uc3.md                  the macOS blockquote in section 1"
+            echo "Both tell a Mac reader to brew install libraqm and rebuild Pillow."
+            exit 1
+          fi
+          echo "ok - no Raqm in the macOS wheel, as documented"
+          # And the refusal is the refusal: exit 2, nothing written.
+          set +e
+          out=$(ps2ui fontgen /System/Library/Fonts/Helvetica.ttc /System/Library/Fonts/Helvetica.ttc 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -ne 0 ] || { echo "::error::fontgen succeeded without Raqm"; exit 1; }
+          case "$out" in
+            *"no Raqm layout engine"*) echo "ok - refused, naming Raqm" ;;
+            *) echo "::error::refused for some other reason"; exit 1 ;;
+          esac
+          # AND NOT THE WORDING OF THE REMEDY, DELIBERATELY.
+          #
+          # The first draft of this job asserted the message contains
+          # `brew install libraqm`. That string lands in 0.4.0 and this
+          # job installs whatever is PUBLISHED, which is 0.3.0 and says
+          # something else -- so the assertion would have failed from
+          # the day it merged, on a schedule, for a reason that is not
+          # a defect.
+          #
+          # It is the division of labour this whole file is about, and
+          # it caught its own author. The remedy's WORDING is a fact
+          # about the tree and is fenced in the tree, by
+          # TestFontgenRefusesWithoutRaqm in packages/baker/tests. Its
+          # PREMISE -- that a plain pip install on macOS has no Raqm --
+          # is a fact about somebody else's build and can only be
+          # checked here. Each claim is asserted where it can be true.

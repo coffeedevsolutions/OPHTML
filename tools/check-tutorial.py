@@ -89,22 +89,41 @@ def shim_dir(tmp):
 
 
 def ttfs():
-    """Real TTF paths from the repository's manifest, first that exists."""
-    import json
-    with open(os.path.join(ROOT, "fonts", "fonts.json"), encoding="utf-8") as fh:
-        manifest = json.load(fh)
-    out = {}
-    for face, var in (("regular", "TTF_REGULAR"), ("bold", "TTF_BOLD")):
-        for cand in manifest[face]["ttf"]:
-            if os.path.exists(cand):
-                out[var] = cand
-                break
-        else:
-            raise SystemExit("not ok - check-tutorial: no TTF on this "
-                             "machine for '%s'; the tutorial's whole "
-                             "premise is a person with a font file"
-                             % face)
-    return out
+    """Real TTF paths from the repository's manifest, via the resolver.
+
+    THE THIRD READER OF fonts.json, AND IT USED TO BE THE ODD ONE OUT.
+    This walked `manifest[face]["ttf"]` with a bare os.path.exists and
+    no expanduser -- so `~/Library/Fonts/DejaVuSans.ttf`, which is in
+    that manifest and is where macOS puts a font a person installs for
+    themselves, resolved for `load_font_manifest` and not for this.
+    Same file, same machine, two answers:
+
+        load_font_manifest()  -> /root/Library/Fonts/DejaVuSans.ttf
+        this function         -> "no TTF on this machine"
+
+    That is the finding this repository has now had three times -- two
+    lists for one job, and the one that is not the product's is the one
+    that is wrong -- and it mattered here because the macOS arm of
+    registry.yml installs its font with `brew install --cask
+    font-dejavu`, which is a per-user install landing in exactly that
+    directory. The arm would have gone red weekly for a reason that is
+    not the release's fault, which is how a scheduled job earns being
+    ignored.
+
+    So it calls the resolver the baker calls. A candidate added for a
+    user is added for this in the same edit, and there is no third
+    spelling of "first one that exists".
+    """
+    sys.path.insert(0, os.path.join(ROOT, "packages", "baker"))
+    from ps2ui_bake.cli import load_font_manifest
+    try:
+        manifest = load_font_manifest(os.path.join(ROOT, "fonts", "fonts.json"))
+    except FileNotFoundError as exc:
+        raise SystemExit("not ok - check-tutorial: %s. The tutorial's whole "
+                         "premise is a person with a font file; fonts.json "
+                         "lists the paths that are looked in." % exc)
+    return {"TTF_REGULAR": manifest["regular"]["ttf"],
+            "TTF_BOLD": manifest["bold"]["ttf"]}
 
 
 def blocks():
@@ -118,7 +137,8 @@ def blocks():
     return found
 
 
-def main():
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
     cmds = blocks()
     asserted = {i + 1 for i, (_, out) in enumerate(cmds) if out}
     if asserted != ASSERTED_BLOCKS:
@@ -138,9 +158,55 @@ def main():
                if gained else ""))
     expected = len(asserted)
 
+    # --from-registry: DO NOT SHIM. The commands then resolve to
+    # whatever `pip install ophtml` and `npm install -g @ophtml/layout`
+    # put on PATH, which is a different subject from the default run
+    # and not a replacement for it. The default run tests THIS TREE;
+    # this one tests THE RELEASE, and can only ever test the last
+    # published version, so it belongs on a schedule rather than on a
+    # push. See .github/workflows/registry.yml.
+    #
+    # WHAT IT STILL DOES NOT PROVE. The tutorial text and this script
+    # come from a checkout, because they have to come from somewhere;
+    # only the COMMANDS come from the registries. The exit gate says
+    # "without cloning this repository" and this is the closest an
+    # automated run gets to it. Stated rather than implied, because a
+    # green run here is going to be read as the gate.
+    # UNKNOWN ARGUMENTS ARE REFUSED, the same way and for the same
+    # reason as check-versions.py's.
+    #
+    # `--from-registry` selects which of two SUBJECTS this runs
+    # against: the checkout, or the release. A mistyped or renamed flag
+    # was silently ignored, so `--from-registery` ran the shimmed
+    # tutorial and printed the same green line -- registry.yml would
+    # then have reported the release healthy having tested the tree,
+    # which is the exact swap that file's header says must not be
+    # possible. The only visible difference was a `#` line in a log.
+    for a in argv:
+        if a != "--from-registry":
+            raise SystemExit(
+                "not ok - check-tutorial: unknown argument %r. The only "
+                "flag is --from-registry, and it changes what this runs "
+                "against: with it the five console scripts come from "
+                "installed packages, without it from shims onto this "
+                "checkout. Those are different subjects, so a flag that "
+                "does not parse must not quietly pick one." % a)
+    from_registry = "--from-registry" in argv
     tmp = tempfile.mkdtemp(prefix="ps2ui-tutorial-")
     env = dict(os.environ)
-    env["PATH"] = shim_dir(tmp) + os.pathsep + env["PATH"]
+    if not from_registry:
+        env["PATH"] = shim_dir(tmp) + os.pathsep + env["PATH"]
+    else:
+        missing = [c for c in SHIMS if shutil.which(c) is None]
+        if missing:
+            raise SystemExit(
+                "not ok - --from-registry, but %s not on PATH. This mode "
+                "runs the tutorial against installed packages; install "
+                "them first (pip install ophtml; npm install -g "
+                "@ophtml/layout) or drop the flag to run against the "
+                "checkout." % ", ".join(sorted(missing)))
+        print("# --from-registry: %s" % ", ".join(
+            "%s -> %s" % (c, shutil.which(c)) for c in sorted(SHIMS)))
     env.update(ttfs())
     # One shell for the whole document: `cd browser` in step 1 has to
     # still be in effect at step 5, exactly as it is for a reader.

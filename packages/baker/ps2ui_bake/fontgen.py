@@ -97,6 +97,57 @@ def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAUL
     }
 
 
+def _raqm_remedy():
+    """What to actually do about it, on the platform you are on.
+
+    The message this replaces said "install a Pillow wheel built with
+    Raqm (pip's manylinux wheels are)". True, and useless to the person
+    most likely to read it: pip's macOS wheels are not, which is
+    exactly why they are the ones seeing this. Phase 4's exit gate --
+    a stranger with npm, pip and a TTF -- failed here on the first real
+    attempt, at the tutorial's first command.
+
+    The macOS route is verified end to end rather than reasoned:
+    Pillow 12.3.0 built against libraqm 0.10.5 reproduces the
+    tutorial's documented numbers exactly.
+
+    `brew --prefix` RATHER THAN A LITERAL PATH. Homebrew is under
+    /opt/homebrew on Apple silicon and /usr/local on Intel, and a
+    message that hardcodes one is wrong for half its readers in a way
+    that fails silently: pkg-config simply finds nothing and the build
+    succeeds WITHOUT Raqm.
+
+    `--no-binary pillow`, NOT `--no-binary :all:`. The bare form scopes
+    the source build to the whole dependency graph, so pip goes off and
+    builds Pillow's build-dependencies too, including bootstrapping
+    CMake from C++ source. Measured at roughly forty minutes before
+    anyone worked out what it was doing, and it is written down here
+    because the trap is one keystroke from the fix.
+
+    AND A SUCCESSFUL BUILD IS NOT PROOF. Pillow builds perfectly
+    happily without libraqm and simply omits the feature, exit status
+    0, so the check is features.check and not pip's return code. That
+    is what this same refusal will tell you if it did not work.
+    """
+    if sys.platform == "darwin":
+        return ("pip's macOS wheels are built without it. To fix:\n"
+                "    brew install libraqm\n"
+                '    export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:'
+                '$(brew --prefix libraqm)/lib/pkgconfig"\n'
+                "    pip install --no-binary pillow --force-reinstall pillow\n"
+                "Use --no-binary pillow, not --no-binary :all: -- the bare "
+                "form source-builds every dependency and spends tens of "
+                "minutes bootstrapping CMake. Then check it took, because a "
+                "Pillow built without libraqm still exits 0:\n"
+                "    python -c \"from PIL import features; "
+                "print(features.check('raqm'))\"")
+    return ("Install a Pillow built with Raqm; pip's manylinux wheels are. "
+            "If you built Pillow yourself, note that it builds and exits 0 "
+            "without libraqm and simply omits the feature, so check with:\n"
+            "    python -c \"from PIL import features; "
+            "print(features.check('raqm'))\"")
+
+
 def main(argv=None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     # Before the Raqm check below, which is a hard refusal: asking a
@@ -113,8 +164,7 @@ def main(argv=None) -> int:
     if not features.check("raqm"):
         print("ps2ui-fontgen: this Pillow has no Raqm layout engine, so "
               "kerning cannot be extracted; refusing to write a metrics "
-              "file without it. Install a Pillow wheel built with Raqm "
-              "(pip's manylinux wheels are).", file=sys.stderr)
+              "file without it.\n" + _raqm_remedy(), file=sys.stderr)
         return 2
     if len(argv) < 4:
         print(
