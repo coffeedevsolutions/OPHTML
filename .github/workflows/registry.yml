@@ -96,6 +96,21 @@ jobs:
           # A CLEAN BUILD IS NOT PROOF: Pillow builds and exits 0
           # without libraqm and simply omits the feature.
           python3 -c "from PIL import features; assert features.check('raqm'), 'Pillow built without Raqm'"
+          # WHICH INTERPRETER THIS LANDED IN, PRINTED RATHER THAN
+          # ASSUMED. Run 1 rebuilt Pillow here and then `pip install
+          # ophtml` reported it "already satisfied" from
+          # /Library/Frameworks/Python.framework/..., which is not the
+          # step's own pythonLocation, while the console scripts landed
+          # under hostedtoolcache. Almost certainly two names for one
+          # framework interpreter, and it cannot have been wrong that
+          # run because tutorial block 1 passed and block 1 needs Raqm
+          # in whichever interpreter runs fontgen.
+          #
+          # THIS IS A DIAGNOSTIC, NOT A FENCE. The fence is block 1. If
+          # these ever do diverge, the tutorial goes red on its first
+          # command and this line is what turns a confusing failure
+          # into a one-glance one.
+          python3 -c "import sys, PIL; print('interpreter:', sys.executable); print('PIL:', PIL.__file__)"
 
       # No version pin, on purpose. The question this job asks is what
       # a person gets today, not what we last tested.

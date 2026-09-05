@@ -1429,6 +1429,79 @@ only part that can be checked here. Each claim is now asserted where it
 can be true, which is the distinction this whole workflow exists to
 keep.
 
+### The first run, measured
+
+`registry` run 1, dispatched against `457be3c` on 2026-09-05, three
+jobs green. What it settled, in the order it settled it:
+
+**Where a font cask actually lands, which nobody here could check.**
+
+```
+==> Moving Font 'DejaVuSans.ttf' to '/Users/runner/Library/Fonts/DejaVuSans.ttf'
+==> Moving Font 'DejaVuSans-Bold.ttf' to '/Users/runner/Library/Fonts/DejaVuSans-Bold.ttf'
+```
+
+`brew install --cask font-dejavu` is a per-user install, and
+`~/Library/Fonts` is the **only** candidate in `fonts.json` that exists
+on that machine: `/opt/homebrew/share/fonts/` and `/Library/Fonts/` are
+both absent from a GitHub macOS runner. So two changes that could have
+read as tidying were load-bearing, and this run is what proves it
+rather than argues it:
+
+- `load_font_manifest`'s `expanduser`. Without it the one matching
+  candidate resolves against the manifest's own directory and matches
+  nothing.
+- `check-tutorial.py`'s `ttfs()` calling that resolver instead of
+  walking the list itself. Without it the arm reports "no TTF on this
+  machine" while the baker finds the font fine.
+
+Either one missing makes this arm red on run 1, for a reason that is
+not the release's fault. That is the failure mode a weekly job does not
+survive twice.
+
+**The documented remedy, executed verbatim.** `libraqm` 0.11.0 arrived
+as a bottle rather than a build, which is why the whole step is 16
+seconds and not the forty minutes `--no-binary :all:` costs; Pillow
+source-built in 10; `features.check('raqm')` asserted true. Then
+tutorial block 1 printed `115 glyphs, 284 kern pairs`, and **that** is
+the proof rather than the assert above it: without Raqm `fontgen`
+refuses and the tutorial cannot reach block 2.
+
+**And the absence is still the absence.** `macos-plain` printed the
+published refusal verbatim:
+
+```
+ok - no Raqm in the macOS wheel, as documented
+ps2ui-fontgen: ...Install a Pillow wheel built with Raqm (pip's manylinux wheels are).
+```
+
+That is `0.3.0`'s wording, not the tree's. So the assertion removed
+before this merged -- the one that would have checked for `brew install
+libraqm` -- would have failed on this very run, on a schedule, for
+something that is not a defect. Demonstrated now rather than reasoned
+about, which was the whole argument for removing it.
+
+**One anomaly, recorded because it is not a failure today.** The
+rebuild reported success and then `pip install ophtml` said
+
+```
+Requirement already satisfied: Pillow>=9 in /Library/Frameworks/Python.framework/Versions/3.11/... (12.3.0)
+```
+
+which is a different path from the step's own
+`pythonLocation` (`hostedtoolcache/Python/3.11.9/arm64`), while the
+console scripts landed under `hostedtoolcache`. Most likely two names
+for one framework interpreter. It cannot be wrong *today* because
+block 1 passed, and block 1 needs Raqm in whichever interpreter runs
+`fontgen` -- so the job is self-checking on the thing that matters. But
+a future divergence would present as a confusing red rather than a
+clear one, so the step now prints `sys.executable` and `PIL.__file__`.
+A diagnostic, not a fence: the fence is block 1.
+
+**So both halves of the software gate are met on machines that are not
+ours**, ubuntu and macOS, verified three ways for ubuntu (here, by a
+reviewer independently, and by the runner) and by the runner for macOS.
+
 **What none of that closes.** The gate says the memcard example *and
 its hardware screenshot*. Items 1-4 are the software half. No runner
 has a PlayStation 2, so a green macOS registry job still leaves the
