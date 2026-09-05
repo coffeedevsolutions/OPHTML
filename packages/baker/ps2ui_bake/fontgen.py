@@ -107,9 +107,14 @@ def _raqm_remedy():
     a stranger with npm, pip and a TTF -- failed here on the first real
     attempt, at the tutorial's first command.
 
-    The macOS route is verified end to end rather than reasoned:
-    Pillow 12.3.0 built against libraqm 0.10.5 reproduces the
-    tutorial's documented numbers exactly.
+    The macOS route is verified end to end rather than reasoned, twice
+    and against two libraqm releases: Pillow 12.3.0 against libraqm
+    0.10.5 on one Mac, and the same against 0.11.0 on a GitHub macOS
+    runner (registry run 1), both reproducing the tutorial's documented
+    numbers exactly. Deliberately not pinning a libraqm version here --
+    the first draft named 0.10.5, and a docstring that pins the weaker
+    of two pieces of evidence invites someone to think the other
+    version is untested.
 
     `brew --prefix` RATHER THAN A LITERAL PATH. Homebrew is under
     /opt/homebrew on Apple silicon and /usr/local on Intel, and a

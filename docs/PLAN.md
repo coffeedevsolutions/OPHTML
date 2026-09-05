@@ -1338,7 +1338,10 @@ the last item goes red on the first three if they land after it:
    `fontgen.py`'s refusal says *"install a Pillow wheel built with
    Raqm (pip's manylinux wheels are)"*, which is true and useless on a
    Mac. The remedy is verified end to end — Pillow 12.3.0 with Raqm
-   0.10.5 reproduces the tutorial's documented numbers exactly — so it
+   0.10.5 reproduced the tutorial's documented numbers exactly, and
+   registry run 1 did the same on a GitHub macOS runner against
+   libraqm **0.11.0**, which is the stronger of the two because it is
+   reproducible — so it
    can be stated: `brew install libraqm`, then a source build of Pillow
    alone with `PKG_CONFIG_PATH` pointed at `brew --prefix`. **And the
    trap beside it**, because it was paid for: `--no-binary :all:` scopes
@@ -1441,12 +1444,25 @@ jobs green. What it settled, in the order it settled it:
 ==> Moving Font 'DejaVuSans-Bold.ttf' to '/Users/runner/Library/Fonts/DejaVuSans-Bold.ttf'
 ```
 
-`brew install --cask font-dejavu` is a per-user install, and
-`~/Library/Fonts` is the **only** candidate in `fonts.json` that exists
-on that machine: `/opt/homebrew/share/fonts/` and `/Library/Fonts/` are
-both absent from a GitHub macOS runner. So two changes that could have
-read as tidying were load-bearing, and this run is what proves it
-rather than argues it:
+`brew install --cask font-dejavu` is a per-user install. **Measured:**
+the cask put `DejaVuSans.ttf` and `DejaVuSans-Bold.ttf` in
+`~/Library/Fonts`, and nothing else in the job installs a DejaVu
+anywhere. **Inferred, and separated out because this section is worth
+nothing if the two are mixed:** that no *other* candidate in
+`fonts.json` resolves on that runner. macOS does not ship DejaVu, and
+`/Library/Fonts` certainly *exists* -- it is where the system keeps its
+own fonts -- but whether it holds a `DejaVuSans.ttf` is knowledge from
+outside this run, and an earlier draft of this paragraph asserted it as
+if the log had shown it.
+
+The distinction is load-bearing rather than pedantic: if
+`/Library/Fonts/DejaVuSans.ttf` did exist, the old `ttfs()` would have
+found it without expanding anything, and the two changes below would
+have been tidying after all. So the job now prints which candidates
+exist, and the next run turns this paragraph's inference into its
+measurement.
+
+On the inference, then, these two changes were load-bearing:
 
 - `load_font_manifest`'s `expanduser`. Without it the one matching
   candidate resolves against the manifest's own directory and matches
