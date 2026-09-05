@@ -275,13 +275,32 @@ class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
             msg = fontgen._raqm_remedy()
         self.assertIn("brew install libraqm", msg)
         self.assertIn("$(brew --prefix)", msg)
-        self.assertIn("--no-binary pillow", msg)
         self.assertNotIn("/opt/homebrew", msg)
         self.assertNotIn("/usr/local/", msg)
         # The trap is named, not merely avoided: someone reaching for
         # the bare form should meet the reason here rather than at
         # minute forty.
         self.assertIn(":all:", msg)
+
+        # AND THE COMMAND IS ASSERTED AS A COMMAND, NOT AS A SUBSTRING
+        # OF THE WHOLE MESSAGE.
+        #
+        # This used to read `assertIn("--no-binary pillow", msg)` and
+        # `assertIn(":all:", msg)` over the blob, and a sabotage walked
+        # straight through: change the copy-pasteable line to
+        # `--no-binary :all:` and BOTH still hold, because the sentence
+        # warning against `:all:` contains "--no-binary pillow" and
+        # ":all:" itself. The message would have handed the reader the
+        # forty-minute trap on the line they paste while the line under
+        # it told them not to, and the suite stayed green.
+        #
+        # An assertion has to land on the thing being claimed. The
+        # claim is about the command, so it is made about the line that
+        # IS the command.
+        pip = [ln for ln in msg.splitlines() if ln.strip().startswith("pip ")]
+        self.assertEqual(len(pip), 1, "expected exactly one pip command line")
+        self.assertIn("--no-binary pillow", pip[0])
+        self.assertNotIn(":all:", pip[0])
 
     def test_every_platform_says_a_clean_build_is_not_proof(self):
         """Pillow builds and exits 0 without libraqm, omitting the
