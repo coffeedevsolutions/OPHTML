@@ -1338,7 +1338,10 @@ the last item goes red on the first three if they land after it:
    `fontgen.py`'s refusal says *"install a Pillow wheel built with
    Raqm (pip's manylinux wheels are)"*, which is true and useless on a
    Mac. The remedy is verified end to end — Pillow 12.3.0 with Raqm
-   0.10.5 reproduces the tutorial's documented numbers exactly — so it
+   0.10.5 reproduced the tutorial's documented numbers exactly, and
+   registry run 1 did the same on a GitHub macOS runner against
+   libraqm **0.11.0**, which is the stronger of the two because it is
+   reproducible — so it
    can be stated: `brew install libraqm`, then a source build of Pillow
    alone with `PKG_CONFIG_PATH` pointed at `brew --prefix`. **And the
    trap beside it**, because it was paid for: `--no-binary :all:` scopes
@@ -1428,6 +1431,92 @@ tree; its premise -- that somebody else's wheel has no Raqm -- is the
 only part that can be checked here. Each claim is now asserted where it
 can be true, which is the distinction this whole workflow exists to
 keep.
+
+### The first run, measured
+
+`registry` run 1, dispatched against `457be3c` on 2026-09-05, three
+jobs green. What it settled, in the order it settled it:
+
+**Where a font cask actually lands, which nobody here could check.**
+
+```
+==> Moving Font 'DejaVuSans.ttf' to '/Users/runner/Library/Fonts/DejaVuSans.ttf'
+==> Moving Font 'DejaVuSans-Bold.ttf' to '/Users/runner/Library/Fonts/DejaVuSans-Bold.ttf'
+```
+
+`brew install --cask font-dejavu` is a per-user install. **Measured:**
+the cask put `DejaVuSans.ttf` and `DejaVuSans-Bold.ttf` in
+`~/Library/Fonts`, and nothing else in the job installs a DejaVu
+anywhere. **Inferred, and separated out because this section is worth
+nothing if the two are mixed:** that no *other* candidate in
+`fonts.json` resolves on that runner. macOS does not ship DejaVu, and
+`/Library/Fonts` certainly *exists* -- it is where the system keeps its
+own fonts -- but whether it holds a `DejaVuSans.ttf` is knowledge from
+outside this run, and an earlier draft of this paragraph asserted it as
+if the log had shown it.
+
+The distinction is load-bearing rather than pedantic: if
+`/Library/Fonts/DejaVuSans.ttf` did exist, the old `ttfs()` would have
+found it without expanding anything, and the two changes below would
+have been tidying after all. So the job now prints which candidates
+exist, and the next run turns this paragraph's inference into its
+measurement.
+
+On the inference, then, these two changes were load-bearing:
+
+- `load_font_manifest`'s `expanduser`. Without it the one matching
+  candidate resolves against the manifest's own directory and matches
+  nothing.
+- `check-tutorial.py`'s `ttfs()` calling that resolver instead of
+  walking the list itself. Without it the arm reports "no TTF on this
+  machine" while the baker finds the font fine.
+
+Either one missing makes this arm red on run 1, for a reason that is
+not the release's fault. That is the failure mode a weekly job does not
+survive twice.
+
+**The documented remedy, executed verbatim.** `libraqm` 0.11.0 arrived
+as a bottle rather than a build, which is why the whole step is 16
+seconds and not the forty minutes `--no-binary :all:` costs; Pillow
+source-built in 10; `features.check('raqm')` asserted true. Then
+tutorial block 1 printed `115 glyphs, 284 kern pairs`, and **that** is
+the proof rather than the assert above it: without Raqm `fontgen`
+refuses and the tutorial cannot reach block 2.
+
+**And the absence is still the absence.** `macos-plain` printed the
+published refusal verbatim:
+
+```
+ok - no Raqm in the macOS wheel, as documented
+ps2ui-fontgen: ...Install a Pillow wheel built with Raqm (pip's manylinux wheels are).
+```
+
+That is `0.3.0`'s wording, not the tree's. So the assertion removed
+before this merged -- the one that would have checked for `brew install
+libraqm` -- would have failed on this very run, on a schedule, for
+something that is not a defect. Demonstrated now rather than reasoned
+about, which was the whole argument for removing it.
+
+**One anomaly, recorded because it is not a failure today.** The
+rebuild reported success and then `pip install ophtml` said
+
+```
+Requirement already satisfied: Pillow>=9 in /Library/Frameworks/Python.framework/Versions/3.11/... (12.3.0)
+```
+
+which is a different path from the step's own
+`pythonLocation` (`hostedtoolcache/Python/3.11.9/arm64`), while the
+console scripts landed under `hostedtoolcache`. Most likely two names
+for one framework interpreter. It cannot be wrong *today* because
+block 1 passed, and block 1 needs Raqm in whichever interpreter runs
+`fontgen` -- so the job is self-checking on the thing that matters. But
+a future divergence would present as a confusing red rather than a
+clear one, so the step now prints `sys.executable` and `PIL.__file__`.
+A diagnostic, not a fence: the fence is block 1.
+
+**So both halves of the software gate are met on machines that are not
+ours**, ubuntu and macOS, verified three ways for ubuntu (here, by a
+reviewer independently, and by the runner) and by the runner for macOS.
 
 **What none of that closes.** The gate says the memcard example *and
 its hardware screenshot*. Items 1-4 are the software half. No runner

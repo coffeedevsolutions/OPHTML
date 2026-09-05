@@ -74,6 +74,22 @@ jobs:
           else
             brew install --cask font-dejavu
           fi
+          # WHICH CANDIDATES ACTUALLY EXIST, SO THE NEXT READER DOES
+          # NOT HAVE TO INFER IT. Run 1 showed the cask moving
+          # DejaVuSans.ttf into ~/Library/Fonts, and PLAN.md then said
+          # the other macOS candidates were "absent" -- which was
+          # reasoning, not something that run measured. The claim
+          # matters: if /Library/Fonts/DejaVuSans.ttf existed, the old
+          # ttfs() would have found it and the expanduser fix would not
+          # have been load-bearing after all. One listing settles it.
+          python3 - <<'PY'
+          import json, os
+          for face, spec in json.load(open("fonts/fonts.json")).items():
+              for cand in spec["ttf"]:
+                  full = os.path.expanduser(cand)
+                  print("%-8s %-46s %s" % (
+                      face, cand, "EXISTS" if os.path.exists(full) else "-"))
+          PY
 
       # THE DOCUMENTED macOS REMEDY, RUN AS DOCUMENTED.
       #
@@ -96,6 +112,21 @@ jobs:
           # A CLEAN BUILD IS NOT PROOF: Pillow builds and exits 0
           # without libraqm and simply omits the feature.
           python3 -c "from PIL import features; assert features.check('raqm'), 'Pillow built without Raqm'"
+          # WHICH INTERPRETER THIS LANDED IN, PRINTED RATHER THAN
+          # ASSUMED. Run 1 rebuilt Pillow here and then `pip install
+          # ophtml` reported it "already satisfied" from
+          # /Library/Frameworks/Python.framework/..., which is not the
+          # step's own pythonLocation, while the console scripts landed
+          # under hostedtoolcache. Almost certainly two names for one
+          # framework interpreter, and it cannot have been wrong that
+          # run because tutorial block 1 passed and block 1 needs Raqm
+          # in whichever interpreter runs fontgen.
+          #
+          # THIS IS A DIAGNOSTIC, NOT A FENCE. The fence is block 1. If
+          # these ever do diverge, the tutorial goes red on its first
+          # command and this line is what turns a confusing failure
+          # into a one-glance one.
+          python3 -c "import sys, PIL; print('interpreter:', sys.executable); print('PIL:', PIL.__file__)"
 
       # No version pin, on purpose. The question this job asks is what
       # a person gets today, not what we last tested.
@@ -105,6 +136,24 @@ jobs:
           npm install -g @ophtml/layout
           ps2ui --version
           ps2ui-layout --version
+          # THE CONSUMER SIDE OF THE ANOMALY THE REMEDY STEP PRINTS.
+          #
+          # That step reports the interpreter that REBUILT Pillow. The
+          # mismatch run 1 recorded is between that one and the
+          # interpreter behind the console scripts -- pip named
+          # /Library/Frameworks/..., the scripts landed under
+          # hostedtoolcache -- and it is the second whose Pillow decides
+          # whether block 1 passes. Printing only the first shows one
+          # side of a two-sided comparison, so here is the other.
+          #
+          # `|| true` on purpose: still a diagnostic, still not a fence.
+          # The fence is block 1.
+          fontgen_bin="$(command -v ps2ui-fontgen)"
+          echo "ps2ui-fontgen shebang: $(head -1 "$fontgen_bin")"
+          its_python="$(head -1 "$fontgen_bin" | sed 's|^#!||')"
+          if [ -x "$its_python" ]; then
+            "$its_python" -c "import PIL; from PIL import features; print('  its PIL: ', PIL.__file__); print('  its raqm:', features.check('raqm'))" || true
+          fi
 
       - name: The tutorial, against the installed commands
         run: python3 tools/check-tutorial.py --from-registry
