@@ -30,6 +30,6 @@ The one rule: everything the console would otherwise compute happens here.
 # prereleases bought nothing at all last time, because it lapses when
 # no stable version exists -- 0.3.0 on PyPI is what ended that, so
 # this is the first `.dev0` the exclusion actually protects.
-__version__ = "0.4.0.dev0"
+__version__ = "0.4.0"
 
 from .rounding import round_half_up, css_alpha_to_gs, gs_alpha_to_css  # noqa: F401
