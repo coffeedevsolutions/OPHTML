@@ -262,6 +262,13 @@ jobs:
       - name: The deployment guide matches the source it describes
         run: python3 tools/check-deploying.py
 
+      # The format stability pledge, made at v7 and enforced rather
+      # than announced. It does not forbid a v8; it makes one a
+      # decision somebody signed rather than a stride that moved while
+      # nobody was looking. Needs no toolchain and no build.
+      - name: The v7 layout has not moved
+        run: python3 tools/check-format-frozen.py
+
       - name: The tutorial still works from an empty directory
         run: python3 tools/check-tutorial.py
 

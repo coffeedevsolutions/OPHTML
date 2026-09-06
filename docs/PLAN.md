@@ -1263,6 +1263,26 @@ Phase 3 (the tint table), which is the second break since the pledge
 was first written down. P3b-3 is the last planned format-visible
 change in the phase; the pledge has to start after it or start again.
 
+**Both shipped. The pledge was made on 2026-09-06**, in
+[format-uib.md](format-uib.md#the-stability-pledge--made-at-v7-2026-09-06)
+and enforced by `tools/check-format-frozen.py` in CI: v7 is the last
+incompatible layout, additions go in feature bits rather than strides,
+and the frozen record is read off the live `Struct` objects rather than
+retyped from the spec.
+
+P3b-3 landed and nothing moved after it, so the third start held. But
+waiting for a quiet tree is not what made the pledge worth making, and
+the paragraph above records two quiet trees that did not last. What
+changed is that `0.3.0` put a v7 reader on two registries, so the
+readers in the world are no longer one repository's `main`. A promise
+about compatibility costs nothing while you are the only reader, and is
+worth nothing for the same reason.
+
+The check does not forbid a v8. It makes one a decision somebody signed
+rather than a stride that moved while nobody was looking, which is the
+same shape as rule 21 and the status-fill tables: the fence does not
+prevent the act, it prevents the act happening silently.
+
 > **Exit gate:** a stranger with npm, pip, and a TTF reproduces the
 > memcard example — and its hardware screenshot — without cloning the repo.
 

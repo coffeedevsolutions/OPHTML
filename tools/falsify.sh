@@ -28,7 +28,21 @@ file=$1; shift
 snap=$(mktemp)
 cp "$file" "$snap"
 # Restore on any exit, including a signal or a failure inside the edit.
-trap 'cp "$snap" "$file"; rm -f "$snap"' EXIT INT TERM
+# AND PURGE AGAIN ON THE WAY OUT, not only between the two runs below.
+# The fence run compiles the SABOTAGED source into a .pyc; restoring
+# the source does not invalidate it when the restore lands in the same
+# mtime-second at the same size, which a length-preserving edit does
+# routinely. That .pyc then outlives this script and is served to
+# whatever runs next -- the next falsification's baseline, an ordinary
+# test run, anything.
+#
+# Found by running four sabotages in a row: the second swapped
+# `IhhHH` -> `hhIHH` in a struct format, same length, and the third and
+# fourth then reported "FENCE ALREADY FAILS ON THE UNMODIFIED FILE"
+# because they were reading the second one's ghost. `git status` was
+# clean throughout, which is what makes it worth a comment: the file on
+# disk was correct and the behaviour was not.
+trap 'cp "$snap" "$file"; rm -f "$snap"; find . -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true' EXIT INT TERM
 # The fence must PASS on the real bytes first. Without this, a fence
 # command that cannot run at all -- a typo, a missing build step, or
 # the whole command quoted as one argv entry, which is how this was
@@ -54,15 +68,23 @@ python3 - "$file" || { echo "SABOTAGE FAILED TO APPLY" >&2; exit 2; }
 # made by hand a second later. A falsifier whose verdict depends on how
 # fast the machine is, is not a falsifier.
 #
-# THE FAILURE IS ONE-DIRECTIONAL, which bounds what the bug could have
-# cost before this fix. A stale .pyc makes the sabotage a NO-OP, so the
-# fence sees unmodified behaviour and PASSES -- this script then prints
-# "HOLE". It cannot turn a real hole into a "caught": a caught verdict
+# THE FAILURE IS ONE-DIRECTIONAL WITHIN ONE INVOCATION, and that is a
+# narrower claim than an earlier version of this comment made. Inside a
+# single run a stale .pyc makes the sabotage a NO-OP, so the fence sees
+# unmodified behaviour and PASSES -- this script then prints "HOLE". It
+# cannot turn a real hole into a "caught": a caught verdict
 # requires the fence to have failed, which requires the edit to have
 # taken effect. So every "caught" ever recorded is sound, and only
 # "HOLE" verdicts on IMPORTED Python modules were ever suspect. That is
 # a stronger statement than enumerating which sabotages touched
 # modules, and it does not depend on the enumeration being complete.
+#
+# ACROSS invocations it is not one-directional, which is why the trap
+# above now purges too. A .pyc left behind by a sabotage run makes the
+# NEXT run read sabotaged code: usually that surfaces as the baseline
+# guard below refusing to proceed, which is loud and safe, but a fence
+# that fails for that reason would be recorded as "caught" when the
+# sabotage under test did nothing at all.
 find . -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true
 if "$@" >/dev/null 2>&1; then
     echo "PASSED -- HOLE: the fence did not catch it"
