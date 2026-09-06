@@ -239,6 +239,46 @@ written twice to avoid.
    permanent; npm gives 72 hours and then blocks the name. These are
    the only genuinely irreversible steps in this document.
 
+   **The credentials, because nothing in this repository holds them.**
+   No workflow publishes and no secret exists: the tokens live in
+   `~/.pypirc` on the publisher's own machine, `chmod 600`, and TestPyPI
+   is a *separate account* with its own token under its own
+   `[testpypi]` section. `username` is the literal string `__token__`
+   for both — that is how PyPI knows the password field is a token
+   rather than a password, and it is not your account name.
+
+   **The first upload of a package cannot use a project-scoped token,
+   and that is not a mistake to correct later — it is the required
+   order.** PyPI will not scope a token to a project that does not
+   exist yet, so the upload that creates `ophtml` has to authenticate
+   with an account-scoped one, which can publish to *any* project the
+   account owns and create new ones.
+
+   So narrowing it is a step, and it belongs here rather than in
+   somebody's memory:
+
+   1. pypi.org → Account settings → API tokens → *Add API token*,
+      Scope: **Project → ophtml**.
+   2. Replace the `password` under `[pypi]` in `~/.pypirc`. Leave
+      `username = __token__`.
+   3. **Delete the account-scoped token.** This is the only step that
+      changes anything. Creating the narrow one and stopping leaves the
+      broad one live and simply adds a second key.
+
+   Nothing can validate a token except using it, so the proof is the
+   next upload. A wrongly scoped one fails with a **403 naming the
+   project** rather than half-succeeding, which is the good kind of
+   failure: loud, at the moment you are watching. What is worth
+   checking beforehand is that the file still parses, since a mangled
+   paste is the likelier mistake and it prints no secrets:
+
+   ```sh
+   python3 -c "import configparser,os;c=configparser.ConfigParser();c.read(os.path.expanduser('~/.pypirc'));print({s:sorted(c[s]) for s in c.sections()})"
+   ```
+
+   Section and key names only. `[distutils] index-servers` beside
+   `[pypi]` and `[testpypi]` is the expected shape.
+
    **The upload is three edits, not one command.** Publishing makes the
    README's Quick start note false, and the note is checked:
 
