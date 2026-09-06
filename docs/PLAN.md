@@ -1444,25 +1444,31 @@ jobs green. What it settled, in the order it settled it:
 ==> Moving Font 'DejaVuSans-Bold.ttf' to '/Users/runner/Library/Fonts/DejaVuSans-Bold.ttf'
 ```
 
-`brew install --cask font-dejavu` is a per-user install. **Measured:**
-the cask put `DejaVuSans.ttf` and `DejaVuSans-Bold.ttf` in
-`~/Library/Fonts`, and nothing else in the job installs a DejaVu
-anywhere. **Inferred, and separated out because this section is worth
-nothing if the two are mixed:** that no *other* candidate in
-`fonts.json` resolves on that runner. macOS does not ship DejaVu, and
-`/Library/Fonts` certainly *exists* -- it is where the system keeps its
-own fonts -- but whether it holds a `DejaVuSans.ttf` is knowledge from
-outside this run, and an earlier draft of this paragraph asserted it as
-if the log had shown it.
+`brew install --cask font-dejavu` is a per-user install, and run 2
+prints every candidate rather than leaving any of it to be worked out:
 
-The distinction is load-bearing rather than pedantic: if
-`/Library/Fonts/DejaVuSans.ttf` did exist, the old `ttfs()` would have
-found it without expanding anything, and the two changes below would
-have been tidying after all. So the job now prints which candidates
-exist, and the next run turns this paragraph's inference into its
-measurement.
+```
+regular  /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf -
+regular  /usr/share/fonts/TTF/DejaVuSans.ttf             -
+regular  /opt/homebrew/share/fonts/DejaVuSans.ttf        -
+regular  /Library/Fonts/DejaVuSans.ttf                   -
+regular  /usr/local/share/fonts/DejaVuSans.ttf           -
+regular  ~/Library/Fonts/DejaVuSans.ttf                  EXISTS
+```
 
-On the inference, then, these two changes were load-bearing:
+One candidate, and it is the one that needs expanding.
+
+**This paragraph was an inference for exactly one run.** After run 1 it
+said the other candidates were absent, which the log had not shown; the
+correction separated *measured* from *inferred* and added the listing
+so the next run would settle it. Run 2 settled it the way the inference
+guessed. Both halves of that are worth keeping: the guess was right,
+and it was still a guess when it was written down as a fact.
+
+The distinction was load-bearing rather than pedantic. If
+`/Library/Fonts/DejaVuSans.ttf` had existed, the old `ttfs()` would
+have found it without expanding anything and the two changes below
+would have been tidying. It did not, so they were not:
 
 - `load_font_manifest`'s `expanduser`. Without it the one matching
   candidate resolves against the manifest's own directory and matches
@@ -1497,7 +1503,7 @@ libraqm` -- would have failed on this very run, on a schedule, for
 something that is not a defect. Demonstrated now rather than reasoned
 about, which was the whole argument for removing it.
 
-**One anomaly, recorded because it is not a failure today.** The
+**One anomaly, recorded when it was open and closed by the next run.** The
 rebuild reported success and then `pip install ophtml` said
 
 ```
@@ -1505,14 +1511,40 @@ Requirement already satisfied: Pillow>=9 in /Library/Frameworks/Python.framework
 ```
 
 which is a different path from the step's own
-`pythonLocation` (`hostedtoolcache/Python/3.11.9/arm64`), while the
-console scripts landed under `hostedtoolcache`. Most likely two names
-for one framework interpreter. It cannot be wrong *today* because
-block 1 passed, and block 1 needs Raqm in whichever interpreter runs
-`fontgen` -- so the job is self-checking on the thing that matters. But
-a future divergence would present as a confusing red rather than a
-clear one, so the step now prints `sys.executable` and `PIL.__file__`.
-A diagnostic, not a fence: the fence is block 1.
+`pythonLocation` (`hostedtoolcache/Python/3.11.9/arm64`), while
+`check-tutorial.py` resolved the console scripts under
+`hostedtoolcache`. Run 1 could say no more than "most likely two names
+for one framework interpreter", which is a guess wearing a hedge.
+
+**Run 2 closed it**, with the producer and the consumer printed side by
+side:
+
+```
+interpreter: /Library/Frameworks/Python.framework/Versions/3.11/bin/python3
+PIL:         /Library/Frameworks/Python.framework/.../PIL/__init__.py
+
+ps2ui-fontgen shebang: #!/Library/Frameworks/Python.framework/Versions/3.11/bin/python3
+  its PIL:  /Library/Frameworks/Python.framework/.../PIL/__init__.py
+  its raqm: True
+```
+
+Same interpreter both sides, and `its raqm: True` is the line that
+matters: the Python that runs `fontgen` is the Python the rebuild
+landed in. The resolution is sharper than the guess, too. `python3` on
+that runner is **not** the hostedtoolcache interpreter even though
+`pythonLocation` names it, and PATH still resolves `ps2ui-fontgen`
+under `hostedtoolcache/.../bin`. One interpreter under two names: the
+shebang says one, PATH says the other, and nothing is wrong.
+
+Two things about how that got answered are worth keeping. The first
+diagnostic sampled only the interpreter that **rebuilt** Pillow, and
+the anomaly is producer-against-consumer -- so it would have printed
+one side of a two-sided comparison and left the question exactly where
+it was. Review caught that before it ran. And both remain
+**diagnostics, not fences**: the fence is block 1, which cannot pass
+without Raqm in whichever interpreter runs `fontgen`. A second
+assertion over a claim the first already covers is how a check ends up
+passing for a reason nobody rechecks.
 
 **So both halves of the software gate are met on machines that are not
 ours**, ubuntu and macOS, verified three ways for ubuntu (here, by a
