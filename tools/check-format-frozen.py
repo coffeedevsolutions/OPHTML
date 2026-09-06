@@ -30,6 +30,14 @@ WHAT IS FROZEN, AND WHAT IS DELIBERATELY NOT.
     must let that through -- a fence that forbids the escape hatch it
     recommends would just get deleted the first time someone needed it.
 
+  * NOT VISIBLE AT ALL, and stated because "every struct" would
+    otherwise read as more than this delivers: a reorder of two fields
+    of the SAME TYPE. `_GLYF` is `<IHHHHhhH2x` -- swapping u and v, or
+    w and h, produces a byte-identical format string, so no check at
+    the Struct level can see it and this one does not claim to. What
+    catches that is the cross-language pen agreement in
+    packages/baker/tests, which compares VALUES rather than layouts.
+
   * NOT COVERED HERE: the C side. runtime/ps2ui.h has its own structs
     and check-versions.py already holds PS2UI_VERSION to uib.VERSION;
     the two pens are held to each other by the cross-language tests in
@@ -63,6 +71,7 @@ down what broke and why. That is the whole mechanism -- it does not
 prevent a v8, it prevents a v8 that nobody noticed shipping.
 """
 import os
+import struct
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -83,10 +92,29 @@ FROZEN_STRUCTS = {
     "_FOCUS": ("<HHHHHHIhhHH", 24),
     "_FONT": ("<HHHHHHIH2xI", 24),
     "_SLOT": ("<IIhhHHBBHHHHh", 28),
+    "_GLYF": ("<IHHHHhhH2x", 20),
     "_SCREEN": ("<IIIHHHHH2x", 24),
     "_TINT": ("<BBBB", 4),
     "_KERN": ("<IIh2x", 12),
 }
+
+# EVERY Struct in uib must appear in FROZEN_STRUCTS, and check 6
+# enforces that -- because the omission that made this list ten entries
+# instead of eleven was found by enumerating uib and diffing, not by
+# reading the record. `_GLYF` was missing while the docstring above
+# said "every struct's format string and size", which is the failure
+# mode this whole file is about: a claim that reads true and covers
+# less than it says.
+#
+# It does not forbid a twelfth. A new table behind a new feature bit is
+# exactly the growth the pledge points at -- but once it ships it is
+# v7's layout too and must never move again, so it goes in the record
+# in the same change. Silence is what is forbidden, not the addition.
+#
+# A Struct that never reaches the blob goes here instead, by name, so
+# the exemption is a deliberate line somebody wrote rather than a
+# loosened rule. Empty today: all eleven are on disk.
+NOT_ON_DISK = frozenset()
 
 FROZEN_MAGIC = 0x31424955  # "UIB1"
 
@@ -176,6 +204,22 @@ def main():
           "FEAT_KNOWN no longer admits %s, so a loader would refuse blobs "
           "that legitimately set it. %s" % (", ".join(sorted(missing)),
                                             BREAKING_IT))
+
+    # 6. And the record covers every struct there is, so the docstring's
+    #    "every struct" stays true without anybody re-checking it by
+    #    hand. This is the check that would have caught _GLYF.
+    live = {n for n in dir(uib)
+            if isinstance(getattr(uib, n), struct.Struct)}
+    unrecorded = sorted(live - set(FROZEN_STRUCTS) - NOT_ON_DISK)
+    check(not unrecorded,
+          "all %d Struct(s) in uib are in the record" % len(live),
+          "uib defines %s, which the pledge does not freeze. If it "
+          "reaches the blob -- and a table with a stride does -- it is "
+          "part of v7's layout the moment it ships, so add it to "
+          "FROZEN_STRUCTS now, while its layout is still free to "
+          "change. If it never reaches the blob, name it in "
+          "NOT_ON_DISK. %s"
+          % (", ".join("uib.%s" % n for n in unrecorded), BREAKING_IT))
 
     if fail:
         print("not ok - %d part(s) of the frozen v%d layout have moved"

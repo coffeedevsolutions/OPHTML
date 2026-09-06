@@ -328,6 +328,40 @@ them down is what forces them to be run.
 
 ---
 
+## Where a check goes in the run
+
+Three pull requests in a row have argued about this one check at a
+time — #97 moved the tag rule out of the first step, #109's rule 22
+landed inside the gate #97 had just created, and #110's format check
+landed ten minutes in. The principle keeps being right and the
+placement keeps being re-decided, so it is written down here.
+
+**A check that reads only the checkout runs as early as it can.** A
+disagreement about what the tree *is* means every build and diff after
+it is measuring something that does not know what it is. Cheapest
+first, and the cost of being wrong compounds with everything that runs
+behind it.
+
+**A check that compares the tree against something outside it runs
+last.** `check-versions.py`'s tag rule is the case: a release commit on
+a branch cannot satisfy it, because the tag names a commit on `main`
+and a squash merge means the branch commit is not that commit. Putting
+it first cost a whole release's CI — 242 baker tests, both example
+builds and the tutorial never ran on the commit that cut `0.3.0`. **A
+cheap check placed first can hide every expensive check behind it.**
+
+**And "early" is bounded by what the check actually imports, which is
+measured rather than asserted.** `check-format-frozen.py` shipped with
+a comment reading *"Needs no toolchain and no build"*, written from the
+fact that it only reads `Struct` objects. It was false: importing
+`ps2ui_bake.uib` pulls `quads`, which pulls `atlas`, which imports
+Pillow. One `python3 -S` said so in a second, before the move to step
+one turned CI red. So the rule has a third clause: run it under a bare
+interpreter and put it after whatever that proves it needs — which for
+that check is still before every build, test and blob in the job.
+
+---
+
 ## Three rules that came from the hardware, not the tests
 
 **VOID is a third outcome.** A reading that the instrument was not

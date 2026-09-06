@@ -384,10 +384,18 @@ making.
 
 ### What is frozen
 
-Every struct's format and size, `MAGIC`, and the **value** of every
-feature bit already assigned. Those are what a reader in the field
-walks; move any of them and blobs it has already been handed stop
+All eleven structs' formats and sizes, `MAGIC`, and the **value** of
+every feature bit already assigned. Those are what a reader in the
+field walks; move any of them and blobs it has already been handed stop
 parsing — or worse, parse into something else.
+
+Eleven and not ten: `_GLYF` was missing from the first draft of the
+record while the same sentence said "every struct". It is a table with
+a stride, written per glyph and read back at `glyphs_off + j *
+_GLYF.size`, so it is exactly what the pledge is about. The check now
+enumerates `uib` and fails on anything it does not hold, which is how
+the omission was found and is what keeps this sentence true without
+anybody re-counting.
 
 ### What is not
 
@@ -397,6 +405,22 @@ open: a reader that does not know a bit refuses the blob by name
 rather than misreading it, which is the property `FEAT_KNOWN` was added
 for. The tables also carry the reserved space the last four versions
 were spent learning to leave.
+
+A new table behind a new bit is allowed for the same reason — but the
+moment it ships it is v7's layout too, so it joins the frozen record in
+the same change. The check enumerates every `Struct` in `uib` and
+fails on one it does not hold, which is what forbids the addition
+happening quietly rather than the addition itself.
+
+### What no check at this level can see
+
+A reorder of two fields of the **same type**. `_GLYF` is
+`<IHHHHhhH2x`; swapping `u` with `v`, or `w` with `h`, leaves a
+byte-identical format string, so nothing that compares layouts can
+notice. That is caught one level up, by the cross-language pen
+agreement in `packages/baker/tests`, which compares rendered values
+rather than strides. Said here because "every struct's format and size"
+would otherwise read as more than it delivers.
 
 ### How it is enforced
 
@@ -413,12 +437,13 @@ broke and why it could not have been a feature bit. The failure message
 says so. What it prevents is not a break; it is a break that shipped
 because nobody noticed a stride move.
 
-Falsified in six directions before it was trusted: a stride that
-grows, a field-order swap that keeps the size, a renumbered feature
-bit, a changed `MAGIC`, and a version bump with the record left alone —
-all caught — plus a newly assigned feature bit, which **passes**,
-because a fence that forbids its own escape hatch gets deleted the
-first time somebody needs it.
+Falsified in eight directions before it was trusted: a stride that
+grows, a field-order swap that keeps the size, the same swap inside
+`_GLYF`, a renumbered feature bit, a changed `MAGIC`, a version bump
+with the record left alone, and a twelfth `Struct` appearing
+unrecorded — all caught — plus a newly assigned feature bit, which
+**passes**, because a fence that forbids its own escape hatch gets
+deleted the first time somebody needs it.
 
 The stride case needed a second run to mean anything: `uib.py` asserts
 its own struct sizes at import, so the naive version of that sabotage

@@ -95,6 +95,32 @@ fi
 # tool's TAP output (the baker suite runs check.py over deliberately
 # bad blobs) prints "not ok" lines that have nothing to do with the
 # sabotage, so read the names, do not trust the first one.
+#
+# AND THE NO-LINES CASE IS THE ONE THAT MATTERS MOST, so it is printed
+# rather than left as a blank. A fence that dies at IMPORT -- a
+# traceback on stderr, no TAP at all -- prints nothing here, and
+# "caught." followed by silence reads exactly like a clean catch. It is
+# not one: something upstream of the check refused the file, and the
+# check under test may never have run.
+#
+# That is not hypothetical either. uib.py asserts its own struct sizes
+# at import, so a sabotage that changes a size dies there, and twice
+# while building check-format-frozen.py this signature meant "your
+# sabotage was wrong" rather than "your fence works".
+#
+# THE FALLBACK BELOW USED TO BE DEAD CODE. `... | head -5 || echo` runs
+# the echo on HEAD's status, and head exits 0 whether grep matched
+# anything or not, so the message could never print -- the same species
+# as the `elif`-shadowed guard found in check-versions.py, and found
+# the same way: by hitting the case it was supposed to explain and
+# getting nothing.
 echo "caught. failing lines (a hint, not the verdict):"
-"$@" 2>&1 | grep -E "^not ok|^FAIL:|^ERROR:" | head -5 \
-    || echo "  (fence failed with no recognisable failure line)"
+lines=$("$@" 2>&1 | grep -E "^not ok|^FAIL:|^ERROR:" | head -5 || true)
+if [ -n "$lines" ]; then
+    echo "$lines"
+else
+    echo "  (no recognisable failure line: the fence may have died"
+    echo "   before the check ran -- an import error, a missing file, a"
+    echo "   sabotage that broke something upstream. Run the fence by"
+    echo "   hand against the sabotaged file before believing this.)"
+fi

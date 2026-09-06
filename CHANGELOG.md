@@ -19,10 +19,11 @@ without moving this line.
   incompatible layout: additions go in feature bits rather than strides,
   so a blob this tree writes will be read by every runtime that comes
   after it. Enforced by `tools/check-format-frozen.py` in CI rather than
-  announced — it freezes every struct's format and size, `MAGIC`, and
-  the value of each assigned feature bit, while deliberately leaving the
-  *set* of bits open, because that is the growth path the pledge points
-  at. It does not forbid a v8; it makes one a decision somebody signed.
+  announced — it freezes all eleven structs' formats and sizes, `MAGIC`,
+  and the value of each assigned feature bit, and refuses a twelfth that
+  is not in the record. The *set* of bits is deliberately left open,
+  because that is the growth path the pledge points at. It does not
+  forbid a v8; it makes one a decision somebody signed.
   Deferred twice before this, from post-v5 and post-v6, both times
   because a break landed inside the phase meant to end them.
 - `fonts/vendor/` carries the default DejaVu faces under their own

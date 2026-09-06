@@ -64,6 +64,34 @@ jobs:
           sudo apt-get install -y fonts-dejavu-core
           python3 -m pip install Pillow
 
+      # The format stability pledge, made at v7 and enforced rather
+      # than announced. It does not forbid a v8; it makes one a
+      # decision somebody signed rather than a stride that moved while
+      # nobody was looking.
+      #
+      # AS EARLY AS IT CAN RUN, which is here and not at step one.
+      # A moved stride means every blob the rest of this job builds and
+      # diffs is written in a layout no released reader can parse, so
+      # reporting it last is measuring something that does not know
+      # what it is -- the argument the --except-tag step above makes
+      # for itself. It first landed after the example builds, ten
+      # minutes in, and review of #110 was right to move it.
+      #
+      # BUT NOT TO STEP ONE, AND THE REASON IS WORTH THE LINE. The
+      # step's own comment claimed it "needs no toolchain and no
+      # build". That was false: importing ps2ui_bake.uib pulls quads,
+      # which pulls atlas, which imports PIL. Running it under
+      # `python3 -S` proves it -- ModuleNotFoundError: No module named
+      # 'PIL'. So it goes immediately after the deps it did not know it
+      # had, which is still before every build, every test and every
+      # blob this job writes.
+      #
+      # It is safe this early in a way the tag rule is not: it reads
+      # the checkout and nothing outside it, so it cannot fail for a
+      # reason a branch is unable to fix.
+      - name: The v7 layout has not moved
+        run: python3 tools/check-format-frozen.py
+
       - name: Layout tests
         working-directory: packages/layout
         # `npm test`, NOT the command it wraps. Open-coding the runner
@@ -261,13 +289,6 @@ jobs:
       # dependency on the example builds.
       - name: The deployment guide matches the source it describes
         run: python3 tools/check-deploying.py
-
-      # The format stability pledge, made at v7 and enforced rather
-      # than announced. It does not forbid a v8; it makes one a
-      # decision somebody signed rather than a stride that moved while
-      # nobody was looking. Needs no toolchain and no build.
-      - name: The v7 layout has not moved
-        run: python3 tools/check-format-frozen.py
 
       - name: The tutorial still works from an empty directory
         run: python3 tools/check-tutorial.py
