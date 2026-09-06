@@ -134,11 +134,40 @@ written twice to avoid.
    A published release means rewriting it to say how to install rather
    than why not to.
 
+   **Rule 10 matches literal strings, so `format **v7**` must not wrap
+   across a line break.** A rewrap that leaves "format" ending one line
+   and "**v7**" starting the next makes the fact invisible, and the
+   check then reports it missing rather than wrong:
+
+       format **v7** on one line   28 ok, rc 0
+       wrapped after "format"      not ok - does not say 'format **v7**'
+
+   Same trap as step 9's drift sentence — a rule anchored to text that
+   a paragraph reflow can move — but a different fact in a different
+   file, which is why it is written in both places rather than once.
+   Found by wrapping it in a scratch tree while testing something else,
+   rather than by hitting it during a cut.
+
+   **And rule 10 asks only for the four version facts, so prose it does
+   not name can be dropped without anything objecting.** The 0.4.0 note
+   explained the stability pledge; step 9's rewrite kept all four facts,
+   dropped that clause, and passed at 28 ok with the pledge then
+   mentioned nowhere in the README at all. Caught in review of #112. If
+   you rewrite this paragraph, read what you are replacing rather than
+   only what the checker asks for.
+
    **And the header logo, which carries the version in the artwork.**
    `docs/assets/ophtml-logo-releaseVersion<NNN>-plain-white-darkbg.png`
-   reads "release version 0.3.0" in the image itself and encodes it in
-   the filename. Re-export it for the new version, drop it in
-   `docs/assets/`, and update the `<img src>` at the top of the README.
+   carries the version twice: in the filename, and rendered into the
+   artwork. Re-export it for the new version, drop it in `docs/assets/`,
+   update the `<img src>` at the top of the README, and delete the
+   previous file once nothing references it.
+
+   No release number appears in this paragraph on purpose. It used to
+   say the image "reads release version 0.3.0", which stayed on the page
+   through the whole of 0.4.0 — a sentence describing a file that no
+   longer existed, inside the step whose entire subject is a version
+   claim nothing checks.
    Nothing checks this one: it is a version claim in the most visible
    place in the project and the only way it stays true is somebody
    doing it here, which is why it is written down next to the edits
@@ -298,6 +327,43 @@ written twice to avoid.
 
    Section and key names only. `[distutils] index-servers` beside
    `[pypi]` and `[testpypi]` is the expected shape.
+
+   **AND WHEN IT HAS WORKED, THE REGISTRIES ALONE CANNOT TELL YOU.**
+   Three things the 0.4.0 publish taught, each of which cost a wrong
+   conclusion first:
+
+   - **npm may answer 202, not 200.** 0.3.0's publish was synchronous
+     and returned 200. 0.4.0's returned **202** with "may take a few
+     minutes to become available", and `latest` flipped about ninety
+     seconds later. Inside that window a registry still naming the old
+     version is not evidence of anything.
+
+   - **So read `~/.npm/_logs` before concluding a publish failed.** npm
+     writes a debug log for every invocation, and it separates the two
+     states the registry cannot: a publish that has not propagated
+     shows `npm publish` and its `PUT`, and a publish that never ran
+     shows nothing at all. Both have happened here. During the 0.3.0
+     cut a registry 404 was read as failure while the log showed `PUT
+     200` — pure CDN lag. During 0.4.0 the identical 404 meant the
+     command had genuinely never been run. Same symptom, opposite
+     causes, and only the log tells them apart.
+
+   - **Verify the pip resolve with `--no-cache-dir`.** A warm local pip
+     HTTP cache serves a stale index page: after 0.4.0 was live, `pip
+     install ophtml` in a fresh venv resolved **0.3.0** while `pip index
+     versions` in that same venv reported `LATEST: 0.4.0`. A stranger
+     with a cold cache is fine — the machine that has been querying the
+     index all afternoon is the one that lies to you, which is every
+     machine you would verify from. Note the direction: this one fails
+     safe-looking, saying "not published" of something that is, so the
+     cost is a duplicate publish attempt rather than a skipped one.
+
+   Per-version JSON endpoints are not the tool for any of this.
+   `pypi.org/pypi/<name>/<version>/json` 404s for versions that exist,
+   on both indexes, so it cannot answer the question at all — it was
+   tried during 0.4.0 and its 404 read as "not published". The
+   **simple index** is what pip resolves against and is barely cached;
+   the project-level JSON is what answers "which versions exist".
 
    **The upload is three edits, not one command.** Publishing makes the
    README's Quick start note false, and the note is checked:

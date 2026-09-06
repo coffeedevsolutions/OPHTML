@@ -226,6 +226,36 @@ def git_packaged_diff(tag):
 
 
 
+def _note_names(note, w):
+    """Does the note NAME `w`, or merely contain its characters?
+
+    RULE 10 USED PLAIN CONTAINMENT, AND THAT IS A DIFFERENT QUESTION.
+    `0.4.0` is a substring of `0.4.0.dev0`, so during the 0.4.0 cut the
+    STALE prerelease note -- "those give you 0.3.0 ... this tree has
+    since moved on to 0.4.0.dev0" -- satisfied the check for a release
+    it does not mention, in both the baker and the npm spelling. The
+    note entered the release branch green while its prose was false. It
+    was rewritten because a person read it, not because this objected.
+
+    That is the shape docs/method.md calls a rule whose coverage is
+    narrower than its purpose: the purpose is "the note describes THIS
+    tree", the coverage was "these characters appear somewhere".
+
+    A fact counts only where it is not extended into a longer one. The
+    left guard admits `v0.4.0` -- a `v` is not a digit -- and rejects
+    `0.4.0` read out of `10.4.0`.
+
+    BOTH DIRECTIONS MATTER, because releasing.md step 9 restores the
+    prerelease state minutes after step 8 leaves it. Falsified in all
+    four: prerelease tree with its own note passes, release tree with
+    the stale note now FAILS, release tree with a rewritten note
+    passes, prerelease tree with a release note fails (it already did).
+    """
+    return re.search(r"(?<![0-9.])" + re.escape(w)
+                     + r"(?![0-9A-Za-z]|[.\-+][0-9A-Za-z])",
+                     note) is not None
+
+
 def main(argv=None):
     # `--except-tag` runs every rule BUT the tag rule.
     #
@@ -452,20 +482,26 @@ def main(argv=None):
                          "(docs/releasing.md step 8)." % (opener, PUBLISHED))
     else:
         note = m.group(0)
-        missing = [w for w in (BAKER_VERSION, layout_raw,
-                               "format **v%d**" % UIB_VERSION,
-                               "%s moves" % {0: "zero", 1: "one",
-                                             2: "two", 3: "three",
-                                             4: "four", 5: "five"}.get(
-                                   UIB_VERSION - (prev_fmt or 0),
-                                   str(UIB_VERSION - (prev_fmt or 0))))
-                   if w not in note]
+        drift = "%s moves" % {0: "zero", 1: "one", 2: "two", 3: "three",
+                              4: "four", 5: "five"}.get(
+                                  UIB_VERSION - (prev_fmt or 0),
+                                  str(UIB_VERSION - (prev_fmt or 0)))
+        # Named, so a failure says WHICH fact is missing. In a release
+        # state the baker and npm spellings are the same string, and the
+        # old message printed it twice with nothing to tell them apart.
+        facts = (("the baker version", BAKER_VERSION),
+                 ("the npm version", layout_raw),
+                 ("the format version", "format **v%d**" % UIB_VERSION),
+                 ("the drift since %s" % prev_ver, drift))
+        missing = [(label, w) for label, w in facts
+                   if not _note_names(note, w)]
         check(not missing,
               "README's Quick start note names %s, %s, format v%d and the "
               "drift since %s" % (BAKER_VERSION, layout_raw, UIB_VERSION,
                                   prev_ver),
-              "README's Quick start note does not say %s"
-              % "; does not say ".join(repr(w) for w in missing))
+              "README's Quick start note does not name %s"
+              % "; does not name ".join("%s (%r)" % (l, w)
+                                        for l, w in missing))
 
     # 11. A prerelease may not publish to `latest`. npm resolves
     #     `npm install <pkg>` against the `latest` dist-tag, and

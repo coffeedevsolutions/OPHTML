@@ -1286,6 +1286,28 @@ prevent the act, it prevents the act happening silently.
 > **Exit gate:** a stranger with npm, pip, and a TTF reproduces the
 > memcard example — and its hardware screenshot — without cloning the repo.
 
+**THAT GATE CANNOT BE MET AS WRITTEN, AND NOTHING NOTICED UNTIL 0.4.0
+WAS UP.** Its last clause is *without cloning the repo*. The documented
+console path is `README.md:161` — *"drop `runtime/ps2ui.c` and
+`runtime/ps2ui.h` into your ps2sdk/gsKit project"* — which begins by
+cloning. The wheel ships `ps2ui_bake` and the npm tarball ships
+`src/ bin/ README.md`; neither carries the runtime. So the authoring
+half of the gate is reachable from a registry and the console half is
+not, and the two clauses have been contradicting each other since the
+gate was written.
+
+It went unseen for the reason this document keeps recording about
+everything else: **nobody ran it.** The registry half was exercised
+weekly by `registry.yml`, went green, and the green tick covered a gate
+whose other half had never been attempted — a check passing for a
+narrower thing than the one it appears to certify.
+
+Filed as **F25**, and the gate is left standing rather than reworded.
+Rewording it to match what the packages happen to ship would turn a
+goal into a description, and the goal is right: the console half is the
+point of the project, and a stranger should not need a clone to reach
+it.
+
 **Both packages are uploaded and the gate is NOT met.** `0.3.0` is on
 PyPI and npm as of 2026-09-04, verified from an empty directory: `pip
 install ophtml` resolves the release rather than a prerelease, `latest`
