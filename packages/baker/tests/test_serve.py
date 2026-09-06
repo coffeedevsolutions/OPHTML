@@ -24,6 +24,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
 
 from ps2ui_bake import preview, serve                          # noqa: E402
 from ps2ui_bake.uib import read_uib                            # noqa: E402
+# THE SAME FONT ANSWER test_baker USES, IMPORTED RATHER THAN
+# RESTATED. These build- and dev-driving tests hand the CLI a
+# project whose fonts come from fonts/fonts.json, so on a
+# machine with no DejaVu they fail exactly as test_baker's did.
+from fonts_available import TTF, require_ttf  # noqa: E402,F401
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))))
@@ -488,6 +493,7 @@ class TestNoNodeNeeded(unittest.TestCase):
                 os.environ["PS2UI_LAYOUT"] = saved_layout
 
 
+@unittest.skipIf(TTF is None, "no DejaVu; fonts/fonts.json lists the paths looked in")
 class TestPipelineMatchesTheBuild(unittest.TestCase):
 
     def test_the_served_blob_is_the_built_blob(self):
@@ -612,6 +618,7 @@ class TestPackaging(unittest.TestCase):
                 os.environ["PS2UI_LAYOUT"] = saved_layout
 
 
+@unittest.skipIf(TTF is None, "no DejaVu; fonts/fonts.json lists the paths looked in")
 class TestDevAgreesWithBuild(unittest.TestCase):
 
     def test_dev_compiles_a_screen_the_way_build_does(self):

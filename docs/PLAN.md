@@ -1376,13 +1376,52 @@ first is closed:
 | machine | before | after |
 |---|---|---|
 | DejaVu installed, at a macOS path | 22 errors | passes, nothing skipped |
-| no DejaVu anywhere | 24 errors, 17 failures | 2 errors, 17 failures |
+| no DejaVu anywhere | 24 errors, 17 failures | **OK, 79 skipped** (item 1b) |
 
-**The second is item 1b**, still open: the manifest-driven tests need
-the same treatment the suite's own font access just got. It is not the
-same fix — those tests exercise `--fonts` end to end, so the question
-is what the CLI should do when a manifest names nothing that exists,
-which is a product question and not a test one.
+**Item 1b is done, and the framing above was wrong.** The CLI is
+already right: `load_font_manifest` refuses and names the candidates it
+tried. It was the *tests* that failed where they should skip, in a set
+item 1 did not reach — a test-harness fix, not a product question.
+Nineteen of them, four classes in `test_baker.py` and two in
+`test_serve.py`, guarded on the same `require_ttf()`. A fontless
+machine now reports **OK, 79 skipped** where it reported 17 failures
+and 2 errors.
+
+`test_serve.py` needing the same answer is what moved the helpers into
+`tests/fonts_available.py`. Copying them would have made two answers to
+one question, which is the defect this repository has now found four
+times: the suite's own TTF list, `check-tutorial.py`'s `ttfs()`,
+`fonts/regen.sh` — still missing the two paths #104 added, so it would
+have refused on an Intel Mac while the build beside it worked — and
+the two lists `fonts.json` itself replaced.
+
+**And the default face is vendored**, `fonts/vendor/`, 1.5 MB under the
+DejaVu licence. The argument is coherence rather than convenience:
+`default.metrics.json` was already committed and is DejaVu-derived, so
+the tree shipped the *metrics* for its default face and not the face,
+and metrics alone cannot rasterize an atlas.
+
+Two properties make that safe, both fenced and both falsified:
+
+- **Last candidate, never first.** Ahead of the system paths it shadows
+  all of them, `~/Library/Fonts` stops being exercised anywhere, and
+  registry.yml's candidate listing prints one EXISTS and five dashes
+  forever. Last, it is a floor: the machine's own DejaVu wins wherever
+  there is one, and a machine with none still builds.
+- **It is the face the committed metrics came from.** Regenerating from
+  it reproduces `default.metrics.json` byte for byte. Advances measured
+  from one DejaVu and glyphs drawn from another is wrong on every
+  screen with nothing to say so, so a swapped TTF fails rather than
+  drifts.
+
+`fonts/regen.sh` reads the manifest now, which also means the metrics
+are regenerated from the same file the build rasterizes.
+
+**What this does NOT do:** `fonts/` is not in the wheel, so a
+`pip install ophtml` user gets none of it and still brings their own
+TTF, exactly as the tutorial and the exit gate say. Shipping a default
+face *inside the package* is a separate decision that would change what
+the product is, and it has not been taken.
 
 Three things about the fix are worth keeping, because each was the
 second thing tried:
