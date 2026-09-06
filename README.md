@@ -86,15 +86,17 @@ Three ways in, depending on what you want:
 
 **Both packages are published**, so `pip install ophtml` and
 `npm install -g @ophtml/layout` are the way in. Those give you `0.4.0`,
-tagged `v0.4.0`, spelled identically in PEP 440 and semver because a
-plain release is. The blobs baked here are format **v7** and zero moves
-of the `.uib` format have landed since 0.3.0: that is the stability
-pledge, made at v7 and enforced by `tools/check-format-frozen.py` rather
-than announced, so a blob this tree writes loads under a 0.3.0 runtime
-and the other way round. Every CLI answers `--version`. Phase 4's exit
-gate in [docs/PLAN.md](docs/PLAN.md) is not met by the upload alone and
-is still open; [docs/releasing.md](docs/releasing.md) is the procedure,
-and `tools/check-versions.py` keeps this paragraph honest.
+tagged `v0.4.0`. This tree has since moved on to `0.5.0.dev0`
+(`0.5.0-dev.0` on npm), a prerelease that is on neither registry and is
+not meant to be. The two still understand each other, because the blobs
+baked here are format **v7** and zero moves of the `.uib` format have
+landed since 0.4.0: that is the stability pledge, made at v7 and
+enforced by `tools/check-format-frozen.py` rather than announced, so a
+blob this tree writes loads under a 0.4.0 runtime and the other way
+round. Every CLI answers `--version`. Phase 4's exit gate in
+[docs/PLAN.md](docs/PLAN.md) is not met by the upload alone and is still
+open; [docs/releasing.md](docs/releasing.md) is the procedure, and
+`tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:
 
