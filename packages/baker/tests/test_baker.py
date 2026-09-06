@@ -3609,7 +3609,24 @@ class TestNewcomerPath(unittest.TestCase):
                 ("vendor/DejaVuSans.ttf", 400, "default.metrics.json"),
                 ("vendor/DejaVuSans-Bold.ttf", 700, "default-bold.metrics.json")):
             ttf = os.path.join(FONTS, *rel.split("/"))
-            self.assertTrue(os.path.exists(ttf), ttf)
+            # A COMMITTED FILE MISSING IS A BROKEN TREE, NOT A FONTLESS
+            # MACHINE, and this is the one guard in this file that could
+            # not tell you which. It used to assert on a bare path.
+            # `require_ttf` next door says "this is a broken environment
+            # rather than a test to skip", and that sentence is exactly
+            # what somebody who has just pruned 1.5 MB of vendored TTF
+            # needs to read -- a sparse checkout, a `git clean` that
+            # took fonts/vendor with it, or a deliberate trim.
+            self.assertTrue(
+                os.path.exists(ttf),
+                "%s is committed to this repository and is not in the "
+                "tree. That is a broken checkout rather than a machine "
+                "without fonts: a machine without fonts SKIPS here, "
+                "because fonts.json's system candidates still resolve "
+                "or this vendored one does. Restore it with `git "
+                "checkout fonts/vendor`, and if it was removed on "
+                "purpose, note that fonts/default.metrics.json is "
+                "generated from it." % os.path.relpath(ttf, REPO))
             with tempfile.TemporaryDirectory() as td:
                 out = os.path.join(td, "m.json")
                 rc = fontgen.main([ttf, "DejaVu Sans", str(weight), out])

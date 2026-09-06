@@ -1376,16 +1376,34 @@ first is closed:
 | machine | before | after |
 |---|---|---|
 | DejaVu installed, at a macOS path | 22 errors | passes, nothing skipped |
-| no DejaVu anywhere | 24 errors, 17 failures | **OK, 79 skipped** (item 1b) |
+| no DejaVu anywhere | 24 errors, 17 failures | **OK, 80 skipped** (item 1b) |
 
 **Item 1b is done, and the framing above was wrong.** The CLI is
 already right: `load_font_manifest` refuses and names the candidates it
 tried. It was the *tests* that failed where they should skip, in a set
 item 1 did not reach — a test-harness fix, not a product question.
 Nineteen of them, four classes in `test_baker.py` and two in
-`test_serve.py`, guarded on the same `require_ttf()`. A fontless
-machine now reports **OK, 79 skipped** where it reported 17 failures
-and 2 errors.
+`test_serve.py`, guarded on the same `require_ttf()`.
+
+**Three states, because vendoring makes "fontless" ambiguous** and a
+figure without its state is the kind of number that cannot be
+re-measured:
+
+| state | result |
+|---|---|
+| vendored face present, system candidates unresolvable | **OK, 26 skipped** — nothing skips for want of a font |
+| vendored face absent *and* system unresolvable | **OK, 80 skipped** — the genuinely fontless machine; 17 failures and 2 errors before |
+| vendored face absent, system present | **FAIL**, naming the missing committed file |
+
+The third is right rather than unfortunate: a checkout missing a file
+this repository commits is a broken tree, not a machine without fonts,
+and telling those apart is what the whole change is about. The message
+says which one you are in.
+
+Note that after vendoring, the second state cannot be reached from a
+clean checkout at all — `fonts/vendor/` has to be removed as well. So
+the middle row is the number to reproduce, and reproducing it means
+deleting the vendored face on purpose.
 
 `test_serve.py` needing the same answer is what moved the helpers into
 `tests/fonts_available.py`. Copying them would have made two answers to
