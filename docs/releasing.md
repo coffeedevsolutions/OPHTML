@@ -96,6 +96,26 @@ written twice to avoid.
    is step 9, and doing it here puts a heading naming the *next*
    version where rule 5 reads the *current* one.
 
+   **And the section has to say what changed.** Rule 22 requires a
+   released section to carry at least one `### ` heading and at least
+   one `- ` bullet — prose alone does not satisfy it, because the
+   `.uib` format paragraph is prose and would otherwise pass on its
+   own. Only a *release* is held to this: a prerelease section opened
+   by step 9 is legitimately empty, and requiring content there would
+   fail the step this document tells you to take.
+
+   That rule exists because the state it forbids actually happened.
+   Between `0.3.0` and `0.4.0` six pull requests landed — a clang fix
+   that had been broken for the target's whole life among them — and
+   the open section listed none of them, while every other check in
+   `check-versions.py` stayed green. The rules before it guard this
+   file's *shape*; that one asks whether it says anything, which is a
+   different question and the only one an empty release passes.
+
+   Write the entries as you go rather than here. Retitling is meant to
+   be a one-line edit, and a step that also asks you to reconstruct six
+   pull requests from `git log` is a step that gets done badly.
+
    Rule 5 accepts two heading shapes and picks by whether
    `__version__` is a prerelease — `## Unreleased — 0.4.0.dev0` while
    it is, `## 0.3.0 — 2026-09-04` once it is not. Either way the
@@ -238,6 +258,46 @@ written twice to avoid.
    a version**, so a bad `0.3.0` means `0.3.1` and the bad one is
    permanent; npm gives 72 hours and then blocks the name. These are
    the only genuinely irreversible steps in this document.
+
+   **The credentials, because nothing in this repository holds them.**
+   No workflow publishes and no secret exists: the tokens live in
+   `~/.pypirc` on the publisher's own machine, `chmod 600`, and TestPyPI
+   is a *separate account* with its own token under its own
+   `[testpypi]` section. `username` is the literal string `__token__`
+   for both — that is how PyPI knows the password field is a token
+   rather than a password, and it is not your account name.
+
+   **The first upload of a package cannot use a project-scoped token,
+   and that is not a mistake to correct later — it is the required
+   order.** PyPI will not scope a token to a project that does not
+   exist yet, so the upload that creates `ophtml` has to authenticate
+   with an account-scoped one, which can publish to *any* project the
+   account owns and create new ones.
+
+   So narrowing it is a step, and it belongs here rather than in
+   somebody's memory:
+
+   1. pypi.org → Account settings → API tokens → *Add API token*,
+      Scope: **Project → ophtml**.
+   2. Replace the `password` under `[pypi]` in `~/.pypirc`. Leave
+      `username = __token__`.
+   3. **Delete the account-scoped token.** This is the only step that
+      changes anything. Creating the narrow one and stopping leaves the
+      broad one live and simply adds a second key.
+
+   Nothing can validate a token except using it, so the proof is the
+   next upload. A wrongly scoped one fails with a **403 naming the
+   project** rather than half-succeeding, which is the good kind of
+   failure: loud, at the moment you are watching. What is worth
+   checking beforehand is that the file still parses, since a mangled
+   paste is the likelier mistake and it prints no secrets:
+
+   ```sh
+   python3 -c "import configparser,os;c=configparser.ConfigParser();c.read(os.path.expanduser('~/.pypirc'));print({s:sorted(c[s]) for s in c.sections()})"
+   ```
+
+   Section and key names only. `[distutils] index-servers` beside
+   `[pypi]` and `[testpypi]` is the expected shape.
 
    **The upload is three edits, not one command.** Publishing makes the
    README's Quick start note false, and the note is checked:

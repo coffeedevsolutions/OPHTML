@@ -233,9 +233,24 @@ jobs:
       # repository has closed for example figures, PLAN's prose, the
       # sweep table and every version claim in the tree.
       #
-      # It does NOT prove the packages install: nothing is published,
-      # so the CLI names resolve through shims onto the checkout. That
-      # gap IS the exit gate, and the tutorial says so itself.
+      # It does NOT prove the packages install: the CLI names resolve
+      # through shims onto the checkout, which is what makes this a
+      # check of THIS TREE rather than of whatever is on the
+      # registries.
+      #
+      # This comment used to end "nothing is published, so ... that gap
+      # IS the exit gate". Both halves stopped being true on 2026-09-04:
+      # 0.3.0 is on PyPI and npm, and the gap is covered by
+      # registry.yml, which runs the same document against installed
+      # packages on ubuntu and macOS. The shims are not a stand-in for
+      # publication any more -- they are the reason this job tests the
+      # branch in front of it, and deleting them would silently point
+      # this job at the last released version.
+      #
+      # Corrected here third. check-tutorial.py's docstring and the
+      # tutorial's own last section were both rewritten when 0.3.0 went
+      # up; this copy was missed, which is the same shape as
+      # fonts/regen.sh carrying a fourth stale list of font paths.
       # The deployment guide is mostly hardware and mostly cannot run
       # here, which is what its [bench]/[practice] markers are for. The
       # parts that ARE derivable from this tree are: the four status
