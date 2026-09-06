@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 0.4.0.dev0
+## 0.4.0 — 2026-09-06
 
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.3.0, which is what a section
