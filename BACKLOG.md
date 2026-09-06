@@ -348,6 +348,7 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | F20 | **Runtime image slots.** `data-slot` covers text; cover art discovered at runtime (an OPL-style ART folder) still cannot be shown, because textures are baked. Needs F19's VRAM bookkeeping first. | 5 | 2 | 0.7 | 3 | **2.3** |
 | F21 | **Runtime visibility toggle.** `display: none` is compile-time only, so an app cannot hide a row it has no data for; today the workaround is blanking every slot in it, which leaves the panel drawn. A per-focus-node or per-element visibility bit the render loop honours. | 4 | 1 | 0.9 | 1 | **3.6** |
 | F24 | **Trim geometry that cannot draw.** A `nowrap` run inside `overflow: hidden` bakes every glyph and lets the GS clip, so the channel-6 probe submits 20 quads per frame that are outside their scissor. F22 measures it; the baker could drop them at flatten time once the clip is known. Small, safe, and it shrinks the command list on exactly the data-heavy screens where it matters. | 6 | 0.5 | 0.9 | 0.5 | **5.4** |
+| F25 | **Ship the runtime to people who did not clone.** `pip install ophtml` and `npm install -g @ophtml/layout` give a stranger the whole authoring path — HTML/CSS to `.uib`, previewer included, verified cold-cache from an empty directory at 0.4.0. Then `README.md:161` tells them to *"drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKit project"*, and those are repo paths: the wheel ships `ps2ui_bake` only, the npm tarball ships `src/ bin/ README.md`. **Neither package contains the runtime**, so the console half — the point of the project — requires a clone. Two files, 112 KB. Ship them as package data plus a `ps2ui vendor-runtime <dir>` that writes them out, so `ps2ui check` and the thing that reads the blob come from the same install and cannot drift in version. **The wrinkle is the reason this is E=1 and not E=0.5:** setuptools package data must sit inside `packages/baker/ps2ui_bake/`, and `runtime/` does not, so this either restructures or duplicates — and a duplicated copy needs a fence holding it to the original, which is the stale-second-copy defect this repository has now found in a font path list four times, a `.pyc`, and a published claim. Solve the sync before shipping the file. **This is also why Phase 4's exit gate cannot currently be met as written** — see below. | 10 | 3 | 1.0 | 1 | **30** |
 
 ## Security & abuse (added 2026-08-17 after CI review)
 
@@ -373,19 +374,22 @@ $0 (the default), and re-read this section.
 | Rank | Item | Score |
 |------|------|-------|
 | 1 | B1 modulate color domain | 48 |
-| 2 | F18 bring-up checklist | 16 |
-| 3 | F1 PCSX2 harness · B8 VRAM budget · F10 focus API | 12 |
-| 4 | B3 texel conventions · B9 img warning | 10 |
-| 5 | F3 images · F7 PAL presets | 8 |
-| 6 | F11 watch mode | 7 |
-| 7 | B2 baseline seam · F13 contribution surface | ~6 |
-| 8 | F2 dynamic text | 5.4 |
-| 9 | F14 integrity/flags | 4 |
-| 10 | F4 multi-screen · F12 packaging · F9 kerning | ~3 |
+| 2 | **F25 ship the runtime to non-cloners** | **30** |
+| 3 | F18 bring-up checklist | 16 |
+| 4 | F1 PCSX2 harness · B8 VRAM budget · F10 focus API | 12 |
+| 5 | B3 texel conventions · B9 img warning | 10 |
+| 6 | F3 images · F7 PAL presets | 8 |
+| 7 | F11 watch mode | 7 |
+| 8 | B2 baseline seam · F13 contribution surface | ~6 |
+| 9 | F2 dynamic text | 5.4 |
+| 10 | F14 integrity/flags | 4 |
+| 11 | F4 multi-screen · F12 packaging · F9 kerning | ~3 |
 | — | everything else | <2.5 |
 
-Security items interleave as: S1 (30) after B1; S4 (12) with rank 3; S2 (6.4)
-with rank 7; S3 (4.8) between ranks 9 and 10.
+Security items interleave as: S1 (30) after B1, beside F25; S4 (12) with
+rank 4; S2 (6.4) with rank 8; S3 (4.8) between ranks 10 and 11. (Renumbered
+when F25 was filed at rank 2 — the ranks are positional, so inserting one
+moves every number below it.)
 
 ## Sequenced plan (RICE + dependencies)
 
