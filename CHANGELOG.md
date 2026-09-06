@@ -40,6 +40,18 @@ without moving this line.
 - `fonts/regen.sh` reads `fonts.json` instead of carrying its own copy
   of the candidate list, so the metrics are regenerated from the same
   file the build rasterizes.
+- `tools/check-tutorial.py` takes `--from-registry`, which skips the
+  shims so the tutorial runs against `pip install ophtml` and
+  `npm install -g @ophtml/layout` rather than against the checkout.
+  Unknown arguments are now refused rather than ignored: the flag
+  selects which of two *subjects* the run is about, and a typo used to
+  quietly pick the other one and print the same green line.
+
+**Not listed:** changes to `.github/workflows/`, which are not shipped
+to anyone. `registry.yml` is new in this cycle and runs the tutorial
+against the registries weekly; it is described in `docs/PLAN.md` under
+Phase 4 rather than here. Said out loud because the convention is
+otherwise indistinguishable from an omission.
 
 ### Fixed
 - `load_font_manifest` expands `~`. `os.path.isabs("~/Library/Fonts/

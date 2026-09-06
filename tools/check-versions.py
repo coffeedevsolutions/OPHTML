@@ -795,6 +795,54 @@ def main(argv=None):
     # 8. A release version names a tag. A prerelease is allowed to name
     #    nothing, which is the whole reason to carry one.
     tags = git_tags()
+    # 22. A RELEASE SECTION SAYS WHAT CHANGED.
+    #
+    #     Every other rule about the CHANGELOG guards its FORM: the
+    #     heading shape (rule 5), the format version it names, the
+    #     drift count and its enumeration. None of them looks at
+    #     whether the section has any content, so `## 0.4.0 —
+    #     <date>` could be cut, tagged and published carrying its
+    #     `.uib` format paragraph and nothing else, and every check
+    #     here would be green.
+    #
+    #     That is not hypothetical. Six pull requests landed between
+    #     0.3.0 and this rule -- a clang fix that had been broken
+    #     for the target's whole life, the font discovery work, a
+    #     vendored default face -- and the open section listed none
+    #     of them. It was noticed by reading the file, which is the
+    #     detector this rule exists to replace.
+    #
+    #     ONLY ON A RELEASE, AND THAT IS THE WHOLE DESIGN. A
+    #     prerelease section is legitimately empty: releasing.md
+    #     step 9 opens `## Unreleased — <next>.dev0` immediately
+    #     after a release, with its format paragraph and no entries,
+    #     because nothing has landed yet. Requiring content there
+    #     would fail the step the runbook tells you to take -- which
+    #     is exactly the trap step 4 and rule 5 were in until
+    #     somebody ran them. So this reads the same two states rule
+    #     5 does, and only the released one has to say anything.
+    #
+    #     A bullet, not a heading: the format paragraph is prose, so
+    #     prose alone cannot satisfy this, and an empty `### Added`
+    #     cannot either.
+    if not is_prerelease(baker):
+        bullets = [ln for ln in body.splitlines()
+                   if ln.startswith("- ") or ln.startswith("  - ")]
+        heads = [ln for ln in body.splitlines() if ln.startswith("### ")]
+        check(bool(bullets) and bool(heads),
+              "CHANGELOG's %s section says what changed (%d entr%s under "
+              "%d heading(s))" % (BAKER_VERSION, len(bullets),
+                                  "y" if len(bullets) == 1 else "ies",
+                                  len(heads)),
+              "CHANGELOG's %s section is a release with no entries (%d "
+              "`### ` heading(s), %d `- ` bullet(s)). Every other rule "
+              "here guards this file's shape; this one asks whether it "
+              "says anything. A release whose notes list nothing is the "
+              "one state where all of those can pass and the document "
+              "still be useless. Write the entries, or if the release "
+              "genuinely changes nothing a reader would act on, say that "
+              "in a bullet." % (BAKER_VERSION, len(heads), len(bullets)))
+
     if except_tag:
         # SAID OUT LOUD. A green `--except-tag` run is not a pass, and
         # the one thing that would make this flag dangerous is someone
@@ -859,53 +907,6 @@ def main(argv=None):
                          "differs" if len(moved) == 1 else "differ",
                          "the packaged paths", "them"))
 
-        # 22. A RELEASE SECTION SAYS WHAT CHANGED.
-        #
-        #     Every other rule about the CHANGELOG guards its FORM: the
-        #     heading shape (rule 5), the format version it names, the
-        #     drift count and its enumeration. None of them looks at
-        #     whether the section has any content, so `## 0.4.0 —
-        #     <date>` could be cut, tagged and published carrying its
-        #     `.uib` format paragraph and nothing else, and every check
-        #     here would be green.
-        #
-        #     That is not hypothetical. Six pull requests landed between
-        #     0.3.0 and this rule -- a clang fix that had been broken
-        #     for the target's whole life, the font discovery work, a
-        #     vendored default face -- and the open section listed none
-        #     of them. It was noticed by reading the file, which is the
-        #     detector this rule exists to replace.
-        #
-        #     ONLY ON A RELEASE, AND THAT IS THE WHOLE DESIGN. A
-        #     prerelease section is legitimately empty: releasing.md
-        #     step 9 opens `## Unreleased — <next>.dev0` immediately
-        #     after a release, with its format paragraph and no entries,
-        #     because nothing has landed yet. Requiring content there
-        #     would fail the step the runbook tells you to take -- which
-        #     is exactly the trap step 4 and rule 5 were in until
-        #     somebody ran them. So this reads the same two states rule
-        #     5 does, and only the released one has to say anything.
-        #
-        #     A bullet, not a heading: the format paragraph is prose, so
-        #     prose alone cannot satisfy this, and an empty `### Added`
-        #     cannot either.
-        if not is_prerelease(baker):
-            bullets = [ln for ln in body.splitlines()
-                       if ln.startswith("- ") or ln.startswith("  - ")]
-            heads = [ln for ln in body.splitlines() if ln.startswith("### ")]
-            check(bool(bullets) and bool(heads),
-                  "CHANGELOG's %s section says what changed (%d entr%s under "
-                  "%d heading(s))" % (BAKER_VERSION, len(bullets),
-                                      "y" if len(bullets) == 1 else "ies",
-                                      len(heads)),
-                  "CHANGELOG's %s section is a release with no entries (%d "
-                  "`### ` heading(s), %d `- ` bullet(s)). Every other rule "
-                  "here guards this file's shape; this one asks whether it "
-                  "says anything. A release whose notes list nothing is the "
-                  "one state where all of those can pass and the document "
-                  "still be useless. Write the entries, or if the release "
-                  "genuinely changes nothing a reader would act on, say that "
-                  "in a bullet." % (BAKER_VERSION, len(heads), len(bullets)))
 
     if fail:
         print("not ok - %d version claim(s) above disagree with the code"
