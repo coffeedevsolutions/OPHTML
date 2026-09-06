@@ -96,6 +96,26 @@ written twice to avoid.
    is step 9, and doing it here puts a heading naming the *next*
    version where rule 5 reads the *current* one.
 
+   **And the section has to say what changed.** Rule 22 requires a
+   released section to carry at least one `### ` heading and at least
+   one `- ` bullet — prose alone does not satisfy it, because the
+   `.uib` format paragraph is prose and would otherwise pass on its
+   own. Only a *release* is held to this: a prerelease section opened
+   by step 9 is legitimately empty, and requiring content there would
+   fail the step this document tells you to take.
+
+   That rule exists because the state it forbids actually happened.
+   Between `0.3.0` and `0.4.0` six pull requests landed — a clang fix
+   that had been broken for the target's whole life among them — and
+   the open section listed none of them, while every other check in
+   `check-versions.py` stayed green. The rules before it guard this
+   file's *shape*; that one asks whether it says anything, which is a
+   different question and the only one an empty release passes.
+
+   Write the entries as you go rather than here. Retitling is meant to
+   be a one-line edit, and a step that also asks you to reconstruct six
+   pull requests from `git log` is a step that gets done badly.
+
    Rule 5 accepts two heading shapes and picks by whether
    `__version__` is a prerelease — `## Unreleased — 0.4.0.dev0` while
    it is, `## 0.3.0 — 2026-09-04` once it is not. Either way the

@@ -14,6 +14,59 @@ decays. It becomes one the moment a format move lands, and
 reading it back, so the check fails the change that moves the format
 without moving this line.
 
+### Added
+- `fonts/vendor/` carries the default DejaVu faces under their own
+  licence, so a checkout builds without a system font. They sit **last**
+  in `fonts.json`, so a machine's own DejaVu still wins wherever there
+  is one; the vendored pair is a floor, not a preference. Coherence
+  rather than convenience: `default.metrics.json` was already committed
+  and DejaVu-derived, so the tree shipped the *metrics* for its default
+  face without the face, and metrics alone cannot rasterize an atlas.
+  Two tests fence it — the vendored face must stay last, and it must
+  regenerate the committed metrics byte for byte, so a swapped TTF
+  fails rather than drifting advances against glyphs.
+
+### Changed
+- `ps2ui-fontgen`'s Raqm refusal prints the remedy for the platform it
+  is running on. It used to say "install a Pillow wheel built with
+  Raqm (pip's manylinux wheels are)", which is true and useless to the
+  reader most likely to see it: pip's macOS wheels are precisely the
+  ones that are not. The macOS branch names `brew install libraqm` and
+  a source build of Pillow **alone** — `--no-binary pillow`, never
+  `--no-binary :all:`, which scopes the build to the whole dependency
+  graph and spends tens of minutes bootstrapping CMake. Both branches
+  end on the same point: a clean build is not proof, because Pillow
+  builds and exits 0 without libraqm and simply omits the feature.
+- `fonts/regen.sh` reads `fonts.json` instead of carrying its own copy
+  of the candidate list, so the metrics are regenerated from the same
+  file the build rasterizes.
+
+### Fixed
+- `load_font_manifest` expands `~`. `os.path.isabs("~/Library/Fonts/
+  DejaVuSans.ttf")` is False, so a home-relative candidate was joined
+  to the manifest's own directory and could never match — silently,
+  since a candidate that does not exist is just the next one tried.
+  That is where macOS puts a font a person installs for themselves, so
+  the one spelling a Mac reader would reach for was the one spelling
+  that could not work.
+- `fonts.json` gains `/usr/local/share/fonts` (Intel Homebrew) and
+  `~/Library/Fonts` (per-user installs, and where a font cask lands).
+- `make -C runtime syntax-check` passes under clang. `-S` makes clang
+  parse the sample's MIPS inline asm with its integrated assembler and
+  reject `mfc0` on an x86 host; GCC emits the asm text and stops.
+  Probed `-fno-integrated-as` rather than `-fsyntax-only`, which would
+  have traded a compiler nobody ran for the `-Wunused-function` class
+  that only appears during code generation. Every runner here is Linux,
+  so this had been broken for the target's whole life and CI could not
+  see it.
+- The baker suite skips rather than errors on a machine without the
+  fonts. It reported 22 errors across seven classes, then 17 failures
+  and 2 errors in a second set, on any machine lacking DejaVu at one of
+  two hardcoded Linux paths — a stranger's first `unittest discover`,
+  after doing everything the tutorial asked. `PS2UI_REQUIRE_FONTS=1`
+  turns those skips back into failures where the fonts are installed on
+  purpose.
+
 ## 0.3.0 — 2026-09-04
 
 `.uib` format **version 7**. v3 through v6 files are rejected; re-bake.
