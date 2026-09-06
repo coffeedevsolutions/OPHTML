@@ -15,6 +15,17 @@ reading it back, so the check fails the change that moves the format
 without moving this line.
 
 ### Added
+- **The `.uib` format stability pledge, made at v7.** v7 is the last
+  incompatible layout: additions go in feature bits rather than strides,
+  so a blob this tree writes will be read by every runtime that comes
+  after it. Enforced by `tools/check-format-frozen.py` in CI rather than
+  announced — it freezes all eleven structs' formats and sizes, `MAGIC`,
+  and the value of each assigned feature bit, and refuses a twelfth that
+  is not in the record. The *set* of bits is deliberately left open,
+  because that is the growth path the pledge points at. It does not
+  forbid a v8; it makes one a decision somebody signed.
+  Deferred twice before this, from post-v5 and post-v6, both times
+  because a break landed inside the phase meant to end them.
 - `fonts/vendor/` carries the default DejaVu faces under their own
   licence, so a checkout builds without a system font. They sit **last**
   in `fonts.json`, so a machine's own DejaVu still wins wherever there

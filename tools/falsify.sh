@@ -28,7 +28,21 @@ file=$1; shift
 snap=$(mktemp)
 cp "$file" "$snap"
 # Restore on any exit, including a signal or a failure inside the edit.
-trap 'cp "$snap" "$file"; rm -f "$snap"' EXIT INT TERM
+# AND PURGE AGAIN ON THE WAY OUT, not only between the two runs below.
+# The fence run compiles the SABOTAGED source into a .pyc; restoring
+# the source does not invalidate it when the restore lands in the same
+# mtime-second at the same size, which a length-preserving edit does
+# routinely. That .pyc then outlives this script and is served to
+# whatever runs next -- the next falsification's baseline, an ordinary
+# test run, anything.
+#
+# Found by running four sabotages in a row: the second swapped
+# `IhhHH` -> `hhIHH` in a struct format, same length, and the third and
+# fourth then reported "FENCE ALREADY FAILS ON THE UNMODIFIED FILE"
+# because they were reading the second one's ghost. `git status` was
+# clean throughout, which is what makes it worth a comment: the file on
+# disk was correct and the behaviour was not.
+trap 'cp "$snap" "$file"; rm -f "$snap"; find . -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true' EXIT INT TERM
 # The fence must PASS on the real bytes first. Without this, a fence
 # command that cannot run at all -- a typo, a missing build step, or
 # the whole command quoted as one argv entry, which is how this was
@@ -54,15 +68,23 @@ python3 - "$file" || { echo "SABOTAGE FAILED TO APPLY" >&2; exit 2; }
 # made by hand a second later. A falsifier whose verdict depends on how
 # fast the machine is, is not a falsifier.
 #
-# THE FAILURE IS ONE-DIRECTIONAL, which bounds what the bug could have
-# cost before this fix. A stale .pyc makes the sabotage a NO-OP, so the
-# fence sees unmodified behaviour and PASSES -- this script then prints
-# "HOLE". It cannot turn a real hole into a "caught": a caught verdict
+# THE FAILURE IS ONE-DIRECTIONAL WITHIN ONE INVOCATION, and that is a
+# narrower claim than an earlier version of this comment made. Inside a
+# single run a stale .pyc makes the sabotage a NO-OP, so the fence sees
+# unmodified behaviour and PASSES -- this script then prints "HOLE". It
+# cannot turn a real hole into a "caught": a caught verdict
 # requires the fence to have failed, which requires the edit to have
 # taken effect. So every "caught" ever recorded is sound, and only
 # "HOLE" verdicts on IMPORTED Python modules were ever suspect. That is
 # a stronger statement than enumerating which sabotages touched
 # modules, and it does not depend on the enumeration being complete.
+#
+# ACROSS invocations it is not one-directional, which is why the trap
+# above now purges too. A .pyc left behind by a sabotage run makes the
+# NEXT run read sabotaged code: usually that surfaces as the baseline
+# guard below refusing to proceed, which is loud and safe, but a fence
+# that fails for that reason would be recorded as "caught" when the
+# sabotage under test did nothing at all.
 find . -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true
 if "$@" >/dev/null 2>&1; then
     echo "PASSED -- HOLE: the fence did not catch it"
@@ -73,6 +95,32 @@ fi
 # tool's TAP output (the baker suite runs check.py over deliberately
 # bad blobs) prints "not ok" lines that have nothing to do with the
 # sabotage, so read the names, do not trust the first one.
+#
+# AND THE NO-LINES CASE IS THE ONE THAT MATTERS MOST, so it is printed
+# rather than left as a blank. A fence that dies at IMPORT -- a
+# traceback on stderr, no TAP at all -- prints nothing here, and
+# "caught." followed by silence reads exactly like a clean catch. It is
+# not one: something upstream of the check refused the file, and the
+# check under test may never have run.
+#
+# That is not hypothetical either. uib.py asserts its own struct sizes
+# at import, so a sabotage that changes a size dies there, and twice
+# while building check-format-frozen.py this signature meant "your
+# sabotage was wrong" rather than "your fence works".
+#
+# THE FALLBACK BELOW USED TO BE DEAD CODE. `... | head -5 || echo` runs
+# the echo on HEAD's status, and head exits 0 whether grep matched
+# anything or not, so the message could never print -- the same species
+# as the `elif`-shadowed guard found in check-versions.py, and found
+# the same way: by hitting the case it was supposed to explain and
+# getting nothing.
 echo "caught. failing lines (a hint, not the verdict):"
-"$@" 2>&1 | grep -E "^not ok|^FAIL:|^ERROR:" | head -5 \
-    || echo "  (fence failed with no recognisable failure line)"
+lines=$("$@" 2>&1 | grep -E "^not ok|^FAIL:|^ERROR:" | head -5 || true)
+if [ -n "$lines" ]; then
+    echo "$lines"
+else
+    echo "  (no recognisable failure line: the fence may have died"
+    echo "   before the check ran -- an import error, a missing file, a"
+    echo "   sabotage that broke something upstream. Run the fence by"
+    echo "   hand against the sabotaged file before believing this.)"
+fi

@@ -363,6 +363,94 @@ So the bit is not "role-keying is nice"; it is the precondition for
 theme without it, and the Python reader raises. Refusing beats
 documenting here: the wrong render would look deliberate.
 
+## The stability pledge — made at v7, 2026-09-06
+
+**`.uib` v7 is the last incompatible layout.** From here, additions go
+in feature bits, not in strides. A blob this tree writes today will be
+read by every ps2ui runtime that comes after it.
+
+That is a stronger promise than the rule above it. "Version bumps on
+any incompatible change" is honest bookkeeping and it permits a v8 next
+week; this says there will not be one. It is the commitment
+`docs/PLAN.md`'s Phase 4 has carried since before v6 and deferred
+twice, both times because a format break landed inside the phase that
+was meant to end them — v6's texture kinds, then v7's tint table.
+
+**Why it can be made now, when it could not before.** `0.3.0` put a v7
+reader on two registries, so the population of readers in the world is
+no longer one repository's `main`. That is exactly the moment the
+promise starts costing something, and the moment it starts being worth
+making.
+
+### What is frozen
+
+All eleven structs' formats and sizes, `MAGIC`, and the **value** of
+every feature bit already assigned. Those are what a reader in the
+field walks; move any of them and blobs it has already been handed stop
+parsing — or worse, parse into something else.
+
+Eleven and not ten: `_GLYF` was missing from the first draft of the
+record while the same sentence said "every struct". It is a table with
+a stride, written per glyph and read back at `glyphs_off + j *
+_GLYF.size`, so it is exactly what the pledge is about. The check now
+enumerates `uib` and fails on anything it does not hold, which is how
+the omission was found and is what keeps this sentence true without
+anybody re-counting.
+
+### What is not
+
+The **set** of feature bits. Assigning a new `FEAT_*` and widening
+`FEAT_KNOWN` is the growth path this pledge points at, and it stays
+open: a reader that does not know a bit refuses the blob by name
+rather than misreading it, which is the property `FEAT_KNOWN` was added
+for. The tables also carry the reserved space the last four versions
+were spent learning to leave.
+
+A new table behind a new bit is allowed for the same reason — but the
+moment it ships it is v7's layout too, so it joins the frozen record in
+the same change. The check enumerates every `Struct` in `uib` and
+fails on one it does not hold, which is what forbids the addition
+happening quietly rather than the addition itself.
+
+### What no check at this level can see
+
+A reorder of two fields of the **same type**. `_GLYF` is
+`<IHHHHhhH2x`; swapping `u` with `v`, or `w` with `h`, leaves a
+byte-identical format string, so nothing that compares layouts can
+notice. That is caught one level up, by the cross-language pen
+agreement in `packages/baker/tests`, which compares rendered values
+rather than strides. Said here because "every struct's format and size"
+would otherwise read as more than it delivers.
+
+### How it is enforced
+
+`tools/check-format-frozen.py`, in CI. It records the v7 layout read
+off the live `Struct` objects rather than retyped from this document,
+because a copy of a spec drifts from the code the spec describes — this
+repository has found that same defect in a list of font paths four
+separate times.
+
+**It does not forbid a v8.** It makes one a decision somebody signed:
+bump the version and the check fails until the frozen record is updated
+in the same change, which is where a person has to write down what
+broke and why it could not have been a feature bit. The failure message
+says so. What it prevents is not a break; it is a break that shipped
+because nobody noticed a stride move.
+
+Falsified in eight directions before it was trusted: a stride that
+grows, a field-order swap that keeps the size, the same swap inside
+`_GLYF`, a renumbered feature bit, a changed `MAGIC`, a version bump
+with the record left alone, and a twelfth `Struct` appearing
+unrecorded — all caught — plus a newly assigned feature bit, which
+**passes**, because a fence that forbids its own escape hatch gets
+deleted the first time somebody needs it.
+
+The stride case needed a second run to mean anything: `uib.py` asserts
+its own struct sizes at import, so the naive version of that sabotage
+never reached the new check and merely looked caught. The check's own
+docstring records that, because a check that exits nonzero for somebody
+else's reason is a check nobody has tested.
+
 ## Versioning
 
 `version` bumps on any incompatible change. Readers must reject unknown
