@@ -45,88 +45,14 @@ from ps2ui_bake.uib import (write_uib, read_uib, MAGIC, VERSION,
 from ps2ui_bake import preview
 
 REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
-FONTS = os.path.join(REPO, "fonts")
-METRICS = os.path.join(FONTS, "default.metrics.json")
 
 
-# ONE LIST OF CANDIDATE FONTS, AND IT IS fonts/fonts.json.
-#
-# This used to be two hardcoded Linux paths while fonts.json carried
-# six. Two lists for one job, and the shorter one was the one the test
-# suite believed -- so the suite could not find a font on a machine the
-# baker itself would have been fine on. The manifest is the thing the
-# product reads; the tests read it too, and a path added for a user is
-# added for the suite in the same edit.
-def _manifest_ttf():
-    try:
-        from ps2ui_bake.cli import load_font_manifest
-        return load_font_manifest(os.path.join(FONTS, "fonts.json"))
-    except Exception:
-        # Any reason at all: no manifest, no candidate on this machine,
-        # a face missing. The caller's question is "can I build an
-        # atlas", and every one of those answers it "no".
-        return None
-
-
-_MANIFEST = _manifest_ttf()
-TTF = _MANIFEST["regular"]["ttf"] if _MANIFEST else None
-
-
-# A MISSING FONT IS A SKIP, NOT AN ERROR, AND NOT A DECORATOR.
-#
-# With no TTF this suite used to report `errors=22` across seven
-# classes -- a stranger's first `python3 -m unittest discover`, on any
-# machine without DejaVu at one of two Linux paths, after they had done
-# everything the tutorial asked. Four `skipIf(TTF is None)` sites
-# existed and seven classes needed one.
-#
-# Decorating the other fifteen methods was the obvious fix and is the
-# worse one, twice over. Class-level guards would skip 25 tests that do
-# not touch a font and pass without one; method-level guards are
-# fifteen things to remember, and the sixteenth test to reach for a
-# font gets an error again. So the guard lives where the font is
-# actually fetched: raising SkipTest from inside a test body is a skip,
-# so every present and future path to a font is covered by the fetch
-# rather than by a habit.
-def require_ttf():
-    if TTF is None:
-        _no_fonts("no DejaVu Sans on this machine")
-    return TTF
-
-
-# ...AND WHERE IT MUST NOT BE QUIET, IT IS NOT.
-#
-# The same tripwire and the same wording as PS2UI_REQUIRE_CROSSCHECK
-# and PS2UI_REQUIRE_EXAMPLES. A skip is the right answer on a stranger's
-# laptop and the wrong one in CI, where the fonts are installed on
-# purpose: 22 silent skips there would mean the kerning tables, the
-# cross-language pen agreement and the slot spacing all stopped being
-# checked, with the run still green. CI sets this, so a skip that
-# should be impossible is a failure that names itself.
-def _no_fonts(why):
-    if os.environ.get("PS2UI_REQUIRE_FONTS") == "1":
-        raise AssertionError(
-            "PS2UI_REQUIRE_FONTS=1 but %s. This environment is supposed to "
-            "have the fonts fonts/fonts.json names, so this is a broken "
-            "environment rather than a test to skip." % why)
-    raise unittest.SkipTest(
-        "%s. fonts/fonts.json lists the paths that are looked in; install "
-        "DejaVu Sans or add yours to that file." % why)
-
-
-def require_raqm():
-    """Both conditions, because the test needs both.
-
-    A TTF alone is not enough for the fontgen success path: without
-    Pillow's Raqm layout engine every advance comes out identical and
-    the kern table comes out empty, which is exactly the silent wrong
-    answer fontgen refuses to write. Guarding this on the TTF alone
-    would turn "no Raqm" into a failure that reads like a kerning bug.
-    """
-    require_ttf()
-    from PIL import features
-    if not features.check("raqm"):
-        _no_fonts("this Pillow has no Raqm layout engine")
+# THE FONT HELPERS LIVE IN fonts_available.py, because
+# test_serve.py needs the same answer and two copies of it would
+# be the same defect this file has already fixed twice.
+from fonts_available import (  # noqa: E402
+    FONTS, TTF, METRICS, require_ttf, require_raqm,
+    _no_fonts)  # noqa: F401
 
 
 # NOT GUARDED, DELIBERATELY. Most callers hand this to a Flattener over
@@ -825,6 +751,7 @@ class TestCaps(unittest.TestCase):
         self.assertTrue(any("uint16" in e for e in errors))
 
 
+@unittest.skipIf(TTF is None, "no DejaVu; fonts/fonts.json lists the paths looked in")
 class TestSlotCapacity(unittest.TestCase):
     """The blob records the capacity the author asked for.
 
@@ -978,6 +905,7 @@ class TestStreamedTextures(unittest.TestCase):
             self.assertEqual(uib.textures[0].data, b"")
 
 
+@unittest.skipIf(TTF is None, "no DejaVu; fonts/fonts.json lists the paths looked in")
 class TestStreamedAuthoring(unittest.TestCase):
     """<img data-tex-slot="name"> end to end, HTML through to the blob.
 
@@ -3636,6 +3564,81 @@ class TestNewcomerPath(unittest.TestCase):
         self.assertIn("ps2ui-fontgen", msg)
         self.assertIn("ps2ui-layout", msg)
 
+    def test_the_vendored_face_is_the_last_candidate_never_the_first(self):
+        """Order is the whole safety of vendoring a font.
+
+        Put `vendor/DejaVuSans.ttf` ahead of the system paths and it
+        shadows every one of them: `~/Library/Fonts` stops being
+        exercised on any machine, and registry.yml's candidate listing
+        -- which exists to say where a macOS runner actually keeps its
+        fonts -- prints the vendored file and five dashes forever,
+        meaning nothing. Last, it is a floor: the machine's own DejaVu
+        wins wherever there is one, and a machine with none still
+        builds.
+        """
+        from ps2ui_bake.cli import load_font_manifest  # noqa: F401
+        with open(os.path.join(FONTS, "fonts.json"), encoding="utf-8") as fh:
+            manifest = json.load(fh)
+        for face, spec in manifest.items():
+            cands = spec["ttf"]
+            vendored = [c for c in cands if c.startswith("vendor/")]
+            self.assertEqual(len(vendored), 1, face)
+            self.assertEqual(cands[-1], vendored[0],
+                             "%s: the vendored face must be the LAST "
+                             "candidate; it is at index %d of %d"
+                             % (face, cands.index(vendored[0]), len(cands)))
+
+    def test_the_vendored_face_is_the_one_the_metrics_came_from(self):
+        """The stronger half, and the reason vendoring is safe at all.
+
+        `default.metrics.json` is committed, and advances measured from
+        one DejaVu with glyphs drawn from another is wrong on every
+        screen with nothing to say so. Vendoring only helps if the file
+        in the tree is the file the committed metrics were generated
+        from -- otherwise it is a second font wearing the first one's
+        numbers, which is worse than no font at all.
+
+        So this regenerates from the vendored face and compares. It
+        fails if someone swaps the TTF for a different DejaVu build
+        without running fonts/regen.sh, which is the one way this
+        could go quietly wrong.
+        """
+        require_raqm()
+        from ps2ui_bake import fontgen
+        for rel, weight, committed in (
+                ("vendor/DejaVuSans.ttf", 400, "default.metrics.json"),
+                ("vendor/DejaVuSans-Bold.ttf", 700, "default-bold.metrics.json")):
+            ttf = os.path.join(FONTS, *rel.split("/"))
+            # A COMMITTED FILE MISSING IS A BROKEN TREE, NOT A FONTLESS
+            # MACHINE, and this is the one guard in this file that could
+            # not tell you which. It used to assert on a bare path.
+            # `require_ttf` next door says "this is a broken environment
+            # rather than a test to skip", and that sentence is exactly
+            # what somebody who has just pruned 1.5 MB of vendored TTF
+            # needs to read -- a sparse checkout, a `git clean` that
+            # took fonts/vendor with it, or a deliberate trim.
+            self.assertTrue(
+                os.path.exists(ttf),
+                "%s is committed to this repository and is not in the "
+                "tree. That is a broken checkout rather than a machine "
+                "without fonts: a machine without fonts SKIPS here, "
+                "because fonts.json's system candidates still resolve "
+                "or this vendored one does. Restore it with `git "
+                "checkout fonts/vendor`, and if it was removed on "
+                "purpose, note that fonts/default.metrics.json is "
+                "generated from it." % os.path.relpath(ttf, REPO))
+            with tempfile.TemporaryDirectory() as td:
+                out = os.path.join(td, "m.json")
+                rc = fontgen.main([ttf, "DejaVu Sans", str(weight), out])
+                self.assertEqual(rc, 0)
+                with open(out, encoding="utf-8") as fh:
+                    fresh = json.load(fh)
+            with open(os.path.join(FONTS, committed), encoding="utf-8") as fh:
+                self.assertEqual(json.load(fh), fresh,
+                                 "%s does not regenerate %s; run "
+                                 "fonts/regen.sh and commit the diff"
+                                 % (rel, committed))
+
     def test_a_home_relative_candidate_resolves_to_the_home_directory(self):
         """`~/Library/Fonts/...` is where macOS puts a user's own fonts.
 
@@ -3668,6 +3671,7 @@ class TestNewcomerPath(unittest.TestCase):
                          os.path.join(home, "m.json"))
 
     def test_bake_creates_its_output_directories(self):
+        require_ttf()
         # `-o build/ui.uib` into a tree with no build/ raised a bare
         # FileNotFoundError traceback. First command, first failure.
         import tempfile
@@ -3689,6 +3693,7 @@ class TestNewcomerPath(unittest.TestCase):
                             "bake did not create --preview's dir")
 
     def test_the_ir_and_the_manifest_must_mean_the_same_fonts(self):
+        require_ttf()
         # ps2ui-layout and ps2ui-bake take font configuration
         # separately, so a project can compile with --font-dir one/ and
         # bake with --fonts other.json. Every glyph would then be drawn
@@ -3725,6 +3730,7 @@ class TestNewcomerPath(unittest.TestCase):
         self.assertIn("'black'", out[0])
 
     def test_font_agreement_does_not_catch_a_same_family_rebuild(self):
+        require_ttf()
         # STATED, NOT IMPLIED. Two builds of one family whose metrics
         # differ -- a re-run of fontgen over a newer TTF, or a different
         # charset -- agree on family and weight and diverge in the
@@ -3741,6 +3747,7 @@ class TestNewcomerPath(unittest.TestCase):
                          "and the docs claiming otherwise are now wrong")
 
     def test_the_bake_actually_refuses_a_disagreeing_manifest(self):
+        require_ttf()
         # THE CALL SITE, NOT THE FUNCTION. The three tests above pass
         # with the check unwired from main() -- deleting the call was
         # sabotaged and nothing failed, which is a fence that exists
@@ -3890,6 +3897,7 @@ class TestProjectFile(unittest.TestCase):
                 self.assertTrue(os.path.exists(s.css), s.css)
 
     def test_build_prints_paths_relative_to_the_project_not_the_cwd(self):
+        require_ttf()
         """"Every path is relative to the project" must hold for OUTPUT.
 
         The first version printed the absolute path of everything it
@@ -4034,6 +4042,7 @@ class TestProjectFile(unittest.TestCase):
             self.assertEqual(front.pick_screen(proj, None).name, "only")
 
     def test_dev_builds_with_a_fonts_manifest_and_stays_out_of_build(self):
+        require_ttf()
         """TWO FAILURES THAT MADE `ps2ui dev` UNRUNNABLE, together.
 
         It appended `--fonts <manifest>` to a tool that did not accept
@@ -4140,6 +4149,7 @@ class TestProjectFile(unittest.TestCase):
                              os.path.join("build", "games-widescreen.json"))
 
     def test_a_second_build_does_not_stand_on_the_first(self):
+        require_ttf()
         """The regression, reproduced: two builds into one directory.
 
         channel6 bakes a second blob at 16:9 from the same sources, and
