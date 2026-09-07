@@ -34,6 +34,35 @@
   `docs/deploying.md` section 2, whose build command assumes a checkout
   and now says what the installed path is instead.
 
+### Fixed
+- **A VRAM budget that cannot exist says so, instead of blaming the
+  textures.** Above some canvas width three framebuffers do not fit in
+  VRAM at all and `default_budget` returns a negative number, after
+  which everything downstream read as though the art were at fault: an
+  *empty* blob failed, and `textures 0 B of -278528 B budget` named the
+  one thing that was not the problem, while the line directly above it
+  asserted 4,472,832 B of framebuffers against the 4,194,304 B the same
+  module defines as total VRAM without ever saying those two are
+  incompatible. A reader had to work backwards through `vram.py` to
+  learn that the default was structurally unavailable at their canvas
+  rather than that their covers were too big.
+
+  The report now names both sides of that comparison where the numbers
+  are, and the way out with the figure it is worth: with ZBuffering off
+  the console holds two buffers rather than three, which at 796x448
+  leaves 1,212,416 B. The percentage is dropped rather than printed
+  against a negative budget, where it read `49152000%`.
+
+  Only for an *inherited* default — somebody who passed
+  `--vram-budget` has already made the decision the diagnostic argues
+  for. The verdict is deliberately unchanged: an empty blob at an
+  impossible canvas is still a failure, because it is one. What was
+  missing was the explanation, not a kinder result.
+
+  796x448 is not hypothetical; it is the canvas that gives square
+  pixels at 16:9 on a 448-line frame, and reaching it is what turned
+  `--vram-budget` from decorative into load-bearing.
+
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.5.0, which is what a section
 opened straight after a release should say: the release under it

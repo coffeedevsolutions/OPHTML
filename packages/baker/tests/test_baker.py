@@ -1666,6 +1666,56 @@ class TestVram(unittest.TestCase):
             4 * 1024 * 1024 - 3 * vram.framebuffer_size(640, 448),
         )
 
+    def test_an_impossible_default_says_so_instead_of_blaming_textures(self):
+        """Above some width three framebuffers do not fit in VRAM.
+
+        `default_budget` then returns a NEGATIVE number and everything
+        downstream reads as though the art were at fault: an empty blob
+        fails, and `textures 0 B of -278528 B budget` names the one
+        thing that is not the problem. A reader had to work backwards
+        through this module to find that the default is structurally
+        unavailable at their canvas.
+
+        796x448 is not hypothetical -- it is the canvas that gives
+        square pixels at 16:9 on a 448-line frame.
+        """
+        from ps2ui_bake import vram
+        lines, total, budget, ok = vram.report([], [], 796, 448)
+        text = "\n".join(lines)
+        self.assertEqual(total, 0)
+        self.assertLess(budget, 0)
+        # An empty blob at an impossible canvas IS a failure. The fix
+        # is the explanation, not a verdict that hides it.
+        self.assertFalse(ok)
+        self.assertIn("the default budget does not exist at this canvas", text)
+        # Both sides of the comparison, named.
+        self.assertIn(str(3 * vram.framebuffer_size(796, 448)), text)
+        self.assertIn(str(vram.VRAM_TOTAL), text)
+        # And the way out, with the number it is worth.
+        self.assertIn("vramBudget", text)
+        two = vram.VRAM_TOTAL - 2 * vram.framebuffer_size(796, 448)
+        self.assertIn(str(two), text)
+
+    def test_a_declared_budget_gets_no_lecture(self):
+        """The diagnostic is for an INHERITED default, not a chosen
+        number. Somebody who passed --vram-budget has already made the
+        decision it argues for."""
+        from ps2ui_bake import vram
+        lines, _t, _b, ok = vram.report([], [], 796, 448, budget=1212416)
+        text = "\n".join(lines)
+        self.assertTrue(ok)
+        self.assertNotIn("does not exist at this canvas", text)
+
+    def test_no_percentage_of_a_negative_budget(self):
+        """`49152000%` reads as a number and is not one."""
+        from ps2ui_bake import vram
+        text = "\n".join(vram.report([], [], 796, 448)[0])
+        self.assertNotIn("%)", text.split("textures")[-1])
+        self.assertIn("no budget to charge them to", text)
+        # The ordinary canvas keeps its percentage.
+        ok_text = "\n".join(vram.report([], [], 640, 448)[0])
+        self.assertIn("budget (0%)", ok_text)
+
     def test_report_flags_over_budget(self):
         from ps2ui_bake import vram
         from ps2ui_bake.quads import BakedTexture

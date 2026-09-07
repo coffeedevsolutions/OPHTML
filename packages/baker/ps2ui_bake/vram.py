@@ -158,6 +158,9 @@ CLUT_PAYLOAD = 256 * 4
 def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
     """Compute the footprint. Returns (lines, total_bytes, budget, ok);
     lines is a printable per-texture breakdown."""
+    # WHETHER THE BUDGET WAS CHOSEN OR INHERITED changes what a failure
+    # means, so the diagnostic below needs to know which it was.
+    default_used = budget is None
     if budget is None:
         budget = default_budget(canvas_w, canvas_h)
     lines = []
@@ -197,6 +200,35 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         f"  framebuffers assumed: 2x draw/display + 1x Z @ {canvas_w}x{canvas_h} "
         f"= {3 * fb} B"
     )
+    # WHEN THE DEFAULT IS NOT A BUDGET BUT AN IMPOSSIBILITY, SAY SO
+    # HERE, where the numbers are, rather than leaving a negative
+    # figure to be reported against textures at the bottom.
+    #
+    # Above some canvas width three framebuffers do not fit in VRAM at
+    # all, and `default_budget` returns a NEGATIVE number. Everything
+    # downstream then reads as though the textures were at fault: an
+    # empty blob fails, `textures 0 B of -278528 B budget` blames the
+    # one thing that is not the problem, and the reader has to work
+    # backwards through this module to discover that the default is
+    # structurally unavailable at their canvas rather than that their
+    # art is too big.
+    #
+    # 796x448 is not a hypothetical: it is the canvas that gives square
+    # pixels at 16:9 on a 448-line frame, and reaching it is the reason
+    # --vram-budget stopped being decorative.
+    if default_used and 3 * fb >= VRAM_TOTAL:
+        two = VRAM_TOTAL - 2 * fb
+        lines.append(
+            f"  the default budget does not exist at this canvas: three "
+            f"framebuffers at {canvas_w}x{canvas_h} need {3 * fb} B of "
+            f"{VRAM_TOTAL} B total VRAM, so there is nothing left to charge "
+            f"textures against and an empty blob would fail here"
+        )
+        lines.append(
+            f"  declare vramBudget (or --vram-budget) for the layout you "
+            f"actually run: with ZBuffering off the console holds two "
+            f"buffers, not three, which leaves {two} B"
+        )
     # THREE NUMBERS, BECAUSE TWO OF THEM WERE BEING CONFLATED.
     #
     # The first version of this line printed payload against the budget
@@ -225,8 +257,14 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         f"committed) -- the rest of the gap to {total} B is the budget "
         f"model's pessimism, which nothing allocates and P3c cannot reclaim"
     )
-    lines.append(
-        f"  textures {total} B of {budget} B budget "
-        f"({100 * total // max(budget, 1)}%)"
-    )
+    # A PERCENTAGE OF A NEGATIVE BUDGET IS NOISE, not information:
+    # this printed `49152000%` at 796x448, which reads as a number and
+    # is not one. The diagnostic above has already said what is wrong.
+    if budget > 0:
+        lines.append(
+            f"  textures {total} B of {budget} B budget "
+            f"({100 * total // budget}%)"
+        )
+    else:
+        lines.append(f"  textures {total} B, and no budget to charge them to")
     return lines, total, budget, total <= budget
