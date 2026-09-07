@@ -327,11 +327,17 @@ machine came with cannot produce a console binary. Everything earlier in
 this tutorial — fontgen, build, check, serve — runs on `pip install
 ophtml` and Node alone; this step is the first that does not:
 
-```sh
+```
 docker run --rm -v "$PWD:/src" ghcr.io/ps2dev/ps2dev make -C /src
 ```
 
-or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. That
+Not a `sh` block, for the same reason the install commands at the end
+are not: `tools/check-tutorial.py` runs every one of those, and CI's
+runner has no Docker. A tutorial that executes what it claims cannot
+claim something it cannot execute — and this block is the one command
+here that is deliberately outside that guarantee.
+
+Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. That
 boundary is worth knowing before you reach it: the authoring half of
 OPHTML is toolchain-free and the console half cannot be.
 
