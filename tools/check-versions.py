@@ -489,10 +489,28 @@ def main(argv=None):
         # Named, so a failure says WHICH fact is missing. In a release
         # state the baker and npm spellings are the same string, and the
         # old message printed it twice with nothing to tell them apart.
+        # THE ANCHOR AND THE TAG, both raised three times before this.
+        #
+        # The rule read the drift COUNT and not the version it counts
+        # from, so "zero moves ... since 0.4.0" passed on a tree whose
+        # newest released section was 0.5.0. Three consecutive step-9
+        # commits moved that version by hand with nothing behind it, and
+        # the sabotage that proves it is one word:
+        #
+        #     "landed since 0.5.0" -> "since 0.4.0"     was rc=0
+        #     "tagged `v0.5.0`"    -> "tagged `v9.9.9`" was rc=0
+        #
+        # Which tag the note should name depends on the state, the same
+        # way rule 5 picks its heading shape: while the tree carries a
+        # prerelease the note describes the last RELEASE, and during a
+        # cut it describes the version being cut.
+        tagged = prev_ver if is_prerelease(baker) else BAKER_VERSION
         facts = (("the baker version", BAKER_VERSION),
                  ("the npm version", layout_raw),
                  ("the format version", "format **v%d**" % UIB_VERSION),
-                 ("the drift since %s" % prev_ver, drift))
+                 ("the drift since %s" % prev_ver, drift),
+                 ("the drift anchor", "since %s" % prev_ver),
+                 ("the release tag", "v%s" % tagged))
         missing = [(label, w) for label, w in facts
                    if not _note_names(note, w)]
         check(not missing,

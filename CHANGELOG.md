@@ -19,6 +19,15 @@
   the repository root" — the third repo-relative reference on a registry
   page, after the two fixed before 0.3.0. It now carries a *Getting it
   onto a console* section and no repo-relative paths at all.
+- **Rule 10 reads the drift anchor and the release tag, not just the
+  drift count.** "zero moves ... since 0.4.0" passed on a tree whose
+  newest released section was 0.5.0, and `tagged \`v0.5.0\`` could be
+  changed to `v9.9.9` with nothing objecting. Three consecutive step-9
+  commits moved that version by hand with nothing behind it. Which tag
+  the note should name depends on the state, the way rule 5 picks its
+  heading shape: a prerelease tree describes the last release, a release
+  tree describes the version being cut. Falsified in both, four
+  sabotages, all caught (#112, #116, #117).
 - The same boundary is now stated where a reader meets it:
   `docs/tutorial-uc3.md` section 8, which is the first step in that
   document not reachable from `pip install ophtml`, and

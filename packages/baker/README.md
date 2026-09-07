@@ -32,11 +32,24 @@ the one matching the baker that wrote your blob.
 provide it.** The PlayStation 2 is a MIPS target and never the build
 host, so the two files have to be cross-compiled:
 
-```sh
-docker run --rm -v "$PWD:/src" ghcr.io/ps2dev/ps2dev make -C /src
+```
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make
 ```
 
-or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. The
+The image ships gsKit at `$PS2DEV/gsKit` but does **not** put it on the
+include path, so your Makefile needs these three lines or `ps2ui.c` will
+not find `<gsKit.h>`:
+
+```make
+EE_CFLAGS  += -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ports/include
+EE_LIBS     = -lgskit -ldmakit
+EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
+```
+
+[`runtime/sample/`](https://github.com/coffeedevsolutions/OPHTML/tree/main/runtime/sample)
+is a complete worked Makefile and a `main.c` that drives this runtime.
+
+Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. The
 authoring half above needs none of this: `pip install ophtml`, a TTF and
 Node are enough to build, check and preview a real blob.
 [docs/deploying.md](https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/deploying.md)
