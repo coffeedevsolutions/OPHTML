@@ -595,7 +595,35 @@ def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,
 def check_vram(uib, rep: Report, budget=None) -> None:
     _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
                                           uib.canvas_w, uib.canvas_h, budget)
-    rep.error(ok, f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB")
+    # ONE CALL, TWO USES, so the label and the notes cannot disagree
+    # about whether the default is the problem.
+    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []
+    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
+    if note:
+        # `not ok - VRAM 480 KiB within budget -272 KiB` is what a
+        # reader grepping for failures sees, and a negative budget
+        # there reads as a corrupt number rather than as a canvas that
+        # cannot be defaulted. The notes carry the arithmetic; this
+        # says which kind of failure it is without restating it.
+        label += " -- the default budget is unusable at this canvas, see notes"
+    rep.error(ok, label)
+    # `within budget -272 KiB` is not merely unexplained on its own --
+    # it reads as a corrupt number. The explanation existed and this
+    # function was discarding it into `_lines`, so `ps2ui build`
+    # printed it and `ps2ui-check blob.uib` did not. That bare
+    # invocation is the one the README, the tutorial and
+    # vendor-runtime's closing message all teach, and it is what a
+    # stranger handed a blob runs.
+    #
+    # Only when the budget is the inherited default: a caller who
+    # passed one has already made the decision this argues for, which
+    # is the same rule report() applies. Notes rather than checks,
+    # because Report.note is "a measured number with no threshold to
+    # fail against" and padding the count would make a failing run
+    # look better tested than it is.
+    if note and not ok:
+        for line in note:
+            rep.note(line.strip())
 
 
 def check_blob(uib, budget=None, allow_dead: int = 0,

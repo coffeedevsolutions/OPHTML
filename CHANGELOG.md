@@ -67,6 +67,51 @@
   is the fourth hand-maintained settings-to-argv list in the tree and
   three of the four already carried a comment about a bug of this
   shape.
+- **A VRAM budget that cannot exist says so, instead of blaming the
+  textures.** Above some canvas width three framebuffers do not fit in
+  VRAM at all and `default_budget` returns a negative number, after
+  which everything downstream read as though the art were at fault: an
+  *empty* blob failed, and `textures 0 B of -278528 B budget` named the
+  one thing that was not the problem, while the line directly above it
+  asserted 4,472,832 B of framebuffers against the 4,194,304 B the same
+  module defines as total VRAM without ever saying those two are
+  incompatible. A reader had to work backwards through `vram.py` to
+  learn that the default was structurally unavailable at their canvas
+  rather than that their covers were too big.
+
+  The report now names both sides of that comparison where the numbers
+  are, and the way out with the figure it is worth: with ZBuffering off
+  the console holds two buffers rather than three, which at 796x448
+  leaves 1,212,416 B. The percentage is dropped rather than printed
+  against a negative budget, where it read `49152000%`.
+
+  Only for an *inherited* default — somebody who passed
+  `--vram-budget` has already made the decision the diagnostic argues
+  for. The verdict is deliberately unchanged: an empty blob at an
+  impossible canvas is still a failure, because it is one. What was
+  missing was the explanation, not a kinder result.
+
+  796x448 is not hypothetical; it is the canvas that gives square
+  pixels at 16:9 on a 448-line frame, and reaching it is what turned
+  `--vram-budget` from decorative into load-bearing.
+
+  Both surfaces print it, which they did not at first: `check_vram`
+  unpacked the report into `_lines` and discarded it, so `ps2ui build`
+  explained a negative budget and `ps2ui-check blob.uib` — the bare
+  invocation the README, the tutorial and `vendor-runtime`'s own
+  closing message all teach — printed `VRAM 24 KiB within budget
+  -272 KiB` alone, which does not read as a diagnosis. The diagnostic
+  is one function both call, so they agree by construction rather than
+  by both remembering, and the failing label now says which kind of
+  failure it is for anyone grepping `not ok`.
+
+  And the advice has a ceiling of its own. "with ZBuffering off … which
+  leaves N B" did not check its sign, so above a *higher* width — 1153
+  columns at 448 lines, where two framebuffers stop fitting — it
+  offered a negative number as the budget to declare, which is the
+  sentence this diagnostic exists to delete reappearing inside its
+  replacement. Past that width no budget helps and the message says so
+  instead.
 
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.5.0, which is what a section

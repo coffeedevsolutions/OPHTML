@@ -1666,6 +1666,145 @@ class TestVram(unittest.TestCase):
             4 * 1024 * 1024 - 3 * vram.framebuffer_size(640, 448),
         )
 
+    def test_an_impossible_default_says_so_instead_of_blaming_textures(self):
+        """Above some width three framebuffers do not fit in VRAM.
+
+        `default_budget` then returns a NEGATIVE number and everything
+        downstream reads as though the art were at fault: an empty blob
+        fails, and `textures 0 B of -278528 B budget` names the one
+        thing that is not the problem. A reader had to work backwards
+        through this module to find that the default is structurally
+        unavailable at their canvas.
+
+        796x448 is not hypothetical -- it is the canvas that gives
+        square pixels at 16:9 on a 448-line frame.
+        """
+        from ps2ui_bake import vram
+        lines, total, budget, ok = vram.report([], [], 796, 448)
+        text = "\n".join(lines)
+        self.assertEqual(total, 0)
+        self.assertLess(budget, 0)
+        # An empty blob at an impossible canvas IS a failure. The fix
+        # is the explanation, not a verdict that hides it.
+        self.assertFalse(ok)
+        self.assertIn("the default budget does not exist at this canvas", text)
+        # Both sides of the comparison, named.
+        self.assertIn(str(3 * vram.framebuffer_size(796, 448)), text)
+        self.assertIn(str(vram.VRAM_TOTAL), text)
+        # And the way out, with the number it is worth.
+        self.assertIn("vramBudget", text)
+        two = vram.VRAM_TOTAL - 2 * vram.framebuffer_size(796, 448)
+        self.assertIn(str(two), text)
+
+    def test_the_advice_stops_when_two_buffers_stop_fitting(self):
+        """The remedy has a ceiling of its own, and it was unchecked.
+
+        "with ZBuffering off ... which leaves {two} B" computed
+        VRAM_TOTAL - 2*fb without checking its sign. Above a higher
+        width two framebuffers do not fit either, and the advice then
+        offered a NEGATIVE number as the budget to declare -- the
+        sentence this diagnostic exists to delete, reappearing inside
+        its replacement. At 448 lines the two crossovers are 769 and
+        1153; every earlier test used 796, which is why the band above
+        1152 slipped. Raised in review.
+        """
+        from ps2ui_bake import vram
+        V = vram.VRAM_TOTAL
+        # The boundary, computed rather than hard-coded, so this pins
+        # the behaviour and not today's arithmetic.
+        wide = next(w for w in range(769, 2048)
+                    if 2 * vram.framebuffer_size(w, 448) >= V)
+        last_ok = wide - 1
+        self.assertGreater(V - 2 * vram.framebuffer_size(last_ok, 448), 0)
+
+        sound = "\n".join(vram.budget_note(last_ok, 448))
+        self.assertIn("declare vramBudget", sound)
+        self.assertNotIn("-", sound.split("which leaves")[-1])
+
+        past = "\n".join(vram.budget_note(wide, 448))
+        self.assertIn("cannot be displayed from GS VRAM under any Z setting",
+                      past)
+        # No remedy is offered, because none exists at that width.
+        self.assertNotIn("declare vramBudget", past)
+        self.assertIn("a narrower canvas is the only fix", past)
+
+    def test_the_checker_prints_the_diagnostic_the_build_prints(self):
+        """`ps2ui-check blob.uib` is the invocation a stranger runs.
+
+        check_vram unpacked report()'s lines into `_lines` and threw
+        them away, so `ps2ui build` explained a negative budget and the
+        checker printed `VRAM 24 KiB within budget -272 KiB` alone --
+        which does not read as a diagnosis, it reads as a corrupt
+        number. Both surfaces now call vram.budget_note, so they agree
+        by construction rather than by both remembering.
+        """
+        from ps2ui_bake import check as check_mod, vram
+
+        class _Blob:
+            textures, cluts = [], []
+            canvas_w, canvas_h = 796, 448
+
+        rep = check_mod.Report()
+        check_mod.check_vram(_Blob(), rep)
+        notes = "\n".join(rep.notes)
+        self.assertIn("the default budget does not exist at this canvas", notes)
+        self.assertIn("declare vramBudget", notes)
+        # The failing label says which kind of failure it is, so a
+        # reader grepping `not ok` is not left with the bare number.
+        failed = [l for ok, _sev, l in rep.results if not ok]
+        self.assertTrue(failed)
+        self.assertIn("unusable at this canvas", failed[0])
+
+    def test_a_checker_given_a_budget_gets_no_note(self):
+        """Same rule as report(): a caller who passed --vram-budget has
+        already made the decision the note argues for.
+
+        THE BUDGET MUST BE ONE THAT FAILS. The first version of this
+        test passed a budget the blob fits inside, so `ok` was True and
+        the `not ok` guard suppressed the note no matter what the
+        `budget is None` condition did -- it asserted an empty list and
+        got one for the wrong reason. A sabotage that computed the note
+        regardless of the budget went uncaught. Found by running that
+        sabotage rather than by reading the test.
+        """
+        from ps2ui_bake import check as check_mod
+        from ps2ui_bake.quads import BakedTexture
+
+        class _Blob:
+            textures = [BakedTexture(gs.PSMCT32, 1024, 1024, None, b"")] * 4
+            cluts = []
+            canvas_w, canvas_h = 796, 448
+
+        rep = check_mod.Report()
+        check_mod.check_vram(_Blob(), rep, budget=4096)
+        # The check really did fail, so the `not ok` guard is not what
+        # is keeping the note away.
+        failed = [l for ok, _s, l in rep.results if not ok]
+        self.assertTrue(failed, "budget must be one the blob exceeds, or "
+                                "this test proves nothing")
+        self.assertEqual(rep.notes, [])
+        self.assertNotIn("unusable at this canvas", failed[0])
+
+    def test_a_declared_budget_gets_no_lecture(self):
+        """The diagnostic is for an INHERITED default, not a chosen
+        number. Somebody who passed --vram-budget has already made the
+        decision it argues for."""
+        from ps2ui_bake import vram
+        lines, _t, _b, ok = vram.report([], [], 796, 448, budget=1212416)
+        text = "\n".join(lines)
+        self.assertTrue(ok)
+        self.assertNotIn("does not exist at this canvas", text)
+
+    def test_no_percentage_of_a_negative_budget(self):
+        """`49152000%` reads as a number and is not one."""
+        from ps2ui_bake import vram
+        text = "\n".join(vram.report([], [], 796, 448)[0])
+        self.assertNotIn("%)", text.split("textures")[-1])
+        self.assertIn("no budget to charge them to", text)
+        # The ordinary canvas keeps its percentage.
+        ok_text = "\n".join(vram.report([], [], 640, 448)[0])
+        self.assertIn("budget (0%)", ok_text)
+
     def test_report_flags_over_budget(self):
         from ps2ui_bake import vram
         from ps2ui_bake.quads import BakedTexture

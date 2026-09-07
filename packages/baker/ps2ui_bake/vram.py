@@ -155,9 +155,57 @@ def default_budget(canvas_w: int, canvas_h: int) -> int:
 CLUT_PAYLOAD = 256 * 4
 
 
+def budget_note(canvas_w: int, canvas_h: int):
+    """Why the DEFAULT budget is unusable at this canvas, or [].
+
+    A FUNCTION AND NOT FORMATTED LINES INSIDE report(), because two
+    surfaces print this and they were disagreeing. `cli.py` loops over
+    every line report() returns, so `ps2ui build` showed the
+    diagnostic; `check_vram` unpacked them into `_lines` and threw them
+    away, so `ps2ui-check blob.uib` -- the bare invocation the README,
+    the tutorial and vendor-runtime's own closing message all teach --
+    printed `VRAM 24 KiB within budget -272 KiB` and nothing else.
+    Raised in review. Matching on the prose from check.py would have
+    made them agree by coincidence; calling one function makes them
+    agree by construction.
+
+    TWO REGIMES, because the advice has a ceiling of its own. Above
+    some width three framebuffers do not fit and dropping the Z buffer
+    recovers a real budget. Above a HIGHER width two do not fit
+    either, and there the remedy figure goes negative -- offering a
+    negative number as the budget to declare, which is the sentence
+    this diagnostic exists to delete, reappearing inside its
+    replacement. At 448 lines those widths are 769 and 1153.
+    """
+    fb = framebuffer_size(canvas_w, canvas_h)
+    if 3 * fb < VRAM_TOTAL:
+        return []
+    two = VRAM_TOTAL - 2 * fb
+    if two <= 0:
+        return [
+            f"  two framebuffers at {canvas_w}x{canvas_h} need {2 * fb} B of "
+            f"{VRAM_TOTAL} B total VRAM, so this canvas cannot be displayed "
+            f"from GS VRAM under any Z setting",
+            f"  no budget can be declared for it; a narrower canvas is the "
+            f"only fix",
+        ]
+    return [
+        f"  the default budget does not exist at this canvas: three "
+        f"framebuffers at {canvas_w}x{canvas_h} need {3 * fb} B of "
+        f"{VRAM_TOTAL} B total VRAM, so there is nothing left to charge "
+        f"textures against and an empty blob would fail here",
+        f"  declare vramBudget (or --vram-budget) for the layout you "
+        f"actually run: with ZBuffering off the console holds two buffers, "
+        f"not three, which leaves {two} B",
+    ]
+
+
 def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
     """Compute the footprint. Returns (lines, total_bytes, budget, ok);
     lines is a printable per-texture breakdown."""
+    # WHETHER THE BUDGET WAS CHOSEN OR INHERITED changes what a failure
+    # means, so the diagnostic below needs to know which it was.
+    default_used = budget is None
     if budget is None:
         budget = default_budget(canvas_w, canvas_h)
     lines = []
@@ -197,6 +245,10 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         f"  framebuffers assumed: 2x draw/display + 1x Z @ {canvas_w}x{canvas_h} "
         f"= {3 * fb} B"
     )
+    # The diagnostic lives in budget_note() so that check.py prints
+    # the same words; see that docstring.
+    if default_used:
+        lines.extend(budget_note(canvas_w, canvas_h))
     # THREE NUMBERS, BECAUSE TWO OF THEM WERE BEING CONFLATED.
     #
     # The first version of this line printed payload against the budget
@@ -225,8 +277,14 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         f"committed) -- the rest of the gap to {total} B is the budget "
         f"model's pessimism, which nothing allocates and P3c cannot reclaim"
     )
-    lines.append(
-        f"  textures {total} B of {budget} B budget "
-        f"({100 * total // max(budget, 1)}%)"
-    )
+    # A PERCENTAGE OF A NEGATIVE BUDGET IS NOISE, not information:
+    # this printed `49152000%` at 796x448, which reads as a number and
+    # is not one. The diagnostic above has already said what is wrong.
+    if budget > 0:
+        lines.append(
+            f"  textures {total} B of {budget} B budget "
+            f"({100 * total // budget}%)"
+        )
+    else:
+        lines.append(f"  textures {total} B, and no budget to charge them to")
     return lines, total, budget, total <= budget
