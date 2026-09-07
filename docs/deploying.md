@@ -73,7 +73,23 @@ the `ghcr.io/ps2dev/ps2dev` container.
 make -C runtime/sample UIB="$PWD/examples/channel6/build/ui.uib"
 ```
 
-That produces `runtime/sample/ps2ui_sample.elf`. Useful variants:
+**That command assumes a checkout, and this is the one step not
+reachable from a `pip install` — a property of the target rather than of
+the packaging.** The PS2 is MIPS; a host compiler cannot produce a
+console binary, so a cross-toolchain is required however the rest was
+obtained. From an install, `ps2ui vendor-runtime` writes the same two
+files into your own project and you build those instead:
+
+```sh
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make
+```
+
+The image ships gsKit at `$PS2DEV/gsKit` and does not put it on the
+include path; `runtime/sample/Makefile` carries the three lines that
+resolve it.
+
+The checkout command above produces `runtime/sample/ps2ui_sample.elf`.
+Useful variants:
 
 - `MINIMAL=1` builds bring-up step 1 alone (clear, hold, exit). If
   nothing appears on screen, this tells you whether the boot path or the

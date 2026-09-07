@@ -224,7 +224,39 @@ def cmd_vendor_runtime(args):
     if not absent and not (args.force and drifted):
         return 0
 
-    print("\nCompile these with your project against gsKit. "
-          "`ps2ui check` validates the blob; docs/deploying.md is the "
-          "path onto a console.")
+    # THE PATHS HERE ARE ABSOLUTE ON PURPOSE. This message is printed
+    # BY AN INSTALLED PACKAGE, to somebody who by definition did not
+    # clone -- that is what vendor-runtime is for. It used to end
+    # "docs/deploying.md is the path onto a console", a repo path the
+    # reader cannot open, which is the same defect F26 fixed one layer
+    # down: the tree telling an installed user to go look at the tree.
+    #
+    # And it names the toolchain, because handing somebody two C files
+    # without saying they need a cross-compiler stops one step short of
+    # the finish line. The PS2 is the target and never the build host.
+    print("\nCompile these with your project against gsKit. The PS2 is a "
+          "MIPS target, so this needs a cross-toolchain -- you cannot "
+          "build it with the compiler your machine came with. The ps2dev "
+          "image carries both:\n"
+          "\n"
+          "    docker run --rm -v \"$PWD:/work\" -w /work "
+          "ghcr.io/ps2dev/ps2dev make\n"
+          "\n"
+          "It ships gsKit at $PS2DEV/gsKit but does NOT put it on the "
+          "include path, so your Makefile needs these three lines or "
+          "ps2ui.c will not find <gsKit.h>:\n"
+          "\n"
+          "    EE_CFLAGS  += -I$(PS2DEV)/gsKit/include "
+          "-I$(PS2SDK)/ports/include\n"
+          "    EE_LIBS     = -lgskit -ldmakit\n"
+          "    EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib\n"
+          "\n"
+          "A complete worked Makefile, and a `main.c` that drives this "
+          "runtime:\n"
+          "https://github.com/coffeedevsolutions/OPHTML/tree/main/runtime/"
+          "sample\n"
+          "\n"
+          "`ps2ui check` validates the blob. The path onto a console:\n"
+          "https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/"
+          "deploying.md")
     return 0

@@ -321,9 +321,42 @@ against [gsKit], and the toolchain hands them to you:
 ps2ui vendor-runtime src/
 ```
 
-They come out of the package you installed rather than out of a clone,
-so the runtime you compile matches the baker that wrote your blob. The
-whole surface is small enough to list:
+**Compiling them needs a cross-toolchain, and nothing above did.** The
+PS2 is a MIPS target and never the build host, so the compiler your
+machine came with cannot produce a console binary. Everything earlier in
+this tutorial — fontgen, build, check, serve — runs on `pip install
+ophtml` and Node alone; this step is the first that does not:
+
+```
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make
+```
+
+The image ships gsKit at `$PS2DEV/gsKit` but does **not** put it on the
+include path, so your Makefile needs these three lines or `ps2ui.c` will
+not find `<gsKit.h>`:
+
+```make
+EE_CFLAGS  += -I$(PS2DEV)/gsKit/include -I$(PS2SDK)/ports/include
+EE_LIBS     = -lgskit -ldmakit
+EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
+```
+
+[`runtime/sample/`](https://github.com/coffeedevsolutions/OPHTML/tree/main/runtime/sample)
+is a complete worked Makefile and a `main.c` that drives this runtime.
+
+Not `sh` blocks, for the same reason the install commands at the end
+are not: `tools/check-tutorial.py` runs every one of those, and CI's
+runner has no Docker. A tutorial that executes what it claims cannot
+claim something it cannot execute — and this block is the one command
+here that is deliberately outside that guarantee.
+
+Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. That
+boundary is worth knowing before you reach it: the authoring half of
+OPHTML is toolchain-free and the console half cannot be.
+
+Those two files come out of the package you installed rather than out
+of a clone, so the runtime you compile matches the baker that wrote your
+blob. The whole surface is small enough to list:
 
 ```c
 static uint8_t arena[1516] __attribute__((aligned(16)));   /* from the bake */
