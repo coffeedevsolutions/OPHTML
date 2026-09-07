@@ -44,7 +44,7 @@ packages = ["ps2ui_bake"]
 # `runtime/*` is STAGED BY setup.py, not committed. It is the C runtime,
 # copied in at build time from its one canonical home at repo-root
 # `runtime/` so that `pip install ophtml` carries the console half too
-# (F25). There is no second copy in git to go stale; see setup.py for
+# (F26). There is no second copy in git to go stale; see setup.py for
 # why a hook rather than a checked-in duplicate, and for the measured
 # reason package-data cannot simply point at ../../runtime.
 ps2ui_bake = ["serve_page.html", "runtime/ps2ui.c", "runtime/ps2ui.h"]

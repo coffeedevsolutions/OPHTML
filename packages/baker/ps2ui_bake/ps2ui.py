@@ -364,7 +364,7 @@ def main(argv=None):
     # THE CONSOLE HALF OF THE TOOLCHAIN, WHICH USED TO NEED A CLONE.
     # `pip install ophtml` gave you everything up to the blob and then
     # README.md said "drop runtime/ps2ui.c into your project" -- a repo
-    # path, in a package that shipped neither file. F25.
+    # path, in a package that shipped neither file. F26.
     #
     # The files come from THIS install, so the runtime a person compiles
     # is the one matching the baker that wrote their blob. check-

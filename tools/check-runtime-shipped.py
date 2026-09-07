@@ -3,7 +3,7 @@
 
 WHY THIS EXISTS RATHER THAN TRUSTING pyproject.toml.
 
-F25 shipped the runtime as package data staged at build time by
+F26 shipped the runtime as package data staged at build time by
 packages/baker/setup.py. The declaration alone proves nothing, and that
 is not a worry -- it is measured. Before the hook existed:
 
@@ -43,6 +43,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import zipfile
 
@@ -66,6 +67,20 @@ def main():
         return run(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+        # AND AGAIN ON THE WAY OUT, not only before the build.
+        #
+        # Purging only at the top left `build/`, `ophtml.egg-info/` and a
+        # staged `ps2ui_bake/runtime/` behind, so one run of this check
+        # permanently gave the checkout two copies of the runtime. From
+        # then on, editing runtime/ps2ui.c -- an ordinary contributor
+        # action -- made `ps2ui vendor-runtime` refuse until somebody
+        # rebuilt or deleted a directory.
+        #
+        # A check that manufactures the two-copy state its own subject
+        # warns about is not a check anybody should have to work around.
+        # Caught in review of #114; same shape as the trap in
+        # tools/falsify.sh, which restored the file but not the bytecode.
+        purge_build_state()
 
 
 # Build state that setuptools will happily reuse, and which makes this
@@ -154,7 +169,65 @@ def run(tmp):
     if fail:
         return 1
 
-    # 3. Install it and run the command the way a stranger does.
+    # 3. AND THE SDIST, BECAUSE THAT IS THE ONE A RELEASE SHIPS THROUGH.
+    #
+    #    `pip wheel <source tree>` above is build state 1. But
+    #    docs/releasing.md step 8 runs `python3 -m build`, which makes
+    #    the sdist and then builds the wheel FROM IT -- state 2. So the
+    #    artifact asserted and the artifact uploaded came down different
+    #    paths, and a file whose whole thesis is "assert the artifact,
+    #    not the declaration" was asserting the one nobody releases.
+    #
+    #    What separates the two is sdist file selection, and the staged
+    #    copy is GITIGNORED -- exactly the property that decides this the
+    #    day a MANIFEST.in prune or any git-aware build plugin lands.
+    #    State 1 would stay green through all of it. Raised in review of
+    #    #114; the failure would be loud when it came, so this is a fence
+    #    gap rather than a defect, and it costs one more build.
+    #    `pip download --no-binary :all:` does NOT do this for a local
+    #    directory -- it resolves the path and reports "Successfully
+    #    downloaded" without producing a tarball, which cost a cycle
+    #    here. The PEP 517 hook is what actually builds one, and driving
+    #    it directly avoids adding `build` as a dependency of a check
+    #    that is about what gets distributed.
+    sdists = os.path.join(tmp, "sdist")
+    os.makedirs(sdists)
+    proc = subprocess.run(
+        [sys.executable, "-c",
+         "import sys, os\n"
+         "os.chdir(sys.argv[1])\n"
+         "from setuptools import build_meta\n"
+         "print(build_meta.build_sdist(sys.argv[2]))\n",
+         BAKER, sdists],
+        capture_output=True, text=True)
+    tarballs = ([f for f in os.listdir(sdists) if f.endswith(".tar.gz")]
+                if os.path.isdir(sdists) else [])
+    if proc.returncode != 0 or not tarballs:
+        check(False, "", "building the sdist failed:\n%s"
+                         % (proc.stderr or proc.stdout)[-2000:])
+        return 1
+    tar = tarfile.open(os.path.join(sdists, tarballs[0]))
+    members = set(tar.getnames())
+    for name in FILES:
+        want = [m for m in members
+                if m.endswith("/ps2ui_bake/runtime/%s" % name)]
+        check(bool(want),
+              "the sdist carries ps2ui_bake/runtime/%s" % name,
+              "the sdist does NOT carry ps2ui_bake/runtime/%s. A wheel "
+              "built from it -- which is what `python -m build` and "
+              "`pip install --no-binary` do -- would have no runtime in "
+              "it, and setup.py would raise at that point rather than "
+              "here." % name)
+        if want:
+            with open(os.path.join(CANONICAL, name), "rb") as fh:
+                check(tar.extractfile(want[0]).read() == fh.read(),
+                      "and it is byte-identical to runtime/%s" % name,
+                      "and it DIFFERS from runtime/%s" % name)
+
+    if fail:
+        return 1
+
+    # 4. Install it and run the command the way a stranger does.
     venv = os.path.join(tmp, "v")
     subprocess.run([sys.executable, "-m", "venv", venv],
                    capture_output=True, check=True)

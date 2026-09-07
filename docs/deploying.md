@@ -88,7 +88,7 @@ That produces `runtime/sample/ps2ui_sample.elf`. Useful variants:
 checkout.** For your own project, `ps2ui vendor-runtime src/` writes
 `ps2ui.c` and `ps2ui.h` out of the installed package and you compile
 them with your own sources — no clone, and the runtime matches the
-baker that wrote your blob (F25). The sample is still the faster way to
+baker that wrote your blob (F26). The sample is still the faster way to
 put *this* project's example on a console, which is what the rest of
 this document is about.
 

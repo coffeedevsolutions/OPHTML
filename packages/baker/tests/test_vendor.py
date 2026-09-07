@@ -88,12 +88,24 @@ class VendorRuntimeTest(unittest.TestCase):
         self.assertEqual(src, vendor._CHECKOUT)
         self.assertEqual(label, "this checkout")
 
-    # 3. Both present and in agreement: fine, and the packaged one wins.
+    # 3. Both present and in agreement: the CHECKOUT answers, and says
+    #    so. A complete _CHECKOUT means we are in one, so the staged
+    #    copy beside the module is a build artifact -- calling it "the
+    #    installed package" was the exact misreading find_source()
+    #    exists to catch, printed by the line meant to prevent it.
+    #    Caught in review of #114.
     def test_both_present_and_identical(self):
         vendor._PACKAGED = self._make("pkg", "/* same */")
         vendor._CHECKOUT = self._make("repo", "/* same */")
-        src, _ = vendor.find_source()
-        self.assertEqual(src, vendor._PACKAGED)
+        src, label = vendor.find_source()
+        self.assertEqual(src, vendor._CHECKOUT)
+        self.assertEqual(label, "this checkout")
+
+    def test_never_calls_a_staged_copy_an_install(self):
+        vendor._PACKAGED = self._make("pkg", "/* same */")
+        vendor._CHECKOUT = self._make("repo", "/* same */")
+        _, label = vendor.find_source()
+        self.assertNotEqual(label, "the installed package")
 
     # 4. Both present and DISAGREEING: refuse.
     #
@@ -121,7 +133,7 @@ class VendorRuntimeTest(unittest.TestCase):
             vendor.find_source()
         self.assertEqual(caught.exception.names, ["ps2ui.h"])
 
-    # 5. Neither: the packaging bug F25 exists to prevent, so the
+    # 5. Neither: the packaging bug F26 exists to prevent, so the
     #    message has to name it rather than just listing two paths.
     def test_neither_present(self):
         vendor._PACKAGED = os.path.join(self.tmp, "a")
@@ -153,11 +165,20 @@ class VendorRuntimeTest(unittest.TestCase):
             with open(os.path.join(dest, f)) as fh:
                 self.assertEqual(fh.read(), "/* payload */ " + f)
 
-    # 8. An existing file is NOT overwritten without --force. Somebody
-    #    who has patched ps2ui.c in their own tree loses that edit
-    #    otherwise, and re-running this is most likely during an
-    #    upgrade -- the worst moment to be quiet about it.
-    def test_does_not_clobber_without_force(self):
+    # 8. THE MISMATCHED PAIR, which is the case this command will meet
+    #    most often: vendor once, upgrade the package, re-run.
+    #
+    #    The first version skipped the existing ps2ui.c, WROTE a fresh
+    #    ps2ui.h beside it, printed "Compile these with your project
+    #    against gsKit" and exited 0 -- a split pair with a success
+    #    status. ps2ui.c includes that header and is written against its
+    #    structs, and PS2UI_VERSION cannot catch it: 7 of 30 commits
+    #    touching runtime/ps2ui.c moved it historically, and #110 pledged
+    #    the format frozen, so from here none will.
+    #
+    #    So: nothing is written when anything has drifted, and the exit
+    #    is nonzero. Found in review of #114.
+    def test_drifted_file_refuses_and_writes_nothing(self):
         vendor._PACKAGED = self._make("pkg", "/* new */")
         vendor._CHECKOUT = os.path.join(self.tmp, "absent")
         dest = os.path.join(self.tmp, "proj")
@@ -165,10 +186,29 @@ class VendorRuntimeTest(unittest.TestCase):
         mine = os.path.join(dest, "ps2ui.c")
         with open(mine, "w") as fh:
             fh.write("MY EDIT")
-        rc, out = run_quiet(Args(dest))
-        self.assertIn("--force", out)
+        with self.assertRaises(ProjectError) as caught:
+            run_quiet(Args(dest))
+        self.assertIn("--force", str(caught.exception))
         with open(mine) as fh:
             self.assertEqual(fh.read(), "MY EDIT")
+        # THE HALF THAT WAS THE BUG: the other file must not have been
+        # written. Asserting only that ps2ui.c survived would pass on
+        # the broken version too.
+        self.assertFalse(os.path.exists(os.path.join(dest, "ps2ui.h")))
+
+    # ...and an unchanged file is not drift. A re-run with nothing to do
+    # says so and exits 0, where the first version reported it in the
+    # same words it used for a real disagreement.
+    def test_identical_file_is_up_to_date_not_drift(self):
+        vendor._PACKAGED = self._make("pkg", "/* payload */")
+        vendor._CHECKOUT = os.path.join(self.tmp, "absent")
+        dest = os.path.join(self.tmp, "proj")
+        rc, _ = run_quiet(Args(dest))
+        self.assertEqual(rc, 0)
+        rc, out = run_quiet(Args(dest))
+        self.assertEqual(rc, 0)
+        self.assertIn("up to date", out)
+        self.assertNotIn("wrote ", out)
 
     def test_force_overwrites(self):
         vendor._PACKAGED = self._make("pkg", "/* new */")

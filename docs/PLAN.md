@@ -1302,7 +1302,7 @@ weekly by `registry.yml`, went green, and the green tick covered a gate
 whose other half had never been attempted — a check passing for a
 narrower thing than the one it appears to certify.
 
-**F25 SHIPPED, so the contradiction is gone and the gate is reachable
+**F26 SHIPPED, so the contradiction is gone and the gate is reachable
 for the first time.** `packages/baker/setup.py` stages `ps2ui.c` and
 `ps2ui.h` into the wheel at build time from their one canonical home,
 and `ps2ui vendor-runtime` writes them into a project. No clone. What

@@ -12,7 +12,7 @@
   installed, which means the runtime you compile is the one matching the
   baker that wrote your blob. Existing files are not overwritten without
   `--force`. Phase 4's exit gate says *"without cloning the repo"* and
-  had been contradicting the README since it was written (F25).
+  had been contradicting the README since it was written (F26).
 
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.4.0, which is what a section

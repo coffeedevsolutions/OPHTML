@@ -6,7 +6,7 @@ Then README.md told them to "drop runtime/ps2ui.c and runtime/ps2ui.h
 into your ps2sdk/gsKit project" -- a repo path, in a package that
 carried neither file. The console half, which is the point of the
 project, required a clone, and Phase 4's exit gate says "without cloning
-the repo". F25.
+the repo". F26.
 
 WHY THE FILES COME FROM THE INSTALL RATHER THAN A DOWNLOAD. The runtime
 a person compiles has to be the one that matches the baker that wrote
@@ -60,6 +60,11 @@ def _complete(path):
     return all(os.path.exists(os.path.join(path, n)) for n in FILES)
 
 
+def _same_file(a, b):
+    with open(a, "rb") as fa, open(b, "rb") as fb:
+        return fa.read() == fb.read()
+
+
 def _differ(a, b):
     """Which of FILES differ between two candidate directories."""
     out = []
@@ -99,15 +104,21 @@ def find_source():
     """
     packaged, checkout = _complete(_PACKAGED), _complete(_CHECKOUT)
 
-    if packaged and checkout:
-        drifted = _differ(_PACKAGED, _CHECKOUT)
-        if drifted:
-            raise _Stale(drifted)
-        return _PACKAGED, "the installed package"
+    # A COMPLETE _CHECKOUT MEANS WE ARE IN ONE, so _PACKAGED beside it is
+    # a build artifact rather than an install and must not be labelled as
+    # one. An earlier version returned "the installed package" from a
+    # clone with no install anywhere near it -- the identical wrong
+    # reading this comparison exists to catch, printed by the line meant
+    # to prevent it. The canonical source is the honest answer here, and
+    # it is also the right one: it is what a contributor just edited.
+    if checkout:
+        if packaged:
+            drifted = _differ(_PACKAGED, _CHECKOUT)
+            if drifted:
+                raise _Stale(drifted)
+        return _CHECKOUT, "this checkout"
     if packaged:
         return _PACKAGED, "the installed package"
-    if checkout:
-        return _CHECKOUT, "this checkout"
     return None, None
 
 
@@ -136,7 +147,7 @@ def cmd_vendor_runtime(args):
     if src is None:
         # Neither. For an installed package that means the build hook
         # did not run and the wheel shipped without its runtime -- the
-        # exact bug F25 is about, so the message says so rather than
+        # exact bug F26 is about, so the message says so rather than
         # just naming two missing directories.
         raise ProjectError(
             "no C runtime to vendor.\n"
@@ -151,29 +162,66 @@ def cmd_vendor_runtime(args):
     dest = os.path.abspath(args.dest)
     os.makedirs(dest, exist_ok=True)
 
-    written, skipped = [], []
+    # EVERY FILE IS CLASSIFIED BEFORE ANY FILE IS WRITTEN, and that
+    # ordering is the whole fix.
+    #
+    # The first version skipped what already existed, wrote what did
+    # not, printed "Compile these with your project against gsKit" and
+    # exited 0. Vendor once, upgrade the package, re-run: a FRESH
+    # ps2ui.h lands beside a STALE ps2ui.c, which includes it on line 4
+    # and is written against its structs. One invocation, a split pair,
+    # a success status.
+    #
+    # PS2UI_VERSION does not save this. ps2ui.c rejects a blob whose
+    # version disagrees, which sounds like the backstop -- but of 30
+    # commits touching runtime/ps2ui.c only 7 moved PS2UI_VERSION, and
+    # #110 pledged the format frozen at v7, so from here none will. The
+    # drift this command exists to prevent is exactly the drift that
+    # check cannot see.
+    #
+    # It is also the asymmetry find_source() already refuses: two copies
+    # disagreeing inside the toolchain exit 1, and two copies
+    # disagreeing in somebody's project used to get "already there" and
+    # exit 0 -- in the place this module's own docstring calls the
+    # harder one to compare, "on a stranger's machine, with a blob
+    # already baked".
+    absent, same, drifted = [], [], []
     for name in FILES:
         target = os.path.join(dest, name)
-        if os.path.exists(target) and not args.force:
-            skipped.append(name)
-            continue
-        shutil.copyfile(os.path.join(src, name), target)
-        written.append(name)
+        if not os.path.exists(target):
+            absent.append(name)
+        elif _same_file(os.path.join(src, name), target):
+            same.append(name)
+        else:
+            drifted.append(name)
 
-    for name in written:
+    if drifted and not args.force:
+        raise ProjectError(
+            "%s in %s %s from the runtime this toolchain ships, so "
+            "nothing was written.\n"
+            "  Writing the rest would leave you compiling a mixed pair "
+            "-- ps2ui.c includes ps2ui.h and is written against its "
+            "structs, and a version check will not catch it: the format "
+            "is pledged frozen at v7, so PS2UI_VERSION no longer moves "
+            "when the runtime does.\n"
+            "  Pass --force to take this toolchain's copy, or move your "
+            "edited file aside first."
+            % (", ".join(drifted), args.dest,
+               "differs" if len(drifted) == 1 else "differ"))
+
+    for name in (absent + drifted if args.force else absent):
+        shutil.copyfile(os.path.join(src, name),
+                        os.path.join(dest, name))
         print("wrote %s" % os.path.join(args.dest, name))
-    if skipped:
-        # Refuse rather than overwrite, and say the flag. Somebody who
-        # has edited ps2ui.c in their own tree loses that edit silently
-        # otherwise, and this command is most likely to be re-run
-        # exactly when they are upgrading -- the worst moment to be
-        # quiet about it.
-        print("%s already there; not overwritten. Pass --force to "
-              "replace %s." % (", ".join(skipped),
-                               "them" if len(skipped) > 1 else "it"))
+
+    # Idempotent re-runs say so and stay quiet, which the first version
+    # could not: it reported an unchanged file as "already there; not
+    # overwritten", the same words it used for a real disagreement.
+    if same:
+        print("%s already up to date." % ", ".join(same))
 
     print("runtime source: %s (%s)" % (src, label))
-    if not written:
+    if not absent and not (args.force and drifted):
         return 0
 
     print("\nCompile these with your project against gsKit. "

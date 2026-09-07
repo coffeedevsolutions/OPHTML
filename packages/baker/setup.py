@@ -4,7 +4,7 @@ WHY THIS FILE EXISTS AT ALL. Everything else about this package is
 declared in pyproject.toml, deliberately; this is the one thing
 setuptools cannot express there.
 
-F25: `pip install ophtml` gives a stranger the whole authoring path and
+F26: `pip install ophtml` gives a stranger the whole authoring path and
 then README.md tells them to "drop runtime/ps2ui.c and runtime/ps2ui.h
 into your ps2sdk/gsKit project" -- a repo path, in a package that does
 not contain either file. So the console half of the toolchain, which is
@@ -48,7 +48,7 @@ THE THREE STATES THIS HAS TO HANDLE, AND WHY THE THIRD IS FATAL.
      than beside it.
 
   3. Neither present. That is a distribution with no runtime in it,
-     which is exactly the bug F25 exists to fix, arriving silently.
+     which is exactly the bug F26 exists to fix, arriving silently.
      RAISE. A build that cannot ship the runtime must fail while
      somebody is watching, not produce a wheel that is quietly missing
      the thing the release was about.
@@ -106,7 +106,7 @@ def stage_runtime():
         "\n"
         "Building without it would produce a distribution that installs\n"
         "cleanly and cannot put anything on a console, which is the bug\n"
-        "F25 exists to fix. Refusing rather than shipping that.\n"
+        "F26 exists to fix. Refusing rather than shipping that.\n"
         % (" and ".join(SHIPPED), CANONICAL, STAGED))
 
 
