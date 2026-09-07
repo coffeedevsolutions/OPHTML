@@ -1302,7 +1302,15 @@ weekly by `registry.yml`, went green, and the green tick covered a gate
 whose other half had never been attempted — a check passing for a
 narrower thing than the one it appears to certify.
 
-Filed as **F25**, and the gate is left standing rather than reworded.
+**F25 SHIPPED, so the contradiction is gone and the gate is reachable
+for the first time.** `packages/baker/setup.py` stages `ps2ui.c` and
+`ps2ui.h` into the wheel at build time from their one canonical home,
+and `ps2ui vendor-runtime` writes them into a project. No clone. What
+remains of the gate is the half that always needed a console: a person
+who is not us, with a PlayStation 2, reproducing the memcard example
+and photographing it.
+
+The gate was left standing rather than reworded.
 Rewording it to match what the packages happen to ship would turn a
 goal into a description, and the goal is right: the console half is the
 point of the project, and a stranger should not need a clone to reach

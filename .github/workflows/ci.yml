@@ -92,6 +92,26 @@ jobs:
       - name: The v7 layout has not moved
         run: python3 tools/check-format-frozen.py
 
+      # DOES A BUILT WHEEL ACTUALLY CARRY THE C RUNTIME (F25)?
+      #
+      # `pip install ophtml` used to give a stranger everything up to
+      # the blob and then README.md told them to "drop runtime/ps2ui.c
+      # into your ps2sdk/gsKit project" -- a repo path, in a package
+      # that shipped neither file. setup.py now stages both at build
+      # time, and this asserts the result rather than the declaration.
+      #
+      # It has to, because the failure is silent: package-data naming a
+      # file outside the package is omitted with rc=0 and no warning.
+      # Measured, not assumed -- see the checker's docstring.
+      #
+      # It builds a wheel, installs it into a throwaway venv, and runs
+      # `ps2ui vendor-runtime` from OUTSIDE this checkout, asserting the
+      # command reports the installed package as its source. Run inside
+      # a checkout it would fall back to repo-root runtime/ and pass
+      # with the wheel contributing nothing. ~5s, --no-deps.
+      - name: The wheel carries the runtime, and a stranger can get it
+        run: python3 tools/check-runtime-shipped.py
+
       - name: Layout tests
         working-directory: packages/layout
         # `npm test`, NOT the command it wraps. Open-coding the runner
