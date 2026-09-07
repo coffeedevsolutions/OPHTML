@@ -321,6 +321,20 @@ against [gsKit], and the toolchain hands them to you:
 ps2ui vendor-runtime src/
 ```
 
+**Compiling them needs a cross-toolchain, and nothing above did.** The
+PS2 is a MIPS target and never the build host, so the compiler your
+machine came with cannot produce a console binary. Everything earlier in
+this tutorial — fontgen, build, check, serve — runs on `pip install
+ophtml` and Node alone; this step is the first that does not:
+
+```sh
+docker run --rm -v "$PWD:/src" ghcr.io/ps2dev/ps2dev make -C /src
+```
+
+or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. That
+boundary is worth knowing before you reach it: the authoring half of
+OPHTML is toolchain-free and the console half cannot be.
+
 They come out of the package you installed rather than out of a clone,
 so the runtime you compile matches the baker that wrote your blob. The
 whole surface is small enough to list:

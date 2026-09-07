@@ -224,7 +224,26 @@ def cmd_vendor_runtime(args):
     if not absent and not (args.force and drifted):
         return 0
 
-    print("\nCompile these with your project against gsKit. "
-          "`ps2ui check` validates the blob; docs/deploying.md is the "
-          "path onto a console.")
+    # THE PATHS HERE ARE ABSOLUTE ON PURPOSE. This message is printed
+    # BY AN INSTALLED PACKAGE, to somebody who by definition did not
+    # clone -- that is what vendor-runtime is for. It used to end
+    # "docs/deploying.md is the path onto a console", a repo path the
+    # reader cannot open, which is the same defect F26 fixed one layer
+    # down: the tree telling an installed user to go look at the tree.
+    #
+    # And it names the toolchain, because handing somebody two C files
+    # without saying they need a cross-compiler stops one step short of
+    # the finish line. The PS2 is the target and never the build host.
+    print("\nCompile these with your project against gsKit. The PS2 is a "
+          "MIPS target, so this needs a cross-toolchain -- you cannot "
+          "build it with the compiler your machine came with:\n"
+          "\n"
+          "    docker run --rm -v \"$PWD:/src\" ghcr.io/ps2dev/ps2dev "
+          "make -C /src\n"
+          "\n"
+          "or install ps2dev natively: https://github.com/ps2dev/ps2dev\n"
+          "\n"
+          "`ps2ui check` validates the blob. The path onto a console:\n"
+          "https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/"
+          "deploying.md")
     return 0

@@ -2,6 +2,29 @@
 
 ## Unreleased — 0.6.0.dev0
 
+### Fixed
+- **`vendor-runtime` stopped one step short and cited a file the reader
+  cannot open.** It handed over `ps2ui.c` and `ps2ui.h` and then said
+  *"docs/deploying.md is the path onto a console"* — a repo path,
+  printed by an installed package, to somebody who by definition did not
+  clone. That is the defect F26 fixed one layer down, recurring one
+  layer up: the tree telling an installed user to go look at the tree.
+  The message now names the constraint (the PS2 is a MIPS target and
+  never the build host, so a cross-toolchain is required), gives the
+  `ghcr.io/ps2dev/ps2dev` one-liner, and links ps2dev and deploying.md
+  as absolute URLs.
+- **The PyPI page never mentioned the console half, or `vendor-runtime`.**
+  It listed four commands as of 0.4.0, said nothing about ps2dev, gsKit
+  or cross-compiling, and ended by pointing at `docs/format-uib.md` "at
+  the repository root" — the third repo-relative reference on a registry
+  page, after the two fixed before 0.3.0. It now carries a *Getting it
+  onto a console* section and no repo-relative paths at all.
+- The same boundary is now stated where a reader meets it:
+  `docs/tutorial-uc3.md` section 8, which is the first step in that
+  document not reachable from `pip install ophtml`, and
+  `docs/deploying.md` section 2, whose build command assumes a checkout
+  and now says what the installed path is instead.
+
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.5.0, which is what a section
 opened straight after a release should say: the release under it
