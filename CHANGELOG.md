@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased — 0.6.0.dev0
+
+### Fixed
+- **`vendor-runtime` stopped one step short and cited a file the reader
+  cannot open.** It handed over `ps2ui.c` and `ps2ui.h` and then said
+  *"docs/deploying.md is the path onto a console"* — a repo path,
+  printed by an installed package, to somebody who by definition did not
+  clone. That is the defect F26 fixed one layer down, recurring one
+  layer up: the tree telling an installed user to go look at the tree.
+  The message now names the constraint (the PS2 is a MIPS target and
+  never the build host, so a cross-toolchain is required), gives the
+  `ghcr.io/ps2dev/ps2dev` one-liner, and links ps2dev and deploying.md
+  as absolute URLs.
+- **The PyPI page never mentioned the console half, or `vendor-runtime`.**
+  It listed four commands as of 0.4.0, said nothing about ps2dev, gsKit
+  or cross-compiling, and ended by pointing at `docs/format-uib.md` "at
+  the repository root" — the third repo-relative reference on a registry
+  page, after the two fixed before 0.3.0. It now carries a *Getting it
+  onto a console* section and no repo-relative paths at all.
+- **Rule 10 reads the drift anchor and the release tag, not just the
+  drift count.** "zero moves ... since 0.4.0" passed on a tree whose
+  newest released section was 0.5.0, and `tagged \`v0.5.0\`` could be
+  changed to `v9.9.9` with nothing objecting. Three consecutive step-9
+  commits moved that version by hand with nothing behind it. Which tag
+  the note should name depends on the state, the way rule 5 picks its
+  heading shape: a prerelease tree describes the last release, a release
+  tree describes the version being cut. Falsified in both, four
+  sabotages, all caught (#112, #116, #117).
+- The same boundary is now stated where a reader meets it:
+  `docs/tutorial-uc3.md` section 8, which is the first step in that
+  document not reachable from `pip install ophtml`, and
+  `docs/deploying.md` section 2, whose build command assumes a checkout
+  and now says what the installed path is instead.
+
+`.uib` format **version 7**, unchanged from the release below.
+Zero format moves have landed since 0.5.0, which is what a section
+opened straight after a release should say: the release under it
+shipped the format this tree still writes, so a blob baked here loads
+under a 0.5.0 runtime and the other way round.
+
+That count is the one number in this file that starts correct and
+decays. It becomes one the moment a format move lands, and
+`tools/check-versions.py` derives it from the section below rather than
+reading it back, so the check fails the change that moves the format
+without moving this line.
+
 ## 0.5.0 — 2026-09-06
 
 ### Added
