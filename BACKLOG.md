@@ -301,11 +301,11 @@ confidence multipliers for high-scoring ones and get pulled forward.
 
 | ID | Bug | R | I | C | E | Score |
 |----|-----|---|---|---|---|-------|
-| B1 | **Textured-quad vertex RGB is in the wrong domain for GS modulate.** The GS `MODULATE` function treats `0x80` as identity for RGB exactly as it does for alpha (`Cv = Ct·Cf >> 7`), but the baker emits tint colors with full-range 0–255 RGB. On hardware every tinted glyph and nine-patch will render up-to-2× overbright and clamp: white text survives by luck, mid-tone text (`#8b94a7` metadata, `#c8cfdc` labels) washes out badly. The previewer normalizes by 255, so it *hides* the bug — the exact class of divergence the replay-the-blob design exists to prevent. Fix: emit modulated RGB in the 0x80 domain in `quads.py` (same one-crossing rule as alpha), mirror in `preview._tint`, add a cross-domain test. | 10 | 3 | 0.8 | 0.5 | **48** |
+| B1 | ✅ **Textured-quad vertex RGB is in the wrong domain for GS modulate.** The GS `MODULATE` function treats `0x80` as identity for RGB exactly as it does for alpha (`Cv = Ct·Cf >> 7`), but the baker emits tint colors with full-range 0–255 RGB. On hardware every tinted glyph and nine-patch will render up-to-2× overbright and clamp: white text survives by luck, mid-tone text (`#8b94a7` metadata, `#c8cfdc` labels) washes out badly. The previewer normalizes by 255, so it *hides* the bug — the exact class of divergence the replay-the-blob design exists to prevent. Fix: emit modulated RGB in the 0x80 domain in `quads.py` (same one-crossing rule as alpha), mirror in `preview._tint`, add a cross-domain test. | 10 | 3 | 0.8 | 0.5 | **48** |
 | B2 | **Baseline seam between metrics ascent and FreeType ascent.** Layout positions line boxes from `ascentPx` derived from the metrics JSON (units → px via the shared rounding rule); the atlas places glyph ink relative to Pillow's `font.getmetrics()` ascent at the render size. The two can disagree by ±1px at some sizes, nudging ink off its measured line box. Fix: bake the per-size ascent into the atlas from the *metrics* value and offset bearings accordingly; add a golden test at several sizes. | 8 | 1 | 0.8 | 1 | **6.4** |
-| B3 | **GS half-texel / half-pixel sampling conventions unaudited.** Classic PS2 artifact family: sprite UVs off by half a texel, primitive coordinates off by half a pixel against the 2048-centered window, interlaced field offset. gsKit absorbs some of this (`OffsetX/Y`), not all. Everything looks right in the previewer, which proves nothing about texel centers. Needs an on-target test pattern (checkerboard atlas + 1:1 quads) and probably `+0.5` UV nudges in one place. Blocked on F1 for verification. | 10 | 2 | 0.5 | 1 | **10** |
+| B3 | ✅ **GS half-texel / half-pixel sampling conventions unaudited.** Classic PS2 artifact family: sprite UVs off by half a texel, primitive coordinates off by half a pixel against the 2048-centered window, interlaced field offset. gsKit absorbs some of this (`OffsetX/Y`), not all. Everything looks right in the previewer, which proves nothing about texel centers. Needs an on-target test pattern (checkerboard atlas + 1:1 quads) and probably `+0.5` UV nudges in one place. Blocked on F1 for verification. | 10 | 2 | 0.5 | 1 | **10** |
 | B8* | **VRAM budget only checked at test time, not bake time.** A UI whose atlases + patches exceed 4 MB (minus framebuffers) currently bakes fine and dies at upload. The baker knows every texture size; it should compute the worst-case VRAM footprint (including gsKit page rounding) and fail the build with a per-texture breakdown. | 6 | 1 | 1.0 | 0.5 | **12** |
-| B9 | **`<img>` parses but silently paints nothing.** Until real image support (F3) lands, an `<img>` in the document should at minimum be a loud compile warning — silent drops are how people lose an afternoon. One `if` in `box.js`. | 5 | 0.5 | 1.0 | 0.25 | **10** |
+| B9 | ✅ **`<img>` parses but silently paints nothing.** Until real image support (F3) lands, an `<img>` in the document should at minimum be a loud compile warning — silent drops are how people lose an afternoon. One `if` in `box.js`. | 5 | 0.5 | 1.0 | 0.25 | **10** |
 | B7 | **Percentage sizes against an indefinite container silently resolve to auto.** CSS resolves `%` against definite sizes and has defined fallbacks; ps2ui treats null as auto without saying so. Either implement the CSS behavior or make it a documented compile warning. | 3 | 0.5 | 0.8 | 0.5 | **2.4** |
 | B4 | **`row-reverse` / `column-reverse` only reverse order, not main-axis start.** With `justify-content: flex-start`, a `-reverse` container should pack from the main-end; ps2ui packs from main-start with reversed items (only coincidentally correct for `center`/`space-between`). | 2 | 0.5 | 1.0 | 0.5 | **2** |
 | B5 | **`opacity` is per-box, not group opacity.** A container's opacity doesn't multiply into descendants, diverging from CSS. True group opacity needs offscreen composition the GS makes painful; the honest fix is inherited multiplied opacity (close enough for flat UI) plus a doc note. | 3 | 0.5 | 1.0 | 1 | **1.5** |
@@ -325,28 +325,28 @@ confidence multipliers for high-scoring ones and get pulled forward.
 
 | ID | Feature | R | I | C | E | Score |
 |----|---------|---|---|---|---|-------|
-| F18 | **Hardware bring-up checklist** (`docs/bringup.md`): ordered list of what to verify first on PCSX2/hardware — text tinting (`GSTEXTURE::Function`), B1 color domains, B3 texel centers, CLUT swizzle, alpha blend state, interlace field order — each with its expected-vs-symptom. Converts the "not hardware-verified" caveat into a runnable procedure. | 4 | 1 | 1.0 | 0.25 | **16** |
-| F1 | **PCSX2 verification harness in CI.** Boot a minimal ELF that loads the example blob, renders one frame, screenshots via PCSX2's automation, and image-diffs against the previewer PNG within tolerance. The single highest-leverage credibility move: flips C from 0.5→1.0 for B1/B3/F5 and makes every future GS-path change regression-safe. | 10 | 3 | 0.8 | 2 | **12** |
-| F10 | **Focus API completion.** `ps2ui_focus_set(ctx, "name")`, optional wrap-around per axis (solved at build time as extra graph edges, zero runtime cost), and an activation callback convention. Every real app needs to restore focus after a screen swap; today only `move` exists. | 6 | 1 | 1.0 | 0.5 | **12** |
-| F3 | **Image support.** `<img src>` → Pillow decode at bake time → PSMCT32 (or quantized PSMT8+CLUT for flat art) textures in the .uib, sized by layout like any box. The format already carries arbitrary textures; this is mostly layout-measure + baker plumbing. Unlocks logos, save-icon thumbnails, backgrounds. | 8 | 2 | 1.0 | 2 | **8** |
-| F7 | **PAL / video-mode presets.** `--canvas` exists but the CRT linter's safe-area insets and the example are NTSC-tuned. Add `--mode ntsc|pal|480p` presets driving canvas, linter geometry, and a documented runtime note on mode setup. Half of PS2 homebrew's audience is PAL. | 4 | 1 | 1.0 | 0.5 | **8** |
-| F11 | **Watch mode.** `ps2ui dev`: watch `ui/*.html,css`, rebuild IR + blob, re-render preview PNG on change (optionally serve in a browser with live reload). The edit loop today is two manual commands; iteration speed is the whole pitch of HTML authoring. *(✅ `ps2ui dev` shipped in Sprint 2; the parenthetical did not, and it was the half that mattered — `dev` re-renders a PNG and leaves you refreshing an image viewer, with no way to move focus, switch screen or see a second theme. Closed by `ps2ui serve`: a localhost page rendering `preview.render()` server-side, with arrow-key navigation along the baked focus graph, screen and theme switching, four aspect modes, editable slot text, warnings and click-to-inspect over the command list. `dev` stays: it is headless and writes PNGs, which is what keeps it usable in CI. What `serve` does not cover — runtime visibility, and the F-048 class of divergence only hardware finds — is stated in the README rather than left to be discovered.)* | 7 | 1 | 1.0 | 1 | **7** |
-| F13 | **Contribution surface.** CONTRIBUTING.md (how to run all three suites, how the seams work), issue templates, and 4–6 curated good-first-issues (named colors, `text-transform`, montage columns flag, B9). Cheap, and the format specs already do the heavy lifting. | 3 | 0.5 | 1.0 | 0.25 | **6** |
-| F2 | **Runtime dynamic text.** The flagship gap for the actual SD2PSX use case: a real memory-card browser lists titles read from the card at runtime, but today every string is baked. Design: bake full glyph tables (advance + UV per codepoint) per face/size — the .uib texture format already supports it — reserve `data-slot` text boxes at layout time (fixed rect, alignment, ellipsis policy), and add a small runtime pen (~100 lines: advance loop + ellipsis, no wrapping) writing glyph quads into a per-slot buffer. Keeps the no-allocation rule via caller-provided slot buffers. | 9 | 3 | 0.8 | 4 | **5.4** |
-| F14 | **.uib integrity + feature flags.** CRC32 over the payload (validated by loader and Python reader) and a feature-bits field in `flags` so future additions (F2 glyph tables, F5 chains) degrade loudly, not mysteriously. Do it before third parties write .uib files. | 4 | 0.5 | 1.0 | 0.5 | **4** |
-| F4 | **Multi-screen documents.** Several HTML files → one .uib with named screens sharing textures/atlases; runtime gets `ps2ui_screen_set`, per-screen focus memory, and an optional baked crossfade. Every non-trivial app has ≥2 screens; today they'd ship N blobs and duplicate atlases. | 8 | 2 | 0.8 | 4 | **3.2** |
-| F12 | **Packaging.** Publish `@ophtml/layout` to npm and `ophtml` to PyPI, plus one `ps2ui` wrapper CLI (`build`, `dev`, `fontgen`) so the quick start is two installs and one command instead of PYTHONPATH incantations. | 8 | 1 | 0.8 | 2 | **3.2** |
-| F9 | **Kerning.** `fontgen` already reserves a kerning field; emit pairs from the TTF, apply in `Font.measure`/wrap and in the baker's pen with the same rounding rule, covered by a cross-language agreement test. Visible on large headings ("PS2", "Library"). | 6 | 0.5 | 1.0 | 1 | **3** |
+| F18 | ✅ **Hardware bring-up checklist** (`docs/bringup.md`): ordered list of what to verify first on PCSX2/hardware — text tinting (`GSTEXTURE::Function`), B1 color domains, B3 texel centers, CLUT swizzle, alpha blend state, interlace field order — each with its expected-vs-symptom. Converts the "not hardware-verified" caveat into a runnable procedure. | 4 | 1 | 1.0 | 0.25 | **16** |
+| F1 | ✅ **PCSX2 verification harness in CI.** Boot a minimal ELF that loads the example blob, renders one frame, screenshots via PCSX2's automation, and image-diffs against the previewer PNG within tolerance. The single highest-leverage credibility move: flips C from 0.5→1.0 for B1/B3/F5 and makes every future GS-path change regression-safe. | 10 | 3 | 0.8 | 2 | **12** |
+| F10 | ✅ **Focus API completion.** `ps2ui_focus_set(ctx, "name")`, optional wrap-around per axis (solved at build time as extra graph edges, zero runtime cost), and an activation callback convention. Every real app needs to restore focus after a screen swap; today only `move` exists. | 6 | 1 | 1.0 | 0.5 | **12** |
+| F3 | ✅ **Image support.** `<img src>` → Pillow decode at bake time → PSMCT32 (or quantized PSMT8+CLUT for flat art) textures in the .uib, sized by layout like any box. The format already carries arbitrary textures; this is mostly layout-measure + baker plumbing. Unlocks logos, save-icon thumbnails, backgrounds. | 8 | 2 | 1.0 | 2 | **8** |
+| F7 | ✅ **PAL / video-mode presets.** `--canvas` exists but the CRT linter's safe-area insets and the example are NTSC-tuned. Add `--mode ntsc|pal|480p` presets driving canvas, linter geometry, and a documented runtime note on mode setup. Half of PS2 homebrew's audience is PAL. | 4 | 1 | 1.0 | 0.5 | **8** |
+| F11 | ✅ **Watch mode.** `ps2ui dev`: watch `ui/*.html,css`, rebuild IR + blob, re-render preview PNG on change (optionally serve in a browser with live reload). The edit loop today is two manual commands; iteration speed is the whole pitch of HTML authoring. *(✅ `ps2ui dev` shipped in Sprint 2; the parenthetical did not, and it was the half that mattered — `dev` re-renders a PNG and leaves you refreshing an image viewer, with no way to move focus, switch screen or see a second theme. Closed by `ps2ui serve`: a localhost page rendering `preview.render()` server-side, with arrow-key navigation along the baked focus graph, screen and theme switching, four aspect modes, editable slot text, warnings and click-to-inspect over the command list. `dev` stays: it is headless and writes PNGs, which is what keeps it usable in CI. What `serve` does not cover — runtime visibility, and the F-048 class of divergence only hardware finds — is stated in the README rather than left to be discovered.)* | 7 | 1 | 1.0 | 1 | **7** |
+| F13 | ✅ **Contribution surface.** CONTRIBUTING.md (how to run all three suites, how the seams work), issue templates, and 4–6 curated good-first-issues (named colors, `text-transform`, montage columns flag, B9). Cheap, and the format specs already do the heavy lifting. | 3 | 0.5 | 1.0 | 0.25 | **6** |
+| F2 | ✅ **Runtime dynamic text.** The flagship gap for the actual SD2PSX use case: a real memory-card browser lists titles read from the card at runtime, but today every string is baked. Design: bake full glyph tables (advance + UV per codepoint) per face/size — the .uib texture format already supports it — reserve `data-slot` text boxes at layout time (fixed rect, alignment, ellipsis policy), and add a small runtime pen (~100 lines: advance loop + ellipsis, no wrapping) writing glyph quads into a per-slot buffer. Keeps the no-allocation rule via caller-provided slot buffers. | 9 | 3 | 0.8 | 4 | **5.4** |
+| F14 | ✅ **.uib integrity + feature flags.** CRC32 over the payload (validated by loader and Python reader) and a feature-bits field in `flags` so future additions (F2 glyph tables, F5 chains) degrade loudly, not mysteriously. Do it before third parties write .uib files. | 4 | 0.5 | 1.0 | 0.5 | **4** |
+| F4 | ✅ **Multi-screen documents.** Several HTML files → one .uib with named screens sharing textures/atlases; runtime gets `ps2ui_screen_set`, per-screen focus memory, and an optional baked crossfade. Every non-trivial app has ≥2 screens; today they'd ship N blobs and duplicate atlases. | 8 | 2 | 0.8 | 4 | **3.2** |
+| F12 | ✅ **Packaging.** Publish `@ophtml/layout` to npm and `ophtml` to PyPI, plus one `ps2ui` wrapper CLI (`build`, `dev`, `fontgen`) so the quick start is two installs and one command instead of PYTHONPATH incantations. | 8 | 1 | 0.8 | 2 | **3.2** |
+| F9 | ✅ **Kerning.** `fontgen` already reserves a kerning field; emit pairs from the TTF, apply in `Font.measure`/wrap and in the baker's pen with the same rounding rule, covered by a cross-language agreement test. Visible on large headings ("PS2", "Library"). | 6 | 0.5 | 1.0 | 1 | **3** |
 | F8 | **`position: absolute` overlays.** Badges, dialogs, and focus-follow cursors need out-of-flow boxes. Constrained version: absolute within the nearest padded ancestor, no auto-margins, still zero runtime cost. | 5 | 1 | 0.8 | 2 | **2** |
 | F17 | **Localization workflow.** Per-locale build passes (the architecture already prescribes this): string catalog extraction from HTML, per-locale bake with locale-appropriate charsets in the atlas, `ps2ui build --locale`. | 3 | 2 | 0.8 | 3 | **1.6** |
 | F15 | **Gradients as baked textures.** `linear-gradient` rasterized to small strip textures at bake time, stretched by the GS. Pure polish; the mockups' thumbnails would benefit. | 3 | 1 | 0.8 | 1.5 | **1.6** |
-| F6 | **List templating / scrolling regions.** Data-driven repeats (`data-repeat` on a template child) with a runtime-scrollable window over more items than fit — the full solution to "the card has 40 saves". Depends on F2; large runtime surface (scissor + per-item focus), which is why it scores below its obvious value. Revisit the score once F2 lands. | 6 | 3 | 0.5 | 6 | **1.5** |
+| F6 | ✅ **List templating / scrolling regions.** Data-driven repeats (`data-repeat` on a template child) with a runtime-scrollable window over more items than fit — the full solution to "the card has 40 saves". Depends on F2; large runtime surface (scissor + per-item focus), which is why it scores below its obvious value. Revisit the score once F2 lands. | 6 | 3 | 0.5 | 6 | **1.5** |
 | F5 | **Precompiled GIF/DMA chains.** The roadmap's performance endgame: bake per-state GIF packets so a frame is a DMA kick instead of per-quad gsKit calls. Near-zero CPU per frame, but the biggest hardware-knowledge item in the backlog and pointless to attempt before F1 exists to validate it. | 7 | 2 | 0.5 | 6 | **1.2** |
 | F16 | **Non-Latin text.** CJK/greedy-break rules, font fallback chains, larger atlases (PSMT8 CLUT pressure). Real for localization, small audience today, large effort. Pair with F17 when demand appears. | 2 | 2 | 0.5 | 4 | **0.5** |
 | F22 | ✅ **`ps2ui-check`, a validator for any blob.** `examples/channel6/check.py` asserted the right properties but had one example's focus names and slot capacities hardcoded, so nobody else's build got them. Generalized into `ps2ui_bake.check`: table caps, every index the runtime dereferences unchecked, screens partitioning the command/focus/slot tables, scissor balance per screen, both GS colour domains, codepoint-sorted glyph tables, placeholder coverage, focus reachability, VRAM. Errors mean the console misbehaves with no diagnostic; warnings mean legal but wasteful. TAP output, `--strict`, wired into both workflows. | 8 | 1 | 1.0 | 0.5 | **16** |
 | F19 | **`ps2ui_unload()` and VRAM bookkeeping.** The runtime uploads once and never releases, so an app cannot swap one blob for another. Needed before a shell-and-module example is possible: the shell's UI and a module's UI cannot both be resident under a 4 MB budget. Deliberately deferred until the GS path is hardware-verified, since it changes how VRAM is managed and debugging that against an unproven renderer means debugging two things at once. | 5 | 2 | 0.8 | 2 | **4** |
-| F20 | **Runtime image slots.** `data-slot` covers text; cover art discovered at runtime (an OPL-style ART folder) still cannot be shown, because textures are baked. Needs F19's VRAM bookkeeping first. | 5 | 2 | 0.7 | 3 | **2.3** |
-| F21 | **Runtime visibility toggle.** `display: none` is compile-time only, so an app cannot hide a row it has no data for; today the workaround is blanking every slot in it, which leaves the panel drawn. A per-focus-node or per-element visibility bit the render loop honours. | 4 | 1 | 0.9 | 1 | **3.6** |
+| F20 | ✅ **Runtime image slots.** `data-slot` covers text; cover art discovered at runtime (an OPL-style ART folder) still cannot be shown, because textures are baked. Needs F19's VRAM bookkeeping first. | 5 | 2 | 0.7 | 3 | **2.3** |
+| F21 | ✅ **Runtime visibility toggle.** `display: none` is compile-time only, so an app cannot hide a row it has no data for; today the workaround is blanking every slot in it, which leaves the panel drawn. A per-focus-node or per-element visibility bit the render loop honours. | 4 | 1 | 0.9 | 1 | **3.6** |
 | F24 | **Trim geometry that cannot draw.** A `nowrap` run inside `overflow: hidden` bakes every glyph and lets the GS clip, so the channel-6 probe submits 20 quads per frame that are outside their scissor. F22 measures it; the baker could drop them at flatten time once the clip is known. Small, safe, and it shrinks the command list on exactly the data-heavy screens where it matters. | 6 | 0.5 | 0.9 | 0.5 | **5.4** |
 | F26 | ✅ **The runtime did not reach anyone who had not cloned.** `pip install ophtml` gave a stranger the whole authoring path, and then `README.md` told them to *"drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKit project"* — repo paths, in a package that shipped neither file: the wheel carried `ps2ui_bake` alone and the npm tarball `src/ bin/ README.md`. So the console half, which is the point of the project, required a clone, and **Phase 4's exit gate says "without cloning the repo"** — the two had contradicted each other since the gate was written, unseen because `registry.yml` exercised the authoring half weekly and went green over a gate whose other half nobody had attempted. Fixed in `packages/baker/setup.py`, which stages `ps2ui.c` and `ps2ui.h` into the package at build time from their one canonical home, and `ps2ui vendor-runtime <dir>`, which writes them into a project from the install — so the runtime compiled matches the baker that wrote the blob. Nothing is committed, so there is no second copy to go stale. `package-data` could not simply point at `../../runtime`: measured, it is silently omitted with rc=0 and no warning, which is why `tools/check-runtime-shipped.py` asserts the built wheel *and* the sdist rather than the declaration. **Numbered F26 because F25 was already taken** by the Sprint 5 status line above (widescreen), and two ticked F25s made `grep` ambiguous. | 10 | 3 | 1.0 | 1 | **30** |
 
@@ -360,7 +360,7 @@ are queue-congestion noise, CI supply chain, and parsing untrusted inputs.
 
 | ID | Item | R | I | C | E | Score |
 |----|------|---|---|---|---|-------|
-| S1 | **CI hardening.** Explicit `permissions: contents: read` on every workflow (default token is broader), `concurrency` groups so rapid pushes cancel superseded runs instead of queuing, artifact `retention-days` trimmed from 90, and narrowed `push` triggers (`main` + working branches) so branch pushes and their PRs don't double-run. Never attach a self-hosted runner to this public repo. | 3 | 1 | 1.0 | 0.1 | **30** |
+| S1 | ✅ **CI hardening.** Explicit `permissions: contents: read` on every workflow (default token is broader), `concurrency` groups so rapid pushes cancel superseded runs instead of queuing, artifact `retention-days` trimmed from 90, and narrowed `push` triggers (`main` + working branches) so branch pushes and their PRs don't double-run. Never attach a self-hosted runner to this public repo. | 3 | 1 | 1.0 | 0.1 | **30** |
 | S4 | **CI supply chain.** Pin third-party actions to commit SHAs (tags are mutable), add Dependabot for actions updates, pin + checksum the Play! AppImage download in `hw.yml` (currently `latest`, a moving target executed in CI), and add SECURITY.md with a reporting contact. SHA pinning needs upstream SHA lookups — done at next maintainer touch. | 3 | 1 | 1.0 | 0.25 | **12** |
 | S2 | **Fuzz the .uib loader.** `ps2ui_load` bounds-checks every table, but users will share blobs and themes; a libFuzzer/AFL harness over `ps2ui_load` + a stubbed `ps2ui_render` walk (plus a Python fuzz pass over `read_uib`) turns "carefully reviewed" into "mechanically hammered". Wire into CI as a short smoke pass, longer runs nightly. | 4 | 2 | 0.8 | 1 | **6.4** |
 | S3 | **Resource-exhaustion limits in the compilers.** Untrusted HTML/CSS/IR (third-party themes) can request a 30000px canvas, 10k-deep nesting, or atlases that swallow gigabytes at bake time. Add hard caps with clear errors: canvas dimensions, node count, tree depth, per-bake texture bytes (the VRAM budget already bounds the output side). | 3 | 1 | 0.8 | 0.5 | **4.8** |
@@ -369,45 +369,77 @@ S1 ships immediately (this commit). If the repo ever goes **private**, minutes
 become metered: narrow triggers further, confirm the Actions spending limit is
 $0 (the default), and re-read this section.
 
-## Priority order (pure RICE)
+## Sequencing — read docs/PLAN.md §6, not this file
 
-| Rank | Item | Score |
-|------|------|-------|
-| 1 | B1 modulate color domain | 48 |
-| 2 | ✅ F26 ship the runtime to non-cloners | 30 |
-| 3 | F18 bring-up checklist | 16 |
-| 4 | F1 PCSX2 harness · B8 VRAM budget · F10 focus API | 12 |
-| 5 | B3 texel conventions · B9 img warning | 10 |
-| 6 | F3 images · F7 PAL presets | 8 |
-| 7 | F11 watch mode | 7 |
-| 8 | B2 baseline seam · F13 contribution surface | ~6 |
-| 9 | F2 dynamic text | 5.4 |
-| 10 | F14 integrity/flags | 4 |
-| 11 | F4 multi-screen · F12 packaging · F9 kerning | ~3 |
-| — | everything else | <2.5 |
+**A ranked table used to sit here and it should not have.**
+`docs/PLAN.md` §4.6 retired RICE as the driver in so many words —
+*"RICE is retired as the driver. Sequencing comes from the phase gates
+in §6; admission from the pull rule: a feature enters when a real use
+case demands it, never because it scores well."* The table outlived
+that decision by long enough to go completely stale, and because it was
+still printed under the heading "Priority order" it read as the answer
+to "what is next".
 
-Security items interleave as: S1 (30) after B1, beside F26; S4 (12) with
-rank 4; S2 (6.4) with rank 8; S3 (4.8) between ranks 10 and 11. (Renumbered
-when F26 was filed at rank 2 — the ranks are positional, so inserting one
-moves every number below it.)
+Every item it named had shipped. It ranked **F12 packaging** second
+while `0.4.0` sat on PyPI and npm, and **B1 modulate colour domain**
+first while the CHANGELOG recorded the fix. The three sprint plans
+under it sequenced work finished a year ago. Removed rather than
+updated: maintaining a mechanism the plan has retired is how it got
+here.
 
-## Sequenced plan (RICE + dependencies)
+**The R/I/C/E columns stay in the rows.** They are a record of what was
+believed when an item was filed, which is worth keeping; they are not a
+queue.
 
-**Sprint 1 — "trustworthy on hardware" (≈2.5 wk):**
-B1 → F18 → F1, plus B9 and B8 as same-day wins. B1 is fixed *before*
-the emulator run so the first screenshot diff is meaningful; F1 then
-retro-verifies it and B3 (adding the +0.5 UV fix if the pattern test
-demands it). Exit criterion: CI contains an image-diff against PCSX2.
+### Where the next thing comes from
 
-**Sprint 2 — "usable for real apps" (≈4 wk):**
-F10, F3, F7, F11, B2, F13. After this, a PAL user with logos and a
-sane dev loop can build a shippable single-screen UI.
+1. **`docs/PLAN.md` §6, the phase gates.** Phase 4 is the current and
+   last one. Its remaining clause needs a PlayStation 2, not a commit.
+2. **The pull rule.** A feature enters when a real use case demands it.
+3. **The open rows below**, when one of them is in the way of that.
 
-**Sprint 3 — "the flagship gap" (≈5 wk):**
-F14 first (format flags before format additions), then F2 dynamic
-text, then F4 multi-screen. This is the release that makes the SD2PSX
-memory-card browser — the project's stated reason to exist — actually
-buildable, and it is the natural `v0.2` + packaging (F12) moment.
+## How the ticks below were established (2026-09-07)
 
-**Later, on demand:** F9, F8, F6 (after F2), F5 (after F1 only),
-F15/F17/F16, B4–B7 as they annoy someone.
+Not from memory. Each ✅ rests on one of: an entry in `CHANGELOG.md`
+naming the change, a symbol that exists in `runtime/ps2ui.h`, or a live
+artifact in the tree. Seventeen rows were ticked in this pass — they
+had shipped, in some cases years of commits ago, and nothing had
+recorded it.
+
+**THE FIRST PASS OF THIS AUDIT WAS ITSELF WRONG, TWICE, AND THE REASON
+IS THE USEFUL PART.** It searched using the vocabulary of the PROBLEM
+rather than the vocabulary of the FIX:
+
+- **B3** was reported unsettled because `grep` for "half-texel" and
+  `0.5` found nothing. The fix is `runtime/ps2ui.c:860`,
+  `#define PS2UI_TEXEL_BIAS (1.0f / 16.0f)` — S10 measured both axes
+  and the bias landed as one *sixteenth*. The row's own title still
+  says "half-texel", so searching it was searching for the bug.
+- **F3** was reported open because the CHANGELOG's `<img>` line reads
+  "error/warn instead of silently vanishing" — which is B9's earlier
+  fix. Image support is `cli.py:152`, `--palettize-images`, with a
+  per-image `palettize` attribute.
+
+Both are ticked. Two other methods were tried and were worse: keyword
+`grep` returned three false positives in one run (F15 matched `rgba`,
+F17 matched PLAN.md prose *describing* the item, S2 matched a
+filename), and `git log --grep` matched this audit's own commit for
+every ID it names. **What worked was reading the implementation area
+for the fix's vocabulary.**
+
+**One row is still unsettled and is marked so rather than guessed:**
+
+- **B2** (baseline seam between metrics ascent and FreeType ascent).
+  `fontgen.py`'s docstring calls the metrics file "the seam", but about
+  *advances*, which is a different claim from the ascent one. Wants
+  somebody who knows the text path.
+
+**Absence of evidence was not recorded as "open" without checking.**
+Every unticked row below other than B2 was confirmed at the
+implementation level — the symbol, the CSS property, or the harness is
+absent. B4 is the strongest of them: `flex.js:451` reads
+`isReverse(s) ? [...line.items].reverse() : line.items`, which reverses
+the order and nothing else, which is exactly what the row says the bug
+is.
+
+

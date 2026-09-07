@@ -328,6 +328,57 @@ them down is what forces them to be run.
 
 ---
 
+## Searching for a fix using the bug's vocabulary
+
+Auditing BACKLOG.md on 2026-09-07 produced two wrong answers in a row,
+and both had one cause: **the search used the words of the problem, and
+the fix had used different ones.**
+
+- **B3, "GS half-texel sampling conventions unaudited."** `grep` for
+  `half-texel` and `0.5` found nothing in the baker or the runtime, so
+  it was reported unsettled. The fix is `runtime/ps2ui.c:860` —
+  `#define PS2UI_TEXEL_BIAS (1.0f / 16.0f)`. S10 measured both axes and
+  the bias landed as one *sixteenth*. The row's title still says
+  "half-texel", so searching the row was searching for the bug.
+
+- **F3, "Image support."** The CHANGELOG's `<img>` line says "error/warn
+  instead of silently vanishing", which is B9's earlier fix, so F3 was
+  reported open. Image support is `cli.py:152`, `--palettize-images`.
+
+**A fixed thing is named by its fix.** A bug's title is written by
+whoever found it, before anybody knew what the answer would be; the
+implementation is named by whoever wrote it, afterwards. Those are
+rarely the same words, and the gap widens exactly as the fix gets more
+specific than the complaint — which is what a good fix does.
+
+So: search the area, not the phrase. `runtime/ps2ui.c` for a rendering
+claim, `packages/layout/src/` for a layout one, and read what is there.
+
+### Two weaker methods, measured on the same pass
+
+- **Keyword `grep` across the tree: three false positives in one run.**
+  F15 "gradients" matched `rgba`. F17 "localization" matched PLAN.md
+  prose *describing the unbuilt item*. S2 "fuzz the loader" matched a
+  filename. Keyword presence is not evidence of behaviour, and a
+  document describing a thing that does not exist reads exactly like a
+  document describing one that does.
+
+- **`git log --grep` matched the audit's own commit** for every ID it
+  named, because the commit message enumerated them. A search over a
+  history that now contains your search terms will find your search.
+
+### And absence is a third answer
+
+`docs/PLAN.md` treats VOID as distinct from pass and fail for hardware
+readings, and the same applies to an audit. "I could not establish
+this" is not "this is open". Fifteen rows were confirmed open at the
+implementation level — the symbol, the property or the harness is
+absent — and one, B2, is marked unsettled because it could not be
+established either way. Recording it as open would have been a guess
+wearing a status.
+
+---
+
 ## Where a check goes in the run
 
 Three pull requests in a row have argued about this one check at a

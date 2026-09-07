@@ -1838,10 +1838,26 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 | Deferred `visible_get/set` conflation fix (PR #16 review) | wants a deliberate API break | Phase 1 API pass |
 | Deferred the deliberately clipped probe quad (PR #15 review) | only observable on hardware | Phase 0 probe |
 | F19 unload parked; streaming re-derived as static reservation | the F19→F20 dependency was inherited, not derived | a shell-and-module use case |
-| ~~No publishing despite 0.2.0 metadata~~ **RESOLVED** | Strangers shouldn't build on an unverified renderer, and the metadata says so: the packages carried a `0.3.0` prerelease against zero tags until `v0.3.0`, the first tag here. Tagged is not uploaded — neither package is on npm or PyPI, and the Phase 4 exit gate is unmet until someone who is not us installs them | — |
+| ~~No publishing despite 0.2.0 metadata~~ **RESOLVED** | Strangers shouldn't build on an unverified renderer, and the metadata said so: the packages carried a `0.3.0` prerelease against zero tags until `v0.3.0`, the first tag here. **Both are now published — `0.4.0` on PyPI and npm as of 2026-09-06**, verified cold-cache from an empty directory. This row kept its original "neither package is on npm or PyPI" wording for two releases after that stopped being true, inside a row already marked RESOLVED, which is what a resolved row is most likely to do: nobody re-reads the reasoning once the verdict is in. The exit gate is still unmet, but for its other half — nobody outside the project has installed them and put the result on a console | — |
 | No self-merging of PRs | process error made once (PR #11), fixed forward | — |
 | RICE retired as sequencing mechanism | §4.6 | — |
 
-**Immediate action:** Phase 0, the bench session, before further
-feature work. Everything downstream of its exit gate is provisional
-until it passes. This document is amended by PR like everything else.
+**Immediate action:** ~~Phase 0, the bench session, before further
+feature work.~~ **Done.** The bring-up matrix is complete on an
+SCPH-50000 (NTSC) booted from USB under FreeMcBoot: steps 1-7, 9 and 10
+pass, step 8 is VOID on the bench panel, and `docs/bringup.md` is the
+log. Nothing downstream is provisional on that account any more.
+
+**What is immediate now** is Phase 4's remaining clause, and it is not
+a commit: a person who is not us, with a PlayStation 2, reproducing the
+memcard example and photographing it. Every part of the gate that could
+be closed by engineering has been — `0.4.0` is on both registries and
+F26 put the C runtime in the wheel, so `pip install ophtml` and
+`ps2ui vendor-runtime` now reach the console side without a clone.
+
+This line said "Phase 0, before further feature work" for the whole of
+Phases 1 through 4. A standing instruction nobody re-read is the same
+defect as the ranked table BACKLOG.md just lost: it stayed on the page
+because it was never wrong enough to notice.
+
+This document is amended by PR like everything else.
