@@ -95,6 +95,24 @@
   pixels at 16:9 on a 448-line frame, and reaching it is what turned
   `--vram-budget` from decorative into load-bearing.
 
+  Both surfaces print it, which they did not at first: `check_vram`
+  unpacked the report into `_lines` and discarded it, so `ps2ui build`
+  explained a negative budget and `ps2ui-check blob.uib` — the bare
+  invocation the README, the tutorial and `vendor-runtime`'s own
+  closing message all teach — printed `VRAM 24 KiB within budget
+  -272 KiB` alone, which does not read as a diagnosis. The diagnostic
+  is one function both call, so they agree by construction rather than
+  by both remembering, and the failing label now says which kind of
+  failure it is for anyone grepping `not ok`.
+
+  And the advice has a ceiling of its own. "with ZBuffering off … which
+  leaves N B" did not check its sign, so above a *higher* width — 1153
+  columns at 448 lines, where two framebuffers stop fitting — it
+  offered a negative number as the budget to declare, which is the
+  sentence this diagnostic exists to delete reappearing inside its
+  replacement. Past that width no budget helps and the message says so
+  instead.
+
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.5.0, which is what a section
 opened straight after a release should say: the release under it

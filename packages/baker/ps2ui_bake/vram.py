@@ -155,6 +155,51 @@ def default_budget(canvas_w: int, canvas_h: int) -> int:
 CLUT_PAYLOAD = 256 * 4
 
 
+def budget_note(canvas_w: int, canvas_h: int):
+    """Why the DEFAULT budget is unusable at this canvas, or [].
+
+    A FUNCTION AND NOT FORMATTED LINES INSIDE report(), because two
+    surfaces print this and they were disagreeing. `cli.py` loops over
+    every line report() returns, so `ps2ui build` showed the
+    diagnostic; `check_vram` unpacked them into `_lines` and threw them
+    away, so `ps2ui-check blob.uib` -- the bare invocation the README,
+    the tutorial and vendor-runtime's own closing message all teach --
+    printed `VRAM 24 KiB within budget -272 KiB` and nothing else.
+    Raised in review. Matching on the prose from check.py would have
+    made them agree by coincidence; calling one function makes them
+    agree by construction.
+
+    TWO REGIMES, because the advice has a ceiling of its own. Above
+    some width three framebuffers do not fit and dropping the Z buffer
+    recovers a real budget. Above a HIGHER width two do not fit
+    either, and there the remedy figure goes negative -- offering a
+    negative number as the budget to declare, which is the sentence
+    this diagnostic exists to delete, reappearing inside its
+    replacement. At 448 lines those widths are 769 and 1153.
+    """
+    fb = framebuffer_size(canvas_w, canvas_h)
+    if 3 * fb < VRAM_TOTAL:
+        return []
+    two = VRAM_TOTAL - 2 * fb
+    if two <= 0:
+        return [
+            f"  two framebuffers at {canvas_w}x{canvas_h} need {2 * fb} B of "
+            f"{VRAM_TOTAL} B total VRAM, so this canvas cannot be displayed "
+            f"from GS VRAM under any Z setting",
+            f"  no budget can be declared for it; a narrower canvas is the "
+            f"only fix",
+        ]
+    return [
+        f"  the default budget does not exist at this canvas: three "
+        f"framebuffers at {canvas_w}x{canvas_h} need {3 * fb} B of "
+        f"{VRAM_TOTAL} B total VRAM, so there is nothing left to charge "
+        f"textures against and an empty blob would fail here",
+        f"  declare vramBudget (or --vram-budget) for the layout you "
+        f"actually run: with ZBuffering off the console holds two buffers, "
+        f"not three, which leaves {two} B",
+    ]
+
+
 def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
     """Compute the footprint. Returns (lines, total_bytes, budget, ok);
     lines is a printable per-texture breakdown."""
@@ -200,35 +245,10 @@ def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
         f"  framebuffers assumed: 2x draw/display + 1x Z @ {canvas_w}x{canvas_h} "
         f"= {3 * fb} B"
     )
-    # WHEN THE DEFAULT IS NOT A BUDGET BUT AN IMPOSSIBILITY, SAY SO
-    # HERE, where the numbers are, rather than leaving a negative
-    # figure to be reported against textures at the bottom.
-    #
-    # Above some canvas width three framebuffers do not fit in VRAM at
-    # all, and `default_budget` returns a NEGATIVE number. Everything
-    # downstream then reads as though the textures were at fault: an
-    # empty blob fails, `textures 0 B of -278528 B budget` blames the
-    # one thing that is not the problem, and the reader has to work
-    # backwards through this module to discover that the default is
-    # structurally unavailable at their canvas rather than that their
-    # art is too big.
-    #
-    # 796x448 is not a hypothetical: it is the canvas that gives square
-    # pixels at 16:9 on a 448-line frame, and reaching it is the reason
-    # --vram-budget stopped being decorative.
-    if default_used and 3 * fb >= VRAM_TOTAL:
-        two = VRAM_TOTAL - 2 * fb
-        lines.append(
-            f"  the default budget does not exist at this canvas: three "
-            f"framebuffers at {canvas_w}x{canvas_h} need {3 * fb} B of "
-            f"{VRAM_TOTAL} B total VRAM, so there is nothing left to charge "
-            f"textures against and an empty blob would fail here"
-        )
-        lines.append(
-            f"  declare vramBudget (or --vram-budget) for the layout you "
-            f"actually run: with ZBuffering off the console holds two "
-            f"buffers, not three, which leaves {two} B"
-        )
+    # The diagnostic lives in budget_note() so that check.py prints
+    # the same words; see that docstring.
+    if default_used:
+        lines.extend(budget_note(canvas_w, canvas_h))
     # THREE NUMBERS, BECAUSE TWO OF THEM WERE BEING CONFLATED.
     #
     # The first version of this line printed payload against the budget
