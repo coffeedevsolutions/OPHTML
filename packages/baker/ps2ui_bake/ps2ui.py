@@ -198,6 +198,19 @@ def cmd_check(args):
     argv = [rel(proj, proj.out_path)]
     if proj.vram_budget is not None:
         argv += ["--vram-budget", str(proj.vram_budget)]
+    # AND `strict`, which was the same drop one flag over. Raised in
+    # review of the commit that fixed the budget: check.py takes five
+    # options, two of them have a project key, and this forwarded one.
+    #
+    # `--strict` is "treat CRT warnings as failures" (check.py:721,
+    # `failed = rep.errors + (rep.warnings if args.strict else 0)`), so
+    # a project declaring it -- which the tutorial's own ps2ui.json does
+    # -- got strictness in the layout compiler and could not get it
+    # here. The commit's whole argument is that one project must not
+    # mean two things to two commands; leaving this would have been the
+    # argument and not the practice.
+    if proj.strict:
+        argv += ["--strict"]
     with in_project(proj):
         return check_cli.main(argv)
 
