@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 0.5.0.dev0
+## 0.5.0 — 2026-09-06
 
 ### Added
 - **`ps2ui vendor-runtime`, and the C runtime inside the wheel.**
@@ -13,6 +13,30 @@
   baker that wrote your blob. Existing files are not overwritten without
   `--force`. Phase 4's exit gate says *"without cloning the repo"* and
   had been contradicting the README since it was written (F26).
+
+### Changed
+- **Rule 10 counts a version only where it is not extended into a longer
+  one.** It used plain substring containment, so `0.4.0` was satisfied by
+  `0.4.0.dev0` — during the 0.4.0 cut the stale prerelease note entered
+  the release branch green while its prose still said *"those give you
+  0.3.0"*, and it was rewritten because a person read it rather than
+  because the check objected. The purpose was "the note describes this
+  tree"; the coverage was "these characters appear somewhere". The guard
+  admits `v0.4.0`, since a `v` is not a digit, and rejects `0.4.0` read
+  out of `10.4.0`. Falsified in all four states, because step 9 restores
+  the prerelease one minutes after step 8 leaves it. The failure message
+  names the baker and npm versions separately now: in a release state
+  they are the same string, and it used to print the same line twice
+  with nothing to tell them apart (#113).
+- **`docs/releasing.md` carries what the 0.4.0 cut cost.** Step 5: the
+  literal the checker matches must not wrap across a line break, and rule
+  10 asks only for version facts, so prose it does not read can be
+  dropped silently — 0.4.0's note lost its stability-pledge clause that
+  way. Step 8: npm may answer **202** rather than 200 and take minutes to
+  appear, `~/.npm/_logs` is what separates a publish that never ran from
+  one still propagating, a warm pip cache serves a stale index and
+  reports the *old* version so the resolve wants `--no-cache-dir`, and
+  the per-version JSON endpoints 404 for versions that exist (#113).
 
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.4.0, which is what a section
