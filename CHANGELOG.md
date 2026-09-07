@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — 0.6.0.dev0
+
+`.uib` format **version 7**, unchanged from the release below.
+Zero format moves have landed since 0.5.0, which is what a section
+opened straight after a release should say: the release under it
+shipped the format this tree still writes, so a blob baked here loads
+under a 0.5.0 runtime and the other way round.
+
+That count is the one number in this file that starts correct and
+decays. It becomes one the moment a format move lands, and
+`tools/check-versions.py` derives it from the section below rather than
+reading it back, so the check fails the change that moves the format
+without moving this line.
+
 ## 0.5.0 — 2026-09-06
 
 ### Added
