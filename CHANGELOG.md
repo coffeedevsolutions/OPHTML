@@ -34,6 +34,40 @@
   `docs/deploying.md` section 2, whose build command assumes a checkout
   and now says what the installed path is instead.
 
+### Fixed
+- **`ps2ui check` is given the settings `ps2ui build` was given.** One
+  project, two commands that disagreed about the same numbers.
+  `vramBudget` reached `ps2ui-bake` and was dropped on the way to the
+  checker, so at any budget but the default the build passed at the
+  declared figure and the check failed at the computed one —
+  `textures 491520 B of 1212416 B budget` against
+  `not ok 66 - VRAM 480 KiB within budget -272 KiB`, on one blob.
+  `check.py` had accepted `--vram-budget` since it was written; nothing
+  passed it. `strict` was the same drop one flag over, found in review:
+  the checker takes five options, two have a project key, and this
+  forwarded one — so a project declaring `"strict": true`, as the
+  tutorial's own does, got strictness in the layout compiler and could
+  not get it from the checker.
+
+  Overriding the budget is ordinary rather than exotic, which is why
+  this mattered: the default reserves a *third* framebuffer for a Z
+  buffer this tree's sample never allocates (`gs->ZBuffering =
+  GS_SETTING_OFF`, and gsKit only allocates Z when it is on).
+  Reclaiming it is what makes a canvas wide enough for square pixels at
+  16:9 fit in VRAM — 796x448 needs three 32-bit buffers that do not fit
+  in 4 MB at all, and two leave 1,212,416 B, 61% more texture budget
+  than the 640x448 default gives.
+
+  Fenced by a matrix rather than by more hand-written tests: every
+  `project.DEFAULTS` key whose kebab-cased flag the checker's own
+  parser accepts must appear in the argv the front door builds. It is
+  derived from the settings dict, the parser and the builder, so it
+  fails when a sixth option is added and not forwarded rather than when
+  somebody remembers to test it — which is how `strict` was found. This
+  is the fourth hand-maintained settings-to-argv list in the tree and
+  three of the four already carried a comment about a bug of this
+  shape.
+
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.5.0, which is what a section
 opened straight after a release should say: the release under it

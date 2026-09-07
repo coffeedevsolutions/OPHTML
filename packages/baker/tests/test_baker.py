@@ -3812,6 +3812,121 @@ class TestProjectFile(unittest.TestCase):
             self.assertTrue(proj.screens[0].html.startswith(tmp))
             self.assertTrue(proj.screens[0].css.endswith("app.css"))
 
+    def _check_argv(self, tmp, extra):
+        """What argv `ps2ui check` hands the checker for this project."""
+        from ps2ui_bake import ps2ui as front
+        from unittest import mock
+        data = {"screens": ["a.html"], "css": "a.css"}
+        data.update(extra)
+        path = self.write(tmp, data)
+        os.makedirs(os.path.join(tmp, "build"), exist_ok=True)
+        open(os.path.join(tmp, "build", "ui.uib"), "wb").close()
+        seen = []
+        with mock.patch("ps2ui_bake.check.main",
+                        lambda argv: (seen.append(list(argv)), 0)[1]):
+            rc = front.main(["check", path])
+        self.assertEqual(rc, 0)
+        return seen[0]
+
+    # A sample value per project key, for the matrix below. Only keys
+    # whose flag the checker accepts are used, so most of these are
+    # never read -- they are here so that a key becoming a checker
+    # option does not need a matching edit here as well.
+    SAMPLE = {"strict": True, "vramBudget": 1212416, "minFontSize": 14,
+              "palettizeImages": True, "focusWrap": True,
+              "displayAspect": "16:9", "mode": "ntsc16x9",
+              "canvas": "640x448"}
+
+    @staticmethod
+    def _kebab(key):
+        out = ""
+        for ch in key:
+            out += ("-" + ch.lower()) if ch.isupper() else ch
+        return "--" + out
+
+    def test_every_project_key_the_checker_accepts_actually_reaches_it(self):
+        """The mapping, enumerated rather than remembered.
+
+        THIS IS THE FOURTH HAND-MAINTAINED SETTINGS-TO-ARGV LIST, and
+        three of the four carry a comment about a bug of exactly this
+        shape -- `bake_argv` ("Every other project flag was missing the
+        same way and silently"), `cmd_dev` ("This forwarded --fonts
+        alone"), and now `cmd_check`, which forwarded nothing until the
+        budget, and then the budget alone until `strict`.
+
+        Hand-written tests catch the flag somebody thought of. This
+        derives the mapping from three things already in the tree --
+        project.DEFAULTS, the checker's own parser, and the argv the
+        front door builds -- so it fails when a SIXTH option is added
+        and not forwarded, rather than when somebody remembers to write
+        a test for it. `strict` was found by exactly this, in review.
+        """
+        import re, subprocess, sys, tempfile
+        help_text = subprocess.run(
+            [sys.executable, "-m", "ps2ui_bake.check", "--help"],
+            capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        ).stdout
+        accepted = set(re.findall(r"--[a-z][a-z-]+", help_text))
+        from ps2ui_bake import project
+        shared = [k for k in sorted(project.DEFAULTS)
+                  if self._kebab(k) in accepted]
+        # The intersection is the point; an empty one would mean this
+        # test proves nothing, which is the vacuity trap docs/method.md
+        # names. It has been {strict, vramBudget} since the checker
+        # gained its options.
+        self.assertTrue(shared, "no project key maps to a checker flag; "
+                                "this test would pass vacuously")
+        missing_sample = [k for k in shared if k not in self.SAMPLE]
+        self.assertFalse(missing_sample,
+                         "no sample value for %s: a project key became a "
+                         "checker option and this test cannot exercise it"
+                         % missing_sample)
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._check_argv(tmp, {k: self.SAMPLE[k] for k in shared})
+        not_forwarded = [k for k in shared if self._kebab(k) not in argv]
+        self.assertFalse(
+            not_forwarded,
+            "`ps2ui check` does not forward %s. The checker takes %s and "
+            "the project declares them, so a project means two things to "
+            "two commands -- which is the bug this list exists to prevent. "
+            "argv was %r"
+            % (", ".join(self._kebab(k) for k in not_forwarded),
+               ", ".join(sorted(accepted)), argv))
+
+    def test_check_is_given_the_budget_the_build_was_given(self):
+        """One project, one number, two commands that must agree.
+
+        `vramBudget` reached ps2ui-bake and was dropped on the way to
+        the checker, so at any budget but the default the halves
+        disagreed about the same blob: the build passed at the
+        declared number and the check failed at the computed one,
+        naming a figure the project had already overridden.
+
+            build:  textures 491520 B of 1212416 B budget (40%)
+            check:  not ok 66 - VRAM 480 KiB within budget -272 KiB
+
+        Overriding the budget is ordinary rather than exotic. The
+        default reserves a THIRD framebuffer for a Z buffer that this
+        tree's own sample never allocates -- `gs->ZBuffering =
+        GS_SETTING_OFF`, and gsKit only allocates Z when it is on --
+        and reclaiming it is what makes a canvas wide enough for
+        square pixels at 16:9 fit in VRAM at all.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._check_argv(tmp, {"vramBudget": 1212416})
+            self.assertIn("--vram-budget", argv)
+            self.assertEqual(argv[argv.index("--vram-budget") + 1], "1212416")
+
+    def test_no_budget_in_the_project_means_no_flag(self):
+        """The default stays the default; this adds a passthrough, not
+        a new default. A flag appearing with no value behind it would
+        be the same class of bug in the other direction."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertNotIn("--vram-budget", self._check_argv(tmp, {}))
+
     def test_a_directory_means_the_ps2ui_json_inside_it(self):
         from ps2ui_bake import project
         import tempfile
