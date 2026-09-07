@@ -2,6 +2,18 @@
 
 ## Unreleased — 0.5.0.dev0
 
+### Added
+- **`ps2ui vendor-runtime`, and the C runtime inside the wheel.**
+  `pip install ophtml` gave you the whole authoring path and then the
+  README told you to *"drop `runtime/ps2ui.c` into your ps2sdk/gsKit
+  project"* — a repo path, in a package that shipped neither file, so
+  the console half needed a clone. It no longer does:
+  `ps2ui vendor-runtime src/` writes both files out of the package you
+  installed, which means the runtime you compile is the one matching the
+  baker that wrote your blob. Existing files are not overwritten without
+  `--force`. Phase 4's exit gate says *"without cloning the repo"* and
+  had been contradicting the README since it was written (F26).
+
 `.uib` format **version 7**, unchanged from the release below.
 Zero format moves have landed since 0.4.0, which is what a section
 opened straight after a release should say: the release under it

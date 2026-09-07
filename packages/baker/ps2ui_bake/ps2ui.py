@@ -291,6 +291,13 @@ def _serve(args):
     return serve.run(args)
 
 
+def _vendor_runtime(args):
+    # Deferred like _serve: `ps2ui build` in a CI container should not
+    # import a module it will never reach.
+    from . import vendor
+    return vendor.cmd_vendor_runtime(args)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="ps2ui",
@@ -353,6 +360,24 @@ def main(argv=None):
     sv.add_argument("--selftest", action="store_true",
                     help="build, serve one of every route, and exit")
     sv.set_defaults(fn=_serve)
+
+    # THE CONSOLE HALF OF THE TOOLCHAIN, WHICH USED TO NEED A CLONE.
+    # `pip install ophtml` gave you everything up to the blob and then
+    # README.md said "drop runtime/ps2ui.c into your project" -- a repo
+    # path, in a package that shipped neither file. F26.
+    #
+    # The files come from THIS install, so the runtime a person compiles
+    # is the one matching the baker that wrote their blob. check-
+    # versions.py holds ps2ui.h's PS2UI_VERSION to the writer's, but
+    # only inside the tree; handing out a runtime from anywhere else
+    # puts that skew on somebody else's machine.
+    vr = sub.add_parser("vendor-runtime",
+                        help="write ps2ui.c and ps2ui.h into your project")
+    vr.add_argument("dest", nargs="?", default=".",
+                    help="where to write them (default: here)")
+    vr.add_argument("--force", action="store_true",
+                    help="overwrite files that are already there")
+    vr.set_defaults(fn=_vendor_runtime)
 
     d = sub.add_parser("dev", help="rebuild on every edit")
     d.add_argument("project", nargs="?", default="ps2ui.json")

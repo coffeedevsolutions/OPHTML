@@ -158,7 +158,17 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui dev \
 # CI. For an edit loop you can navigate, use `ps2ui serve` below.
 ```
 
-Console side: drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKit project.
+Console side, from an install or a checkout alike:
+
+```sh
+ps2ui vendor-runtime src/          # writes ps2ui.c and ps2ui.h there
+```
+
+Compile those two with your ps2sdk/gsKit project. They come from the
+package you installed, so the runtime you build is the one that matches
+the baker that wrote your blob — `ps2ui.h`'s `PS2UI_VERSION` and the
+blob's format version cannot drift apart across a `pip install`. It will
+not overwrite files you have already edited without `--force`.
 
 ```c
 ps2ui_ctx ui;

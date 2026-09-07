@@ -315,7 +315,15 @@ look at what passed.
 ## 8. Drive it from C
 
 The runtime is one `.c` and one `.h` you compile with your project
-against [gsKit]. The whole surface is small enough to list:
+against [gsKit], and the toolchain hands them to you:
+
+```sh
+ps2ui vendor-runtime src/
+```
+
+They come out of the package you installed rather than out of a clone,
+so the runtime you compile matches the baker that wrote your blob. The
+whole surface is small enough to list:
 
 ```c
 static uint8_t arena[1516] __attribute__((aligned(16)));   /* from the bake */

@@ -13,3 +13,16 @@ runtime/sample/ui_uib.c
 runtime/sample/*.o
 runtime/sample/*.elf
 fixtures/bench-stream/build/
+
+# Local build artifacts. `python -m build` in packages/baker is now an
+# ordinary thing to run -- setup.py stages the runtime during it -- so
+# these appear in a working tree that never made them before.
+packages/baker/dist/
+packages/baker/build/
+*.egg-info/
+
+# Staged by packages/baker/setup.py at build time from repo-root runtime/.
+# One canonical copy lives in runtime/; this is the transient one that
+# goes into the wheel and the sdist (F25). Committing it would recreate
+# the stale-second-copy defect the hook exists to avoid.
+packages/baker/ps2ui_bake/runtime/
