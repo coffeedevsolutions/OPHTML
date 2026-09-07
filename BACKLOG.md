@@ -303,7 +303,7 @@ confidence multipliers for high-scoring ones and get pulled forward.
 |----|-----|---|---|---|---|-------|
 | B1 | ✅ **Textured-quad vertex RGB is in the wrong domain for GS modulate.** The GS `MODULATE` function treats `0x80` as identity for RGB exactly as it does for alpha (`Cv = Ct·Cf >> 7`), but the baker emits tint colors with full-range 0–255 RGB. On hardware every tinted glyph and nine-patch will render up-to-2× overbright and clamp: white text survives by luck, mid-tone text (`#8b94a7` metadata, `#c8cfdc` labels) washes out badly. The previewer normalizes by 255, so it *hides* the bug — the exact class of divergence the replay-the-blob design exists to prevent. Fix: emit modulated RGB in the 0x80 domain in `quads.py` (same one-crossing rule as alpha), mirror in `preview._tint`, add a cross-domain test. | 10 | 3 | 0.8 | 0.5 | **48** |
 | B2 | **Baseline seam between metrics ascent and FreeType ascent.** Layout positions line boxes from `ascentPx` derived from the metrics JSON (units → px via the shared rounding rule); the atlas places glyph ink relative to Pillow's `font.getmetrics()` ascent at the render size. The two can disagree by ±1px at some sizes, nudging ink off its measured line box. Fix: bake the per-size ascent into the atlas from the *metrics* value and offset bearings accordingly; add a golden test at several sizes. | 8 | 1 | 0.8 | 1 | **6.4** |
-| B3 | **GS half-texel / half-pixel sampling conventions unaudited.** Classic PS2 artifact family: sprite UVs off by half a texel, primitive coordinates off by half a pixel against the 2048-centered window, interlaced field offset. gsKit absorbs some of this (`OffsetX/Y`), not all. Everything looks right in the previewer, which proves nothing about texel centers. Needs an on-target test pattern (checkerboard atlas + 1:1 quads) and probably `+0.5` UV nudges in one place. Blocked on F1 for verification. | 10 | 2 | 0.5 | 1 | **10** |
+| B3 | ✅ **GS half-texel / half-pixel sampling conventions unaudited.** Classic PS2 artifact family: sprite UVs off by half a texel, primitive coordinates off by half a pixel against the 2048-centered window, interlaced field offset. gsKit absorbs some of this (`OffsetX/Y`), not all. Everything looks right in the previewer, which proves nothing about texel centers. Needs an on-target test pattern (checkerboard atlas + 1:1 quads) and probably `+0.5` UV nudges in one place. Blocked on F1 for verification. | 10 | 2 | 0.5 | 1 | **10** |
 | B8* | **VRAM budget only checked at test time, not bake time.** A UI whose atlases + patches exceed 4 MB (minus framebuffers) currently bakes fine and dies at upload. The baker knows every texture size; it should compute the worst-case VRAM footprint (including gsKit page rounding) and fail the build with a per-texture breakdown. | 6 | 1 | 1.0 | 0.5 | **12** |
 | B9 | ✅ **`<img>` parses but silently paints nothing.** Until real image support (F3) lands, an `<img>` in the document should at minimum be a loud compile warning — silent drops are how people lose an afternoon. One `if` in `box.js`. | 5 | 0.5 | 1.0 | 0.25 | **10** |
 | B7 | **Percentage sizes against an indefinite container silently resolve to auto.** CSS resolves `%` against definite sizes and has defined fallbacks; ps2ui treats null as auto without saying so. Either implement the CSS behavior or make it a documented compile warning. | 3 | 0.5 | 0.8 | 0.5 | **2.4** |
@@ -328,7 +328,7 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | F18 | ✅ **Hardware bring-up checklist** (`docs/bringup.md`): ordered list of what to verify first on PCSX2/hardware — text tinting (`GSTEXTURE::Function`), B1 color domains, B3 texel centers, CLUT swizzle, alpha blend state, interlace field order — each with its expected-vs-symptom. Converts the "not hardware-verified" caveat into a runnable procedure. | 4 | 1 | 1.0 | 0.25 | **16** |
 | F1 | ✅ **PCSX2 verification harness in CI.** Boot a minimal ELF that loads the example blob, renders one frame, screenshots via PCSX2's automation, and image-diffs against the previewer PNG within tolerance. The single highest-leverage credibility move: flips C from 0.5→1.0 for B1/B3/F5 and makes every future GS-path change regression-safe. | 10 | 3 | 0.8 | 2 | **12** |
 | F10 | ✅ **Focus API completion.** `ps2ui_focus_set(ctx, "name")`, optional wrap-around per axis (solved at build time as extra graph edges, zero runtime cost), and an activation callback convention. Every real app needs to restore focus after a screen swap; today only `move` exists. | 6 | 1 | 1.0 | 0.5 | **12** |
-| F3 | **Image support.** `<img src>` → Pillow decode at bake time → PSMCT32 (or quantized PSMT8+CLUT for flat art) textures in the .uib, sized by layout like any box. The format already carries arbitrary textures; this is mostly layout-measure + baker plumbing. Unlocks logos, save-icon thumbnails, backgrounds. | 8 | 2 | 1.0 | 2 | **8** |
+| F3 | ✅ **Image support.** `<img src>` → Pillow decode at bake time → PSMCT32 (or quantized PSMT8+CLUT for flat art) textures in the .uib, sized by layout like any box. The format already carries arbitrary textures; this is mostly layout-measure + baker plumbing. Unlocks logos, save-icon thumbnails, backgrounds. | 8 | 2 | 1.0 | 2 | **8** |
 | F7 | ✅ **PAL / video-mode presets.** `--canvas` exists but the CRT linter's safe-area insets and the example are NTSC-tuned. Add `--mode ntsc|pal|480p` presets driving canvas, linter geometry, and a documented runtime note on mode setup. Half of PS2 homebrew's audience is PAL. | 4 | 1 | 1.0 | 0.5 | **8** |
 | F11 | ✅ **Watch mode.** `ps2ui dev`: watch `ui/*.html,css`, rebuild IR + blob, re-render preview PNG on change (optionally serve in a browser with live reload). The edit loop today is two manual commands; iteration speed is the whole pitch of HTML authoring. *(✅ `ps2ui dev` shipped in Sprint 2; the parenthetical did not, and it was the half that mattered — `dev` re-renders a PNG and leaves you refreshing an image viewer, with no way to move focus, switch screen or see a second theme. Closed by `ps2ui serve`: a localhost page rendering `preview.render()` server-side, with arrow-key navigation along the baked focus graph, screen and theme switching, four aspect modes, editable slot text, warnings and click-to-inspect over the command list. `dev` stays: it is headless and writes PNGs, which is what keeps it usable in CI. What `serve` does not cover — runtime visibility, and the F-048 class of divergence only hardware finds — is stated in the README rather than left to be discovered.)* | 7 | 1 | 1.0 | 1 | **7** |
 | F13 | ✅ **Contribution surface.** CONTRIBUTING.md (how to run all three suites, how the seams work), issue templates, and 4–6 curated good-first-issues (named colors, `text-transform`, montage columns flag, B9). Cheap, and the format specs already do the heavy lifting. | 3 | 0.5 | 1.0 | 0.25 | **6** |
@@ -406,15 +406,40 @@ artifact in the tree. Seventeen rows were ticked in this pass — they
 had shipped, in some cases years of commits ago, and nothing had
 recorded it.
 
-**Two rows were deliberately NOT ticked because the evidence did not
-settle them**, and a wrong tick is worse than a missing one:
+**THE FIRST PASS OF THIS AUDIT WAS ITSELF WRONG, TWICE, AND THE REASON
+IS THE USEFUL PART.** It searched using the vocabulary of the PROBLEM
+rather than the vocabulary of the FIX:
 
-- **B2** (baseline seam) — the CHANGELOG mentions baselines in the
-  cross-pen agreement entry, which is not the same claim.
-- **B3** (half-texel sampling) — the internal task log says the bias
-  shipped, and `grep` finds it in neither the baker nor the runtime.
-  Either it is somewhere this pass did not look, or it did not land.
+- **B3** was reported unsettled because `grep` for "half-texel" and
+  `0.5` found nothing. The fix is `runtime/ps2ui.c:860`,
+  `#define PS2UI_TEXEL_BIAS (1.0f / 16.0f)` — S10 measured both axes
+  and the bias landed as one *sixteenth*. The row's own title still
+  says "half-texel", so searching it was searching for the bug.
+- **F3** was reported open because the CHANGELOG's `<img>` line reads
+  "error/warn instead of silently vanishing" — which is B9's earlier
+  fix. Image support is `cli.py:152`, `--palettize-images`, with a
+  per-image `palettize` attribute.
 
-Both want somebody who knows the rendering path to read them.
+Both are ticked. Two other methods were tried and were worse: keyword
+`grep` returned three false positives in one run (F15 matched `rgba`,
+F17 matched PLAN.md prose *describing* the item, S2 matched a
+filename), and `git log --grep` matched this audit's own commit for
+every ID it names. **What worked was reading the implementation area
+for the fix's vocabulary.**
+
+**One row is still unsettled and is marked so rather than guessed:**
+
+- **B2** (baseline seam between metrics ascent and FreeType ascent).
+  `fontgen.py`'s docstring calls the metrics file "the seam", but about
+  *advances*, which is a different claim from the ascent one. Wants
+  somebody who knows the text path.
+
+**Absence of evidence was not recorded as "open" without checking.**
+Every unticked row below other than B2 was confirmed at the
+implementation level — the symbol, the CSS property, or the harness is
+absent. B4 is the strongest of them: `flex.js:451` reads
+`isReverse(s) ? [...line.items].reverse() : line.items`, which reverses
+the order and nothing else, which is exactly what the row says the bug
+is.
 
 
