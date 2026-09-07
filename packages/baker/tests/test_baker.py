@@ -3812,6 +3812,55 @@ class TestProjectFile(unittest.TestCase):
             self.assertTrue(proj.screens[0].html.startswith(tmp))
             self.assertTrue(proj.screens[0].css.endswith("app.css"))
 
+    def _check_argv(self, tmp, extra):
+        """What argv `ps2ui check` hands the checker for this project."""
+        from ps2ui_bake import ps2ui as front
+        from unittest import mock
+        data = {"screens": ["a.html"], "css": "a.css"}
+        data.update(extra)
+        path = self.write(tmp, data)
+        os.makedirs(os.path.join(tmp, "build"), exist_ok=True)
+        open(os.path.join(tmp, "build", "ui.uib"), "wb").close()
+        seen = []
+        with mock.patch("ps2ui_bake.check.main",
+                        lambda argv: (seen.append(list(argv)), 0)[1]):
+            rc = front.main(["check", path])
+        self.assertEqual(rc, 0)
+        return seen[0]
+
+    def test_check_is_given_the_budget_the_build_was_given(self):
+        """One project, one number, two commands that must agree.
+
+        `vramBudget` reached ps2ui-bake and was dropped on the way to
+        the checker, so at any budget but the default the halves
+        disagreed about the same blob: the build passed at the
+        declared number and the check failed at the computed one,
+        naming a figure the project had already overridden.
+
+            build:  textures 491520 B of 1212416 B budget (40%)
+            check:  not ok 66 - VRAM 480 KiB within budget -272 KiB
+
+        Overriding the budget is ordinary rather than exotic. The
+        default reserves a THIRD framebuffer for a Z buffer that this
+        tree's own sample never allocates -- `gs->ZBuffering =
+        GS_SETTING_OFF`, and gsKit only allocates Z when it is on --
+        and reclaiming it is what makes a canvas wide enough for
+        square pixels at 16:9 fit in VRAM at all.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._check_argv(tmp, {"vramBudget": 1212416})
+            self.assertIn("--vram-budget", argv)
+            self.assertEqual(argv[argv.index("--vram-budget") + 1], "1212416")
+
+    def test_no_budget_in_the_project_means_no_flag(self):
+        """The default stays the default; this adds a passthrough, not
+        a new default. A flag appearing with no value behind it would
+        be the same class of bug in the other direction."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertNotIn("--vram-budget", self._check_argv(tmp, {}))
+
     def test_a_directory_means_the_ps2ui_json_inside_it(self):
         from ps2ui_bake import project
         import tempfile
