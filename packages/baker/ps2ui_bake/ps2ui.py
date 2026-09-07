@@ -176,8 +176,43 @@ def cmd_check(args):
             "not build, so that a check can never report on a blob it "
             "just made and nobody has seen."
             % os.path.relpath(proj.out_path, proj.root))
+    # THE PROJECT'S BUDGET REACHES THE BAKE AND HAD TO REACH THIS TOO.
+    #
+    # `vramBudget` was passed to ps2ui-bake (bake_argv, above) and
+    # dropped here, so at any budget other than the default the two
+    # halves of one project disagreed about the same blob: the build
+    # succeeded at the declared budget and the check failed at the
+    # computed one, naming a number the project had already overridden.
+    #
+    #     build:  textures 491520 B of 1212416 B budget (40%)
+    #     check:  not ok 66 - VRAM 480 KiB within budget -272 KiB
+    #
+    # The default is deliberately conservative -- it reserves a third
+    # framebuffer for a Z buffer that this tree's own sample does not
+    # allocate, because `gs->ZBuffering = GS_SETTING_OFF` and gsKit
+    # only allocates Z when it is on. Overriding it is therefore an
+    # ordinary thing to do rather than a corner, and it is the whole
+    # reason a canvas wide enough for square pixels at 16:9 is
+    # reachable at all. check.py has taken --vram-budget since it was
+    # written; nothing passed it.
+    argv = [rel(proj, proj.out_path)]
+    if proj.vram_budget is not None:
+        argv += ["--vram-budget", str(proj.vram_budget)]
+    # AND `strict`, which was the same drop one flag over. Raised in
+    # review of the commit that fixed the budget: check.py takes five
+    # options, two of them have a project key, and this forwarded one.
+    #
+    # `--strict` is "treat CRT warnings as failures" (check.py:721,
+    # `failed = rep.errors + (rep.warnings if args.strict else 0)`), so
+    # a project declaring it -- which the tutorial's own ps2ui.json does
+    # -- got strictness in the layout compiler and could not get it
+    # here. The commit's whole argument is that one project must not
+    # mean two things to two commands; leaving this would have been the
+    # argument and not the practice.
+    if proj.strict:
+        argv += ["--strict"]
     with in_project(proj):
-        return check_cli.main([rel(proj, proj.out_path)])
+        return check_cli.main(argv)
 
 
 def cmd_fontgen(args):
