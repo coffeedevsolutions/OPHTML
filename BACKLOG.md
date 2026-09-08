@@ -337,7 +337,7 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | F4 | ✅ **Multi-screen documents.** Several HTML files → one .uib with named screens sharing textures/atlases; runtime gets `ps2ui_screen_set`, per-screen focus memory, and an optional baked crossfade. Every non-trivial app has ≥2 screens; today they'd ship N blobs and duplicate atlases. | 8 | 2 | 0.8 | 4 | **3.2** |
 | F12 | ✅ **Packaging.** Publish `@ophtml/layout` to npm and `ophtml` to PyPI, plus one `ps2ui` wrapper CLI (`build`, `dev`, `fontgen`) so the quick start is two installs and one command instead of PYTHONPATH incantations. | 8 | 1 | 0.8 | 2 | **3.2** |
 | F9 | ✅ **Kerning.** `fontgen` already reserves a kerning field; emit pairs from the TTF, apply in `Font.measure`/wrap and in the baker's pen with the same rounding rule, covered by a cross-language agreement test. Visible on large headings ("PS2", "Library"). | 6 | 0.5 | 1.0 | 1 | **3** |
-| F8 | **`position: absolute` overlays.** Badges, dialogs, and focus-follow cursors need out-of-flow boxes. Constrained version: absolute within the nearest padded ancestor, no auto-margins, still zero runtime cost. | 5 | 1 | 0.8 | 2 | **2** |
+| F8 | **`position: absolute` overlays.** Badges, dialogs, and focus-follow cursors need out-of-flow boxes. Constrained version: absolute within the nearest padded ancestor, no auto-margins, still zero runtime cost. **Re-scored 2026-09-07 (see the dated section below): this is a COMPILER change and touches no format field.** `paint.js` already walks in document order back-to-front with no z-index, records already carry `x, y, w, h`, and the runtime already draws with ZBuffering off — so an overlapping display list is expressible in a v7 blob today; nothing can produce one. `lint.js:97` was written as forward cover for exactly this. What it does break is two load-bearing lint assumptions: the contrast check composites against *the nearest containing rect*, which stops being well-defined under overlap, and `box.js` refuses nested focusables outright ("the D-pad model has one focus ring"). R and I raised because a real UI hit it and the uses are not cosmetic; C stays short of 1.0 because what focus MEANS under overlap is an open design question, not an implementation detail. | 7 | 2 | 0.9 | 2 | **6.3** |
 | F17 | **Localization workflow.** Per-locale build passes (the architecture already prescribes this): string catalog extraction from HTML, per-locale bake with locale-appropriate charsets in the atlas, `ps2ui build --locale`. | 3 | 2 | 0.8 | 3 | **1.6** |
 | F15 | **Gradients as baked textures.** `linear-gradient` rasterized to small strip textures at bake time, stretched by the GS. Pure polish; the mockups' thumbnails would benefit. | 3 | 1 | 0.8 | 1.5 | **1.6** |
 | F6 | ✅ **List templating / scrolling regions.** Data-driven repeats (`data-repeat` on a template child) with a runtime-scrollable window over more items than fit — the full solution to "the card has 40 saves". Depends on F2; large runtime surface (scissor + per-item focus), which is why it scores below its obvious value. Revisit the score once F2 lands. | 6 | 3 | 0.5 | 6 | **1.5** |
@@ -349,6 +349,7 @@ confidence multipliers for high-scoring ones and get pulled forward.
 | F21 | ✅ **Runtime visibility toggle.** `display: none` is compile-time only, so an app cannot hide a row it has no data for; today the workaround is blanking every slot in it, which leaves the panel drawn. A per-focus-node or per-element visibility bit the render loop honours. | 4 | 1 | 0.9 | 1 | **3.6** |
 | F24 | **Trim geometry that cannot draw.** A `nowrap` run inside `overflow: hidden` bakes every glyph and lets the GS clip, so the channel-6 probe submits 20 quads per frame that are outside their scissor. F22 measures it; the baker could drop them at flatten time once the clip is known. Small, safe, and it shrinks the command list on exactly the data-heavy screens where it matters. | 6 | 0.5 | 0.9 | 0.5 | **5.4** |
 | F26 | ✅ **The runtime did not reach anyone who had not cloned.** `pip install ophtml` gave a stranger the whole authoring path, and then `README.md` told them to *"drop `runtime/ps2ui.c` and `runtime/ps2ui.h` into your ps2sdk/gsKit project"* — repo paths, in a package that shipped neither file: the wheel carried `ps2ui_bake` alone and the npm tarball `src/ bin/ README.md`. So the console half, which is the point of the project, required a clone, and **Phase 4's exit gate says "without cloning the repo"** — the two had contradicted each other since the gate was written, unseen because `registry.yml` exercised the authoring half weekly and went green over a gate whose other half nobody had attempted. Fixed in `packages/baker/setup.py`, which stages `ps2ui.c` and `ps2ui.h` into the package at build time from their one canonical home, and `ps2ui vendor-runtime <dir>`, which writes them into a project from the install — so the runtime compiled matches the baker that wrote the blob. Nothing is committed, so there is no second copy to go stale. `package-data` could not simply point at `../../runtime`: measured, it is silently omitted with rc=0 and no warning, which is why `tools/check-runtime-shipped.py` asserts the built wheel *and* the sdist rather than the declaration. **Numbered F26 because F25 was already taken** by the Sprint 5 status line above (widescreen), and two ticked F25s made `grep` ambiguous. | 10 | 3 | 1.0 | 1 | **30** |
+| F27 | **A positional API: `ps2ui_offset_set(ctx, dx, dy)`.** The runtime can change *what* is drawn — focus, theme, slot text, textures, visibility, screen, list window — and never *where*. The full public surface in `runtime/ps2ui.h` has no translate, offset, scroll or pan, so a panel that slides, a carousel, a parallax layer and a scrolling region are all unreachable, and a UI whose sidebar expands has to bake both end states as separate screens with no motion between them. **This needs no format change either.** `ps2ui.c:1105-1107` passes `c->x, c->y` straight to `gsKit_prim_sprite`; the same at `:870` for textured quads and `:1130`. An `int16_t off_x, off_y` on the context applied at those three sites — **and at the scissor computation, `:1068-1070`, which is the subtle one** — is the whole mechanism, and it works on blobs that already exist. `preview.py` must gain the same offset in the same commit: `serve --selftest` asserts the served frame is byte-identical to `--preview`, and an offset one applies and the other does not breaks the assertion that makes the previewer worth trusting. | 7 | 2 | 0.9 | 1 | **12.6** |
 
 ## Security & abuse (added 2026-08-17 after CI review)
 
@@ -442,4 +443,90 @@ absent. B4 is the strongest of them: `flex.js:451` reads
 the order and nothing else, which is exactly what the row says the bug
 is.
 
+## Two gaps a real UI found (2026-09-07)
+
+Both rows above — F8 and the new F27 — came out of building a working
+recreation of the OPLattice shell in this toolchain: four screens at
+`--canvas 704x448 --display-aspect 16:9`, real cover art, real metadata
+from 46 discs, built with the published `0.5.0` packages rather than
+from this checkout. Neither gap was visible from reading the code. Both
+appeared within an hour of trying to reproduce a shell that already
+exists.
+
+**THE FINDING THAT MATTERS IS WHAT THEY DO *NOT* COST.** The `.uib`
+format is pledged frozen at v7 and `tools/check-format-frozen.py`
+enforces it, so the first question about any new capability is whether
+it forces a v8. Neither of these does:
+
+| | change lands in | format |
+|---|---|---|
+| F27 positional API | `runtime/ps2ui.c` + `preview.py` | untouched |
+| F8 layering | `packages/layout/src` | untouched |
+
+F8 is a compiler change because the format never prevented overlap:
+records carry `x, y, w, h`, `paint.js` emits them in document order,
+and the runtime draws back-to-front with `gs->ZBuffering =
+GS_SETTING_OFF`. A v7 blob can already *describe* a badge sitting on a
+cover. Nothing in the toolchain can produce one, because `position` is
+refused at the CSS stage — honestly, with a warning, which is how this
+was confirmed rather than assumed:
+
+    warning: css: line 2: property "position" not supported on this
+    target; ignored
+
+F27 is a runtime change for the same reason in the other direction:
+the geometry is fixed in the blob, and the draw loop is the only place
+it becomes a coordinate.
+
+### What the absence actually cost, measured
+
+The recreation's sidebar expands from a 31px icon rail to a 238px
+panel. In the original that is a translation — the content slides right
+and back. Three things were tried:
+
+1. **A column in the flex row.** Wrong: the content reflows narrower
+   instead of moving, so every card is laid out twice at two widths.
+2. **A second screen composited over the first**, which is the
+   documented overlay technique (`ps2ui_render` never clears, so a
+   second `ps2ui_screen_set` + render draws on top). This is *correct*
+   for a static overlay and the blob carries it properly — a
+   `466x448` quad at `(238,0)` with `rgba=(24, 22, 16, 58)`, alpha 58
+   of the GS domain's 128, exactly the authored 0.45. But it covers;
+   it does not move.
+3. **Baking both end states** as separate screens. Reachable today,
+   and the reason F27 is a 1-effort row rather than a blocker: it
+   costs a duplicate of every screen the sidebar can appear over, and
+   there is no motion between the two.
+
+The overlay in (2) also found a previewer boundary worth recording:
+`preview.render()` takes a background *colour*, not a frame, so it
+cannot show a two-screen composite at all. Rendering the overlay on a
+transparent background returns alpha 255 everywhere, because the scrim
+is baked into the quad rather than left as frame alpha. The composite
+exists only on hardware or in a host that renders twice.
+
+### And what layering cost
+
+Two adaptations in the recreation are pure absence-of-F8:
+
+- The hero band's title sits *below* the key art instead of on it.
+  The original overlays "CONTINUE PLAYING / Cars (US) / 2 launches"
+  on the image; flex has no z-stacking, so there is no way to express
+  it.
+- Nothing can be badged. The original puts a favourite star beside a
+  title and a score in the corner of a cover; both are overlays.
+
+Neither is cosmetic once a second UI wants them. A launcher badges
+covers — "installed", "new", a progress ring — and that is the pull
+rule's test: a feature enters when a real use case demands it, and one
+just did.
+
+### Sequencing
+
+F27 first. It is smaller, self-contained, touches no layout, and
+falsifies cleanly: the same blob, an offset applied, and the frame
+shifts by exactly N pixels with the scissor moving with it. F8 second,
+with its own design pass on what focus means when two focusables
+overlap — a question `box.js` currently answers by refusing the case,
+and `lint.js` already has the code for.
 
