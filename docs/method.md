@@ -328,6 +328,46 @@ them down is what forces them to be run.
 
 ---
 
+## The fence that was reading the library, not the code
+
+F27 added a draw-time offset to both rendering pens. On the Python
+side, the property that separates a correct offset from a plausible one
+is that the *screen edge stays put*: the canvas rect the scissor stack
+is seeded with is the display, not a UI element, so content pushed far
+enough is clipped rather than carried along.
+
+The first fence for it placed a 20px quad flush with the right edge,
+offset it 10px further right, and asserted that 10 columns survived.
+It passed. Then the sabotage — seed the stack with the *offset* canvas
+rect, the exact wrong implementation the check exists to name — passed
+too.
+
+The reason is that the assertion was never reading this module. With
+the canvas rect offset, the clip lets all 20 columns through, and then
+Pillow's `alpha_composite` clips at the image boundary and drops the 10
+that fall outside a 320px-wide canvas. **Both implementations produce
+10 columns, for entirely different reasons.** The number was correct,
+load-bearing, and supplied by a library.
+
+The repair is a direction, not a bigger assertion: hang the quad off
+the *left* edge and let the offset pull it **in**. Correct behaviour
+draws all 20 columns; the sabotage still cuts 10. Every pixel stays
+inside the image, so the only thing that can decide the count is where
+the seed rect is.
+
+> **A fence at a boundary must produce its answer strictly inside the
+> boundaries of everything it does not own.** Otherwise the outer clip
+> silently supplies the result, and the sabotage that should expose
+> that is the one place it will never show.
+
+The same run produced a second HOLE with a duller cause and the same
+lesson: deleting the offset from the glyph pen changed nothing, because
+the fence's scene carried no text. A check cannot see a code path its
+fixture never reaches — which is shape 7 of the taxonomy above, met
+again from the falsification side rather than from review.
+
+---
+
 ## Searching for a fix using the bug's vocabulary
 
 Auditing BACKLOG.md on 2026-09-07 produced two wrong answers in a row,

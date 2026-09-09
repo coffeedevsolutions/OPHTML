@@ -340,6 +340,39 @@ Lists use it: `ps2ui_list_apply_visibility` hides the rows past the end
 of your data, which is what makes a short list look short instead of
 showing empty panels.
 
+## Moving things at runtime
+
+Everything above changes *what* is drawn. `ps2ui_offset_set` is the one
+that changes *where*:
+
+```c
+ps2ui_offset_set(&ui, 0, -scroll_y);   /* slide the whole screen up */
+ps2ui_render(&ui, gs);
+```
+
+It translates every command and every scissor the command list derives,
+which is what makes a sliding panel, a carousel, a parallax layer or a
+scrolling region reachable at all. Before it, a UI whose sidebar expands
+had to bake both end states as separate screens with no motion between
+them.
+
+- **No format change.** It is a draw-time transform over commands that
+  already exist, so it works on any blob this toolchain has ever baked.
+  The `.uib` v7 pledge is untouched.
+- **The screen edge does not move with it.** Content pushed far enough
+  is clipped by the display, which is what should happen.
+- **Queries stay in UI coordinates.** `ps2ui_focus_rect` and friends
+  answer in the coordinates the blob was authored in, so your own
+  hit-testing keeps working; add the offset yourself with
+  `ps2ui_offset_get` when you draw art beside the UI.
+- **It composites.** `ps2ui_render` never clears, so an offset render
+  followed by a `(0, 0)` one is a scrolling page under a dialog that
+  stays put.
+
+`ps2ui serve` and `ps2ui-bake --preview` apply the same offset
+(`preview.render(..., offset=(dx, dy))`), so what you see off a console
+is what the console draws.
+
 ## Multiple screens
 
 Pass several IR files to one bake:
@@ -676,6 +709,7 @@ sequencing is [docs/PLAN.md](docs/PLAN.md) §6.
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)
 - [ ] npm / PyPI releases
+- [x] A draw-time offset for sliding, scrolling and parallax, `ps2ui_offset_set` (no format change)
 - [x] CLUT-swap theming and a tint table `ps2ui_theme_set` selects (`.uib` v7)
 - [x] Streamed textures the app fills on the console, `ps2ui_tex_set` (`.uib` v6)
 - [x] List templating (`data-repeat`), list windowing, runtime visibility

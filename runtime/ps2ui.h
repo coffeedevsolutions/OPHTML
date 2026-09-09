@@ -393,6 +393,17 @@ typedef struct ps2ui_ctx {
      * host that shrank VRAM after upload must be caught by arithmetic,
      * not by binding. Meaningful only while `uploaded` is set. */
     uint32_t  vram_need;
+    /* A draw-time translation applied to every command's position, and
+     * to every scissor rect derived from one -- but NOT to the canvas
+     * rect the stack is seeded with, which is the screen edge and not
+     * a UI element. Slide a panel far enough and it is clipped by the
+     * display, which is what should happen.
+     *
+     * Read them freely; write them through ps2ui_offset_set. Signed
+     * and 16-bit to match a command's own x/y domain; the arithmetic
+     * promotes to int before it reaches the GS, so a large offset
+     * moves content off-screen rather than wrapping. */
+    int16_t   off_x, off_y;
     /* Filled by ps2ui_render; see ps2ui_stats. */
     ps2ui_stats stats;
 } ps2ui_ctx;
@@ -413,7 +424,7 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_ARENA      -9  /* arena smaller than ps2ui_arena_size() */
 #define PS2UI_ERR_NOT_STREAMED -10 /* tex_set on a baked or unknown slot  */
 #define PS2UI_ERR_SIZE       -11 /* tex_set payload is not the reservation */
-#define PS2UI_ERR_RANGE      -12 /* clut_set index past n_clut             */
+#define PS2UI_ERR_RANGE      -12 /* a setter's argument is out of range    */
 #define PS2UI_ERR_STATE      -13 /* clut_set before ps2ui_upload            */
 #define PS2UI_ERR_TINTS      -14 /* n_theme > 1 without PS2UI_FEAT_ROLE_TINTS */
 
@@ -705,6 +716,43 @@ int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
 
 /* Show every node again. Cheap enough to call on a screen change. */
 void ps2ui_visible_reset(ps2ui_ctx *ctx);
+
+/* -------------------------------------------------- draw-time offset */
+
+/* Move everything the next ps2ui_render draws by (dx, dy) pixels.
+ *
+ * THE ONE THING THE RUNTIME COULD NOT DO. Focus, theme, slot text,
+ * textures, visibility, screen and the list window all change WHAT is
+ * drawn; nothing changed WHERE. So a sliding panel, a carousel, a
+ * parallax layer and a scrolling region were unreachable, and a UI
+ * whose sidebar expands had to bake both end states as separate
+ * screens with no motion between them. Pulled by rebuilding a real
+ * shell against the published packages (F27).
+ *
+ * NO FORMAT CHANGE. This is a draw-time transform over commands that
+ * already exist, so it works on blobs baked by any 0.x toolchain and
+ * costs nothing in the file. The v7 pledge is untouched.
+ *
+ * RENDER-TIME ONLY, DELIBERATELY. ps2ui_focus_rect and everything else
+ * that reports geometry keep answering in UI coordinates -- the
+ * coordinates the blob was authored in and that an app hit-tests
+ * against. An app drawing its own cursor from a focus rect adds the
+ * offset itself, via ps2ui_offset_get. Folding it into the queries
+ * instead would silently break any caller that does its own hit-test,
+ * and there is no way for such a caller to notice.
+ *
+ * COMPOSITION STILL WORKS, and this is how an overlay stays put while
+ * the page behind it moves: ps2ui_render never clears, so set an
+ * offset, render the scrolling screen, set (0, 0), render the dialog.
+ *
+ * Returns PS2UI_OK, or PS2UI_ERR_RANGE if either value does not fit in
+ * the int16 a command's position uses -- rejected rather than
+ * truncated, because a silently wrapped offset draws a correct-looking
+ * frame in the wrong place. */
+int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy);
+
+/* The current offset, for an app placing its own art beside the UI's. */
+void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy);
 
 /* ------------------------------------------------------- list window */
 
