@@ -15,5 +15,5 @@ body:
       label: Where does it fit?
       description: >
         Which stage(s) — layout, baker, runtime — and does it respect
-        "everything moves to build time"? Check docs/BACKLOG.md first;
+        "everything moves to build time"? Check BACKLOG.md at the repository root first;
         if it's already there, comment on the item instead.
