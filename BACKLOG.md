@@ -9,10 +9,15 @@ Opened 2026-08-17 against the toolchain at commit `2ae7003`.
 
 **THE TWELVE SPRINT BLOCKS BELOW ARE A CLOSED LOG (noted 2026-09-08).**
 They are accurate for the period they cover and nothing has renumbered
-since: the model ran to Sprint 12 on 2026-08-19 and stopped. 141
-commits and three releases have landed after the last of them, recorded
-in `CHANGELOG.md` instead. Read them as history — the most recent one
-is not the current state of anything.
+since: the model ran to Sprint 12 on 2026-08-19 and stopped. Work after
+that is recorded in `CHANGELOG.md` and the git history rather than
+renumbered. Read these as history — the most recent one is not the
+current state of anything.
+
+The first version of this marker said how many commits and releases had
+landed since. Both were already wrong by the commit that added them,
+which is the failure this whole note is about; the date on the last
+block is what a reader actually needs.
 
 **Sprint 1 status (2026-08-17):** ✅ B1 fixed (`a8792c8`) · ✅ B9 + B8
 shipped (`92ef617`) · ✅ F18 shipped (`docs/bringup.md`) · 🏗 F1 + B3

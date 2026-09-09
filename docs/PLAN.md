@@ -45,14 +45,17 @@ making that class of application first-class.
 The sprint model ran to twelve and then stopped; work since is recorded
 in `CHANGELOG.md` and the git history rather than renumbered.
 
-**Counts are not restated here, because the three that were had
-drifted.** On 2026-09-08 this paragraph still claimed 44 merged pull
+**Counts are not restated in this section, because every one that was
+had drifted.** On 2026-09-08 this paragraph claimed 44 merged pull
 requests against 116, twenty-six shipped backlog items against 28, and
 20 findings against the 32 that `tools/check-findings.py` prints when
-you run it — a number cited from the tool that derives it, and three
-weeks out of date. Where a live figure is wanted: that checker for
-findings, `BACKLOG.md`'s ✅ rows for shipped items, and the repository
-for pull requests.
+you run it — a number cited from the tool that derives it. The
+Verification paragraph below carried six more, drifted by 1.6x to 2.3x,
+and the first version of this sweep removed these three while leaving
+those and then claimed the section no longer carried counts. Where a
+live figure is wanted, the thing that derives it will print it: that
+checker for findings, `BACKLOG.md`'s ✅ rows for shipped items, the
+suites for their own sizes, and the repository for pull requests.
 
 **Capabilities (all regression-tested on the host):** hand-written flexbox;
 nine-patch borders/radii; text with wrap, letter-spacing, ellipsis, and
@@ -68,9 +71,15 @@ distortion); bake refusal over table caps / VRAM budget / scissor depth;
 dead-geometry trim; Python previewer replaying the baked command list;
 `ps2ui-check` standalone validator; frame fingerprint tool.
 
-**Verification:** 69 layout, 119 baker, 125 runtime checks ×2 (modern gsKit
-and the `HAS_FUNCTION=0` fallback), 24 channel6 contract checks,
-`ps2ui-check` 49+61 clean. Cross-language pen agreement is tested
+**Verification:** the layout, baker and runtime suites, the runtime one
+run twice (modern gsKit and the `HAS_FUNCTION=0` fallback), each
+example's contract checks, and `ps2ui-check` over every example blob.
+Sizes are not restated: `npm test`, `python3 -m unittest`,
+`make -C runtime test` and each `build.sh` print them. Six figures used
+to sit here and every one had drifted by a factor of 1.6 to 2.3 when
+they were checked on 2026-09-08 — the same decay that removed the
+counts three paragraphs above, and the reason none is written back.
+Cross-language pen agreement is tested
 glyph-by-glyph (Node↔Python) and against an independent linear scan
 (blob↔C). New tests are sabotage-verified. Examples build warning-free and
 refresh their own screenshots.
@@ -92,8 +101,9 @@ already the authority for what is pending.
 ## §3 What is not proven
 
 **The renderer has never run on a PlayStation 2.** The loader, focus graph,
-format handling, command walk, slot pen, and list machinery are covered by
-250 host checks against a stub gsKit. The gsKit calls themselves have
+format handling, command walk, slot pen, and list machinery are covered
+by the runtime suite against a stub gsKit — `make -C runtime test`
+prints its size, which is why one is not quoted here. The gsKit calls themselves have
 produced pixels only under Play!, an HLE emulator that is not a hardware
 oracle.
 
