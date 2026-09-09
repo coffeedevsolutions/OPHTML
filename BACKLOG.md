@@ -7,6 +7,13 @@ a feature enters when a real use case demands it -- and the section
 
 Opened 2026-08-17 against the toolchain at commit `2ae7003`.
 
+**THE TWELVE SPRINT BLOCKS BELOW ARE A CLOSED LOG (noted 2026-09-08).**
+They are accurate for the period they cover and nothing has renumbered
+since: the model ran to Sprint 12 on 2026-08-19 and stopped. 141
+commits and three releases have landed after the last of them, recorded
+in `CHANGELOG.md` instead. Read them as history — the most recent one
+is not the current state of anything.
+
 **Sprint 1 status (2026-08-17):** ✅ B1 fixed (`a8792c8`) · ✅ B9 + B8
 shipped (`92ef617`) · ✅ F18 shipped (`docs/bringup.md`) · 🏗 F1 + B3
 scaffolded (`runtime/sample/`, `tools/framediff.py`,

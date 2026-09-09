@@ -42,8 +42,17 @@ making that class of application first-class.
 
 ## §2 Foundation inventory — what exists
 
-Twelve sprints, twenty-six shipped backlog items, 44 merged pull
-requests, 20 findings under `tools/check-findings.py`.
+The sprint model ran to twelve and then stopped; work since is recorded
+in `CHANGELOG.md` and the git history rather than renumbered.
+
+**Counts are not restated here, because the three that were had
+drifted.** On 2026-09-08 this paragraph still claimed 44 merged pull
+requests against 116, twenty-six shipped backlog items against 28, and
+20 findings against the 32 that `tools/check-findings.py` prints when
+you run it — a number cited from the tool that derives it, and three
+weeks out of date. Where a live figure is wanted: that checker for
+findings, `BACKLOG.md`'s ✅ rows for shipped items, and the repository
+for pull requests.
 
 **Capabilities (all regression-tested on the host):** hand-written flexbox;
 nine-patch borders/radii; text with wrap, letter-spacing, ellipsis, and
