@@ -863,10 +863,25 @@ static void apply_scissor(GSGLOBAL *gs, const scissor_rect *r)
  * textured draw goes through here so a fourth call site cannot be
  * added later that quietly skips the bias -- which is exactly how this
  * defect would come back. */
-static void draw_texquad(GSGLOBAL *gs, GSTEXTURE *tex,
+/* THE OFFSET IS APPLIED HERE, AT THE SINK, AND NOT BY THE CALLERS.
+ *
+ * The first version of F27 offset the three places that read c->x, and
+ * a test that asserted EVERY primitive moved caught it immediately:
+ * the glyph pen below calls this function twice with coordinates it
+ * derives from a slot entry, never touching c->x, so runtime text
+ * stayed behind while its panel slid. Two of the four call sites were
+ * invisible to the search that found the other two.
+ *
+ * Applying it where the coordinates reach gsKit means a draw path
+ * added later inherits it rather than opting out by omission -- which
+ * is the failure that just happened, and the reason this is not a
+ * caller's responsibility. */
+static void draw_texquad(GSGLOBAL *gs, const ps2ui_ctx *ctx, GSTEXTURE *tex,
                          int x, int y, int w, int h,
                          int u0, int v0, int u1, int v1, u64 color)
 {
+    x += ctx->off_x;
+    y += ctx->off_y;
     gsKit_prim_sprite_texture(gs, tex,
         (float)x, (float)y,
         (float)u0 + PS2UI_TEXEL_BIAS, (float)v0 + PS2UI_TEXEL_BIAS,
@@ -1065,10 +1080,22 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
                 ctx->stats.scissor_overflow++;
                 continue;
             }
-            r.x0 = c->x > top->x0 ? c->x : top->x0;
-            r.y0 = c->y > top->y0 ? c->y : top->y0;
-            r.x1 = c->x + c->w < top->x1 ? c->x + c->w : top->x1;
-            r.y1 = c->y + c->h < top->y1 ? c->y + c->h : top->y1;
+            /* THE SUBTLE ONE. A scissor derived from a command is
+             * part of the UI -- a panel's clip slides with the panel --
+             * so it takes the offset like anything else drawn. What
+             * does NOT take it is stack[0], seeded above from
+             * canvas_w/h: that is the screen edge, not a UI element.
+             * Offsetting it too would let content draw outside the
+             * canvas; leaving it fixed means a panel pushed far enough
+             * is clipped by the display, which is what should happen
+             * and is what the intersection below does for free. */
+            {
+                int cx = c->x + ctx->off_x, cy = c->y + ctx->off_y;
+                r.x0 = cx > top->x0 ? cx : top->x0;
+                r.y0 = cy > top->y0 ? cy : top->y0;
+                r.x1 = cx + c->w < top->x1 ? cx + c->w : top->x1;
+                r.y1 = cy + c->h < top->y1 ? cy + c->h : top->y1;
+            }
             if (r.x1 < r.x0) r.x1 = r.x0;
             if (r.y1 < r.y0) r.y1 = r.y0;
             stack[++depth] = r;
@@ -1103,8 +1130,9 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
         if (c->op == PS2UI_OP_QUAD) {
             ctx->stats.prims++;
             gsKit_prim_sprite(gs,
-                (float)c->x, (float)c->y,
-                (float)(c->x + c->w), (float)(c->y + c->h),
+                (float)(c->x + ctx->off_x), (float)(c->y + ctx->off_y),
+                (float)(c->x + ctx->off_x + c->w),
+                (float)(c->y + ctx->off_y + c->h),
                 0, GS_SETREG_RGBAQ(tint->r, tint->g, tint->b, tint->a, 0x00));
         } else if (tex_ok) { /* PS2UI_OP_TEXQUAD */
             ctx->stats.prims++;
@@ -1126,7 +1154,7 @@ void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)
                 continue;
             }
             gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);
-            draw_texquad(gs, &ctx->gs_tex[c->tex],
+            draw_texquad(gs, ctx, &ctx->gs_tex[c->tex],
                 c->x, c->y, c->w, c->h,
                 c->u0, c->v0, c->u1, c->v1,
                 GS_SETREG_RGBAQ(tint->r, tint->g, tint->b, tint->a, 0x00));
@@ -1338,7 +1366,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
             if (g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                draw_texquad(gs, &ctx->gs_tex[font->tex],
+                draw_texquad(gs, ctx, &ctx->gs_tex[font->tex],
                     pen + g->bearing_x, s->text_y + g->bearing_y,
                     g->w, g->h,
                     g->u, g->v, g->u + g->w, g->v + g->h,
@@ -1356,7 +1384,7 @@ static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)
             if (g && g->w > 0) {
                 ctx->stats.prims++;
                 ctx->stats.slot_glyphs++;
-                draw_texquad(gs, &ctx->gs_tex[font->tex],
+                draw_texquad(gs, ctx, &ctx->gs_tex[font->tex],
                     pen + g->bearing_x, s->text_y + g->bearing_y,
                     g->w, g->h,
                     g->u, g->v, g->u + g->w, g->v + g->h,
@@ -1541,6 +1569,25 @@ static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)
             return (uint16_t)i;
     }
     return PS2UI_NONE;
+}
+
+int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy)
+{
+    if (!ctx) return PS2UI_ERR_BOUNDS;
+    /* Rejected rather than truncated. A wrapped offset draws a frame
+     * that looks correct and is in the wrong place, which is the worst
+     * kind of wrong for something a person is looking at. */
+    if (dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767)
+        return PS2UI_ERR_RANGE;
+    ctx->off_x = (int16_t)dx;
+    ctx->off_y = (int16_t)dy;
+    return PS2UI_OK;
+}
+
+void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy)
+{
+    if (dx) *dx = ctx ? ctx->off_x : 0;
+    if (dy) *dy = ctx ? ctx->off_y : 0;
 }
 
 int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)

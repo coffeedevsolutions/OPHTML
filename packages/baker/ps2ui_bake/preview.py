@@ -125,7 +125,7 @@ def _screen_index(uib: UibFile, screen) -> int:
 
 def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),
            slot_text: dict = None, screen=0, tex_fills: dict = None,
-           theme: int = 0) -> Image.Image:
+           theme: int = 0, offset=(0, 0)) -> Image.Image:
     """Replay one screen (index or name; default first) to an RGBA image
     with the given focus-table index current. slot_text overrides
     dynamic-text slots by name (else placeholders). tex_fills supplies
@@ -140,6 +140,14 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
     if theme < 0 or theme >= max(1, len(uib.themes)):
         raise ValueError(f"theme {theme} is past the "
                          f"{max(1, len(uib.themes))}-row tint table")
+    # The same range ps2ui_offset_set enforces, and refused here for the
+    # same reason the theme index is: a previewer that will draw a frame
+    # the console returns PS2UI_ERR_RANGE for is showing something that
+    # cannot happen, which is worse than showing nothing.
+    if not all(-32768 <= v <= 32767 for v in offset):
+        raise ValueError(f"offset {tuple(offset)} does not fit the "
+                         f"int16 pair on the context; ps2ui_offset_set "
+                         f"returns PS2UI_ERR_RANGE for this")
 
     def tinted(vec, fallback):
         """This record's colour in the selected theme.
@@ -160,9 +168,21 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
         focus_current = sc["initial"]
     canvas = Image.new("RGBA", (uib.canvas_w, uib.canvas_h), background)
     tex_cache = {}
+    # The canvas rect, and it does NOT take the offset: it is the screen
+    # edge, the same role stack[0] has in ps2ui_render. Content pushed
+    # far enough is clipped by the display rather than drawn off it.
     scissors = [(0, 0, uib.canvas_w, uib.canvas_h)]
+    off_x, off_y = offset
 
     def clip_rect(x, y, w, h):
+        # THE OFFSET LANDS HERE, at the funnel every command rect passes
+        # through -- both the scissors derived from commands and the
+        # quads. Applying it at the call sites instead is what broke the
+        # C side first: three sites read c->x, two more derived glyph
+        # positions from a slot, and only the first three got it. See
+        # draw_texquad in runtime/ps2ui.c.
+        x += off_x
+        y += off_y
         sx, sy, sw, sh = scissors[-1]
         x0, y0 = max(x, sx), max(y, sy)
         x1, y1 = min(x + w, sx + sw), min(y + h, sy + sh)
@@ -200,9 +220,19 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
             c = clip_rect(rec.x, rec.y, rec.w, rec.h)
             if not c:
                 continue
-            if c != (rec.x, rec.y, rec.w, rec.h):
-                src = src.crop((c[0] - rec.x, c[1] - rec.y,
-                                c[0] - rec.x + c[2], c[1] - rec.y + c[3]))
+            # WHICH TEXELS THE CLIP TOOK OFF, measured against the quad's
+            # position ON SCREEN rather than in the blob. clip_rect
+            # returns screen space; rec.x is blob space; with an offset
+            # in play the two differ, and subtracting one from the other
+            # slid every texquad's source by the offset INSIDE the quad
+            # -- transparent padding in, content out, background showing
+            # through where the panel used to be. It read correctly at
+            # offset 0, which is every frame this previewer had drawn
+            # before F27.
+            dx, dy = rec.x + off_x, rec.y + off_y
+            if c != (dx, dy, rec.w, rec.h):
+                src = src.crop((c[0] - dx, c[1] - dy,
+                                c[0] - dx + c[2], c[1] - dy + c[3]))
             canvas.alpha_composite(src, (c[0], c[1]))
             continue
 
@@ -305,8 +335,12 @@ def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255)
             if g["w"] > 0:
                 src = atlas.crop((g["u"], g["v"], g["u"] + g["w"], g["v"] + g["h"]))
                 src = _tint(src, color)
+                # Not via clip_rect, so it takes the offset itself --
+                # the Python twin of the glyph pen in ps2ui_render, and
+                # the reason both are called out in one comment.
                 canvas.alpha_composite(
-                    src, (pen + g["bearing_x"], slot["text_y"] + g["bearing_y"]))
+                    src, (pen + g["bearing_x"] + off_x,
+                          slot["text_y"] + g["bearing_y"] + off_y))
             pen += g["advance"]
             prev = cp
 

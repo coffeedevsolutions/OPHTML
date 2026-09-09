@@ -2141,6 +2141,210 @@ class TestUib(unittest.TestCase):
                 read_uib(path)
 
 
+class TestPreviewOffset(unittest.TestCase):
+    """F27: render(offset=) is the host mirror of ps2ui_offset_set.
+
+    The runtime gained a draw-time translation, and the previewer has to
+    gain the same one in the same commit. `ps2ui serve --selftest`
+    asserts the served frame is byte-identical to what `--preview`
+    writes; an offset one pen applies and the other does not turns that
+    assertion into a comparison of two different pictures, which is the
+    one thing that makes the previewer worth trusting.
+
+    THE PROPERTY THAT SEPARATES A CORRECT OFFSET FROM A PLAUSIBLE ONE is
+    not "the frame changed" -- almost any wrong implementation changes
+    the frame. It is that the interior is the SAME PICTURE, moved, while
+    the screen edge stays where it is. Both are asserted below, and the
+    first of them caught a real defect: the texquad path measured the
+    clip against the quad's blob-space rect while the clip itself had
+    already been offset, so every textured quad's source slid by the
+    offset INSIDE the quad, pulling transparent padding in and letting
+    the background through. At offset (0, 0) -- every frame this
+    previewer had ever drawn -- the two rects are equal and the bug is
+    invisible.
+    """
+
+    W, H = 320, 240
+    BG = (10, 14, 26, 255)
+
+    def blob(self, records, textures=()):
+        td = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, td, True)
+        path = os.path.join(td, "off.uib")
+        write_uib(path, {"w": self.W, "h": self.H}, list(records),
+                  list(textures), [], [], None)
+        return read_uib(path)
+
+    def scene(self):
+        """A scissor, a quad inside it, and a textured quad inside that.
+
+        The texture is deliberately ASYMMETRIC on both axes: a uniform
+        one would survive a shift of its own source unchanged, and the
+        defect this class exists to fence is exactly such a shift.
+        """
+        from ps2ui_bake.quads import BakedTexture
+        texels = bytearray()
+        for v in range(8):
+            for u in range(8):
+                texels += bytes((u * 31, v * 31, 255 - u * 17, 0x80))
+        tex = BakedTexture(gs.PSMCT32, 8, 8, 0, bytes(texels))
+        recs = [
+            DrawRecord(OP_SCISSOR_PUSH, STATE_ALWAYS, FOCUS_NONE,
+                       40, 40, 120, 100, (0, 0, 0, 0)),
+            DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE,
+                       50, 50, 60, 40, (200, 40, 60, 0x80)),
+            DrawRecord(OP_TEXQUAD, STATE_ALWAYS, FOCUS_NONE,
+                       60, 60, 8, 8, (128, 128, 128, 128), 0, 0, 0, 8, 8),
+            DrawRecord(OP_SCISSOR_POP, STATE_ALWAYS, FOCUS_NONE,
+                       0, 0, 0, 0, (0, 0, 0, 0)),
+        ]
+        return self.blob(recs, [tex])
+
+    # 1. The default is the identity, exactly. If this ever drifts,
+    #    every existing preview PNG and every screenshot-drift baseline
+    #    in the repo moved with it.
+    def test_the_default_is_no_offset_at_all(self):
+        uib = self.scene()
+        self.assertEqual(preview.render(uib).tobytes(),
+                         preview.render(uib, offset=(0, 0)).tobytes())
+
+    # 2. THE ONE THAT MATTERS: the interior is the same picture, moved.
+    #
+    #    The crop spans the quad AND the texquad, because the texquad is
+    #    where the defect was. It is checked for content first -- two
+    #    empty regions compare equal, and a test that passes by
+    #    comparing background to background is this repository's
+    #    most-repeated failure.
+    def test_the_interior_is_the_same_picture_moved(self):
+        uib = self.scene()
+        base = preview.render(uib)
+        box = (45, 45, 115, 95)
+        ref = base.crop(box)
+        self.assertGreater(len(ref.getcolors(maxcolors=1 << 20)), 4,
+                           "the crop must hold the quad and the texture, "
+                           "or this compares background to background")
+        for dx, dy in ((12, -5), (-12, 5), (12, 5), (-12, -5),
+                       (0, 7), (-9, 0)):
+            moved = preview.render(uib, offset=(dx, dy))
+            self.assertEqual(
+                ref.tobytes(),
+                moved.crop((box[0] + dx, box[1] + dy,
+                            box[2] + dx, box[3] + dy)).tobytes(),
+                "offset (%d, %d) is not a translation of the frame" % (dx, dy))
+            self.assertNotEqual(base.tobytes(), moved.tobytes())
+
+    # 3. AND THE SCREEN EDGE STAYS PUT. The canvas rect the scissor
+    #    stack is seeded with is the display, not a UI element, so
+    #    content is clipped by it rather than carried around with the
+    #    offset -- stack[0] in ps2ui_render has the same role.
+    #
+    #    THE QUAD HANGS OFF THE LEFT EDGE AND THE OFFSET PULLS IT IN,
+    #    and that direction is the whole reason this check works.
+    #
+    #    The first version of this pushed a quad OUT past the right edge
+    #    instead and counted 10 columns where 20 were placed -- which
+    #    falsification reported as a HOLE, because Pillow's own
+    #    alpha_composite clips at the image boundary and returns the
+    #    same 10 columns whether the canvas rect moved or not. The
+    #    assertion was reading Pillow, not this module. Pulling content
+    #    IN keeps every pixel inside the image, so the only thing that
+    #    can decide the count is where the seed rect is.
+    def test_the_canvas_rect_does_not_move_with_the_content(self):
+        edge = self.blob([DrawRecord(OP_QUAD, STATE_ALWAYS, FOCUS_NONE,
+                                     -10, 100, 20, 10,
+                                     (200, 40, 60, 0x80))])
+
+        def drawn_columns(img):
+            px = img.load()
+            return sum(1 for x in range(self.W) if px[x, 104] != self.BG)
+
+        # Half of it is off the left of the screen to begin with.
+        self.assertEqual(drawn_columns(preview.render(edge)), 10)
+        # Offset it back on: all 20 columns are now inside the display.
+        # Had the seed rect taken the offset, it would have moved right
+        # with the quad and still be cutting the same 10 away.
+        self.assertEqual(
+            drawn_columns(preview.render(edge, offset=(10, 0))), 20,
+            "the offset moved the quad fully onto the screen, so the "
+            "screen edge should no longer be cutting it; the canvas "
+            "rect must not take the offset")
+
+    # 4. An offset the console would refuse is not previewable.
+    #    ps2ui_offset_set returns PS2UI_ERR_RANGE outside int16, and a
+    #    previewer that happily draws past that is showing a frame that
+    #    cannot happen.
+    def test_an_offset_past_int16_is_refused(self):
+        uib = self.scene()
+        for bad in ((32768, 0), (0, -32769)):
+            with self.assertRaises(ValueError) as caught:
+                preview.render(uib, offset=bad)
+            self.assertIn("PS2UI_ERR_RANGE", str(caught.exception))
+        preview.render(uib, offset=(32767, -32768))     # the edges are fine
+
+
+@unittest.skipIf(TTF is None, "DejaVu Sans not installed")
+class TestPreviewOffsetMovesText(unittest.TestCase):
+    """...and the glyph pen moves with everything else.
+
+    A SEPARATE CLASS BECAUSE THIS ONE NEEDS A FONT, and TestPreviewOffset
+    must not become skippable: its three checks cover the quad, the
+    texquad and the screen edge, and none of them wants a TTF.
+
+    This exists because falsification said so. Deleting `+ off_x` and
+    `+ off_y` from the slot pen left TestPreviewOffset entirely green --
+    its scene carries no slots, so no glyph was ever drawn for it to be
+    wrong about. That is the same shape as the C side, where the first
+    implementation applied the offset at three `c->x` sites and missed
+    the two that derive a glyph position from a slot; the runtime suite
+    caught it and this one could not have.
+    """
+
+    def bake(self, ir):
+        f = Flattener(ir, font_paths())
+        f.run()
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "t.uib")
+            write_uib(path, ir["canvas"], f.records, f.textures, f.cluts,
+                      [], None, f.fonts, f.slots)
+            return read_uib(path)
+
+    def text_blob(self):
+        return self.bake({
+            "version": 1,
+            "canvas": {"w": 320, "h": 240},
+            "commands": [],
+            "focus": {"nodes": [], "initial": None},
+            "slots": [{
+                "name": "title", "placeholder": "Offset",
+                "x": 40, "textY": 100, "w": 200,
+                "size": 20, "weight": 400, "lineHeight": 26,
+                "align": "left", "ellipsis": True, "capacity": 24,
+                "focusId": None,
+                "colorBase": [220, 230, 240, 255],
+                "colorFocus": [255, 255, 255, 255],
+            }],
+            "warnings": [],
+        })
+
+    def test_a_text_slot_moves_by_exactly_the_offset(self):
+        uib = self.text_blob()
+        base = preview.render(uib)
+        box = (35, 75, 245, 125)
+        ref = base.crop(box)
+        # The crop has to actually contain ink, or this compares two
+        # empty regions and passes for it.
+        self.assertGreater(len(ref.getcolors(maxcolors=1 << 20)), 2,
+                           "the crop must hold the rendered text")
+        for dx, dy in ((13, -6), (-13, 6)):
+            moved = preview.render(uib, offset=(dx, dy))
+            self.assertNotEqual(base.tobytes(), moved.tobytes())
+            self.assertEqual(
+                ref.tobytes(),
+                moved.crop((box[0] + dx, box[1] + dy,
+                            box[2] + dx, box[3] + dy)).tobytes(),
+                "the glyph pen did not take offset (%d, %d)" % (dx, dy))
+
+
 @unittest.skipIf(TTF is None, "DejaVu Sans not installed")
 class TestDynamicText(unittest.TestCase):
     def slot_ir(self):

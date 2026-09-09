@@ -2,6 +2,44 @@
 
 ## Unreleased — 0.6.0.dev0
 
+### Added
+- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change
+  *where* something is drawn.** Focus, theme, slot text, textures,
+  visibility, screen and the list window all change *what* is drawn;
+  nothing changed *where*, so a sliding panel, a carousel, a parallax
+  layer and a scrolling region were unreachable, and a UI whose sidebar
+  expands had to bake both end states as separate screens with no
+  motion between them. Pulled by rebuilding a real shell against the
+  published 0.5.0 packages (F27).
+
+  **No format change.** It is a draw-time transform over commands that
+  already exist, so it works on every blob this toolchain has ever
+  baked and the `.uib` v7 pledge is untouched.
+
+  - The screen edge does not move with it: the canvas rect the scissor
+    stack is seeded with is the display, not a UI element, so content
+    pushed far enough is clipped rather than drawn off.
+  - Geometry queries stay in UI coordinates, so an app's own hit-testing
+    keeps working; `ps2ui_offset_get` is there for callers that draw
+    their own art beside the UI.
+  - Out of int16 returns `PS2UI_ERR_RANGE` rather than truncating — a
+    wrapped offset draws a correct-looking frame in the wrong place.
+  - `preview.render(..., offset=)` moved with it in the same commit,
+    because `ps2ui serve --selftest` asserts the served frame is
+    byte-identical to `--preview` and an offset one pen applies and the
+    other does not turns that into a comparison of two pictures.
+
+  Two implementations were wrong first and both were caught by fences
+  rather than by reading. In C, the offset was applied at the three
+  sites that read `c->x` and missed the two that derive a glyph position
+  from a slot; it now lands inside `draw_texquad`, at the sink all three
+  texture paths pass through. In Python, the texquad clip was measured
+  against the quad's blob-space rect while the clip itself had already
+  been offset, so every textured quad's source slid by the offset
+  *inside* the quad — transparent padding in, background showing through
+  where the panel was. Both read correctly at offset `(0, 0)`, which is
+  every frame either pen had ever drawn.
+
 ### Fixed
 - **`vendor-runtime` stopped one step short and cited a file the reader
   cannot open.** It handed over `ps2ui.c` and `ps2ui.h` and then said

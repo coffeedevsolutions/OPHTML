@@ -3558,6 +3558,94 @@ int main(int argc, char **argv)
         free(two);
     }
 
+    /* ---- F27: a draw-time offset moves what is drawn, not the screen ----
+     *
+     * The runtime could change WHAT is drawn and never WHERE. This is
+     * the whole mechanism, so what is worth fencing is not that an
+     * offset exists but that it reaches every coordinate sink and stops
+     * at exactly one: the canvas clip.
+     */
+    {
+        ps2ui_ctx oc;
+        if (load_arena(&oc, blob, len) == PS2UI_OK) {
+            int k, n0, moved_all = 1, any = 0;
+            float bx[STUB_MAX_PRIMS], by[STUB_MAX_PRIMS];
+            u64 sc0, sc1;
+
+            ps2ui_upload(&oc, &gs);
+
+            CHECK(oc.off_x == 0 && oc.off_y == 0,
+                  "F27: a freshly loaded context has no offset, so every "
+                  "blob baked before this existed renders where it always did");
+
+            /* Baseline: record where every primitive lands at (0,0). */
+            n0 = render_and_count(&oc, &gs);
+            for (k = 0; k < n0; k++) {
+                bx[k] = g_stub.prims[k].x1;
+                by[k] = g_stub.prims[k].y1;
+            }
+            sc0 = g_stub.last_scissor;
+
+            CHECK(ps2ui_offset_set(&oc, 17, -9) == PS2UI_OK,
+                  "F27: ps2ui_offset_set accepts an in-range offset");
+
+            /* EVERY primitive, not "a primitive". An offset applied to
+             * the untextured quad and forgotten at the textured one is
+             * the shape of bug this asserts away: both paths read c->x
+             * and only one of them is the obvious site. */
+            CHECK(render_and_count(&oc, &gs) == n0,
+                  "F27: and moving the frame does not change how much is in it");
+            for (k = 0; k < n0 && k < STUB_MAX_PRIMS; k++) {
+                any = 1;
+                if (g_stub.prims[k].x1 != bx[k] + 17.0f ||
+                    g_stub.prims[k].y1 != by[k] - 9.0f) moved_all = 0;
+            }
+            CHECK(any && moved_all,
+                  "F27: every primitive moved by exactly the offset -- textured "
+                  "and untextured alike, since both read c->x and only one is "
+                  "the obvious site");
+
+            /* THE CASE THAT SEPARATES THIS FROM THE PLAUSIBLE WRONG ONE.
+             * stack[0] is seeded from canvas_w/h: it is the screen edge,
+             * not a UI element. An implementation that offsets it too
+             * would pass every check above and let content draw outside
+             * the canvas. ps2ui_render restores stack[0] as its last
+             * act, so last_scissor is that rect. */
+            sc1 = g_stub.last_scissor;
+            CHECK(sc1 == sc0,
+                  "F27: the canvas scissor does NOT move -- it is the display "
+                  "edge, so content pushed far enough is clipped by the screen "
+                  "rather than drawn off it");
+
+            CHECK(ps2ui_offset_set(&oc, 40000, 0) == PS2UI_ERR_RANGE &&
+                  oc.off_x == 17,
+                  "F27: an offset past the int16 a command's x uses is refused "
+                  "AND leaves the old one -- a truncated offset draws a "
+                  "correct-looking frame in the wrong place");
+
+            {
+                int gx = -1, gy = -1;
+                ps2ui_offset_get(&oc, &gx, &gy);
+                CHECK(gx == 17 && gy == -9,
+                      "F27: ps2ui_offset_get reports it, so an app placing its "
+                      "own art beside the UI can add the same translation");
+            }
+
+            CHECK(ps2ui_offset_set(&oc, 0, 0) == PS2UI_OK &&
+                  render_and_count(&oc, &gs) == n0,
+                  "F27: and setting it back to zero restores the original frame");
+            {
+                int back = 1;
+                for (k = 0; k < n0 && k < STUB_MAX_PRIMS; k++)
+                    if (g_stub.prims[k].x1 != bx[k] ||
+                        g_stub.prims[k].y1 != by[k]) back = 0;
+                CHECK(back,
+                      "F27: byte for byte, which is what makes the offset a "
+                      "transform rather than a mutation of the blob");
+            }
+        }
+    }
+
 report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);
