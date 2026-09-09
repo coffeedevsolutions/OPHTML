@@ -56,8 +56,11 @@ Rules that PRs must not break:
   (clips square — backlog B6's cheap half).
 - PAL example: a 640×512 variant of the memcard screen.
 
-Bigger items live in [BACKLOG.md](BACKLOG.md), RICE-scored —
-comment on an item before starting so effort isn't duplicated.
+Bigger items live in [BACKLOG.md](BACKLOG.md) — a defect ledger and
+idea archive, not a queue. What gets done next comes from the phase
+gates in [docs/PLAN.md](docs/PLAN.md) §6, and an item is admitted
+under the pull rule: a feature enters when a real use case demands
+it. Comment on an item before starting so effort isn't duplicated.
 
 ## Security
 

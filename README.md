@@ -665,7 +665,9 @@ See [docs/architecture.md](docs/architecture.md) for the decision log.
 
 ## Roadmap
 
-Rough priority order. Scoring and detail live in [BACKLOG.md](BACKLOG.md).
+What has shipped and what has not. Detail lives in
+[BACKLOG.md](BACKLOG.md), which is a ledger rather than a queue;
+sequencing is [docs/PLAN.md](docs/PLAN.md) §6.
 
 - [x] Hardware bring-up ([docs/bringup.md](docs/bringup.md) carries the log; step 8 stays open for a CRT, non-blocking)
 - [x] Browser previewer with D-pad navigation, theme and aspect switching (`ps2ui serve`)
