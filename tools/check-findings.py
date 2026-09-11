@@ -57,8 +57,7 @@ somebody thought sounded rigorous:
      see prose that states one while citing nothing -- which was the
      state of every document here when rule 6 shipped, so it guarded
      its own README and nothing else. This rule means retiring a belief
-     forces someone to go and correct the text that taught it. Findings are born
-     provisional in the open phase and are promoted when it closes,
+     forces someone to go and correct the text that taught it.
 
 Usage:
     tools/check-findings.py                 # check, exit 1 on failure
