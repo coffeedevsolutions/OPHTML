@@ -41,12 +41,23 @@ ps2ui-fontgen: manifest -> fonts/fonts.json
 Two faces, not a weight axis: the PS2 does not have the VRAM for one.
 Anything with `font-weight: 600` or more resolves to bold.
 
-> **On macOS this is where the tutorial stops**, with `ps2ui-fontgen:
-> this Pillow has no Raqm layout engine`. That is correct behaviour and
-> not a bug in your setup: pip's macOS Pillow wheel is built without
-> Raqm, and without it every advance comes out identical and the kern
-> table comes out empty, so writing the file would silently un-kern the
-> whole project. `ps2ui fontgen` prints the fix for your platform;
+> **On macOS you may find this is where the tutorial stops**, with
+> `ps2ui-fontgen: this Pillow has no Raqm layout engine`. That is
+> correct behaviour and not a bug in your setup. Without Raqm every
+> advance comes out identical and the kern table comes out empty, so
+> writing the file would silently un-kern the whole project.
+>
+> **Whether it happens to you is not about your machine's
+> architecture**, which is what this paragraph used to say. Both macOS
+> Pillow wheels have Raqm compiled into them; neither bundles
+> `fribidi`, which Pillow loads from your system at run time. A Mac
+> that has had Homebrew on it for a while usually has `fribidi`
+> already; a clean one does not. So the fix is often just
+> `brew install fribidi`, with no Pillow rebuild — which is what
+> `ps2ui fontgen` will tell you, because it asks Pillow which piece is
+> actually missing. **Believe the command over this paragraph**: it
+> reports the Pillow version, platform and machine it found, and
+> whether `fribidi` was there. `ps2ui fontgen` prints the fix for your platform;
 > the short version is `brew install libraqm` and then a source build
 > of Pillow **alone**, with `--no-binary pillow` rather than
 > `--no-binary :all:`. Then check `features.check('raqm')` rather than
