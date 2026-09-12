@@ -228,6 +228,41 @@ class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
         self.assertIn("--no-binary pillow", pip[0])
         self.assertNotIn(":all:", pip[0])
 
+    def test_it_reports_what_it_detected_and_asserts_no_platform_rule(self):
+        """The message may not claim what a platform's wheels contain.
+
+        It said "pip's macOS wheels are built without it" -- a rule, and
+        the rule is not uniform: Pillow 12.3.0 from
+        cp314-macosx_10_15_x86_64 has Raqm and ran the tutorial straight
+        through, while the same version from cp311-macosx_11_0_arm64 does
+        not, which is what registry.yml's macos-plain job asserts on
+        macos-14, an Apple silicon runner. One architecture measured, a
+        sentence about all of them.
+
+        THE POINT IS THAT NO RULE IS NEEDED. This runs only after
+        features.check('raqm') has already returned False, so the
+        reader's Pillow demonstrably lacks Raqm; reporting the detected
+        triple is both true and more useful than a claim about wheels in
+        general, and it is what somebody filing a bug can quote.
+
+        Asserted on every branch, because the linux/win32 branch carried
+        the same shape of claim about manylinux.
+        """
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        import PIL, platform as _platform
+        for plat in ("darwin", "linux", "win32"):
+            with mock.patch.object(fontgen.sys, "platform", plat):
+                msg = fontgen._raqm_remedy()
+            # What it detected, not what the platform is supposed to do.
+            self.assertIn(PIL.__version__, msg, plat)
+            self.assertIn(_platform.machine(), msg, plat)
+            self.assertIn(plat, msg, plat)
+            # And not the rule it used to state. Matched as a phrase so
+            # this fails on the exact sentence that regressed, rather
+            # than on any mention of macOS.
+            self.assertNotIn("macOS wheels are built without", msg, plat)
+
     def test_every_platform_says_a_clean_build_is_not_proof(self):
         """Pillow builds and exits 0 without libraqm, omitting the
         feature. So pip's return code answers a different question than

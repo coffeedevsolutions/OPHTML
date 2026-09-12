@@ -12,6 +12,9 @@ import json
 import string
 import sys
 
+import platform
+
+import PIL
 from PIL import ImageFont, features
 
 from . import __version__
@@ -107,6 +110,28 @@ def _raqm_remedy():
     a stranger with npm, pip and a TTF -- failed here on the first real
     attempt, at the tutorial's first command.
 
+    IT THEN SAID "pip's macOS wheels are built without it", WHICH IS A
+    RULE, AND THE RULE IS NOT UNIFORM. A stranger-path run on an Intel
+    Mac reported Pillow 12.3.0 from `cp314-macosx_10_15_x86_64` with
+    `features.check('raqm')` TRUE, running the tutorial straight
+    through; the same version from `cp311-macosx_11_0_arm64` on a
+    GitHub runner is False, which is what registry.yml's macos-plain
+    job has been asserting all along -- on `macos-14`, an Apple silicon
+    runner. So the tripwire has only ever measured one architecture
+    while its message said "the macOS wheel".
+
+    THE FIX IS NOT A BETTER RULE, IT IS NOT STATING ONE. This function
+    runs at the moment `features.check('raqm')` has ALREADY returned
+    False, so the reader's Pillow demonstrably lacks Raqm and no
+    platform claim is needed to tell them that. It now reports what it
+    detected -- version, platform, machine -- and gives the remedy. That
+    is correct on both architectures, correct if the split turns out to
+    be shaped differently than reported, and it hands anyone filing a
+    bug the line that identifies their case. The x86_64 reading is the
+    one thing here this repository has not measured itself; naming the
+    detected triple rather than asserting a rule is how that uncertainty
+    is carried honestly rather than hidden.
+
     The macOS route is verified end to end rather than reasoned, twice
     and against two libraqm releases: Pillow 12.3.0 against libraqm
     0.10.5 on one Mac, and the same against 0.11.0 on a GitHub macOS
@@ -134,8 +159,15 @@ def _raqm_remedy():
     0, so the check is features.check and not pip's return code. That
     is what this same refusal will tell you if it did not work.
     """
+    here = "%s, %s/%s" % (PIL.__version__, sys.platform,
+                                 platform.machine())
     if sys.platform == "darwin":
-        return ("pip's macOS wheels are built without it. To fix:\n"
+        return ("The Pillow you have (%s) was built without it.\n"
+                "Whether pip's macOS wheels carry Raqm is NOT uniform "
+                "across architectures, so this says what was detected "
+                "rather than what your platform is supposed to do -- "
+                "quote that line if this advice turns out to be wrong "
+                "for you. To fix:\n" % here +
                 "    brew install libraqm\n"
                 '    export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:'
                 '$(brew --prefix libraqm)/lib/pkgconfig"\n'
@@ -146,7 +178,8 @@ def _raqm_remedy():
                 "Pillow built without libraqm still exits 0:\n"
                 "    python -c \"from PIL import features; "
                 "print(features.check('raqm'))\"")
-    return ("Install a Pillow built with Raqm; pip's manylinux wheels are. "
+    return ("The Pillow you have (%s) was built without it. Install one "
+            "built with Raqm; pip's manylinux wheels are. " % here +
             "If you built Pillow yourself, note that it builds and exits 0 "
             "without libraqm and simply omits the feature, so check with:\n"
             "    python -c \"from PIL import features; "

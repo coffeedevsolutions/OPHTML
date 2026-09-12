@@ -2,6 +2,33 @@
 
 ## Unreleased — 0.6.0.dev0
 
+### Fixed
+- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, and the rule
+  is not uniform.** It told every macOS reader *"pip's macOS wheels are
+  built without it"*. Measured on a GitHub `macos-14` runner — Apple
+  silicon — that is true, and `registry.yml`'s macos-plain job has
+  asserted it on every run since it was written. A stranger-path run on
+  an Intel Mac reported the same Pillow version from
+  `cp314-macosx_10_15_x86_64` with `features.check('raqm')` **true**,
+  running the tutorial straight through. One architecture measured, a
+  sentence about all of them.
+
+  **The fix is not a better rule, it is not stating one.** The message
+  is printed only after `features.check('raqm')` has already returned
+  false, so the reader's Pillow demonstrably lacks Raqm and no platform
+  claim is needed to tell them so. It now reports the Pillow version,
+  platform and machine it actually detected, then gives the remedy —
+  correct on both architectures, correct if the split turns out to be
+  shaped differently than reported, and it hands anyone filing a bug the
+  line that identifies their case.
+
+  This matters for a release rather than a doc pass because the text
+  ships **inside the wheel**: `_raqm_remedy()` is what a stranger reads
+  when `pip install ophtml` then `ps2ui fontgen` refuses. The tutorial's
+  section-1 blockquote is corrected to say the outcome depends on
+  architecture, and the CI job now prints which architecture it
+  measured and no longer calls its reading "the macOS wheel".
+
 ### Added
 - **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change
   *where* something is drawn.** Focus, theme, slot text, textures,

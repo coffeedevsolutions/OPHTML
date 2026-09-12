@@ -195,17 +195,25 @@ jobs:
           python-version: "3.11"
       - name: A plain pip install, and nothing else
         run: python3 -m pip install ophtml
-      - name: Raqm is absent, and fontgen refuses because of it
+      - name: Raqm is absent on this runner's arch, and fontgen refuses
         run: |
+          # SAY WHICH ARCHITECTURE THIS MEASURED. macos-14 is Apple
+          # silicon, so this job has only ever tested the arm64 wheel
+          # while its output said "the macOS wheel" -- a reading from
+          # one arch generalised to a platform, which is exactly the
+          # defect the documents it guards had. An x86_64 wheel of the
+          # same Pillow was reported carrying Raqm; nothing here has
+          # measured that, and this line no longer implies otherwise.
+          python3 -c "import PIL, platform, sys; print('measured: Pillow %s, %s/%s' % (PIL.__version__, sys.platform, platform.machine()))"
           if python3 -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; then
-            echo "::error::pip's macOS Pillow wheel now HAS Raqm."
+            echo "::error::pip's macOS Pillow wheel for THIS architecture now HAS Raqm."
             echo "That is good news and it makes two documents wrong:"
             echo "  packages/baker/ps2ui_bake/fontgen.py  _raqm_remedy()"
             echo "  docs/tutorial-uc3.md                  the macOS blockquote in section 1"
-            echo "Both tell a Mac reader to brew install libraqm and rebuild Pillow."
+            echo "Both tell a Mac reader on this arch to brew install libraqm and rebuild Pillow."
             exit 1
           fi
-          echo "ok - no Raqm in the macOS wheel, as documented"
+          echo "ok - no Raqm in this runner's macOS wheel, as documented"
           # And the refusal is the refusal: exit 2, nothing written.
           set +e
           out=$(ps2ui fontgen /System/Library/Fonts/Helvetica.ttc /System/Library/Fonts/Helvetica.ttc 2>&1)

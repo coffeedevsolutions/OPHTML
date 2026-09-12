@@ -41,12 +41,20 @@ ps2ui-fontgen: manifest -> fonts/fonts.json
 Two faces, not a weight axis: the PS2 does not have the VRAM for one.
 Anything with `font-weight: 600` or more resolves to bold.
 
-> **On macOS this is where the tutorial stops**, with `ps2ui-fontgen:
-> this Pillow has no Raqm layout engine`. That is correct behaviour and
-> not a bug in your setup: pip's macOS Pillow wheel is built without
-> Raqm, and without it every advance comes out identical and the kern
-> table comes out empty, so writing the file would silently un-kern the
-> whole project. `ps2ui fontgen` prints the fix for your platform;
+> **On macOS this may be where the tutorial stops**, with
+> `ps2ui-fontgen: this Pillow has no Raqm layout engine`. That is
+> correct behaviour and not a bug in your setup. **Whether it happens
+> to you depends on your architecture**, which is the part this
+> paragraph used to state wrongly: pip's Pillow wheel for
+> `macosx_arm64` is built without Raqm — measured on a GitHub
+> `macos-14` runner, and re-asserted on every run by `registry.yml`'s
+> macos-plain job — while an `x86_64` wheel of the same Pillow version
+> was reported carrying it and running this tutorial straight through.
+> Without Raqm every advance comes out identical and the kern table
+> comes out empty, so writing the file would silently un-kern the whole
+> project. Run the command and believe what it prints rather than this
+> paragraph: it reports the Pillow version, platform and machine it
+> actually found. `ps2ui fontgen` prints the fix for your platform;
 > the short version is `brew install libraqm` and then a source build
 > of Pillow **alone**, with `--no-binary pillow` rather than
 > `--no-binary :all:`. Then check `features.check('raqm')` rather than
