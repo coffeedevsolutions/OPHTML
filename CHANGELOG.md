@@ -3,31 +3,33 @@
 ## Unreleased — 0.6.0.dev0
 
 ### Fixed
-- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, and the rule
-  is not uniform.** It told every macOS reader *"pip's macOS wheels are
-  built without it"*. Measured on a GitHub `macos-14` runner — Apple
-  silicon — that is true, and `registry.yml`'s macos-plain job has
-  asserted it on every run since it was written. A stranger-path run on
-  an Intel Mac reported the same Pillow version from
-  `cp314-macosx_10_15_x86_64` with `features.check('raqm')` **true**,
-  running the tutorial straight through. One architecture measured, a
-  sentence about all of them.
+- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was
+  false, and the real cause is a cheaper fix.** It told every macOS
+  reader *"pip's macOS wheels are built without it"* and routed them
+  through a Pillow source build. Both Pillow 12.3.0 macOS wheels were
+  opened and compared: each has Raqm **compiled into `_imagingft`** —
+  the linker breadcrumb `src/thirdparty/raqm/raqm.o` is in the binary —
+  neither bundles `libraqm` or `fribidi`, and both carry
+  `libfribidi.dylib` / `libfribidi.so.0` as `dlopen` candidates.
 
-  **The fix is not a better rule, it is not stating one.** The message
-  is printed only after `features.check('raqm')` has already returned
-  false, so the reader's Pillow demonstrably lacks Raqm and no platform
-  claim is needed to tell them so. It now reports the Pillow version,
-  platform and machine it actually detected, then gives the remedy —
-  correct on both architectures, correct if the split turns out to be
-  shaped differently than reported, and it hands anyone filing a bug the
-  line that identifies their case.
+  **The wheels are identical. What varies is whether the machine has
+  fribidi**, which Pillow loads at run time: a Mac with Homebrew
+  history usually does, a clean `macos-14` runner does not. That is the
+  entire reported "architectural" split, and it is not architectural.
 
-  This matters for a release rather than a doc pass because the text
-  ships **inside the wheel**: `_raqm_remedy()` is what a stranger reads
-  when `pip install ophtml` then `ps2ui fontgen` refuses. The tutorial's
-  section-1 blockquote is corrected to say the outcome depends on
-  architecture, and the CI job now prints which architecture it
-  measured and no longer calls its reading "the macOS wheel".
+  So the message now reports what it detected — Pillow version,
+  platform, machine — asks Pillow about `fribidi` separately, and when
+  that is the missing piece leads with `brew install fribidi` and no
+  rebuild at all, keeping the source build as the fallback. It states
+  no rule about anybody's wheels, on any branch; the previous text also
+  handed Windows readers a fact about manylinux wheels as their remedy.
+
+  This blocks a release rather than a doc pass because the text ships
+  **inside the wheel**: `_raqm_remedy()` is what a stranger reads when
+  `pip install ophtml` then `ps2ui fontgen` refuses. The tutorial's
+  section-1 blockquote and `registry.yml`'s macos-plain job are
+  corrected with it — the job now reports `raqm` and `fribidi` side by
+  side, so if it ever flips, its output says which of the two moved.
 
 ### Added
 - **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change

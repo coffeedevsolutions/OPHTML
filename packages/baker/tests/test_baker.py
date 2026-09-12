@@ -229,39 +229,77 @@ class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
         self.assertNotIn(":all:", pip[0])
 
     def test_it_reports_what_it_detected_and_asserts_no_platform_rule(self):
-        """The message may not claim what a platform's wheels contain.
+        """The message may not claim what any platform's wheels contain.
 
         It said "pip's macOS wheels are built without it" -- a rule, and
-        the rule is not uniform: Pillow 12.3.0 from
-        cp314-macosx_10_15_x86_64 has Raqm and ran the tutorial straight
-        through, while the same version from cp311-macosx_11_0_arm64 does
-        not, which is what registry.yml's macos-plain job asserts on
-        macos-14, an Apple silicon runner. One architecture measured, a
-        sentence about all of them.
+        the rule is false. Both Pillow 12.3.0 macOS wheels were opened
+        and compared: each has Raqm compiled INTO _imagingft (the
+        linker breadcrumb `src/thirdparty/raqm/raqm.o` is in the
+        binary), neither bundles libraqm or fribidi, and both carry
+        `libfribidi.dylib` / `libfribidi.so.0` as dlopen candidates. The
+        wheels are the same. What differs is whether the machine has
+        fribidi -- which an Intel Mac with Homebrew on it does and a
+        clean macos-14 runner does not, and that is the whole reported
+        "architectural" split. Found in review of #126.
 
-        THE POINT IS THAT NO RULE IS NEEDED. This runs only after
-        features.check('raqm') has already returned False, so the
-        reader's Pillow demonstrably lacks Raqm; reporting the detected
-        triple is both true and more useful than a claim about wheels in
-        general, and it is what somebody filing a bug can quote.
+        SO THE ASSERTION IS ABOUT THE CLASS, NOT THE SENTENCE. An
+        earlier version forbade the one string that had regressed, and
+        a rule of the same shape walked through it: "pip's macOS arm64
+        wheels never carry Raqm and the x86_64 ones always do" passed,
+        while being both a rule and false. The test's name promised the
+        class, so the assertion now covers it.
 
         Asserted on every branch, because the linux/win32 branch carried
-        the same shape of claim about manylinux.
+        the same shape of claim about manylinux -- and handed a Windows
+        reader a fact about manylinux wheels as their remedy.
         """
         from unittest import mock
         from ps2ui_bake import fontgen
         import PIL, platform as _platform
         for plat in ("darwin", "linux", "win32"):
-            with mock.patch.object(fontgen.sys, "platform", plat):
-                msg = fontgen._raqm_remedy()
-            # What it detected, not what the platform is supposed to do.
-            self.assertIn(PIL.__version__, msg, plat)
-            self.assertIn(_platform.machine(), msg, plat)
-            self.assertIn(plat, msg, plat)
-            # And not the rule it used to state. Matched as a phrase so
-            # this fails on the exact sentence that regressed, rather
-            # than on any mention of macOS.
-            self.assertNotIn("macOS wheels are built without", msg, plat)
+            for fribidi in (False, True):
+                with mock.patch.object(fontgen.sys, "platform", plat), \
+                     mock.patch.object(fontgen.features, "check",
+                                       lambda _n, v=fribidi: v):
+                    msg = fontgen._raqm_remedy()
+                where = "%s/fribidi=%s" % (plat, fribidi)
+                # What it detected.
+                self.assertIn(PIL.__version__, msg, where)
+                self.assertIn(_platform.machine(), msg, where)
+                self.assertIn(plat, msg, where)
+                # And no claim about what anybody's wheels hold. Phrases
+                # rather than one sentence: this is the assertion that
+                # the earlier version got wrong.
+                low = msg.lower()
+                for rule in ("wheels are", "wheels carry", "wheels never",
+                             "wheels always", "wheels do not", "wheels don't",
+                             "manylinux wheels"):
+                    self.assertNotIn(rule, low, "%s: %r" % (where, rule))
+
+    def test_a_missing_fribidi_is_named_and_gets_the_cheap_remedy_first(self):
+        """Raqm is in the binary; fribidi is dlopened from the system.
+
+        So "no Raqm" is usually "no fribidi", and Pillow can say which.
+        Before this, every reader was routed through a Pillow source
+        build to obtain something their wheel already had. The cheap
+        path has to come first and has to be named, or the message is
+        prescribing ten minutes of rebuild for a thirty-second install.
+        """
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        with mock.patch.object(fontgen.features, "check", lambda _n: False):
+            msg = fontgen._raqm_remedy()
+        self.assertIn("fribidi", msg)
+        self.assertIn("no rebuild", msg)
+        # The cheap path is FIRST: the rebuild is offered only after it.
+        self.assertLess(msg.index("fribidi"), msg.index("--no-binary"))
+
+        # ...and when fribidi is present it is not blamed, because then
+        # it is not the cause and saying so sends the reader nowhere.
+        with mock.patch.object(fontgen.features, "check", lambda _n: True):
+            other = fontgen._raqm_remedy()
+        self.assertIn("not the usual cause", other)
+        self.assertNotIn("no rebuild", other)
 
     def test_every_platform_says_a_clean_build_is_not_proof(self):
         """Pillow builds and exits 0 without libraqm, omitting the

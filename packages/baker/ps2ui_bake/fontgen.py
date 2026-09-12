@@ -111,26 +111,38 @@ def _raqm_remedy():
     attempt, at the tutorial's first command.
 
     IT THEN SAID "pip's macOS wheels are built without it", WHICH IS A
-    RULE, AND THE RULE IS NOT UNIFORM. A stranger-path run on an Intel
-    Mac reported Pillow 12.3.0 from `cp314-macosx_10_15_x86_64` with
-    `features.check('raqm')` TRUE, running the tutorial straight
-    through; the same version from `cp311-macosx_11_0_arm64` on a
-    GitHub runner is False, which is what registry.yml's macos-plain
-    job has been asserting all along -- on `macos-14`, an Apple silicon
-    runner. So the tripwire has only ever measured one architecture
-    while its message said "the macOS wheel".
+    RULE, AND THE RULE IS FALSE. A stranger-path run on an Intel Mac
+    reported Pillow 12.3.0 with `features.check('raqm')` TRUE and ran
+    the tutorial straight through, while a `macos-14` runner reports
+    False -- which looked architectural and is not. Both 12.3.0 macOS
+    wheels were opened and compared:
 
-    THE FIX IS NOT A BETTER RULE, IT IS NOT STATING ONE. This function
-    runs at the moment `features.check('raqm')` has ALREADY returned
-    False, so the reader's Pillow demonstrably lacks Raqm and no
-    platform claim is needed to tell them that. It now reports what it
-    detected -- version, platform, machine -- and gives the remedy. That
-    is correct on both architectures, correct if the split turns out to
-    be shaped differently than reported, and it hands anyone filing a
-    bug the line that identifies their case. The x86_64 reading is the
-    one thing here this repository has not measured itself; naming the
-    detected triple rather than asserting a rule is how that uncertainty
-    is carried honestly rather than hidden.
+        raqm compiled into _imagingft   both, same raqm.o breadcrumb
+        libraqm bundled                 neither
+        fribidi bundled                 neither
+        dlopen candidates in binary     libfribidi.dylib, libfribidi.so.0
+
+    THE WHEELS ARE THE SAME. Raqm is statically linked in; fribidi is
+    loaded from the machine at run time. An Intel Mac that has had
+    Homebrew on it for a while has libfribidi; a clean runner does not.
+    That is the entire "architectural" split, and it is not about
+    architecture at all. Measured in review of #126 and confirmed
+    independently against both wheels off PyPI.
+
+    SO THE FIX IS NOT A BETTER RULE, IT IS NOT STATING ONE -- and the
+    reason that is right turns out to be stronger than the reason first
+    given for it. This function runs at the moment
+    `features.check('raqm')` has ALREADY returned False, so the
+    reader's Pillow demonstrably lacks Raqm and no claim about wheels
+    is needed to tell them so. It reports what it detected, asks Pillow
+    about fribidi separately, and leads with the remedy that matches.
+
+    WHAT IS MEASURED AND WHAT IS INFERRED, because the message stakes
+    advice on it: that Raqm is in the binary and fribidi is not bundled
+    is read directly off both wheels. That installing fribidi alone
+    flips the feature is inference from that, not execution -- no Mac
+    was available -- which is why the message says "probably" and
+    prints the check rather than promising the outcome.
 
     The macOS route is verified end to end rather than reasoned, twice
     and against two libraqm releases: Pillow 12.3.0 against libraqm
@@ -161,29 +173,87 @@ def _raqm_remedy():
     """
     here = "%s, %s/%s" % (PIL.__version__, sys.platform,
                                  platform.machine())
+
+    # WHY fribidi IS ASKED ABOUT SEPARATELY. Raqm is compiled INTO
+    # _imagingft on every wheel checked -- the linker breadcrumb
+    # `src/thirdparty/raqm/raqm.o` is in the binary of both macOS
+    # wheels -- and fribidi is not bundled at all: the binary carries
+    # `libfribidi.dylib` / `libfribidi.so.0` as dlopen candidates and
+    # finds them on the machine or does not. So "no Raqm" usually means
+    # "no fribidi", and Pillow will say which. Asking is what turns a
+    # ten-minute source build into a thirty-second install.
+    #
+    # Guarded, because this runs on an error path and an error path
+    # that raises tells the reader nothing at all. A Pillow too old to
+    # know the feature name answers None, and None takes the general
+    # advice rather than a guess.
+    try:
+        fribidi = features.check("fribidi")
+    except Exception:                                   # pragma: no cover
+        fribidi = None
+
+    detected = "The Pillow you have (%s) reports no Raqm" % here
+    if fribidi is False:
+        detected += ", and no fribidi either"
+    detected += ".\n"
+
+    check = ("Check it took, with the feature and not pip's exit status "
+             "-- Pillow builds and exits 0 without these and simply "
+             "omits them:\n"
+             "    python -c \"from PIL import features; "
+             "print(features.check('raqm'))\"")
+
+    if fribidi is False:
+        # The cheap path, and the likely one. Named as a first thing to
+        # try rather than a promise: that Raqm is present in the binary
+        # is measured, that installing fribidi alone flips the feature
+        # is inference from it.
+        return (detected +
+                "Raqm is compiled into Pillow's binary and fribidi is "
+                "loaded from your system at run time, so the missing "
+                "piece is probably fribidi alone. Try that first, it "
+                "needs no rebuild:\n"
+                "    brew install fribidi          # macOS\n"
+                "    apt install libfribidi0       # Debian/Ubuntu\n"
+                "    dnf install fribidi           # Fedora\n"
+                + check + "\n"
+                "If it is still false, rebuild Pillow against both:\n"
+                + _rebuild_hint())
+
+    return (detected +
+            "fribidi is present, so this is not the usual cause. "
+            "Rebuild Pillow against Raqm:\n" + _rebuild_hint() + "\n"
+            + check)
+
+
+def _rebuild_hint():
+    """The source-build route, and the two traps in it.
+
+    `brew --prefix` RATHER THAN A LITERAL PATH. Homebrew is under
+    /opt/homebrew on Apple silicon and /usr/local on Intel, and a
+    message that hardcodes one is wrong for half its readers in a way
+    that fails silently: pkg-config finds nothing and the build
+    succeeds WITHOUT Raqm.
+
+    `--no-binary pillow`, NOT `--no-binary :all:`. The bare form scopes
+    the source build to the whole dependency graph, so pip goes off and
+    builds Pillow's build-dependencies too, including bootstrapping
+    CMake from C++ source. Measured at roughly forty minutes before
+    anyone worked out what it was doing, and it is written down here
+    because the trap is one keystroke from the fix.
+    """
     if sys.platform == "darwin":
-        return ("The Pillow you have (%s) was built without it.\n"
-                "Whether pip's macOS wheels carry Raqm is NOT uniform "
-                "across architectures, so this says what was detected "
-                "rather than what your platform is supposed to do -- "
-                "quote that line if this advice turns out to be wrong "
-                "for you. To fix:\n" % here +
-                "    brew install libraqm\n"
+        return ("    brew install libraqm\n"
                 '    export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:'
                 '$(brew --prefix libraqm)/lib/pkgconfig"\n'
                 "    pip install --no-binary pillow --force-reinstall pillow\n"
                 "Use --no-binary pillow, not --no-binary :all: -- the bare "
                 "form source-builds every dependency and spends tens of "
-                "minutes bootstrapping CMake. Then check it took, because a "
-                "Pillow built without libraqm still exits 0:\n"
-                "    python -c \"from PIL import features; "
-                "print(features.check('raqm'))\"")
-    return ("The Pillow you have (%s) was built without it. Install one "
-            "built with Raqm; pip's manylinux wheels are. " % here +
-            "If you built Pillow yourself, note that it builds and exits 0 "
-            "without libraqm and simply omits the feature, so check with:\n"
-            "    python -c \"from PIL import features; "
-            "print(features.check('raqm'))\"")
+                "minutes bootstrapping CMake.")
+    return ("    pip install --no-binary pillow --force-reinstall pillow\n"
+            "Use --no-binary pillow, not --no-binary :all: -- the bare "
+            "form source-builds every dependency and spends tens of "
+            "minutes bootstrapping CMake.")
 
 
 def main(argv=None) -> int:

@@ -197,14 +197,19 @@ jobs:
         run: python3 -m pip install ophtml
       - name: Raqm is absent on this runner's arch, and fontgen refuses
         run: |
-          # SAY WHICH ARCHITECTURE THIS MEASURED. macos-14 is Apple
-          # silicon, so this job has only ever tested the arm64 wheel
-          # while its output said "the macOS wheel" -- a reading from
-          # one arch generalised to a platform, which is exactly the
-          # defect the documents it guards had. An x86_64 wheel of the
-          # same Pillow was reported carrying Raqm; nothing here has
-          # measured that, and this line no longer implies otherwise.
-          python3 -c "import PIL, platform, sys; print('measured: Pillow %s, %s/%s' % (PIL.__version__, sys.platform, platform.machine()))"
+          # SAY WHAT THIS MEASURED, AND DO NOT GENERALISE IT. macos-14
+          # is Apple silicon, so this job has only ever tested one
+          # machine while its output said "the macOS wheel" -- a
+          # reading from one runner generalised to a platform, the
+          # same defect as in the documents it guards.
+          #
+          # And the thing that varies is not the wheel. Both macOS
+          # wheels compile Raqm in and neither bundles fribidi, which
+          # Pillow dlopens from the system; this runner has no fribidi
+          # and a developer Mac usually does. So fribidi is reported
+          # beside raqm -- if this job ever flips, that line says which
+          # of the two changed.
+          python3 -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
           if python3 -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; then
             echo "::error::pip's macOS Pillow wheel for THIS architecture now HAS Raqm."
             echo "That is good news and it makes two documents wrong:"
