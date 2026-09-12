@@ -36,6 +36,6 @@ The one rule: everything the console would otherwise compute happens here.
 # that is rule 11, and it runs in both directions. pip's exclusion of
 # prereleases lapses when no stable version exists, so it bought nothing
 # until the first real release was on PyPI.
-__version__ = "0.6.0.dev0"
+__version__ = "0.6.0"
 
 from .rounding import round_half_up, css_alpha_to_gs, gs_alpha_to_css  # noqa: F401

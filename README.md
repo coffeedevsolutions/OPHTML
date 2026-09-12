@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ophtml-logo-releaseVersion050-plain-white-darkbg.png"
+  <img src="docs/assets/ophtml-logo-releaseVersion060-plain-white-darkbg.png"
        alt="OPHTML" width="600">
 </p>
 
@@ -85,20 +85,21 @@ Three ways in, depending on what you want:
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 **Both packages are published**, so `pip install ophtml` and
-`npm install -g @ophtml/layout` are the way in. Those give you `0.5.0`,
-tagged `v0.5.0`, including `ps2ui vendor-runtime`, which writes
+`npm install -g @ophtml/layout` are the way in. Those give you `0.6.0`,
+tagged `v0.6.0`, including `ps2ui vendor-runtime`, which writes
 `ps2ui.c` and `ps2ui.h` out of the installed package — so the console
 half needs no clone, and the runtime you compile is the one matching the
-baker that wrote your blob. This tree has since moved on to `0.6.0.dev0`
-(`0.6.0-dev.0` on npm), a prerelease that is on neither registry and is
-not meant to be. The two still understand each other, because the blobs
-baked here are format **v7** and zero moves of the `.uib` format have
-landed since 0.5.0: that is the stability pledge, made at v7 and
-enforced by `tools/check-format-frozen.py` rather than announced, so a
-blob this tree writes loads under a 0.5.0 runtime and the other way
-round. Every CLI answers `--version`. What is left of Phase 4's exit
-gate in [docs/PLAN.md](docs/PLAN.md) is the half that always needed a
-console; [docs/releasing.md](docs/releasing.md) is the procedure, and
+baker that wrote your blob. New in this one: `ps2ui_offset_set`, the
+first call that changes *where* the runtime draws rather than what, so
+a sliding panel or a scrolling region is reachable without baking both
+end states as separate screens. A blob from here loads under a 0.5.0
+runtime and the other way round, because what is baked is format **v7**
+and zero moves of the `.uib` format have landed since 0.5.0: that is
+the stability pledge, made at v7 and enforced by
+`tools/check-format-frozen.py` rather than announced. Every CLI answers
+`--version`. What is left of Phase 4's exit gate in
+[docs/PLAN.md](docs/PLAN.md) is the half that always needed a console;
+[docs/releasing.md](docs/releasing.md) is the procedure, and
 `tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:

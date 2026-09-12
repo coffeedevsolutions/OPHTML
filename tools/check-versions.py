@@ -521,6 +521,62 @@ def main(argv=None):
               % "; does not name ".join("%s (%r)" % (l, w)
                                         for l, w in missing))
 
+    # 10b. THE HEADER LOGO, WHICH CARRIES THE VERSION IN ITS ARTWORK.
+    #
+    #      docs/releasing.md step 5 said of this, in as many words:
+    #      "Nothing checks this one: it is a version claim in the most
+    #      visible place in the project and the only way it stays true
+    #      is somebody doing it here." Three cuts in, that has been
+    #      measured, and the answer is that somebody does not.
+    #
+    #          0.4.0 (a671cbe)   done in the release commit
+    #          0.5.0 (#116)      SKIPPED, caught in review
+    #          0.6.0 (#127)      SKIPPED, caught in review
+    #
+    #      Two of three, both found by a reviewer opening the page --
+    #      which is exactly the condition step 5 named as the thing
+    #      that cannot be relied on. It is the first element of the
+    #      README, 600px wide, and it is what npm and the GitHub
+    #      landing view render.
+    #
+    #      TWO-STATE, the same shape as rule 5's heading and rule 10's
+    #      tag. On a release the logo must name the version being cut.
+    #      While the tree carries a prerelease it must name the last
+    #      RELEASE, because during development the logo legitimately
+    #      shows the version people can actually install -- a rule that
+    #      demanded `060` on a 0.6.0.dev0 tree would be wrong on `main`
+    #      for the whole of a development cycle, and a fence that is
+    #      wrong between releases gets an exemption bolted onto it
+    #      within a week.
+    #
+    #      It reads the FILENAME, not the pixels. That is not a
+    #      weakness: the file is re-exported with the version rendered
+    #      into the artwork, so the two move together or not at all,
+    #      and the name is the half a checker can hold.
+    shown = prev_ver if is_prerelease(baker) else BAKER_VERSION
+    want = "releaseVersion%s" % shown.replace(".", "")
+    img = re.search(r'<img src="(docs/assets/[^"]+)"', readme)
+    if img is None:
+        check(False, "", "README.md has no <img src=\"docs/assets/...\"> "
+                         "header logo. That image carries the release "
+                         "version in its artwork, and this rule reads its "
+                         "filename -- docs/releasing.md step 5.")
+    else:
+        src = img.group(1)
+        check(want in src,
+              "README's header logo names %s, which is %s"
+              % (shown, "the release being cut" if not is_prerelease(baker)
+                 else "the last release"),
+              "README's header logo is %r, but %s is %s, so it should "
+              "name %s. Re-export "
+              "docs/assets/ophtml-logo-%s-plain-white-darkbg.png, point "
+              "the <img src> at it, and delete the old file once nothing "
+              "references it -- docs/releasing.md step 5."
+              % (src, BAKER_VERSION,
+                 "a prerelease, so the logo shows the last release (%s)"
+                 % prev_ver if is_prerelease(baker) else "a release",
+                 shown, want))
+
     # 11. A prerelease may not publish to `latest`. npm resolves
     #     `npm install <pkg>` against the `latest` dist-tag, and
     #     `npm publish` sets `latest` regardless of whether the version

@@ -168,10 +168,23 @@ written twice to avoid.
    through the whole of 0.4.0 — a sentence describing a file that no
    longer existed, inside the step whose entire subject is a version
    claim nothing checks.
-   Nothing checks this one: it is a version claim in the most visible
-   place in the project and the only way it stays true is somebody
-   doing it here, which is why it is written down next to the edits
-   that are checked.
+
+   **This used to say "nothing checks this one". It does now, and the
+   reason it does is that the sentence was right three times running.**
+   0.4.0 re-exported the logo in the release commit; 0.5.0 and 0.6.0
+   both skipped it, and both were caught by a reviewer opening the
+   README — which is precisely the mechanism the old paragraph named as
+   the thing that cannot be relied on. Two misses in three cuts is not
+   forgetfulness, it is a step with no fence under it.
+
+   `check-versions.py` rule 10b now reads the `<img src>` filename and
+   requires it to name the version being cut on a release, or the last
+   release while the tree carries a prerelease — the same two-state
+   shape as rule 5's heading and rule 10's tag, so it is correct on
+   `main` between releases rather than red for the whole of a
+   development cycle. It reads the filename and not the pixels, which
+   holds because the file is re-exported with the version rendered into
+   the artwork: the two move together or not at all.
 
 6. **`packages/layout/package.json`** — drop `publishConfig.tag` (or
    set it to `latest`) only when the version stops being a prerelease.
