@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ophtml-logo-releaseVersion050-plain-white-darkbg.png"
+  <img src="docs/assets/ophtml-logo-releaseVersion060-plain-white-darkbg.png"
        alt="OPHTML" width="600">
 </p>
 
