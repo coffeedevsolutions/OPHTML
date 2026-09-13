@@ -18,7 +18,7 @@ The row count belongs to the markup. The item count belongs to the data, and the
 
 Expansion happens on the element tree, before any style is computed. A repeated row compiles to exactly the commands a typed-out row compiles to. Nothing downstream can tell a copy from an original.
 
-Six rows cost six focus nodes and six rows of paint commands. That cost is the same whether the app has three items or three hundred.
+Six rows cost six focus nodes and six copies of the row's paint commands. That cost is the same whether the app has three items or three hundred.
 
 ![Library screen, root theme, 4:3, initial state: six baked rows with placeholder text, the first row focused](../assets/authoring/lists/rows.png)
 
@@ -76,7 +76,7 @@ for (;;) {
 }
 ```
 
-Add `ps2ui_list_apply_visibility(&ui, &list)` after the refill to hide the rows past the end instead of blanking them.
+Add `ps2ui_list_apply_visibility(&ui, &list)` after the refill to hide the rows past the end, not only blank them.
 
 ## Reference table
 
@@ -106,7 +106,7 @@ The seven list functions are also on the [C API reference](page:runtime/api-refe
 
 ### Expansion
 
-The expansion pass runs before styles are computed, so the cascade sees N ordinary elements. Substitution rewrites attribute values and text nodes together. Give each copy a distinct `id` and distinct slot names, or the copies address the same thing.
+The expansion pass runs before styles are computed, so the cascade sees N ordinary elements. Substitution rewrites attribute values and text nodes together. Give each copy a distinct `id` and distinct slot names, or the copies address the same thing. [layout.test.js](repo:packages/layout/test/layout.test.js#L856) asserts that a repeated row and a typed-out row produce identical command lists.
 
 A count above 1 with no `{i}` and no `{n}` anywhere in the subtree warns and compiles. The check reads descendant attributes too, so `{i}` on a nested `data-slot` alone is enough.
 
@@ -164,7 +164,7 @@ Row text is ordinary slot text. Refill it with `ps2ui_slot_set` after every move
 
 ### Visibility
 
-`ps2ui_list_apply_visibility` calls `ps2ui_visible_set` once per row. A hidden row takes its panel, its border and its slot glyphs out of the frame. Call it after `set_count` and after any move. What hiding does to a frame is on [Moving and hiding](page:runtime/moving-and-hiding#behaviour).
+`ps2ui_list_apply_visibility` calls `ps2ui_visible_set` once per row. A hidden row takes its panel and its slot glyphs out of the frame. Call it after `set_count` and after any move. What hiding does to a frame is on [Moving and hiding](page:runtime/moving-and-hiding#behaviour).
 
 ```text
 ok 297 - apply_visibility hides only the rows past the end
