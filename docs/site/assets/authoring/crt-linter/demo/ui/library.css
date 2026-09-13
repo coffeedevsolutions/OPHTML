@@ -1,0 +1,17 @@
+:root {
+  --bg: #10141f;
+  --panel: #1a2030;
+  --text: #e8ecf4;
+  --dim: #a8b2c4;
+  --accent: #2f6fd0;
+}
+
+.page    { flex-direction: column; padding: 32px 40px; background: var(--bg); }
+.header  { flex-direction: row; padding-bottom: 12px; background: var(--panel); }
+.title   { font-size: 20px; font-weight: 700; color: var(--text); flex-grow: 1; }
+.count   { font-size: 16px; color: #39425a; }
+.row     { flex-direction: row; padding: 7px 10px; background: var(--panel); margin-bottom: 3px; }
+.row:focus { background: var(--accent); }
+.name    { font-size: 16px; color: var(--text); flex-grow: 1; }
+.size    { font-size: 16px; color: var(--dim); }
+.row:focus .size { color: var(--text); }

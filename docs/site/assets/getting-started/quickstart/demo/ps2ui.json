@@ -1,0 +1,6 @@
+{
+  "screens": ["ui/library.html"],
+  "css": "ui/library.css",
+  "strict": true,
+  "montage": "build/states.png"
+}

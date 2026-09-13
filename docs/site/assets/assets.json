@@ -1,0 +1,412 @@
+[
+  {
+    "path": "assets/cli/ps2ui-bake/preview.png",
+    "page": "cli/ps2ui-bake",
+    "command": "PYTHONPATH=packages/baker python3 -m ps2ui_bake examples/memcard/build/library.json examples/memcard/build/saves.json -o OUT.uib --preview OUT",
+    "alt": "memcard library screen, root theme, 4:3, initial state",
+    "checked": true
+  },
+  {
+    "path": "assets/cli/ps2ui-bake/states.png",
+    "page": "cli/ps2ui-bake",
+    "command": "PYTHONPATH=packages/baker python3 -m ps2ui_bake examples/memcard/build/library.json examples/memcard/build/saves.json -o OUT.uib --montage OUT",
+    "alt": "memcard montage, root theme, 4:3, every focus state of both screens",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/css/demo.png",
+    "page": "authoring/css",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/css/demo/demo.html docs/site/assets/authoring/css/demo/demo.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "CSS demo screen, root theme, 4:3, first card focused: rounded panels, a translucent wash over each panel fill, an ellipsized title and the focus ring",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/css/demo-states.png",
+    "page": "authoring/css",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/css/demo/demo.html docs/site/assets/authoring/css/demo/demo.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --montage OUT",
+    "alt": "CSS demo screen montage, root theme, 4:3, every focus state: the ring and the lighter panel fill move across the three cards",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/text-and-fonts/sizes.png",
+    "page": "authoring/text-and-fonts",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/text-and-fonts/demo/sizes.html docs/site/assets/authoring/text-and-fonts/demo/sizes.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "The string \"To the Victor: AV Ta Yo\" drawn four times on the demo screen, root theme, 4:3, initial state: 32px regular, 32px bold, 14px regular, 14px bold",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/theming/library-theme-0.png",
+    "page": "authoring/theming",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=0).save('OUT')\"",
+    "alt": "opl-env library screen, theme 0 (root), 4:3, initial focus",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/theming/library-theme-1.png",
+    "page": "authoring/theming",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('OUT')\"",
+    "alt": "opl-env library screen, theme 1 (light), 4:3, initial focus",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/dynamic-text/slots.png",
+    "page": "authoring/dynamic-text",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', slot_text={'count': '42 titles'}).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, initial focus state, with the count slot set to \"42 titles\" instead of its baked placeholder \"6 titles\"",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/lists/rows.png",
+    "page": "authoring/lists",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/lists/demo/ui/library.html docs/site/assets/authoring/lists/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "Library screen, root theme, 4:3, initial state: six baked rows with placeholder text, the first row focused",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/lists/rows-states.png",
+    "page": "authoring/lists",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/lists/demo/ui/library.html docs/site/assets/authoring/lists/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --montage OUT",
+    "alt": "Library screen montage, root theme, 4:3, six frames, one per focus state: the blue highlight steps down the six rows",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/images/covers.png",
+    "page": "authoring/images",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='games').save('OUT')\"",
+    "alt": "channel6 games screen, root theme, 4:3, initial state: six palettized covers in a grid beside the details panel",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/focus-and-navigation/graph.png",
+    "page": "authoring/focus-and-navigation",
+    "command": "ps2ui serve examples/memcard --port 8137, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8137/, waits for #frame to report a naturalWidth, clicks #btnGraph and screenshots to OUT",
+    "alt": "The memcard library screen in ps2ui serve, Focus graph toggled on, blue arrows drawn between the nine focusables",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py"
+  },
+  {
+    "path": "assets/authoring/focus-and-navigation/states.png",
+    "page": "authoring/focus-and-navigation",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/memcard/build/ui.uib')).save('OUT')\"",
+    "alt": "Nine renders of the memcard library screen at 640x448, 4:3, theme 0, each with a different focusable focused",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/video-modes/games-1x1.png",
+    "page": "authoring/video-modes",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui-16x9.uib'), screen='games-16x9').save('OUT')\"",
+    "alt": "channel6 games screen, root theme, 16:9 blob rendered at 1:1 in framebuffer pixels (640x448), initial focus on the Aurora Drift tile",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/video-modes/games-display.png",
+    "page": "authoring/video-modes",
+    "command": "PYTHONPATH=packages/baker python3 -m ps2ui_bake examples/channel6/build/games-16x9.json examples/channel6/build/probe-16x9.json -o OUT.uib --preview-display OUT",
+    "alt": "the same channel6 games frame resampled to the panel aspect, 796x448 at 16:9, root theme, initial focus on the Aurora Drift tile",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/video-modes/serve-forced-4x3.png",
+    "page": "authoring/video-modes",
+    "command": "ps2ui serve --uib examples/channel6/build/ui-16x9.uib --port 8237 & sleep 4; NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8237/',{waitUntil:'load'});await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0;},null,{timeout:30000});await p.selectOption('#aspectSel','force-4:3');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth===597;},null,{timeout:30000});await p.waitForTimeout(1200);await p.screenshot({path:'OUT'});await b.close();})();\"; kill %1",
+    "alt": "the ps2ui serve previewer at 1280x800, channel6 16:9 blob served with --uib, Aspect set to force-4:3, the games-16x9 screen squeezed to 597 pixels wide",
+    "checked": false,
+    "note": "browser capture of the ps2ui serve page chrome; browser text rendering is not byte-stable, so this is not re-rendered by the checker"
+  },
+  {
+    "path": "assets/authoring/screens-and-overlays/library.png",
+    "page": "authoring/screens-and-overlays",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library').save('OUT')\"",
+    "alt": "The opl-env library screen, root theme, 4:3, rendered alone",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/screens-and-overlays/confirm.png",
+    "page": "authoring/screens-and-overlays",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='confirm').save('OUT')\"",
+    "alt": "The opl-env confirm screen, root theme, 4:3, rendered alone over a flat background: a scrim and a panel with CANCEL focused",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/screens-and-overlays/in-game.png",
+    "page": "authoring/screens-and-overlays",
+    "command": "PYTHONPATH=packages/baker python3 examples/channel6/preview_in_game.py examples/channel6/build/ui.uib OUT",
+    "alt": "The channel6 browser composited over a synthetic game frame, root theme, 4:3: a driving scene shows through the scrim around the cover grid",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/crt-linter/warning.png",
+    "page": "authoring/crt-linter",
+    "command": "ps2ui serve docs/site/assets/authoring/crt-linter/demo --port 8317, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8317/, waits for #frame to report a naturalWidth and for #diags to hold a warning row, clicks that row, clicks .el[data-i=\"13\"] and screenshots to OUT",
+    "alt": "ps2ui serve on the crt-linter demo project: the library screen in the root theme at 4:3, the contrast warning listed under Warnings, command 013 selected in the command list and shown in the inspector",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Serving the demo writes docs/site/assets/authoring/crt-linter/demo/build/, which is not committed."
+  },
+  {
+    "path": "assets/runtime/moving-and-hiding/offset-0.png",
+    "page": "runtime/moving-and-hiding",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', offset=(0, 0)).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, initial focus, no offset",
+    "checked": true
+  },
+  {
+    "path": "assets/runtime/moving-and-hiding/offset-up.png",
+    "page": "runtime/moving-and-hiding",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', offset=(0, -60)).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, slid up 60 px and clipped at the display edge",
+    "checked": true
+  },
+  {
+    "path": "assets/runtime/moving-and-hiding/offset-right.png",
+    "page": "runtime/moving-and-hiding",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', offset=(80, 0)).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, slid right 80 px and clipped at the display edge",
+    "checked": true
+  },
+  {
+    "path": "assets/runtime/streaming-art/covers-empty.png",
+    "page": "runtime/streaming-art",
+    "command": "node packages/layout/bin/ps2ui-layout.js fixtures/bench-stream/ui/covers.html fixtures/bench-stream/ui/bench.css -o OUT.covers.json && node packages/layout/bin/ps2ui-layout.js fixtures/bench-stream/ui/dialog.html fixtures/bench-stream/ui/bench.css -o OUT.dialog.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.covers.json OUT.dialog.json -o OUT.uib --preview OUT",
+    "alt": "The bench covers screen, root theme, 4:3, all four slots unfilled: the title, the four captions and the two status lines draw, and the four 128x128 cover boxes are empty background",
+    "checked": true
+  },
+  {
+    "path": "assets/cli/previewer/page.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The previewer on the memcard project, library screen, root theme, as authored at 4:3, initial focus on Games: the toolbar, the command list, the frame, the slot box, an empty inspector and 45 warnings",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written."
+  },
+  {
+    "path": "assets/cli/previewer/inspector.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.click('.el[data-i=\\\"14\\\"]');await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The previewer on the memcard library screen, root theme, as authored at 4:3, with command 14 selected: the inspector reads index 14, op texquad, position 28 92, size 7 x 7, rgba #0a0d16, tex 2, state 1 unfocused, focus nav-games, drawn now no",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command clicks command row 14 in the Commands list."
+  },
+  {
+    "path": "assets/cli/previewer/aspect-16x9.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.selectOption('#aspectSel','force-16:9');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>700});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The memcard library screen, root theme, forced to 16:9: the same 640x448 framebuffer resampled narrower, with the text and the covers squeezed",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command sets the Aspect menu to force-16:9."
+  },
+  {
+    "path": "assets/cli/previewer/error-banner.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && printf '\\n.tile { background: #12g4f6; }\\n' >> /tmp/prev/ui/library.css && sleep 6 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForFunction(()=>{const n=document.getElementById('banner');return n&&n.classList.contains('on')},null,{timeout:60000});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The previewer on the memcard library screen, root theme, as authored at 4:3, showing the last good frame under a banner reading ps2ui-layout failed on ui/library.html (exit 1), at revision 2",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command appends an invalid colour to the scratch project's library.css so the watched rebuild fails."
+  },
+  {
+    "path": "assets/getting-started/quickstart/preview.png",
+    "page": "getting-started/quickstart",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/getting-started/quickstart/demo/ui/library.html docs/site/assets/getting-started/quickstart/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "the quick start library screen, root theme, 4:3, initial focus on row 0, six placeholder rows and a 0-title count",
+    "checked": true
+  },
+  {
+    "path": "assets/getting-started/quickstart/serve.png",
+    "page": "getting-started/quickstart",
+    "command": "cd <scratch>/browser && ps2ui serve --port 8600, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8600/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
+    "alt": "the ps2ui serve page for the quick start project: the library screen with row 0 focused, the command list, the focusables list and the slots panel, no warnings",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Served from the tutorial's scratch project, not from the committed demo/ sources."
+  },
+  {
+    "path": "assets/getting-started/tutorial-game-browser/preview.png",
+    "page": "getting-started/tutorial-game-browser",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/getting-started/quickstart/demo/ui/library.html docs/site/assets/getting-started/quickstart/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "the tutorial library screen, six rows, theme 0",
+    "checked": true
+  },
+  {
+    "path": "assets/getting-started/tutorial-game-browser/states.png",
+    "page": "getting-started/tutorial-game-browser",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/getting-started/quickstart/demo/ui/library.html docs/site/assets/getting-started/quickstart/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --montage OUT",
+    "alt": "every focus state of the library screen on one sheet",
+    "checked": true
+  },
+  {
+    "path": "assets/getting-started/tutorial-game-browser/serve.png",
+    "page": "getting-started/tutorial-game-browser",
+    "command": "cd <scratch>/browser (the tutorial's own steps 1-4) && ps2ui serve --port 8700, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8700/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
+    "alt": "the served page after the tutorial's step 7: the library screen, row 0 focused, no warnings",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Server was stopped and port 8700 confirmed closed after the capture."
+  },
+  {
+    "path": "assets/runtime/first-boot/probe.png",
+    "page": "runtime/first-boot",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='probe').save('OUT')\"",
+    "alt": "channel6 probe screen, root theme, 4:3, initial focus: the ALPHA, RADIUS, TYPE, CLIP, IMAGE, ASPECT and FLEX cells, the ground truth a console frame is compared against",
+    "checked": true
+  },
+  {
+    "path": "assets/runtime/first-boot/testcard.png",
+    "page": "runtime/first-boot",
+    "command": "python3 tools/make_testcard.py OUT.uib --preview OUT",
+    "alt": "the texel-alignment test card: the resolution wedge (flat, 1px, 2px, 4px, flat) at canvas centre, four colour-coded edge rules, four corner checkers and the step 8 interlace pair",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/memcard/library.png",
+    "page": "examples/memcard",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library').save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, initial focus on Games: six tiles in a grid and the count slot reading 6 titles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/memcard/saves.png",
+    "page": "examples/memcard",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='saves').save('OUT')\"",
+    "alt": "memcard saves screen, root theme, 4:3, initial focus on Saves: four save rows and the save-count slot reading 4 saves",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/memcard/states.png",
+    "page": "examples/memcard",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/memcard/build/ui.uib')).save('OUT')\"",
+    "alt": "memcard library screen montage, root theme, 4:3, all nine focus states, three columns by three rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/landing-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='landing', theme=0).save('OUT')\"",
+    "alt": "opl-env landing screen, root theme, 4:3, initial focus on the first source tile: hero banner, four source tiles and three resume cards",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/landing-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='landing', theme=1).save('OUT')\"",
+    "alt": "opl-env landing screen, light theme, 4:3, initial focus on the first source tile: hero banner, four source tiles and three resume cards",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/library-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=0).save('OUT')\"",
+    "alt": "opl-env library screen, root theme, 4:3, initial focus on the ALL filter chip: nine library rows and three continue-playing tiles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/library-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('OUT')\"",
+    "alt": "opl-env library screen, light theme, 4:3, initial focus on the ALL filter chip: nine library rows and three continue-playing tiles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/detail-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='detail', theme=0).save('OUT')\"",
+    "alt": "opl-env detail screen, root theme, 4:3, initial focus on LAUNCH: cover art, six fields and four action buttons",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/detail-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='detail', theme=1).save('OUT')\"",
+    "alt": "opl-env detail screen, light theme, 4:3, initial focus on LAUNCH: cover art, six fields and four action buttons",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/filters-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='filters', theme=0).save('OUT')\"",
+    "alt": "opl-env filters screen, root theme, 4:3, initial focus on the first facet row: seven facets and five matched titles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/filters-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='filters', theme=1).save('OUT')\"",
+    "alt": "opl-env filters screen, light theme, 4:3, initial focus on the first facet row: seven facets and five matched titles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/recent-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='recent', theme=0).save('OUT')\"",
+    "alt": "opl-env recent screen, root theme, 4:3, initial focus on the first session row: nine recently played rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/recent-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='recent', theme=1).save('OUT')\"",
+    "alt": "opl-env recent screen, light theme, 4:3, initial focus on the first session row: nine recently played rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/confirm-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='confirm', theme=0).save('OUT')\"",
+    "alt": "opl-env confirm dialog, root theme, 4:3, initial focus on CANCEL: the overlay composited over the screen beneath it",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/confirm-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='confirm', theme=1).save('OUT')\"",
+    "alt": "opl-env confirm dialog, light theme, 4:3, initial focus on CANCEL: the overlay composited over the screen beneath it",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/states.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/opl-env/build/ui.uib')).save('OUT')\"",
+    "alt": "opl-env landing screen montage, root theme, 4:3, all seven focus states, three columns by three rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/games.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='games').save('OUT')\"",
+    "alt": "channel6 games screen, root theme, 4:3, initial focus on Aurora Drift: a six-cover grid, the detail column and three actions",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/probe.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='probe').save('OUT')\"",
+    "alt": "channel6 probe screen, root theme, 4:3, initial focus on ALPHA: eight labelled conformance cells",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/states.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/channel6/build/ui.uib')).save('OUT')\"",
+    "alt": "channel6 games screen montage, root theme, 4:3, all nine focus states, three columns by three rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/in-game.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 examples/channel6/preview_in_game.py examples/channel6/build/ui.uib OUT",
+    "alt": "synthetic composite: the games screen's translucent scrim over a made-up driving-game frame, no clear between them",
+    "checked": true
+  },
+  {
+    "path": "assets/getting-started/how-it-works/stages.svg",
+    "page": "getting-started/how-it-works",
+    "command": "hand-drawn SVG, no command",
+    "alt": "Three hand-drawn boxes, layout, baker and runtime, joined by two arrows labelled ui.json and .uib. Each box names its pen: layout measures, baker rasterizes, runtime draws.",
+    "note": "Authored by hand, not generated by a command. Reviewed by eye for the two seam labels and the three pens.",
+    "checked": false
+  },
+  {
+    "path": "assets/index/pipeline.svg",
+    "page": "index",
+    "command": "hand-drawn SVG, no command",
+    "alt": "The build pipeline from HTML and CSS to the console",
+    "note": "Authored by hand, not generated by a command. Four boxes (HTML + CSS, ui.json, .uib, C runtime) joined by three arrows, dark text on a transparent background so it reads in both themes. Reviewed by eye against the pipeline order in README.md and the how-it-works stages figure.",
+    "checked": false
+  }
+]

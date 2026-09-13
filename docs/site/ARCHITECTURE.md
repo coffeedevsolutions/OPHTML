@@ -1,0 +1,404 @@
+# OPHTML documentation library: architecture
+
+This directory holds the documentation library for the published packages
+(`ophtml` on PyPI, `@ophtml/layout` on npm) and the C runtime they ship. It
+is written for the 0.6.0 release. The pages are plain markdown and are built
+into the website later; nothing here depends on a site generator.
+
+This file is the contract every page is written against. `_prompts/` holds
+one self-contained brief per page. A documentation agent reads its brief,
+reads this file, verifies each claim by running code, renders the screenshots
+it needs, writes the page, and writes a facts file that dependent pages
+consume. Nothing in a page is written from memory or copied from README.md.
+
+## Layout
+
+```
+docs/site/
+  ARCHITECTURE.md            this file
+  index.md                   00 Home
+  getting-started/           01 installation  02 quickstart  03 tutorial-game-browser  04 how-it-works
+  authoring/                 10 project-file  11 html  12 css  13 text-and-fonts  14 images
+                             15 dynamic-text  16 lists  17 focus-and-navigation  18 theming
+                             19 screens-and-overlays  20 video-modes  21 crt-linter  22 vram-budget
+  cli/                       30 ps2ui  31 ps2ui-layout  32 ps2ui-bake  33 ps2ui-check
+                             34 ps2ui-fontgen  35 previewer
+  runtime/                   40 integrating  41 frame-loop  42 api-reference  43 errors-and-constants
+                             44 streaming-art  45 moving-and-hiding  46 telemetry  47 deploying  48 first-boot
+  reference/                 50 ir-format  51 uib-format  52 diagnostics  53 compatibility
+  examples/                  60 memcard  61 opl-env  62 channel6
+  project/                   70 changelog  71 contributing  72 security-and-license  73 faq
+                             74 glossary  75 internals
+  assets/<page-id>/*.png     screenshots, one folder per page
+  assets/assets.json         manifest: every PNG and the command that made it
+  _prompts/<page-id>.md      the brief for each page
+  _facts/<page-id>.md        what each page verified, for the pages that depend on it
+```
+
+A page id is its path without `docs/site/` and without `.md`, for example
+`authoring/theming`. The numbers above fix the order inside a section and
+are the `order` field in the frontmatter.
+
+## Page index
+
+| id | title | one line |
+|---|---|---|
+| index | OPHTML | what it is, the pipeline, where to start |
+| getting-started/installation | Installation | install both packages, fonts, the Raqm refusal, checkout install |
+| getting-started/quickstart | Quick start | eight commands from a TTF to a served preview |
+| getting-started/tutorial-game-browser | Tutorial: a game browser | the CI-executed tutorial in the library voice |
+| getting-started/how-it-works | How it works | three stages, two seams, the rules the design rests on |
+| authoring/project-file | The project file | every `ps2ui.json` key and how paths resolve |
+| authoring/html | HTML | what the parser accepts and every attribute the compiler reads |
+| authoring/css | CSS | selectors, properties, units, colours, the two hard rules |
+| authoring/text-and-fonts | Text and fonts | fonts.json, weights, charset, kerning, wrapping, ellipsis |
+| authoring/images | Images | baked PNGs, palettize, intrinsic sizing |
+| authoring/dynamic-text | Dynamic text | data-slot, capacity, what stays compile-time |
+| authoring/lists | Lists | data-repeat and the runtime list window |
+| authoring/focus-and-navigation | Focus and navigation | focusable, the solver, wrap, reachability |
+| authoring/theming | Theming | :root, @theme, var(), the tint table |
+| authoring/screens-and-overlays | Screens and overlays | multi-screen blobs and compositing |
+| authoring/video-modes | Video modes | modes, canvas, display aspect, anamorphic pixels |
+| authoring/crt-linter | CRT linter | every rule, threshold and opt-out |
+| authoring/vram-budget | VRAM budget | the budget model and the breakdown table |
+| cli/ps2ui | ps2ui | the umbrella command and its subcommands |
+| cli/ps2ui-layout | ps2ui-layout and ps2ui-dev | the compiler and the watch loop |
+| cli/ps2ui-bake | ps2ui-bake | the baker, its transcript and exit conditions |
+| cli/ps2ui-check | ps2ui-check | the blob validator and its check catalogue |
+| cli/ps2ui-fontgen | ps2ui-fontgen | metrics from a TTF |
+| cli/previewer | Previewer | ps2ui serve: controls, routes, inspector, limits |
+| runtime/integrating | Integrating the runtime | vendor-runtime, the cross toolchain, the sample Makefile |
+| runtime/frame-loop | The frame loop | load, upload, render, and the guarantees |
+| runtime/api-reference | C API reference | every public function, struct and scope rule |
+| runtime/errors-and-constants | Errors and constants | every error code, what triggers it, every macro |
+| runtime/streaming-art | Streaming art | tex_set, clut_set, host conversion |
+| runtime/moving-and-hiding | Moving and hiding | visibility and the draw-time offset |
+| runtime/telemetry | Telemetry | ps2ui_stats and the sample's readout |
+| runtime/deploying | Deploying | from an ELF to a console |
+| runtime/first-boot | First boot | the ten-step checklist |
+| reference/ir-format | ui.json | the IR as emitted today |
+| reference/uib-format | .uib | the blob format and the v7 pledge |
+| reference/diagnostics | Diagnostics | every message, its cause and fix |
+| reference/compatibility | Compatibility | versions, format, platforms |
+| examples/memcard | memcard | the two-screen browser |
+| examples/opl-env | opl-env | six screens, two themes, streamed covers |
+| examples/channel6 | channel6 | the overlay browser and the probe screen |
+| project/changelog | Changelog | 0.6.0 release notes and earlier releases |
+| project/contributing | Contributing | setup, tests, the checks |
+| project/security-and-license | Security and license | reporting, scope, licences |
+| project/faq | FAQ | the questions the code answers |
+| project/glossary | Glossary | terms |
+| project/internals | Internals | the design and method documents, and where they live |
+
+## Frontmatter
+
+```yaml
+---
+id: cli/ps2ui-bake
+title: ps2ui-bake
+description: Bake ui.json files into one .uib blob and render previews.
+section: cli
+order: 32
+version: 0.6.0
+sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/vram.py]
+---
+```
+
+`sources` lists the repository files the page was verified against. A
+change to any of them marks the page for review.
+
+Site version: 0.6.0
+
+Every page carries that value in `version`. `tools/check-site-pages.py` reads
+it from the line above, so a stamp that disagrees fails the check.
+
+## Links
+
+- Internal: `[the project file](page:authoring/project-file#keys)`. The site
+  build rewrites `page:` URLs. The id must exist in the index above.
+- Repository: `[cli.py](repo:packages/baker/ps2ui_bake/cli.py#L131)`.
+  A line number is a citation with an expiry date, so
+  `docs/site/_citations.tsv` records the text of every cited line.
+  `tools/check-site-pages.py` fails when a cited line changes,
+  `--fix` moves the citation when that text now sits on one other line,
+  and `--pin` rewrites the record after citations are added or edited.
+- External: an ordinary URL. Only for ps2dev, gsKit, PyPI, npm, the emulators.
+- Headings use kebab-case anchors, so cross-page anchors are predictable.
+
+## Voice and format
+
+- Imperative mood for instructions, present tense for behaviour. "Run
+  `ps2ui build`." Never "you can run".
+- Forbidden words and phrases: let's, we, we'll, in this section, in this
+  guide, simply, seamless, seamlessly, robust, leverage, powerful, note
+  that, it's worth noting, it is worth noting, keep in mind, as you can
+  see, of course, essentially, basically, easily, straightforward, delve,
+  dive into, unlock, empower, journey, crucial, vital. No emoji. No
+  exclamation marks. No rhetorical questions.
+- Lead with what the thing does and how to use it. Say why only when the
+  reason changes what the reader should do, in at most two sentences. A
+  longer reason is a link to `project/internals` or to the repository doc.
+- One fact per sentence. Under 25 words. No em dashes. Use a full stop or
+  a comma.
+- Flags, keys, functions, error codes and attributes live in tables. The
+  column set per page type is fixed below. Prose never restates a table.
+- Every code block is copied from a command that was run in the session or
+  from a file in the tree. Output blocks show real output. Trim with `...`
+  only where the trimmed lines are irrelevant.
+- Numbers appear only when a command in the session produced them, and the
+  command sits beside them.
+- Do not copy README.md sentences. Re-derive from code and restate.
+- A feature new in 0.6.0 opens its section with `New in 0.6.0.` Nothing else
+  carries a version.
+- A page is 300 to 1500 words of prose plus tables. Past that, split as the
+  brief says.
+
+## Page skeletons
+
+| type | sections in order |
+|---|---|
+| guide | What it is · Minimal example · Reference table · Behaviour · Limits and errors · Related pages |
+| cli | Synopsis · Options · Output · Exit codes · Files written · Related pages |
+| api | Function tables by group · Structs · Constants · Ordering rules |
+| format | Layout · Records · Invariants · Versioning |
+| example | Screenshots · What it demonstrates · Build and check · Numbers from the blob · Source tour · Start from this |
+| project | free-form, short |
+
+Table columns:
+
+| table | columns |
+|---|---|
+| options | flag · argument · default · effect |
+| project keys | key · type · default · reaches |
+| attributes | attribute · element · effect · page |
+| properties | property · values · default · notes |
+| functions | signature · returns · scope · notes |
+| errors | code · value · triggered by · fix |
+| diagnostics | message · stage · severity · cause · fix · page |
+| lint rules | rule · threshold · message · opt-out |
+| records | offset · size · type · field · meaning |
+
+## Facts files
+
+Each agent writes `_facts/<page-id>.md` before it writes the page. The page
+is the reader's view; the facts file is the audit trail and the handoff.
+
+```markdown
+# facts: authoring/dynamic-text
+
+| id | fact | source | verified by | status |
+|---|---|---|---|---|
+| slot.capacity.default | data-slot-capacity defaults to 63 | packages/layout/src/box.js:212 | compiled a slot with no capacity; ir.slots[0].capacity == 63 | verified |
+| slot.lookup.global | ps2ui_slot_set resolves over the whole blob | runtime/ps2ui.c:1398 | runtime/tests/test_runtime.c "dynamic text (F2)" | verified |
+```
+
+Statuses:
+
+| status | meaning |
+|---|---|
+| verified | a command or test in the session proved it |
+| code-only | read in source; no executable check exists; the row says why |
+| contradicts-readme | verified, and README.md says otherwise; the row cites the README line |
+
+Fact ids are dotted, lowercase, stable. A dependent brief names the parent
+facts files to read first and the ids it must not restate differently. A
+child that finds a parent fact wrong appends a `## disputes` section to its
+own facts file naming the id and the evidence, and stops. The orchestrator
+reruns the parent, then the child.
+
+## Screenshots
+
+- UI renders come from the Python previewer only: `ps2ui_bake.preview.render`,
+  `preview.montage`, and the `--preview`, `--montage`, `--preview-display`
+  flags. The browser never draws UI pixels, in the docs as in the tool.
+- Browser captures are allowed only for the `ps2ui serve` page chrome. Take
+  them with Playwright against the preinstalled Chromium
+  (`executablePath: '/opt/pw-browsers/chromium'`, viewport 1280x800). They
+  are `checked: false` in the manifest, because browser text rendering is
+  not byte-stable across versions.
+- Theme rows: `preview.render(uib, screen=NAME, theme=N)`. Focus states:
+  `preview.montage(uib)`. Widescreen: `--preview-display`. Offsets:
+  `preview.render(uib, ..., offset=(dx, dy))`.
+- Path: `assets/<page-id>/<what>.png`. Alt text states screen, theme,
+  aspect and state.
+- `assets/assets.json` lists every PNG:
+
+```json
+[
+  {
+    "path": "assets/authoring/theming/library-theme-1.png",
+    "page": "authoring/theming",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('OUT')\"",
+    "checked": true
+  }
+]
+```
+
+  `OUT` is substituted by the checker. `tools/check-site-assets.py` re-runs
+  every `checked: true` command into a temporary directory and diffs bytes.
+  CI runs it after the example builds, next to `check-example-figures.py`.
+  The script is written by the first agent that renders a PNG (the
+  `cli/ps2ui-bake` brief owns it).
+
+## Execution order
+
+Briefs in one wave run in parallel. A wave starts when every facts file it
+reads exists and carries no unresolved dispute.
+
+| wave | pages | reads |
+|---|---|---|
+| 0 | authoring/project-file · cli/ps2ui-layout · cli/ps2ui-bake · cli/ps2ui-check · cli/ps2ui-fontgen · runtime/api-reference · runtime/errors-and-constants · reference/ir-format · reference/uib-format | code only |
+| 1 | cli/ps2ui · authoring/html · authoring/css · authoring/text-and-fonts · authoring/images · authoring/dynamic-text · authoring/lists · authoring/focus-and-navigation · authoring/theming · authoring/screens-and-overlays · authoring/video-modes · authoring/crt-linter · authoring/vram-budget · runtime/frame-loop | wave 0 |
+| 2 | cli/previewer · runtime/integrating · runtime/streaming-art · runtime/moving-and-hiding · runtime/telemetry · reference/diagnostics · reference/compatibility | waves 0 to 1 |
+| 3 | getting-started/installation · getting-started/quickstart · getting-started/tutorial-game-browser · runtime/deploying · runtime/first-boot · examples/memcard · examples/opl-env · examples/channel6 · project/faq · project/glossary | waves 0 to 2 |
+| 4 | index · getting-started/how-it-works · project/changelog · project/contributing · project/security-and-license · project/internals | everything |
+
+Running a wave: spawn one agent per brief with the brief's path as its only
+instruction. When all agents in the wave have written their facts files,
+grep `_facts/` for `## disputes`. If any exist, rerun the disputed parent
+with the dispute appended to its brief, then the disputing child. Then start
+the next wave. After wave 4, run the verification below over the whole
+tree.
+
+## Model tiers
+
+Each brief names the model tier the orchestrator spawns it on. The rule:
+
+| tier | when | pages |
+|---|---|---|
+| opus | the page's claims are derived from source and proved by running code | every wave-0 page; every `authoring/*` page; cli/ps2ui; cli/previewer; runtime/frame-loop; runtime/integrating; runtime/streaming-art; runtime/moving-and-hiding; reference/diagnostics |
+| sonnet | the page consolidates facts its parents already verified, follows a CI-executed script, or restates repository documents | runtime/telemetry; reference/compatibility; every `getting-started/*`, `examples/*`, `project/*` page; index; runtime/deploying; runtime/first-boot |
+
+A sonnet page that finds a parent fact wrong writes a `## disputes` section like
+any other page; the rerun of the disputed parent is on opus.
+
+## Environment
+
+Every agent runs this first and stops if any step fails:
+
+```sh
+python3 -m pip install Pillow
+pip install -e packages/baker
+cd packages/layout && npm link && cd ../..
+python3 tools/check-versions.py --except-tag
+./examples/memcard/build.sh
+```
+
+That puts `ps2ui`, `ps2ui-bake`, `ps2ui-check`, `ps2ui-fontgen`,
+`ps2ui-layout` and `ps2ui-dev` on PATH, pointed at this tree. Pages show the
+installed spelling. Where a checkout spelling matters (CI, the examples'
+`build.sh`), the page shows it once and links `cli/ps2ui#from-a-checkout`.
+
+## Known drift
+
+Every brief pastes the rows that touch its page. A page documents the
+truth column; it never repeats the claim column.
+
+| tag | where the stale claim lives | claim | truth |
+|---|---|---|---|
+| D1 | README.md Tests section; CONTRIBUTING.md | `make -C runtime test test-compat`; `PS2UI_GSKIT_HAS_FUNCTION=0` | No such target or macro. Targets: `test`, `test-narrow`, `syntax-check`, `timing-check`, `clean`. gsKit has no per-texture TFX field (BACKLOG.md F28). Fixed on this branch: both documents name `make test` and `make syntax-check CC=clang`. |
+| D2 | README.md "Moving things at runtime"; runtime/ps2ui.h comment near `ps2ui_offset_set` | `ps2ui_focus_rect` | Not declared. Geometry is read from `ctx->focus_nodes[ctx->focus]`. |
+| D3 | README.md (absent) | runtime API is what README shows | `ps2ui_theme_set`, `ps2ui_clut_set`, `ps2ui_slot_get`, `ps2ui_visible_get`, `ps2ui_list_select`, `ps2ui_list_selected_row`, `ps2ui_screen_name`, `ps2ui_arena_size`, `ps2ui_offset_get`, `ps2ui_crc32`, `ps2ui_clut_csm1` exist in `runtime/ps2ui.h` and are documented. |
+| D4 | README.md "Focus and navigation", "Widescreen and video modes" | `--focus-wrap`, `--mode`, `--display-aspect` read as bake flags | They are `ps2ui-layout` flags. `--mode` is also on `ps2ui build`. `ps2ui-bake` has none of them. |
+| D5 | README.md "Previewing in a browser" | the serve option list omits `--uib` | Options: project positional, `--uib`, `--port`, `--screen`, `--theme`, `--no-watch`, `--selftest`. |
+| D6 | README.md C snippet under Quick start | `ps2ui_load` and `ps2ui_upload` called without checking returns | Document the checked form from `runtime/sample/main.c` (load failure and upload failure are fatal there). |
+| D7 | README.md "Supported CSS" | the property list | Missing: `opacity`, `min-*`/`max-*`, `align-self`, `flex` shorthand, `row-gap`, `column-gap`, `:root` custom properties, `var()`, `@theme`, `data-nocontrast`, capacity default 63, the `name` attribute, `--min-font-size`. Overstated: `border-radius` takes one px value; named colours are eight; keyword-valued properties are unvalidated; the `:focus` geometry guard does not cover `letter-spacing`, `font-weight`, `text-align`, `text-overflow`; there is no `white-space: pre`; `&nbsp;` collapses to a space. |
+| D8 | docs/format-ir.md | `canvas` is `{w, h}`; no `themes`; no theme vectors on commands and slots | The emitted IR carries `canvas.displayAspect`, `canvas.par`, `canvas.display`, a top-level `themes` array, and `fillVar`/`fillThemes`/`borderColorVar`/`borderColorThemes`/`colorVar`/`colorThemes` on commands plus `colorBaseVar`/`colorFocusVar`/`colorBaseThemes`/`colorFocusThemes` on slots. |
+| D9 | packages/layout/bin/ps2ui-dev.js comment; packages/baker/ps2ui_bake/ps2ui.py `cmd_dev` | `ps2ui dev` honours `--strict` and `--min-font-size` | Fixed on this branch: `ps2ui-dev` puts the floor in `options.lint` and `--strict` fails the build before the bake, held by `packages/layout/test/cli.test.js` and `TestDevAgreesWithBuild` in `packages/baker/tests/test_serve.py`. Pages document the working flags. |
+| D10 | packages/baker/ps2ui_bake/serve.py `prog="ps2ui-serve"` | a `ps2ui-serve` command | Not installed. The command is `ps2ui serve`. |
+| D11 | runtime/ps2ui.c comments near the upload loop and `list_row_name` | `PS2UI_MAX_TEXTURES`, `PS2UI_MAX_LIST_ROWS` | Neither exists. The only runtime cap is `PS2UI_MAX_SCISSOR_DEPTH` (8). Table counts are bounded by the format's uint16 fields. Fixed on this branch: both comments name the real bounds. |
+| D12 | README.md Quick start C comment | `PS2UI_VERSION` keeps baker and runtime from drifting | It is the frozen format version, 7. Baker and runtime match because `ps2ui vendor-runtime` ships both files from one package. |
+| D13 | README.md Quick start C snippet | `arena[1662]` | Blob-specific and target-specific. Quote the arena line from a bake in the session, with the command. The bake prints the EE figure; `ps2ui-check` prints the EE and 64-bit host figures. |
+| D14 | README.md "Multiple screens" | a second `ps2ui_render` in one frame with nothing else said | `gsKit_TexManager_nextFrame` is called once after the flip, never between the two renders; `ctx->stats` holds only the last render's counters. |
+
+Three rows (D1, D9, D11) were code or comment defects and are fixed on this
+branch. Pages written before the fix were updated to the fixed behaviour.
+
+## Follow-ups found while writing pages
+
+Code and repository-document defects the page agents found that no drift
+row listed. Each is recorded in the named facts file under `## follow-up`
+with the evidence. They are fixes for separate changes, not for pages.
+
+| where | finding | facts file |
+|---|---|---|
+| packages/layout/src/text.js comment | the "To" kern at 11px is -2px, not the 0px the comment states | authoring/text-and-fonts |
+| packages/layout/src/index.js fromManifest | `~` in a manifest `metrics` path expands in the baker but not the compiler | authoring/text-and-fonts |
+| packages/layout/src/html.js "malformed tag" | unreachable throw; parseAttrs returns only on the two characters the caller then tests | authoring/html |
+| packages/layout/src/box.js unknown-attribute warning | covers `data-` names only, so `focusabel` compiles silently to zero focusables | authoring/html |
+| packages/layout/src/box.js ":focus styles matched ... can never show" | unreachable warning; a `:focus` compound never matches outside a focusable scope | authoring/focus-and-navigation |
+| packages/layout/src/css.js GEOMETRY_PROPS | `position` is listed but has no case, so it is refused under `:focus` and warned elsewhere | authoring/css |
+| packages/layout/src/css.js compoundMatches | a `:focus` compound matching no focusable element is dropped with no diagnostic | authoring/css |
+| packages/layout/src/paint.js | `letter-spacing`, `text-align`, `text-overflow` under `:focus` are accepted and discarded; `font-weight` reaches the focused command unmeasured | authoring/css |
+| packages/layout/src/css.js themeCount | an `@theme` block in a sheet with no `:root` name fails with an internal vector-width error | authoring/theming |
+| runtime/ps2ui.h theme comment | says no baker sets PS2UI_FEAT_ROLE_TINTS; uib.py sets it from n_theme | authoring/theming |
+| README.md "What it looks like" | calls a theme a CLUT row; it is a tint-table row | authoring/theming |
+| packages/baker/ps2ui_bake/preview.py | never applies a slot's capacity; an empty override falls back to the placeholder | authoring/dynamic-text |
+| packages/baker/ps2ui_bake/serve_page.html | slot box `maxLength` counts UTF-16 units against a byte capacity | authoring/dynamic-text |
+| runtime/ps2ui.c list API | `ps2ui_list.rows` is never reconciled with the blob; `list_sync_focus`'s result is discarded at both call sites | authoring/lists |
+| runtime/ps2ui.c, README.md, ps2ui.h | focus-name uniqueness within a screen is stated as a guarantee and enforced nowhere | authoring/focus-and-navigation |
+| packages/baker/ps2ui_bake/quads.py | `Image.getdata()` is deprecated in current Pillow and warns on every PSMCT32 bake | authoring/images |
+| packages/baker/ps2ui_bake/cli.py | a missing IR path raises an uncaught traceback instead of a one-line refusal | authoring/screens-and-overlays |
+| BACKLOG.md "Two gaps" | says a transparent-background render returns alpha 255 everywhere; measured extrema are (157, 255) | authoring/screens-and-overlays |
+| docs/tutorial-uc3.md | the unfixed contrast pair is 2.28:1, not the 2.33:1 the prose says | authoring/crt-linter |
+| packages/layout/src/lint.js overscan (focusable) | the message names an action-safe area the check never computes; it tests the canvas edge | authoring/crt-linter |
+| packages/baker/ps2ui_bake/serve_page.html | the safe-area overlay draws a 10% inset; the lint uses 5% | authoring/crt-linter |
+| packages/baker/ps2ui_bake/serve.py | warnings never carry a `command`, so the page's jump-to-command branch is dead | authoring/crt-linter |
+| examples/channel6/ui/channel6.css | cites PS2UI_MAX_TEXTURES and PS2UI_MAX_SLOTS, which do not exist | authoring/video-modes |
+| packages/baker/ps2ui_bake/project.py set_out_override | `-o` renames the screens inside the blob, so `screen_set("games")` fails on the 16:9 channel6 bake | authoring/video-modes |
+| README.md "Multiple screens" | places gsKit_TexManager_nextFrame before the flip; the sample places it after | runtime/frame-loop |
+| runtime/ps2ui.c tex_index_by_name | a third comment naming PS2UI_MAX_TEXTURES, beyond the two in drift row D11 | authoring/vram-budget |
+| docs/format-ir.md | the streamed image form `{streamed, name}` is undocumented, beyond drift row D8 | reference/ir-format |
+| README.md "Moving things at runtime" | says ps2ui serve and ps2ui-bake --preview apply the same offset; neither exposes it, the served frame is always at (0, 0) | runtime/moving-and-hiding |
+| runtime/Makefile `test` target | test-narrow runs last, so `PASS: 5 checks` prints before `PASS: 410 checks` | runtime/integrating |
+| packages/baker/ps2ui_bake/vendor.py closing message | prints the docker line before the reader has a Makefile; the sample Makefile is linked two paragraphs later | runtime/integrating |
+| tools/make_cover_raw.py convert() | a second deprecated `Image.getdata()` site, unreached by `--self-test` | runtime/streaming-art |
+| packages/baker/ps2ui_bake/serve.py BuildPipeline.build | redirect_stderr rebinds sys.stderr only, so the compiler subprocess's diagnostic never reaches the build banner | cli/previewer |
+| packages/baker/ps2ui_bake/serve.py PreviewState | focus is one name for all screens, not remembered per screen as docs/tutorial-uc3.md says; the test passes only because both memcard screens share a name | cli/previewer |
+| packages/baker/ps2ui_bake/serve.py /input | rejections return the bare offending value as the error, where build_server has the helpful message | cli/previewer |
+| packages/baker/ps2ui_bake/serve.py | HEAD requests answer 501 | cli/previewer |
+| packages/baker/tests/test_serve.py | not importable as `tests.test_serve` because `fonts_available` is resolved from the tests directory only | cli/previewer |
+| packages/layout/bin/ps2ui-layout.js and ps2ui-dev.js | `--display-aspect` is parsed above the try block, so a bad ratio prints a Node stack trace instead of the one-line `aspect:` diagnostic | reference/diagnostics |
+| packages/layout/bin/ps2ui-dev.js usage | omits `--display-aspect`, which the tool accepts and acts on | reference/diagnostics |
+| packages/layout/src/paint.js vectorOf | dead throw: resolveColorValue always sets the name and the vector together | reference/diagnostics |
+| packages/layout/src/focus.js | dead `default:` throw in a switch over the four directions its only caller iterates | reference/diagnostics |
+| packages/baker/tests/test_baker.py | not importable as `tests.test_baker` either; the same `fonts_available` resolution, so `unittest discover -s tests` is the only working spelling | getting-started/installation |
+| runtime/sample/Makefile comment on SCREEN= | says an unmatched screen name holds solid blue; main.c clears to magenta and its own comment explains why blue was rejected | runtime/deploying |
+| examples/opl-env/build.sh header comment | says the script runs the host runtime tests; it runs `ps2ui build`, `tools/check-blobs.sh` and its own `check.py` and never invokes `make -C runtime` | examples/opl-env |
+| examples/opl-env/README.md scale comparison | states memcard as a 175,120-byte blob with 808 commands; the built memcard blob is 176,208 bytes with 1,062 commands, and `check-example-figures.py` does not cover this sentence | examples/opl-env |
+| examples/channel6/README.md, `check.py` sentence | says `check.py` runs 24 checks; it prints `PASS: 47 checks, 0 failure(s)`, and no checker covers the sentence | examples/channel6 |
+
+## Brief template
+
+Each `_prompts/<page-id>.md` has exactly these ten sections:
+
+```
+# Page: <id> (<title>)
+## Purpose and audience
+## Read first
+## Sources of truth
+## Claims to verify, and how
+## Screenshots
+## Page structure
+## Cross-links
+## Facts to emit
+## Out of scope
+## Done when
+```
+
+The brief is self-contained: it pastes the voice rules and the drift rows
+it needs rather than linking them, so an agent that reads only its brief
+still writes to the contract.
+
+## Verification
+
+Two committed tools, both run by CI:
+
+```sh
+python3 tools/check-site-pages.py   # ids, version stamps, page: and repo: links, citation drift, voice, images, word budgets
+python3 tools/check-site-assets.py  # every checked render re-rendered and byte-compared
+python3 tools/check-tutorial.py     # both tutorials execute: docs/tutorial-uc3.md and getting-started/tutorial-game-browser.md
+```
+
+After editing a `repo:` citation, run `python3 tools/check-site-pages.py --pin`
+and commit `_citations.tsv` with the page.

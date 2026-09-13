@@ -1,0 +1,42 @@
+# facts: getting-started/installation
+
+Session commands behind the rows below, run from the repository root unless
+noted. `pip install`, `npm install` and `npm link` were not run in this
+session; the editable install (`pip install -e packages/baker`) and the
+`npm link` in `packages/layout` were already done by the environment and are
+reused as-is.
+
+- `ps2ui --version`
+- `ps2ui-layout --version`
+- `which ps2ui`
+- `python3 -c "from PIL import features; print(features.check('raqm'), features.check('fribidi'))"`
+- `PS2UI_LAYOUT=/bin/false ps2ui build`, run inside a scratch copy of
+  `examples/memcard` made with `cp -r examples/memcard <scratch>/` and
+  `rm -rf <scratch>/memcard/build`. Nothing under `examples/memcard/build/`
+  was touched.
+- `python3 -m unittest discover -s tests -p test_baker.py -k TestFontgenRefusesWithoutRaqm -v`
+  from `packages/baker`.
+
+Line numbers were re-located by symbol in this session.
+
+| id | fact | source | verified by | status |
+|---|---|---|---|---|
+| install.commands | `pip install ophtml` and `npm install -g @ophtml/layout` install the four Python commands and the two Node commands. `ps2ui --version` prints `ps2ui 0.6.0.dev0`; `ps2ui-layout --version` prints `ps2ui-layout 0.6.0-dev.0`. | packages/baker/pyproject.toml:17-24 (`[project.scripts]`); packages/layout/package.json:11-14 (`bin`); .github/workflows/registry.yml:148-149 runs the same two install lines against a plain registry checkout | this session: `ps2ui --version` printed `ps2ui 0.6.0.dev0`, exit 0; `ps2ui-layout --version` printed `ps2ui-layout 0.6.0-dev.0`, exit 0. The two install lines were not run here (forbidden this run); they are read from the manifests and from the CI job that runs them. Restates parent facts `cli.ps2ui.version`, `cli.ps2ui.entry-point`, `compat.versions` | verified |
+| install.requirements | Node.js needs 18 or newer, Python needs 3.9 or newer, Pillow needs 9 or newer. Raqm and fribidi are needed only for `ps2ui fontgen`. The ps2dev toolchain is needed only for the console half. | packages/layout/package.json:22 (`engines.node`); packages/baker/pyproject.toml:11-12 (`requires-python`, `dependencies`) | read directly from both manifests in this session. Restates parent fact `compat.platforms` verbatim for Node/Python/Pillow; restates `compat.platforms.macos-fribidi` for Raqm/fribidi; restates `integrate.vendor.behaviour` and `integrate.toolchain` for the ps2dev line | verified |
+| install.raqm.check | This machine's Pillow reports Raqm and fribidi both present, so `ps2ui fontgen` never refuses here. | packages/baker/ps2ui_bake/fontgen.py:272 (`features.check("raqm")`) | `python3 -c "from PIL import features; print(features.check('raqm'), features.check('fribidi'))"` printed `True True` | verified |
+| install.raqm.remedy | `_raqm_remedy()` reports the Pillow version, platform and machine, asks `features.check("fribidi")` separately, and leads with `brew install fribidi` / `apt install libfribidi0` / `dnf install fribidi` when fribidi alone is missing. If fribidi is already present, or the package-manager fix does not clear it, the remedy is a Pillow rebuild against Raqm: `brew install libraqm` plus a `PKG_CONFIG_PATH` built from `brew --prefix` on macOS, then `pip install --no-binary pillow --force-reinstall pillow` everywhere. | packages/baker/ps2ui_bake/fontgen.py:103-226 (`_raqm_remedy`), 229-256 (`_rebuild_hint`) | `python3 -m unittest discover -s tests -p test_baker.py -k TestFontgenRefusesWithoutRaqm -v` from packages/baker: 6 tests, OK. `test_main_exits_nonzero_and_writes_nothing` printed the mocked refusal verbatim, pasted on the page. This machine has Raqm (`install.raqm.check`), so the unmocked tool never takes this path here; marked code-only for that reason, verified for the mocked text the test printed | code-only (unmocked run); verified (the printed remedy text, from the test in this session) |
+| install.layout-discovery.override-failure | With `PS2UI_LAYOUT` pointing at a program that always fails, `ps2ui build` reports the compiler failure and exits 1, rather than falling through to another discovery step. | packages/baker/ps2ui_bake/ps2ui.py:36-57 (`layout_command`) | in a scratch copy of `examples/memcard` (build/ removed first), `PS2UI_LAYOUT=/bin/false ps2ui build` printed `ps2ui: ps2ui-layout failed on ui/library.html (exit 1)`, exit 1. Identical to parent fact `cli.ps2ui.layout-discovery`'s own run of the same command | verified |
+| install.checkout.editable | `pip install -e packages/baker` puts `ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` on PATH, resolved outside the checkout. | packages/baker/pyproject.toml:17-24 | `which ps2ui` printed `/usr/local/bin/ps2ui` in this session (the editable install was already in place; not re-run here) | verified |
+| install.console-half | Nothing about installing or verifying the two packages touches the ps2dev toolchain. The console half needs it only when vendoring and building the C runtime. | packages/baker/ps2ui_bake/vendor.py:237-252 (the toolchain notes `ps2ui vendor-runtime` prints) | restates parent fact `integrate.vendor.behaviour` and `integrate.toolchain`, both verified in `_facts/runtime/integrating.md` by scratch `ps2ui vendor-runtime` runs. No new command run here | verified |
+
+## findings
+
+- `packages/baker/tests/test_baker.py` is not importable as a plain module
+  (`python3 -m unittest tests.test_baker...` fails with
+  `ModuleNotFoundError: No module named 'fonts_available'`) because it
+  resolves `fonts_available` relative to the `tests/` directory only. The
+  working invocation is `python3 -m unittest discover -s tests -p
+  test_baker.py -k <name>` from `packages/baker`. ARCHITECTURE.md's
+  follow-ups table already records the same shape of defect for
+  `test_serve.py`, attributed to `cli/previewer`; this is a second instance,
+  in `test_baker.py`, not previously listed.
