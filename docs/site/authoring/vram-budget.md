@@ -13,13 +13,13 @@ sources: [packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/cli.py, p
 ## What it is
 
 The Graphics Synthesizer holds 4 MiB of VRAM. Framebuffers and textures
-share it. `ps2ui-bake` sums every texture and CLUT in the blob, charges
-the sum against a budget, prints a per-texture breakdown, and returns 1
-without writing the blob when the sum is over.
+share it. `ps2ui-bake` sums every texture and CLUT in the blob and charges the sum
+against a budget. It prints a per-texture breakdown. It returns 1 without
+writing the blob when the sum is over.
 
 The budget is a bake-time decision, not a console-time one. The baker
-knows every texture it emits, so an over-budget UI fails at the desk with
-a table rather than on the console with an allocator error.
+knows every texture it emits. An over-budget UI therefore fails at the
+desk with a table, not on the console with an allocator error.
 
 The default budget is 4 MiB minus three framebuffers at the canvas
 resolution. Override it per project with `vramBudget`, or per command
@@ -128,6 +128,7 @@ $ ps2ui-bake covers.json dialog.json -o bench.uib
 ...
   textures 368640 B of 753664 B budget (48%)
 ps2ui-bake: 2 screen(s), 74 records, 9 textures (96 KiB baked + 256 KiB reserved by slots), 1 CLUTs -> bench.uib
+ps2ui-bake: arena 1875 bytes (static uint8_t arena[1875] __attribute__((aligned(16))))
 ```
 
 Slot 1 is a 128x128 PSMCT32 cover. Pass 65536 as `len`. The two figures
@@ -185,7 +186,8 @@ error: texture VRAM footprint exceeds budget (see breakdown above; override with
 796x448 is the canvas that gives square pixels at 16:9 on a 448-line
 frame. Declaring the two-buffer figure clears it:
 `ps2ui-bake wide.json -o wide.uib --vram-budget 1212416` prints
-`textures 24576 B of 1212416 B budget (2%)` and exits 0.
+`textures 24576 B of 1212416 B budget (2%)`, then
+`arena 1066 bytes`, and exits 0.
 
 Higher still, two framebuffers stop fitting and no budget helps. At 448
 lines the two crossovers are 769 and 1153 columns.
@@ -222,13 +224,13 @@ unusable at this canvas, see notes`. The checker's VRAM check is on
 ### On the console
 
 `ps2ui_upload` preflights before it transfers anything. It sums
-`gsKit_texture_size` per texture, adds one 16x16 PSMCT32 block per PSMT8
-texture for the palette, and returns -1 when the sum plus the current
-VRAM pointer exceeds 4 MiB. Nothing is transferred and `ctx->uploaded` stays 0.
+`gsKit_texture_size` per texture and adds one 16x16 PSMCT32 block per
+PSMT8 texture for the palette. It returns -1 when that sum plus the
+current VRAM pointer exceeds 4 MiB. Nothing is transferred and `ctx->uploaded` stays 0.
 
 The refusal is all-or-nothing by design. `gsKit_TexManager_bind` cannot
-report exhaustion: its allocator evicts in a loop that never exits when
-nothing can ever fit, so an over-budget blob is a hang rather than an
+report exhaustion. Its allocator evicts in a loop that never exits when
+nothing can ever fit. An over-budget blob is therefore a hang, not an
 error code. `make -C runtime test` covers it.
 
 ```
@@ -259,9 +261,9 @@ boot](page:runtime/first-boot#behaviour) turns that return into step 9.
 | VRAM shrinks after upload | `ps2ui_render` skips every textured draw and sets `stats.vram_lost` |
 
 The budget covers textures and CLUTs only. The arena is host RAM and is
-counted separately. Its figure is per blob, not a constant: the bakes in
-this session printed `arena 1662 bytes` for memcard, `arena 1875 bytes`
-for the bench blob and `arena 1066 bytes` for the 796x448 blob.
+counted separately. Its figure is per blob, not a constant. The bakes above
+printed `arena 1662 bytes` for memcard, `arena 1875 bytes` for the bench
+blob and `arena 1066 bytes` for the 796x448 blob.
 
 The page model charges whole pages, so a texture smaller than a page
 costs a whole one. The memcard bake charges 8192 B for an 11x11 icon of
