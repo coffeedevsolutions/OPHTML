@@ -90,5 +90,27 @@
     "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/memcard/build/ui.uib')).save('OUT')\"",
     "alt": "Nine renders of the memcard library screen at 640x448, 4:3, theme 0, each with a different focusable focused",
     "checked": true
+  },
+  {
+    "path": "assets/authoring/video-modes/games-1x1.png",
+    "page": "authoring/video-modes",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui-16x9.uib'), screen='games-16x9').save('OUT')\"",
+    "alt": "channel6 games screen, root theme, 16:9 blob rendered at 1:1 in framebuffer pixels (640x448), initial focus on the Aurora Drift tile",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/video-modes/games-display.png",
+    "page": "authoring/video-modes",
+    "command": "PYTHONPATH=packages/baker python3 -m ps2ui_bake examples/channel6/build/games-16x9.json examples/channel6/build/probe-16x9.json -o OUT.uib --preview-display OUT",
+    "alt": "the same channel6 games frame resampled to the panel aspect, 796x448 at 16:9, root theme, initial focus on the Aurora Drift tile",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/video-modes/serve-forced-4x3.png",
+    "page": "authoring/video-modes",
+    "command": "ps2ui serve --uib examples/channel6/build/ui-16x9.uib --port 8237 & sleep 4; NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8237/',{waitUntil:'load'});await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0;},null,{timeout:30000});await p.selectOption('#aspectSel','force-4:3');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth===597;},null,{timeout:30000});await p.waitForTimeout(1200);await p.screenshot({path:'OUT'});await b.close();})();\"; kill %1",
+    "alt": "the ps2ui serve previewer at 1280x800, channel6 16:9 blob served with --uib, Aspect set to force-4:3, the games-16x9 screen squeezed to 597 pixels wide",
+    "checked": false,
+    "note": "browser capture of the ps2ui serve page chrome; browser text rendering is not byte-stable, so this is not re-rendered by the checker"
   }
 ]
