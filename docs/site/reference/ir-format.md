@@ -179,7 +179,16 @@ ps2ui-layout examples/opl-env/ui/landing.html examples/opl-env/ui/opl.css \
 | `state` | string | One of `always`, `unfocused`, `focused`. |
 | `focusId` | integer or null | The focus node this command belongs to. |
 
-A box whose base paint and `:focus` paint differ emits two commands with identical geometry, one `unfocused` and one `focused`. Identical paints merge into a single `always` command. A Node count over `library.json` printed `{"always":53,"unfocused":18,"focused":18}`.
+A box whose base paint and `:focus` paint differ emits two commands with identical geometry, one `unfocused` and one `focused`. Identical paints merge into a single `always` command. Count the states in the memcard screen:
+
+```sh
+node -e 'const c=require("./library.json").commands, n={};
+for (const x of c) n[x.state]=(n[x.state]||0)+1; console.log(JSON.stringify(n))'
+```
+
+```
+{"always":53,"unfocused":18,"focused":18}
+```
 
 ### rect
 
@@ -367,7 +376,7 @@ The opl-env landing screen resolves its subtitle from a custom property:
 
 Order is fixed: repeat, CSS, box and focus warnings first, then lint lines as `<rule>: <message>`, then per-theme lint lines as `@theme <name>: <rule>: <message>`. Geometry lints are deduplicated across theme rows. The colour lints `contrast` and `ntsc-red-bleed` are not, because two rows can fail for different reasons.
 
-The memcard compile emitted 28 lines, beginning:
+The memcard compile shown under [Layout](#layout) emitted 28 lines, beginning:
 
 ```
 overscan: text "PS2" at (28,25) leaves the title-safe area; a CRT may crop it
