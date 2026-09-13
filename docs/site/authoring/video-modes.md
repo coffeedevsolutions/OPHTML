@@ -148,7 +148,7 @@ Geometry is frozen at bake time, so the fix is authoring. Divide a radius by the
 
 ### The header field
 
-The header holds the ratio as two integers, `display_aspect_num` and `display_aspect_den`, at [ps2ui.h](repo:runtime/ps2ui.h#L110). `ps2ui-check` prints it on its last line.
+The header holds the ratio as two integers, `display_aspect_num` and `display_aspect_den`, at [ps2ui.h](repo:runtime/ps2ui.h#L110). `ps2ui-check` prints it in its summary line.
 
 ```sh
 ps2ui-check examples/channel6/build/ui-16x9.uib
@@ -166,7 +166,20 @@ PASS: 75 checks, 0 error(s), 1 warning(s)
 
 PAL is a taller framebuffer, 640x512, so its PAR differs from NTSC at the same panel aspect. The linter derives its title-safe inset from the canvas, at 5% per side. That is 32 by 22 pixels at 640x448 and 32 by 26 at 640x512.
 
-The same text therefore passes one canvas and fails the other:
+The same text therefore passes one canvas and fails the other. This screen puts 20px text at (40,24):
+
+```html
+<div class="screen">
+  <p class="head">CHANNEL 6</p>
+</div>
+```
+
+```css
+.screen { flex-direction: column; background: #060a14; padding: 24px 40px; }
+.head { font-size: 20px; color: #e8eefc; }
+```
+
+At `--canvas 640x448` it compiles silently. At `--canvas 640x512` the inset grows to 26 and the text falls outside it:
 
 ```sh
 ps2ui-layout inset/inset.html inset/inset.css -o out/i512.json --canvas 640x512
