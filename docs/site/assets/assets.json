@@ -68,5 +68,27 @@
     "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/lists/demo/ui/library.html docs/site/assets/authoring/lists/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --montage OUT",
     "alt": "Library screen montage, root theme, 4:3, six frames, one per focus state: the blue highlight steps down the six rows",
     "checked": true
+  },
+  {
+    "path": "assets/authoring/images/covers.png",
+    "page": "authoring/images",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='games').save('OUT')\"",
+    "alt": "channel6 games screen, root theme, 4:3, initial state: six palettized covers in a grid beside the details panel",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/focus-and-navigation/graph.png",
+    "page": "authoring/focus-and-navigation",
+    "command": "ps2ui serve examples/memcard --port 8137, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8137/, waits for #frame to report a naturalWidth, clicks #btnGraph and screenshots to OUT",
+    "alt": "The memcard library screen in ps2ui serve, Focus graph toggled on, blue arrows drawn between the nine focusables",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py"
+  },
+  {
+    "path": "assets/authoring/focus-and-navigation/states.png",
+    "page": "authoring/focus-and-navigation",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/memcard/build/ui.uib')).save('OUT')\"",
+    "alt": "Nine renders of the memcard library screen at 640x448, 4:3, theme 0, each with a different focusable focused",
+    "checked": true
   }
 ]
