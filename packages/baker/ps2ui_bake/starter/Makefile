@@ -44,8 +44,24 @@ EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 # written, and a starter that refuses to build over a warning in code
 # it did not write is a starter nobody keeps.
 
+# -lpad OUTSIDE the wiring markers above, and tied to the branch that
+# needs it. Two reasons, and the first is mechanical: `vendor-runtime`
+# prints those three lines to somebody integrating ps2ui into an app
+# that already has its own input, where -lpad is noise, and
+# _gskit_lines() asserts the block is exactly three lines.
+#
+# The second is that it was MISSING and the elf job is what said so.
+# EE_LIBS was lifted verbatim from runtime/sample/Makefile, where
+# `-lgskit -ldmakit` is complete because that sample names no libpad
+# symbol anywhere -- it loads no IOP service at all, deliberately. The
+# starter's input_init and input_edges are the first libpad callers
+# this repository has ever had, and the library did not come with
+# them. A copied line that is correct in its old home and incomplete
+# in its new one compiles perfectly and fails at the link.
 ifdef NOPAD
 EE_CFLAGS += -DPS2UI_STARTER_NOPAD
+else
+EE_LIBS   += -lpad
 endif
 
 ifdef SCREEN

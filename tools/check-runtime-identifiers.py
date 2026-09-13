@@ -111,11 +111,56 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # an entry, for no demonstrated defect. The README is the file with one.
 FILES = (("runtime/ps2ui.h", "c"),
          ("runtime/ps2ui.c", "c"),
+         # THE STARTER, which the wheel now carries beside the runtime
+         # pair. `--starter` writes it into a stranger's project, so
+         # its comments are API documentation for the same reader the
+         # header serves -- and it is comment-dense by design, since
+         # its whole job is explaining what a newcomer may change. It
+         # is also the file most likely to acquire a stale name later,
+         # for the same reason.
+         #
+         # Green the day it was added: 9 distinct identifiers, every
+         # one of them defined. Added for the reason #129 gave for
+         # pulling README.md in, with the difference stated rather than
+         # glossed -- the README had a demonstrated defect and this
+         # does not. The check was already written; the file is newly
+         # shipped; waiting for the first stale name is how the
+         # header's own three got there.
+         #
+         # The starter Makefile is deliberately NOT here. `EE_BIN =
+         # ps2ui_app.elf` matches the ps2ui_* pattern and defines
+         # nothing, so it would need a rule before it needed
+         # including, and one token does not earn one.
+         ("packages/baker/ps2ui_bake/starter/main.c", "c"),
          ("README.md", "prose"))
 
 # Only the C pair defines things. A token existing solely in the README
 # does not make it real.
 DEFINING = ("runtime/ps2ui.h", "runtime/ps2ui.c")
+
+# A FILE THAT OWNS A PREFIX MAY DEFINE ITS OWN NAMES, and only its own.
+#
+# The starter has three build-time macros of its own -- PS2UI_STARTER_
+# ARENA, _SCREEN, _NOPAD -- which its comments explain because a reader
+# is invited to change them. They are #defined in that file and nowhere
+# in the runtime, which is correct: they are not API. So the starter's
+# comments resolve against the C pair PLUS its own code.
+#
+# SCOPED TO A PREFIX RATHER THAN JUST ADDING THE FILE TO DEFINING, and
+# the difference is the whole point. Adding it to DEFINING would let a
+# token that exists only in the starter satisfy a comment in ps2ui.h --
+# which is precisely the hole #129 closed when it kept README.md out of
+# DEFINING so a README-only name could not make an identifier look
+# real. The starter owns PS2UI_STARTER_*; it does not get to vouch for
+# anything else, and nothing else gets to vouch for it.
+#
+# Found by adding the file: the first version of this corpus entry went
+# red on PS2UI_STARTER_ARENA, and a review that measured the same file
+# by hand had reported it green at 9 identifiers. Running it is what
+# found the tenth.
+SELF_DEFINING = {
+    "packages/baker/ps2ui_bake/starter/main.c": "PS2UI_STARTER_",
+}
 
 # Identifiers a comment may name even though the runtime does not
 # define them, because the comment's subject IS their absence. Each
@@ -188,7 +233,7 @@ def split_comments(src):
 
 def main():
     fail = []
-    real, mentioned = set(), {}
+    real, own, mentioned = set(), set(), {}
     for rel, mode in FILES:
         src = open(os.path.join(ROOT, *rel.split("/")), encoding="utf-8").read()
         if mode == "c":
@@ -197,6 +242,9 @@ def main():
             prose, code = src, ""
         if rel in DEFINING:
             real |= set(TOKEN.findall(code))
+        elif rel in SELF_DEFINING:
+            pre = SELF_DEFINING[rel]
+            own |= set(t for t in TOKEN.findall(code) if t.startswith(pre))
         for m in TOKEN.finditer(prose):
             if _is_path_component(prose, m):
                 continue
@@ -207,6 +255,12 @@ def main():
 
     for tok in sorted(mentioned):
         if tok in real:
+            continue
+        # A prefix-owned name, resolved against the one file allowed to
+        # define it -- and only when that file is the one naming it.
+        if tok in own and all(
+                f in SELF_DEFINING and tok.startswith(SELF_DEFINING[f])
+                for f in mentioned[tok]):
             continue
         # Per FILE, so an identifier excused in the header is not
         # thereby excused in the source.

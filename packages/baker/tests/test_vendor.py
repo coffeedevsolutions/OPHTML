@@ -351,9 +351,9 @@ class StarterTest(unittest.TestCase):
             body = fh.read()
         self.assertIn("# >>> gskit wiring", body)
         self.assertIn("# <<< gskit wiring", body)
-        for line in vendor._GSKIT_LINES.split("\n"):
+        for line in vendor._gskit_wiring().split("\n"):
             self.assertIn(line.strip(), body)
-        self.assertEqual(len(vendor._GSKIT_LINES.split("\n")), 3)
+        self.assertEqual(len(vendor._gskit_wiring().split("\n")), 3)
 
     def test_a_moved_marker_is_an_error_not_a_shorter_message(self):
         import tempfile as _tf
@@ -364,5 +364,43 @@ class StarterTest(unittest.TestCase):
         with open(os.path.join(d, "Makefile"), "w") as fh:
             fh.write("EE_CFLAGS += -I$(PS2DEV)/gsKit/include\n")
         vendor._STARTER = d
+        del vendor._GSKIT_CACHE[:]
+        self.addCleanup(vendor._GSKIT_CACHE.clear)
         with self.assertRaises(RuntimeError):
-            vendor._gskit_lines()
+            vendor._gskit_wiring()
+
+    # THE IMPORT-TIME RAISE, which is what this looked like before.
+    # Reading the starter Makefile at module scope meant a missing
+    # starter killed `vendor-runtime` in the form that needs no
+    # starter -- before argument handling, with a bare traceback, in a
+    # module where every other failure explains itself. Deferring the
+    # read to the one place that prints the lines is the fix; this is
+    # what says the fix is still in place.
+    def test_a_missing_starter_does_not_break_the_plain_command(self):
+        saved = vendor._STARTER
+        self.addCleanup(setattr, vendor, "_STARTER", saved)
+        self.addCleanup(vendor._GSKIT_CACHE.clear)
+        vendor._STARTER = os.path.join(self.tmp, "no-starter-here")
+        del vendor._GSKIT_CACHE[:]
+        rc, out = run_quiet(Args(self.dest))
+        self.assertEqual(rc, 0)
+        for f in vendor.FILES:
+            self.assertTrue(os.path.exists(os.path.join(self.dest, f)))
+
+    # And asking for a starter this install does not carry is a
+    # sentence, not a traceback. Same reasoning as the plain command
+    # above, one step further in: the runtime pair has already landed,
+    # so the failure must not read like nothing worked.
+    def test_asking_for_an_absent_starter_explains_itself(self):
+        from ps2ui_bake.project import ProjectError
+        saved = vendor._STARTER
+        self.addCleanup(setattr, vendor, "_STARTER", saved)
+        self.addCleanup(vendor._GSKIT_CACHE.clear)
+        vendor._STARTER = os.path.join(self.tmp, "no-starter-here")
+        del vendor._GSKIT_CACHE[:]
+        with self.assertRaises(ProjectError) as caught:
+            run_quiet(Args(self.dest, starter=True))
+        self.assertIn("carries no starter", str(caught.exception))
+        # ...and the runtime still landed, which is what the message says
+        for f in vendor.FILES:
+            self.assertTrue(os.path.exists(os.path.join(self.dest, f)))

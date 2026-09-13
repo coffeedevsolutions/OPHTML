@@ -274,22 +274,33 @@ def cmd_vendor_runtime(args):
           "image carries both:\n"
           "\n"
           "    docker run --rm -v \"$PWD:/work\" -w /work "
-          "ghcr.io/ps2dev/ps2dev make\n"
-          "\n"
-          "It ships gsKit at $PS2DEV/gsKit but does NOT put it on the "
-          "include path, so your Makefile needs these three lines or "
-          "ps2ui.c will not find <gsKit.h>:\n"
-          "\n"
-          "%s\n"
-          "\n"
-          "Starting from nothing rather than adding this to an app you "
-          "already have? Re-run with --starter and you get a main.c and "
-          "a Makefile beside these, which build to an ELF as they "
-          "stand.\n"
-          "\n"
-          "`ps2ui check` validates the blob. The path onto a console:\n"
+          "ghcr.io/ps2dev/ps2dev make\n")
+
+    wiring = _gskit_wiring()
+    if wiring is not None:
+        print("It ships gsKit at $PS2DEV/gsKit but does NOT put it on the "
+              "include path, so your Makefile needs these three lines or "
+              "ps2ui.c will not find <gsKit.h>:\n"
+              "\n"
+              "%s\n" % wiring)
+        print("Starting from nothing rather than adding this to an app you "
+              "already have? Re-run with --starter and you get a main.c "
+              "and a Makefile beside these, which build to an ELF as they "
+              "stand.\n")
+    else:
+        # THE RUNTIME PAIR IS ALREADY ON DISK AT THIS POINT. Losing the
+        # Makefile lines is a packaging slip, and turning it into a
+        # crash would discard work that succeeded -- so it degrades to
+        # one sentence naming what is missing, rather than a traceback
+        # over two files that landed correctly.
+        print("(The gsKit build lines are normally printed here. They are "
+              "read from the starter Makefile, which this install does "
+              "not carry -- an incomplete package rather than anything "
+              "you did. docs/deploying.md has them.)\n")
+
+    print("`ps2ui check` validates the blob. The path onto a console:\n"
           "https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/"
-          "deploying.md" % _GSKIT_LINES)
+          "deploying.md")
     return 0
 
 
@@ -335,7 +346,48 @@ def _gskit_lines():
     return "\n".join(out)
 
 
-_GSKIT_LINES = _gskit_lines()
+# LAZY, AND NOT AS A STYLE PREFERENCE. This used to be a module-scope
+# `_GSKIT_LINES = _gskit_lines()`, which reads the starter Makefile the
+# moment anything imports this module -- so a missing starter took down
+# `ps2ui vendor-runtime` with a bare FileNotFoundError traceback before
+# argument handling, INCLUDING the plain form, which needs no starter
+# and whose two files are sitting right there. Measured on a venv
+# install with starter/ moved aside: rc=1, nothing written, no
+# sentence.
+#
+# Every other failure in this module raises ProjectError with an
+# explanation. The only work that needs these lines is printing them,
+# so that is where they are read, and a packaging slip can no longer
+# remove a command that does not depend on the missing file.
+#
+# The raise inside _gskit_lines() stays loud on purpose: a moved marker
+# must fail rather than print a shorter message. Deferring WHEN it
+# fires does not soften WHAT it does.
+_GSKIT_CACHE = []
+
+
+def _gskit_wiring():
+    """The three lines, or None if this install has no starter at all.
+
+    TWO CONDITIONS THAT LOOK ALIKE AND ARE NOT. A moved or miscounted
+    marker block is a defect in this repository: _gskit_lines() raises
+    and it should, because the alternative is printing a message that
+    is short in the one way nobody re-reads. A starter directory that
+    is not there at all is a packaging slip on somebody else's machine,
+    reached AFTER ps2ui.c and ps2ui.h have already been written -- so
+    it degrades to a sentence rather than discarding work that
+    succeeded.
+
+    Collapsing the two was the original bug: the read ran at import,
+    so an absent starter killed the plain `vendor-runtime`, which needs
+    none of this, before argument handling and with no sentence at all.
+    """
+    if not _GSKIT_CACHE:
+        if not os.path.exists(os.path.join(_STARTER, "Makefile")):
+            _GSKIT_CACHE.append(None)
+        else:
+            _GSKIT_CACHE.append(_gskit_lines())
+    return _GSKIT_CACHE[0]
 
 
 def _write_starter(dest, shown, force):
@@ -347,6 +399,24 @@ def _write_starter(dest, shown, force):
     the whole behaviour -- the first draft reused the runtime's drift
     refusal and turned "you edited your own main" into an error.
     """
+    missing = [n for n in STARTER_FILES
+               if not os.path.exists(os.path.join(_STARTER, n))]
+    if missing:
+        # Asked for something this install does not carry. The runtime
+        # pair is already written, so this is a sentence and a nonzero
+        # exit rather than a traceback -- and it names the cause,
+        # because a reader cannot tell an incomplete wheel from their
+        # own mistake without being told.
+        from .project import ProjectError
+        raise ProjectError(
+            "this install carries no starter (%s missing from %s), so "
+            "--starter had nothing to write. ps2ui.c and ps2ui.h landed "
+            "normally.\n"
+            "  The starter is package data like the runtime, so a wheel "
+            "without it was built wrong -- worth reporting. "
+            "docs/deploying.md carries the build lines in the "
+            "meantime." % (", ".join(missing), _STARTER))
+
     written = []
     for name in STARTER_FILES:
         target = os.path.join(dest, name)

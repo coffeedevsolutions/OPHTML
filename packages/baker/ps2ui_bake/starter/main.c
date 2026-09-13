@@ -21,13 +21,21 @@
  *     across the clear, Z off, the arena outliving the context -- is
  *     there because that sample proved it on a screen.
  *
- *     THIS FILE IS NOT ITSELF BOOTED BY ANYTHING YET. CI compiles and
- *     links it in the ps2dev container, from an installed wheel, in
- *     both its pad and no-pad builds -- so it cannot rot against
- *     ps2ui.h and it cannot stop linking. It is not captured and not
- *     diffed. Same code, different file is not the same as tested,
- *     and saying otherwise here would be the exact defect this
- *     project keeps finding in its own comments.
+ *     THIS FILE IS NOT ITSELF BOOTED BY ANYTHING YET. CI compiles it
+ *     against the current ps2ui.h and links both its pad and no-pad
+ *     builds in the ps2dev container, from an installed wheel. It is
+ *     not captured and not diffed. Same code, different file is not
+ *     the same as tested, and saying otherwise here would be the
+ *     exact defect this project keeps finding in its own comments.
+ *
+ *     THE FIRST VERSION OF THIS PARAGRAPH WAS ITSELF THAT DEFECT. It
+ *     said the file "cannot stop linking" -- in the run where the pad
+ *     build did not link, because EE_LIBS was copied from a sample
+ *     that names no libpad symbol and -lpad did not come with it. The
+ *     job caught it; the sentence describing the job did not, having
+ *     been written from what the job was supposed to say rather than
+ *     from what it said. Read the run before believing this paragraph
+ *     again.
  *
  *   - The pad section is compile-verified only. This repository owns
  *     no console and its bring-up sample deliberately loads no IOP

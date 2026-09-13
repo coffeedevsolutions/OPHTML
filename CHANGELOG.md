@@ -46,6 +46,13 @@ without moving this line.
   has never been exercised by any test here, and `main.c`'s header says
   so rather than letting a green check imply otherwise.
 
+  That header first claimed the file *"cannot stop linking"* in the run
+  where the pad build did not link: `EE_LIBS` was copied from a sample
+  that names no `libpad` symbol, so `-lpad` never came with it. The job
+  caught it and the sentence about the job did not, because the
+  sentence was written from what the job was meant to say. The
+  incident is recorded in the header it was wrong in.
+
 ## 0.6.0 — 2026-09-12
 
 ### Added
