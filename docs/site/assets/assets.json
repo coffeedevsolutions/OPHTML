@@ -141,5 +141,26 @@
     "alt": "ps2ui serve on the crt-linter demo project: the library screen in the root theme at 4:3, the contrast warning listed under Warnings, command 013 selected in the command list and shown in the inspector",
     "checked": false,
     "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Serving the demo writes docs/site/assets/authoring/crt-linter/demo/build/, which is not committed."
+  },
+  {
+    "path": "assets/runtime/moving-and-hiding/offset-0.png",
+    "page": "runtime/moving-and-hiding",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', offset=(0, 0)).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, initial focus, no offset",
+    "checked": true
+  },
+  {
+    "path": "assets/runtime/moving-and-hiding/offset-up.png",
+    "page": "runtime/moving-and-hiding",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', offset=(0, -60)).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, slid up 60 px and clipped at the display edge",
+    "checked": true
+  },
+  {
+    "path": "assets/runtime/moving-and-hiding/offset-right.png",
+    "page": "runtime/moving-and-hiding",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', offset=(80, 0)).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, slid right 80 px and clipped at the display edge",
+    "checked": true
   }
 ]
