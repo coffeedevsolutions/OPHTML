@@ -186,6 +186,42 @@ written twice to avoid.
    holds because the file is re-exported with the version rendered into
    the artwork: the two move together or not at all.
 
+5b. **`docs/site/` — the deep-dive library moves with the version.**
+   Not a follow-up and not a docs-team problem: a step, here, before
+   the tag.
+
+   ```sh
+   python3 tools/check-doc-impact.py <previous tag>
+   ```
+
+   Everything this release changed is in that diff, so what the tool
+   names is the release's documentation surface. Read the list.
+
+   **What has to be true before you tag.** Every page whose `sources:`
+   name a file this release touched has been re-read against it. Every
+   `_facts` row whose `source` moved has been re-*measured*, not
+   re-worded — the row's `verified by` cell says how it was proved, so
+   prove it again. A feature new in this version opens its section with
+   `New in <version>.`, which is the library's own convention and the
+   only place a version number may appear in a page.
+
+   **Why before the tag, not after.** A release is the moment the most
+   people read these pages for the first time, and the moment they are
+   likeliest to be wrong: everything that shipped since the last tag
+   landed without them. Doing it afterwards publishes a version whose
+   documentation describes the one before it.
+
+   **Why a step and not a check.** Nothing mechanical can read a page
+   and say whether its prose is still true. `check-doc-impact.py`
+   bounds the surface and warns; a person decides. Same boundary F30
+   draws in `BACKLOG.md`.
+
+   **Why `5b` and not `6`.** The numbers in this list are cited from
+   outside it — `tools/check-versions.py` names steps 4, 8 and 9, and
+   `packages/baker/ps2ui_bake/__init__.py` names step 9 — so
+   renumbering would silently falsify three files to save one
+   character. The letter is the cheaper honesty.
+
 6. **`packages/layout/package.json`** — drop `publishConfig.tag` (or
    set it to `latest`) only when the version stops being a prerelease.
    The check requires the two to agree in both directions.

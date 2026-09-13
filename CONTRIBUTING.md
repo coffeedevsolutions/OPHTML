@@ -33,6 +33,44 @@ node packages/layout/bin/ps2ui-dev.js \
     -o build/dev
 ```
 
+## Before you open a PR: what does this change make wrong?
+
+Run it, and read the list:
+
+```sh
+python3 tools/check-doc-impact.py        # against origin/main
+```
+
+It names the documents that cite the files you touched, at both levels
+— the repository's own (`README.md`, `docs/*.md`, the example READMEs)
+and the deep-dive library under `docs/site/` when your checkout has it.
+
+**It warns and never fails, and that is deliberate.** A change can be
+genuinely doc-neutral, and a check that fires on correct work grows a
+skip flag that everyone passes within a week. The list is for a person
+to read. Acting on it is the rule; the tool only makes the rule cheap.
+
+Three things it cannot do, so do not read a clean run as a clean bill:
+
+- **File-level, not claim-level.** A comment fix flags the same
+  documents as an API removal.
+- **It cannot see a document that *should* have cited your file and did
+  not.** If you added a public function, no diff reaches the page that
+  ought to describe it.
+- **A document that names no paths is invisible to it.** Prose about
+  behaviour cannot be reached from a diff.
+
+The board is four months of what happens without this: a header comment
+that outlived its macro by 20 days, a README naming a Makefile target
+#39 deleted, a bench card naming a cause [F-005](docs/findings.md)
+proved impossible, and a stylesheet still citing constants #52 removed
+— that last one ten lines from prose corrected the day before, in the
+same file, missed because the sweep that caught the others keyed on a
+different removal's vocabulary.
+
+**Every version bump updates `docs/site/` too.** That is a release
+step, not a follow-up: see [docs/releasing.md](docs/releasing.md).
+
 ## How the codebase is shaped
 
 Three stages, two documented seams — read these first:
