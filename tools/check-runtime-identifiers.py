@@ -8,19 +8,47 @@ document in the wheel. So a comment naming a function or macro that
 does not exist is not a typo, it is a wrong manual shipped inside the
 artifact.
 
-Three were found at once, and each had shipped in 0.6.0:
+Three were found at once, all shipped in 0.6.0, AND THEY ARE TWO
+DIFFERENT DEFECTS. The distinction is worth the lines because the
+lessons differ and this checker catches both.
 
-    ps2ui.h    ps2ui_focus_rect      never existed. Written into the
-                                     ps2ui_offset_set comment while
-                                     documenting F27 -- the paragraph
-                                     explaining the newest call named
-                                     an imaginary one for the geometry
-                                     query, and the real answer is
+INVENTIONS -- wrong at the moment of writing. Nothing was ever called
+this, so the day the comment is written it is already false:
+
+    ps2ui.h    ps2ui_focus_rect      0 declarations, ever. Written into
+                                     the ps2ui_offset_set comment while
+                                     documenting F27: the paragraph
+                                     explaining the newest call named an
+                                     imaginary one for the geometry
+                                     query. The real answer is
                                      ctx->focus_nodes[ctx->focus].
-    ps2ui.c    PS2UI_MAX_TEXTURES    cited as the bound on a linear
-                                     scan. It is a uint16_t field.
-    ps2ui.c    PS2UI_MAX_LIST_ROWS   cited as the bound on a digit
-                                     loop that bounds itself.
+    ps2ui.c    PS2UI_MAX_LIST_ROWS   0 #defines, ever, including at the
+                                     commit that wrote its comment.
+
+A COMMENT THAT OUTLIVED A DELIBERATE REMOVAL -- true when written, and
+nobody's error:
+
+    ps2ui.c    PS2UI_MAX_TEXTURES    the macro WAS defined when the
+                                     comment was written. 1d2542e added
+                                     the comment; cd8def8 (#52, "Delete
+                                     the table ceilings") removed the
+                                     macro 4h26m later the same day, and
+                                     did not sweep the comments citing
+                                     it -- in a file another change was
+                                     touching that afternoon. The
+                                     comment was then false for 20 days.
+
+That second one is F28's class exactly -- "not drift: a correct removal
+whose documentation was never followed through" -- and a fourth
+recorded instance of it, beside F28's own eight sites, #121's stale
+counts and #125's B8. It is also the most interesting of the three,
+because no one got it wrong: the removal was right and the sweep was
+the missing half.
+
+A fence that catches both "you named something that never was" and
+"someone deleted what you named" is worth more than one that catches
+only carelessness. This catches both, because it asks the same lexical
+question of each.
 
 THE SOURCE CONTRADICTED ITSELF AND NOBODY NOTICED. ps2ui.h:288 already
 said, correctly, that PS2UI_MAX_TEXTURES "used to sit here ... They are
@@ -35,6 +63,23 @@ lexical question, not a claim about meaning, which is the distinction
 check-findings.py rule 6's note draws when it warns off matching claim
 text against prose.
 
+THREE SHAPES PASS, AND NONE IS REACHABLE TODAY. Recorded so the next
+reader does not re-derive them, and checked rather than assumed:
+
+  - A token with `/` on either side is treated as a path, so
+    `ps2ui_bogus/` would pass. Contrived, and the alternative --
+    enumerating paths -- is worse.
+  - split_comments treats everything outside a comment as code, so a
+    token appearing only in a string literal would count as existing.
+    Checked: no ps2ui_* or PS2UI_* token appears in any string literal
+    in either C file today.
+  - The staleness rule below is one-sided. It fires when a
+    NAMED_AS_ABSENT entry stops being cited, not when its identifier
+    becomes real -- if ps2ui_overlay_push is ever written, the entry
+    persists unremarked. Harmless, since the comment would then be
+    wrong for a reason this checker does not test, but it is half of
+    what "stopped being needed" means.
+
 THE ONE EXCEPTION IS DELIBERATE AND EXPLICIT. Prose that says a thing
 was REMOVED has to name it to be worth reading, and ps2ui.h:288 is
 exactly that: a paragraph explaining why three validation ceilings are
@@ -48,7 +93,29 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FILES = ("runtime/ps2ui.h", "runtime/ps2ui.c")
+# (path, mode). "c" reads the comments and treats everything else as
+# the code that defines things; "prose" reads the whole file, because
+# there is no code in it.
+#
+# README.md IS IN THE CORPUS BECAUSE THE SAME INVENTION WAS THERE.
+# ps2ui_focus_rect was written into README.md:366 by the same commit
+# that put it in ps2ui.h, and this PR corrected the README by hand
+# while the checker watched only the pair. Running this file's own
+# logic over the pre-fix README flags it with no new rules -- so the
+# fence stopped one line short of the defect it was built for.
+#
+# Scoped to README.md rather than all of docs/. Measured: docs/PLAN.md
+# names seven non-runtime tokens (the removed MAX_* family,
+# PS2UI_REQUIRE_FONTS, PS2UI_SAMPLE_OPLENV) and tutorial-uc3.md names
+# PS2UI_LAYOUT -- environment variables and build flags, each wanting
+# an entry, for no demonstrated defect. The README is the file with one.
+FILES = (("runtime/ps2ui.h", "c"),
+         ("runtime/ps2ui.c", "c"),
+         ("README.md", "prose"))
+
+# Only the C pair defines things. A token existing solely in the README
+# does not make it real.
+DEFINING = ("runtime/ps2ui.h", "runtime/ps2ui.c")
 
 # Identifiers a comment may name even though the runtime does not
 # define them, because the comment's subject IS their absence. Each
@@ -72,6 +139,11 @@ NAMED_AS_ABSENT = {
     ("runtime/ps2ui.h", "ps2ui_overlay_push"):
         "ps2ui.h:628, 'There is deliberately no ps2ui_overlay_push' -- an "
         "API named in order to say it was not written, and why",
+    ("README.md", "ps2ui_overlay_push"):
+        "README.md:424, the same point for the same reason",
+    ("README.md", "ps2ui_bake"):
+        "README.md:113, `python3 -m ps2ui_bake` -- the Python module, "
+        "which exists; not slash-adjacent, so the path rule cannot see it",
 }
 
 # Trailing `_` excluded on purpose: a comment writing PS2UI_TEXKIND_* or
@@ -117,17 +189,21 @@ def split_comments(src):
 def main():
     fail = []
     real, mentioned = set(), {}
-    for rel in FILES:
+    for rel, mode in FILES:
         src = open(os.path.join(ROOT, *rel.split("/")), encoding="utf-8").read()
-        comments, code = split_comments(src)
-        real |= set(TOKEN.findall(code))
-        for m in TOKEN.finditer(comments):
-            if _is_path_component(comments, m):
+        if mode == "c":
+            prose, code = split_comments(src)
+        else:
+            prose, code = src, ""
+        if rel in DEFINING:
+            real |= set(TOKEN.findall(code))
+        for m in TOKEN.finditer(prose):
+            if _is_path_component(prose, m):
                 continue
             mentioned.setdefault(m.group(0), set()).add(rel)
 
     print("ok - read %d identifier(s) out of the comments in %s"
-          % (len(mentioned), " and ".join(FILES)))
+          % (len(mentioned), " and ".join(f for f, _ in FILES)))
 
     for tok in sorted(mentioned):
         if tok in real:
@@ -141,9 +217,10 @@ def main():
                   % (tok, NAMED_AS_ABSENT[(sorted(mentioned[tok])[0], tok)]))
             continue
         where = ", ".join(unexcused)
-        msg = ("%s is named in a comment in %s and exists nowhere in the "
-               "runtime. These two files are the only API documentation "
-               "inside the wheel, so this is a wrong manual shipped to "
+        msg = ("%s is named in %s and exists nowhere in the "
+               "runtime. ps2ui.h and ps2ui.c are the only API "
+               "documentation inside the wheel, and README.md is the "
+               "front page, so this is a wrong manual shipped to "
                "somebody who cannot read the repository. Either the "
                "identifier is wrong, or the prose is about something that "
                "was removed or was deliberately never written -- in which "
@@ -153,7 +230,9 @@ def main():
         fail.append(tok)
 
     # The splitter's own precondition, checked rather than assumed.
-    for rel in FILES:
+    for rel, mode in FILES:
+        if mode != "c":
+            continue
         src = open(os.path.join(ROOT, *rel.split("/")), encoding="utf-8").read()
         if re.search(r'"[^"\n]*(/\*|\*/)[^"\n]*"', src):
             print("not ok - %s has a string literal containing a comment "
