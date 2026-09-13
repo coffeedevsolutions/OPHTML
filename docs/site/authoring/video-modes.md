@@ -105,7 +105,7 @@ Changing the panel aspect changes no pixel the compiler emits. The 1:1 render of
 cmp docs/site/assets/authoring/video-modes/games-1x1.png examples/channel6/build/preview.png
 ```
 
-That command prints nothing and exits 0. Only the header, the lint warnings and the panel-aspect preview differ between the two builds.
+That command prints nothing and exits 0. What the mode changes is the header, the lint warnings and the panel-aspect preview.
 
 ### Previewing at the panel's aspect
 
@@ -132,7 +132,7 @@ Forcing is the mismatch check. A 16:9 screen forced to 4:3 shows what a console 
 
 ### The distortion lint
 
-`aspect-distortion` fires once per document when PAR leaves 1.0 by more than 0.08. See [the CRT linter](page:authoring/crt-linter#reference-table) for the rule beside the others. Both 4:3 modes stay under the threshold and stay quiet.
+`aspect-distortion` checks the document once, when PAR leaves 1.0 by more than 0.08. It emits one warning for rounded corners and one for images, each only when that kind is present. See [the CRT linter](page:authoring/crt-linter#reference-table) for the rule beside the others. Both 4:3 modes stay under the threshold and stay quiet.
 
 ```sh
 ps2ui-layout channel6/ui/games.html channel6/ui/channel6.css -o out/ntsc16x9.json --mode ntsc16x9
