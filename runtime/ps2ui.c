@@ -654,9 +654,9 @@ int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)
     return 0;
 }
 
-/* Find a texture by name. Linear: n_tex is bounded by
- * PS2UI_MAX_TEXTURES and this runs when a cover arrives, not per
- * frame, so a sorted table would be machinery for nothing. */
+/* Find a texture by name. Linear: n_tex is a uint16 that ps2ui_load
+ * bounded by the blob's own size, and this runs when a cover arrives,
+ * not per frame, so a sorted table would be machinery for nothing. */
 static uint32_t tex_index_by_name(const ps2ui_ctx *ctx, const char *name)
 {
     uint32_t i;
@@ -1643,7 +1643,8 @@ int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)
 
 /* Row focus names are built here rather than by the app, so the naming
  * convention lives in exactly one place. No snprintf: the runtime is
- * string.h only, and the index is bounded by PS2UI_MAX_LIST_ROWS. */
+ * string.h only, and the output is bounded by cap, which both call
+ * sites size at PS2UI_LIST_NAME_MAX. */
 static void list_row_name(const ps2ui_list *list, uint16_t row,
                           char *out, size_t cap)
 {

@@ -491,22 +491,19 @@ $ PS2UI_LAYOUT=/bin/echo ps2ui dev --once
 ui/library.html ui/library.css -o build/dev --fonts fonts/fonts.json --mode ntsc16x9 --canvas 704x448 --display-aspect 16:9 --strict --min-font-size 11 --focus-wrap --palettize-images --once
 ```
 
-`--strict` and `--min-font-size` are forwarded and do nothing. `ps2ui-dev`
-sets them on its options object, and the compiler reads lint overrides from
-`options.lint` alone. Treat both keys as absent here until the fix lands. The
-detail is under [inert flags](page:cli/ps2ui-layout#inert-flags).
+`--strict` and `--min-font-size` take effect in `ps2ui-dev` as they do in
+`ps2ui-layout`, so `ps2ui dev` and `ps2ui build` warn on the same text and
+fail on the same warnings. The detail is under
+[strict and the font floor](page:cli/ps2ui-layout#strict-and-the-font-floor).
 
 A scratch copy of `examples/opl-env` sets `strict` and `minFontSize: 11`.
 `ps2ui build` on it printed no warning lines and exited 0. `ps2ui dev` on one
-of its screens printed nine warnings against the default 14px floor, and
-still exited 0.
+of its screens printed none either, and exited 0.
 
 ```console
 $ ps2ui dev --screen landing --once
 ...
-built in 361ms — 31 commands, 7 focusables, 9 warnings -> build/dev/preview.png
-  warning: min-font-size: "218 titles" is 11px; below 14px is unreadable from a couch
-...
+built in 200ms — 31 commands, 7 focusables, 0 warnings -> build/dev/preview.png
 ```
 
 ### Output

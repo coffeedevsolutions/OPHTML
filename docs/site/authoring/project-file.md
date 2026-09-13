@@ -267,11 +267,10 @@ The full list, each message produced in this session by `ps2ui build` over a pro
 | `ps2ui: screens[0] (ui/a.html) has no stylesheet: set "css" at the top level for every screen, or on this one` | no `css` at the top level and none on the screen | set `css` in either place |
 | `ps2ui: build/ui.uib: no blob to check. Run `ps2ui build` first -- this does not build, so that a check can never report on a blob it just made and nobody has seen.` | `ps2ui check` on a project whose `out` does not exist | run `ps2ui build` |
 
-Two limits:
+One limit:
 
 | limit | detail |
 |---|---|
-| `strict` and `minFontSize` are inert under `ps2ui dev` | `ps2ui dev` forwards both flags, and `ps2ui-dev` sets them on `options`, [ps2ui-dev.js](repo:packages/layout/bin/ps2ui-dev.js#L88). The compiler reads lint overrides from `options.lint`, [index.js](repo:packages/layout/src/index.js#L219). `ps2ui-layout` sets `options.lint`, [ps2ui-layout.js](repo:packages/layout/bin/ps2ui-layout.js#L78). This is a defect; `ps2ui build` applies both. |
 | one blob per file | a second blob is a second `ps2ui build` with `--mode`, `-o` and the preview flags |
 
 ## Related pages

@@ -13,7 +13,8 @@ Pillow-only.
 cd packages/layout && node --test test/*.test.js
 cd packages/baker  && python3 -m unittest discover -s tests
 ./examples/memcard/build.sh        # end-to-end + C runtime tests
-make -C runtime test-compat        # old-gsKit build
+make -C runtime test               # C runtime suite, host compiler
+make -C runtime syntax-check CC=clang   # every sample variant, second compiler
 ```
 
 The dev loop while working on layout/baker changes:

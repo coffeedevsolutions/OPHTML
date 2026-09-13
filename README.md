@@ -669,10 +669,11 @@ check it, then look at what passed.
 ```sh
 cd packages/layout && npm test
 cd packages/baker  && python3 -m unittest discover -s tests
-cd runtime         && make test test-compat
+cd runtime         && make test
+cd runtime         && make syntax-check CC=clang
 ```
 
-The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `test-compat` repeats everything with `PS2UI_GSKIT_HAS_FUNCTION=0` for older gsKit (text loses tinting).
+The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `make test` also runs `test-narrow` and `syntax-check`; `syntax-check CC=clang` compiles every sample build variant under a second compiler, as CI does.
 
 ## Status
 

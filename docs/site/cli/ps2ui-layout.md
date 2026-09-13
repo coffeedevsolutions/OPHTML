@@ -188,19 +188,17 @@ The baker is spawned as `python3 -m ps2ui_bake` with `PYTHONPATH` pointing at th
 | `--font-dir` | directory | `fonts/` three levels above `src/` | As for `ps2ui-layout`. Not forwarded to the baker. |
 | `--fonts` | `fonts.json` | none | Used by the compiler and forwarded to the baker as `--fonts`. |
 | `--focus-wrap` | none | off | As for `ps2ui-layout`. |
-| `--strict` | none | off | Accepted and inert. See below. |
-| `--min-font-size` | integer | `14` | Accepted and inert. See below. |
+| `--strict` | none | off | A compile with any warning fails before the bake; `--once` exits 1. See below. |
+| `--min-font-size` | positive integer, px | `14` | Replaces the floor the `min-font-size` lint checks against, as for `ps2ui-layout`. |
 | `--montage` | none | off | Adds `--montage states.png` to the bake. |
 | `--palettize-images` | none | off | Forwarded to the bake as `--palettize-images`. See [ps2ui-bake](page:cli/ps2ui-bake#options). |
 | `--once` | none | off | Build one time and exit with the build status. |
 | `-h`, `--help` | none | | Prints the usage line and exits 0. |
 | `-V`, `--version` | none | | Prints `ps2ui-dev <version>` on stdout and exits 0. |
 
-### Inert flags
+### Strict and the font floor
 
-`--strict` and `--min-font-size` do nothing in `ps2ui-dev`. The bin stores them as `options.strict` and `options.minFontSize` at [ps2ui-dev.js](repo:packages/layout/bin/ps2ui-dev.js#L88). The compiler reads the floor from `options.lint` only, at [index.js](repo:packages/layout/src/index.js#L219), and nothing reads `options.strict`. `ps2ui dev` forwards both from the project file into the same dead path. This is a defect and is queued as a code change. Until then, check a project's floor and strictness with `ps2ui build`, which reaches `ps2ui-layout`.
-
-The memcard library screen shows it. `ps2ui-layout` doubles its `min-font-size` warnings at a 40px floor; `ps2ui-dev` prints the same count with or without the flag:
+Both flags reach the linter the way they do in `ps2ui-layout`. The memcard library screen shows the floor moving: both tools double their `min-font-size` warnings at a 40px floor.
 
 ```sh
 ps2ui-layout examples/memcard/ui/library.html examples/memcard/ui/library.css -o floor/layout14.json 2>&1 | grep -c "min-font-size:"
@@ -213,10 +211,17 @@ ps2ui-dev examples/memcard/ui/library.html examples/memcard/ui/library.css -o fl
 20
 40
 20
-20
+40
 ```
 
-With `--strict --once` on the 10px screen from above, `ps2ui-dev` reported 2 warnings and exited 0.
+`--strict` turns a compile with warnings into a failed build. The warnings print, a strict line follows, the baker is not spawned, and `--once` exits 1. A page with one 8px text run:
+
+```
+  warning: min-font-size: "tiny text" is 8px; below 14px is unreadable from a couch
+ps2ui-dev: --strict: 1 warning(s)
+```
+
+Without `--once` the loop stays up and the next saved change rebuilds. `--min-font-size 0` or a non-number exits 2 with `ps2ui-dev: --min-font-size takes a positive integer`.
 
 ## Output
 
@@ -225,6 +230,7 @@ All lines go to stderr. The baker's own transcript is inherited and appears betw
 | line | when |
 |---|---|
 | `layout error: <message>` | the compile threw; no files are written for this build |
+| `ps2ui-dev: --strict: N warning(s)` | with `--strict`, after the warning list; the IR file was written, the baker was not spawned |
 | `bake failed` | the baker exited non-zero; the IR file was written, the blob and preview were not refreshed |
 | `built in <n>ms — N commands, N focusables, N warning(s) -> <outdir>/preview.png` | both stages succeeded |
 | `  warning: <rule>: <message>` | once per warning, after the `built` line |

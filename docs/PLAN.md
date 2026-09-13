@@ -72,7 +72,7 @@ dead-geometry trim; Python previewer replaying the baked command list;
 `ps2ui-check` standalone validator; frame fingerprint tool.
 
 **Verification:** the layout, baker and runtime suites, the runtime one
-run twice (modern gsKit and the `HAS_FUNCTION=0` fallback), each
+compiled under gcc and again under clang (`syntax-check CC=clang`), each
 example's contract checks, and `ps2ui-check` over every example blob.
 Sizes are not restated: `npm test`, `python3 -m unittest`,
 `make -C runtime test` and each `build.sh` print them. Six figures used
@@ -228,8 +228,9 @@ after this section was first written.
 - **Step 10 — display aspect: characterised.** 4:3 pillarboxed into a
   16:9 panel, which is correct behaviour.
 
-**Left:** steps 3-9 — CLUT upload and CSM1 swizzle, text tinting and
-its `HAS_FUNCTION=0` fallback, modulate domain, texel centres via the
+**Left:** steps 3-9 — CLUT upload and CSM1 swizzle, text tinting (step 4 is
+settled by source, F-005: gsKit has no `GSTEXTURE::Function` and there
+was never a fallback), modulate domain, texel centres via the
 test card, scissor nesting, interlace field order, VRAM pressure. The
 bench is now cheap to re-enter: the drive works, `probe.elf` runs, and
 the loop has been done once end to end.

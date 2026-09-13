@@ -286,7 +286,7 @@ truth column; it never repeats the claim column.
 
 | tag | where the stale claim lives | claim | truth |
 |---|---|---|---|
-| D1 | README.md Tests section; CONTRIBUTING.md | `make -C runtime test test-compat`; `PS2UI_GSKIT_HAS_FUNCTION=0` | No such target or macro. Targets: `test`, `test-narrow`, `syntax-check`, `timing-check`, `clean`. gsKit has no per-texture TFX field (BACKLOG.md F28). |
+| D1 | README.md Tests section; CONTRIBUTING.md | `make -C runtime test test-compat`; `PS2UI_GSKIT_HAS_FUNCTION=0` | No such target or macro. Targets: `test`, `test-narrow`, `syntax-check`, `timing-check`, `clean`. gsKit has no per-texture TFX field (BACKLOG.md F28). Fixed on this branch: both documents name `make test` and `make syntax-check CC=clang`. |
 | D2 | README.md "Moving things at runtime"; runtime/ps2ui.h comment near `ps2ui_offset_set` | `ps2ui_focus_rect` | Not declared. Geometry is read from `ctx->focus_nodes[ctx->focus]`. |
 | D3 | README.md (absent) | runtime API is what README shows | `ps2ui_theme_set`, `ps2ui_clut_set`, `ps2ui_slot_get`, `ps2ui_visible_get`, `ps2ui_list_select`, `ps2ui_list_selected_row`, `ps2ui_screen_name`, `ps2ui_arena_size`, `ps2ui_offset_get`, `ps2ui_crc32`, `ps2ui_clut_csm1` exist in `runtime/ps2ui.h` and are documented. |
 | D4 | README.md "Focus and navigation", "Widescreen and video modes" | `--focus-wrap`, `--mode`, `--display-aspect` read as bake flags | They are `ps2ui-layout` flags. `--mode` is also on `ps2ui build`. `ps2ui-bake` has none of them. |
@@ -294,15 +294,15 @@ truth column; it never repeats the claim column.
 | D6 | README.md C snippet under Quick start | `ps2ui_load` and `ps2ui_upload` called without checking returns | Document the checked form from `runtime/sample/main.c` (load failure and upload failure are fatal there). |
 | D7 | README.md "Supported CSS" | the property list | Missing: `opacity`, `min-*`/`max-*`, `align-self`, `flex` shorthand, `row-gap`, `column-gap`, `:root` custom properties, `var()`, `@theme`, `data-nocontrast`, capacity default 63, the `name` attribute, `--min-font-size`. Overstated: `border-radius` takes one px value; named colours are eight; keyword-valued properties are unvalidated; the `:focus` geometry guard does not cover `letter-spacing`, `font-weight`, `text-align`, `text-overflow`; there is no `white-space: pre`; `&nbsp;` collapses to a space. |
 | D8 | docs/format-ir.md | `canvas` is `{w, h}`; no `themes`; no theme vectors on commands and slots | The emitted IR carries `canvas.displayAspect`, `canvas.par`, `canvas.display`, a top-level `themes` array, and `fillVar`/`fillThemes`/`borderColorVar`/`borderColorThemes`/`colorVar`/`colorThemes` on commands plus `colorBaseVar`/`colorFocusVar`/`colorBaseThemes`/`colorFocusThemes` on slots. |
-| D9 | packages/layout/bin/ps2ui-dev.js comment; packages/baker/ps2ui_bake/ps2ui.py `cmd_dev` | `ps2ui dev` honours `--strict` and `--min-font-size` | Both are set on `options` while `src/index.js` reads lint overrides from `options.lint` only. The flags are accepted and inert. Document as a limit until the code fix lands. |
+| D9 | packages/layout/bin/ps2ui-dev.js comment; packages/baker/ps2ui_bake/ps2ui.py `cmd_dev` | `ps2ui dev` honours `--strict` and `--min-font-size` | Fixed on this branch: `ps2ui-dev` puts the floor in `options.lint` and `--strict` fails the build before the bake, held by `packages/layout/test/cli.test.js` and `TestDevAgreesWithBuild` in `packages/baker/tests/test_serve.py`. Pages document the working flags. |
 | D10 | packages/baker/ps2ui_bake/serve.py `prog="ps2ui-serve"` | a `ps2ui-serve` command | Not installed. The command is `ps2ui serve`. |
-| D11 | runtime/ps2ui.c comments near the upload loop and `list_row_name` | `PS2UI_MAX_TEXTURES`, `PS2UI_MAX_LIST_ROWS` | Neither exists. The only runtime cap is `PS2UI_MAX_SCISSOR_DEPTH` (8). Table counts are bounded by the format's uint16 fields. |
+| D11 | runtime/ps2ui.c comments near the upload loop and `list_row_name` | `PS2UI_MAX_TEXTURES`, `PS2UI_MAX_LIST_ROWS` | Neither exists. The only runtime cap is `PS2UI_MAX_SCISSOR_DEPTH` (8). Table counts are bounded by the format's uint16 fields. Fixed on this branch: both comments name the real bounds. |
 | D12 | README.md Quick start C comment | `PS2UI_VERSION` keeps baker and runtime from drifting | It is the frozen format version, 7. Baker and runtime match because `ps2ui vendor-runtime` ships both files from one package. |
 | D13 | README.md Quick start C snippet | `arena[1662]` | Blob-specific and target-specific. Quote the arena line from a bake in the session, with the command. The bake prints the EE figure; `ps2ui-check` prints the EE and 64-bit host figures. |
 | D14 | README.md "Multiple screens" | a second `ps2ui_render` in one frame with nothing else said | `gsKit_TexManager_nextFrame` is called once after the flip, never between the two renders; `ctx->stats` holds only the last render's counters. |
 
-Two rows are code defects (D9, D1) and are queued as separate changes.
-Pages document the current behaviour and say the limit is a defect.
+Three rows (D1, D9, D11) were code or comment defects and are fixed on this
+branch. Pages written before the fix were updated to the fixed behaviour.
 
 ## Follow-ups found while writing pages
 

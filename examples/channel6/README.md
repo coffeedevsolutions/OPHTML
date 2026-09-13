@@ -242,7 +242,7 @@ own recognizable way:
 |------|-------------|------------|
 | ALPHA | four rungs step evenly from 25% to opaque | uniformly dark or double-darkened, GS alpha domain (bring-up step 2) |
 | RADIUS | 0/3/8/13px corners, no seams | nine-patch UVs or the half-texel bias (step 6) |
-| TYPE | 14/16/20px, regular vs bold, then wide tracking | banded noise = CLUT/CSM1 (step 3); flat white = no `GSTEXTURE::Function` (step 4); washed out = modulate domain (step 5) |
+| TYPE | 14/16/20px, regular vs bold, then wide tracking | banded noise = CLUT/CSM1 (step 3); flat white = tint not applied, and not `GSTEXTURE::Function`, a field gsKit does not have (F-005), so a cause step 4 has not named; washed out = modulate domain (step 5) |
 | CLIP | the first line ellipsizes, the amber line is cut mid-glyph at the padding edge | 1px bleed = the inclusive-scissor off-by-one (step 7) |
 | IMAGE | the two cards are indistinguishable | CLUT8 wrong = palettization or CLUT upload |
 | ASPECT | exactly one of gold / blue / green reads square | see below; this cell measures the television, not the blob |

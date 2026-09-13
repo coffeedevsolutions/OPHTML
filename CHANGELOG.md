@@ -3,6 +3,26 @@
 ## Unreleased — 0.6.0.dev0
 
 ### Fixed
+- **`ps2ui dev` accepted `--strict` and `--min-font-size` and read
+  neither.** `ps2ui-dev` stored them as `options.strict` and
+  `options.minFontSize`; the compiler takes lint overrides from
+  `options.lint` alone, so `ps2ui dev` on opl-env (`strict`,
+  `minFontSize: 11`) printed 44 warnings at the 14px floor and exited
+  0 where `ps2ui build` printed none. The floor now goes where
+  `ps2ui-layout` puts it, and `--strict` fails the build before the
+  bake, exit 1 under `--once`. Two tests hold it: one spawns the bin on
+  a page whose only warning is a font-size one, the other runs
+  `ps2ui dev` and `ps2ui build` over opl-env and compares the warning
+  counts.
+- **README.md and CONTRIBUTING.md told contributors to run
+  `make -C runtime test-compat`, a target that does not exist.** The
+  `PS2UI_GSKIT_HAS_FUNCTION=0` build it described was removed on
+  purpose, because gsKit has no per-texture TFX field (F-005). Both
+  documents now name `make test` and `make syntax-check CC=clang`, the
+  two runs CI makes. `docs/PLAN.md`, the channel6 bench card and a CSS
+  comment lose the same claim, and two `ps2ui.c` comments stop naming
+  `PS2UI_MAX_TEXTURES` and `PS2UI_MAX_LIST_ROWS`, macros that no longer
+  exist (BACKLOG F28).
 - **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was
   false, and the real cause is a cheaper fix.** It told every macOS
   reader *"pip's macOS wheels are built without it"* and routed them
