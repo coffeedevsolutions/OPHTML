@@ -30,7 +30,7 @@ ps2ui-fontgen: 115 glyphs, 163 kern pairs -> fonts/default-bold.metrics.json
 ps2ui-fontgen: manifest -> fonts/fonts.json
 ```
 
-This rasterizes both faces and writes `fonts/fonts.json`, the manifest every
+This rasterizes both faces. It writes `fonts/fonts.json`, the manifest every
 later command reads.
 
 ## 2. The screen
@@ -110,9 +110,9 @@ ps2ui-bake: preview -> build/preview.png
 ps2ui-bake: montage -> build/states.png
 ```
 
-Two stages ran: the compiler solved layout and focus, then the baker wrote
+Two stages ran. The compiler solved layout and focus, then the baker wrote
 `build/ui.uib` and rendered `build/preview.png` from it. The arena line is
-the number to paste into a C program: this blob needs 1516 bytes and the
+the number to paste into a C program. This blob needs 1516 bytes; the
 runtime allocates nothing on its own.
 
 ![the quick start library screen, root theme, 4:3, initial focus on row 0, six placeholder rows and a 0-title count](../assets/getting-started/quickstart/preview.png)
@@ -132,7 +132,7 @@ PASS: 51 checks, 0 error(s), 0 warning(s)
 `ps2ui check` validates the blob against every assumption the C runtime
 makes: table bounds, texture residency, scissor depth, VRAM budget. It
 prints two arena figures because a `GSTEXTURE` pointer is 4 bytes on the EE
-and 8 bytes on a 64-bit host; `ps2ui build` only prints the EE figure.
+and 8 bytes on a 64-bit host. `ps2ui build` only prints the EE figure.
 
 ## 7. Confirm the preview matches the server
 
@@ -146,10 +146,10 @@ ok - the frame is byte-identical to --preview
 PASS: 6 route(s)
 ```
 
-This builds the project, binds an ephemeral port, fetches every route once,
-and asserts the served frame equals what `--preview` wrote. If those ever
-differ, everything judged in a browser is judged against a picture the
-console will not draw.
+This builds the project, binds an ephemeral port and fetches every route
+once. It asserts the served frame equals what `--preview` wrote. If those
+ever differ, everything judged in a browser is judged against a picture
+the console will not draw.
 
 ## 8. Serve it
 
