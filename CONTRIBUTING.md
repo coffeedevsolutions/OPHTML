@@ -43,12 +43,29 @@ python3 tools/check-doc-impact.py        # against origin/main
 
 It names the documents that cite the files you touched, at both levels
 — the repository's own (`README.md`, `docs/*.md`, the example READMEs)
-and the deep-dive library under `docs/site/` when your checkout has it.
+and the deep-dive library under `docs/site/`, which every checkout has
+since #133.
 
 **It warns and never fails, and that is deliberate.** A change can be
 genuinely doc-neutral, and a check that fires on correct work grows a
 skip flag that everyone passes within a week. The list is for a person
 to read. Acting on it is the rule; the tool only makes the rule cheap.
+
+**One part of this does gate, and it is the part that can.**
+`tools/check-site-pages.py` fails when a `repo:<path>#L<n>` citation in
+the library points at a line whose text has changed, because that is a
+fact rather than a judgement — the pinned text either still sits there
+or it does not. Move a line and it goes red; `--fix` relocates the
+citation when the recorded line is findable, and reports the rest for a
+hand fix. Run it before you push:
+
+```sh
+python3 tools/check-site-pages.py           # or --fix, then re-read the diff
+```
+
+Do not reach for `--pin` to clear it. That rewrites the record to
+whatever now sits at those numbers, which turns a citation pointing at
+the wrong line into a citation nobody will question again.
 
 Three things it cannot do, so do not read a clean run as a clean bill:
 

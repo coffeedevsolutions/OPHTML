@@ -317,8 +317,22 @@ branch. Pages written before the fix were updated to the fixed behaviour.
 ## Follow-ups found while writing pages
 
 Code and repository-document defects the page agents found that no drift
-row listed. Each is recorded in the named facts file under `## follow-up`
-with the evidence. They are fixes for separate changes, not for pages.
+row listed. They are fixes for separate changes, not for pages.
+
+Most are recorded in the named facts file under `## follow-up` with the
+evidence; **11 are not** — the row is the only record for
+`authoring/images`, `authoring/lists`, `authoring/screens-and-overlays`
+(×2), `authoring/text-and-fonts` (×2), `authoring/video-modes` (×2),
+`authoring/vram-budget`, `getting-started/installation` and
+`runtime/frame-loop`, whose facts files carry no `## follow-up` section
+at all.
+
+**A row marked *fixed* has been repaired in the repository.** Ten of
+the 45 are, as of 2026-09-13: one by #129, one by #131, one by #133's
+own `ps2ui-dev` flag change, and seven by the change that added these
+marks. The other 35 are open. Mark a row rather than deleting it — the
+evidence is why anyone believes the next one, and a list that quietly
+loses its closed items cannot be audited against the tree.
 
 | where | finding | facts file |
 |---|---|---|
@@ -331,8 +345,8 @@ with the evidence. They are fixes for separate changes, not for pages.
 | packages/layout/src/css.js compoundMatches | a `:focus` compound matching no focusable element is dropped with no diagnostic | authoring/css |
 | packages/layout/src/paint.js | `letter-spacing`, `text-align`, `text-overflow` under `:focus` are accepted and discarded; `font-weight` reaches the focused command unmeasured | authoring/css |
 | packages/layout/src/css.js themeCount | an `@theme` block in a sheet with no `:root` name fails with an internal vector-width error | authoring/theming |
-| runtime/ps2ui.h theme comment | says no baker sets PS2UI_FEAT_ROLE_TINTS; uib.py sets it from n_theme | authoring/theming |
-| README.md "What it looks like" | calls a theme a CLUT row; it is a tint-table row | authoring/theming |
+| runtime/ps2ui.h theme comment | **fixed** — said no baker sets PS2UI_FEAT_ROLE_TINTS; uib.py sets it from n_theme | authoring/theming |
+| README.md "What it looks like" | **fixed** — called a theme a CLUT row; it is a tint-table row | authoring/theming |
 | packages/baker/ps2ui_bake/preview.py | never applies a slot's capacity; an empty override falls back to the placeholder | authoring/dynamic-text |
 | packages/baker/ps2ui_bake/serve_page.html | slot box `maxLength` counts UTF-16 units against a byte capacity | authoring/dynamic-text |
 | runtime/ps2ui.c list API | `ps2ui_list.rows` is never reconciled with the blob; `list_sync_focus`'s result is discarded at both call sites | authoring/lists |
@@ -344,14 +358,14 @@ with the evidence. They are fixes for separate changes, not for pages.
 | packages/layout/src/lint.js overscan (focusable) | the message names an action-safe area the check never computes; it tests the canvas edge | authoring/crt-linter |
 | packages/baker/ps2ui_bake/serve_page.html | the safe-area overlay draws a 10% inset; the lint uses 5% | authoring/crt-linter |
 | packages/baker/ps2ui_bake/serve.py | warnings never carry a `command`, so the page's jump-to-command branch is dead | authoring/crt-linter |
-| examples/channel6/ui/channel6.css | cites PS2UI_MAX_TEXTURES and PS2UI_MAX_SLOTS, which do not exist | authoring/video-modes |
+| examples/channel6/ui/channel6.css | **fixed** — cited PS2UI_MAX_TEXTURES and PS2UI_MAX_SLOTS, which do not exist | authoring/video-modes |
 | packages/baker/ps2ui_bake/project.py set_out_override | `-o` renames the screens inside the blob, so `screen_set("games")` fails on the 16:9 channel6 bake | authoring/video-modes |
-| README.md "Multiple screens" | places gsKit_TexManager_nextFrame before the flip; the sample places it after | runtime/frame-loop |
-| runtime/ps2ui.c tex_index_by_name | a third comment naming PS2UI_MAX_TEXTURES, beyond the two in drift row D11 | authoring/vram-budget |
+| README.md "Multiple screens" | **fixed** — placed gsKit_TexManager_nextFrame before the flip; the sample places it after | runtime/frame-loop |
+| runtime/ps2ui.c tex_index_by_name | **fixed in #129** — a third comment naming PS2UI_MAX_TEXTURES, beyond the two in drift row D11 | authoring/vram-budget |
 | docs/format-ir.md | the streamed image form `{streamed, name}` is undocumented, beyond drift row D8 | reference/ir-format |
-| README.md "Moving things at runtime" | says ps2ui serve and ps2ui-bake --preview apply the same offset; neither exposes it, the served frame is always at (0, 0) | runtime/moving-and-hiding |
+| README.md "Moving things at runtime" | **fixed** — said ps2ui serve and ps2ui-bake --preview apply the same offset; neither exposes it, the served frame is always at (0, 0) | runtime/moving-and-hiding |
 | runtime/Makefile `test` target | test-narrow runs last, so `PASS: 5 checks` prints before `PASS: 410 checks` | runtime/integrating |
-| packages/baker/ps2ui_bake/vendor.py closing message | prints the docker line before the reader has a Makefile; the sample Makefile is linked two paragraphs later | runtime/integrating |
+| packages/baker/ps2ui_bake/vendor.py closing message | **fixed in #131** — printed the docker line before the reader had a Makefile; the sample Makefile is linked two paragraphs later | runtime/integrating |
 | tools/make_cover_raw.py convert() | a second deprecated `Image.getdata()` site, unreached by `--self-test` | runtime/streaming-art |
 | packages/baker/ps2ui_bake/serve.py BuildPipeline.build | redirect_stderr rebinds sys.stderr only, so the compiler subprocess's diagnostic never reaches the build banner | cli/previewer |
 | packages/baker/ps2ui_bake/serve.py PreviewState | focus is one name for all screens, not remembered per screen as docs/tutorial-uc3.md says; the test passes only because both memcard screens share a name | cli/previewer |
@@ -359,14 +373,14 @@ with the evidence. They are fixes for separate changes, not for pages.
 | packages/baker/ps2ui_bake/serve.py | HEAD requests answer 501 | cli/previewer |
 | packages/baker/tests/test_serve.py | not importable as `tests.test_serve` because `fonts_available` is resolved from the tests directory only | cli/previewer |
 | packages/layout/bin/ps2ui-layout.js and ps2ui-dev.js | `--display-aspect` is parsed above the try block, so a bad ratio prints a Node stack trace instead of the one-line `aspect:` diagnostic | reference/diagnostics |
-| packages/layout/bin/ps2ui-dev.js usage | omits `--display-aspect`, which the tool accepts and acts on | reference/diagnostics |
+| packages/layout/bin/ps2ui-dev.js usage | **fixed in #133** — omitted `--display-aspect`, which the tool accepts and acts on | reference/diagnostics |
 | packages/layout/src/paint.js vectorOf | dead throw: resolveColorValue always sets the name and the vector together | reference/diagnostics |
 | packages/layout/src/focus.js | dead `default:` throw in a switch over the four directions its only caller iterates | reference/diagnostics |
 | packages/baker/tests/test_baker.py | not importable as `tests.test_baker` either; the same `fonts_available` resolution, so `unittest discover -s tests` is the only working spelling | getting-started/installation |
 | runtime/sample/Makefile comment on SCREEN= | says an unmatched screen name holds solid blue; main.c clears to magenta and its own comment explains why blue was rejected | runtime/deploying |
 | examples/opl-env/build.sh header comment | says the script runs the host runtime tests; it runs `ps2ui build`, `tools/check-blobs.sh` and its own `check.py` and never invokes `make -C runtime` | examples/opl-env |
-| examples/opl-env/README.md scale comparison | states memcard as a 175,120-byte blob with 808 commands; the built memcard blob is 176,208 bytes with 1,062 commands, and `check-example-figures.py` does not cover this sentence | examples/opl-env |
-| examples/channel6/README.md, `check.py` sentence | says `check.py` runs 24 checks; it prints `PASS: 47 checks, 0 failure(s)`, and no checker covers the sentence | examples/channel6 |
+| examples/opl-env/README.md scale comparison | **fixed** — stated memcard as a 175,120-byte blob with 808 commands; the built memcard blob is 176,208 bytes with 1,062 commands, and `check-example-figures.py` does not cover this sentence | examples/opl-env |
+| examples/channel6/README.md, `check.py` sentence | **fixed** — said `check.py` runs 24 checks; it prints `PASS: 47 checks, 0 failure(s)`, and no checker covers the sentence | examples/channel6 |
 
 ## Brief template
 

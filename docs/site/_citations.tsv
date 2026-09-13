@@ -42,7 +42,7 @@ examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
 examples/channel6	examples/channel6/ps2ui.json	1	{		  "screens": [
-examples/channel6	examples/channel6/ui/channel6.css	387	/* Bring-up step 7's instrument, and the reason data-keep exists.		 *
+examples/channel6	examples/channel6/ui/channel6.css	396	/* Bring-up step 7's instrument, and the reason data-keep exists.		 *
 examples/channel6	examples/channel6/ui/games.html	12	      <p class="value" data-slot="count" data-slot-capacity="4">6</p>	      <p class="label">TITLES</p>	    </div>
 examples/channel6	examples/channel6/ui/games.html	18	      <div class="tile" id="game-aurora" focusable autofocus>	    <div class="grid">	        <img class="cover" src="assets/cover-aurora.png" palettize>
 examples/channel6	examples/channel6/ui/probe.html	12	      <p class="value" data-slot="build" data-slot-capacity="12">ps2ui</p>	      <p class="label">BUILD</p>	    </div>
@@ -101,7 +101,7 @@ reference/uib-format	runtime/ps2ui.c	364	        } else if (t->data_off & 15u) {
 reference/uib-format	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 reference/uib-format	runtime/ps2ui.h	63	#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \\	#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)	                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX \\
 reference/uib-format	runtime/ps2ui.h	81	typedef struct ps2ui_header {		    uint32_t magic;
-reference/uib-format	runtime/ps2ui.h	677	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
+reference/uib-format	runtime/ps2ui.h	689	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
 reference/uib-format	runtime/tests/test_runtime.c	170	    /* ---- struct layout matches the on-disk format ---- */		    CHECK(sizeof(ps2ui_header) == 84, "header struct is 84 bytes (v7: tint table)");
 reference/uib-format	tools/check-format-frozen.py	87	FROZEN_STRUCTS = {	# path list four times.	    "_HEADER": ("<IHHHHHHIHHIIIIIIIHHIIHHIIHHHH", 84),
 reference/uib-format	tools/check-versions.py	328	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
@@ -153,8 +153,8 @@ runtime/errors-and-constants	runtime/ps2ui.c	1646	 * string.h only, and the digi
 runtime/errors-and-constants	runtime/ps2ui.c	1707	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
 runtime/errors-and-constants	runtime/ps2ui.h	63	#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \\	#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)	                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX \\
 runtime/errors-and-constants	runtime/ps2ui.h	283	 * runtime: ps2ui_render keeps a scissor stack of this depth, so a	/* Real storage, and the only remaining fixed-size thing in the	 * blob nesting `overflow: hidden` deeper than this draws the inner
-runtime/errors-and-constants	runtime/ps2ui.h	412	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
-runtime/errors-and-constants	runtime/ps2ui.h	436	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but does not validate the
+runtime/errors-and-constants	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
+runtime/errors-and-constants	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but does not validate the
 runtime/errors-and-constants	runtime/sample/Makefile	58	ifdef LINEAR_CLUT	# side-by-side says which side of it this build is on.	EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 runtime/errors-and-constants	runtime/sample/main.c	1645	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 runtime/errors-and-constants	runtime/tests/test_runtime.c	52	static void recrc(void *blob, size_t len)	 * zeroing it and hashing the whole file reproduces the same value. */	{
@@ -175,6 +175,6 @@ runtime/streaming-art	runtime/ps2ui.c	752	    if (!ctx->uploaded)	     * though 
 runtime/streaming-art	runtime/ps2ui.c	761	    if (ncolors > c->ncolors)	     * look like it worked and change nothing on screen. */	        return PS2UI_ERR_SIZE;
 runtime/streaming-art	runtime/ps2ui.c	765	    permute_clut((const uint8_t *)colors, (uint16_t)ncolors, buf);	    buf = ctx->clut_pool + (size_t)clut_index * 256 * 4;	
 runtime/streaming-art	runtime/ps2ui.c	771	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * property it exists for. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
-runtime/streaming-art	runtime/ps2ui.h	480	 * unmoved for as long as the slot can be drawn -- gsKit re-reads it	 * `texels` becomes this slot's DMA source, so it must stay alive and	 * whenever the texture manager re-binds an evicted texture, which is
-runtime/streaming-art	runtime/ps2ui.h	539	 * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.	 *	 * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
-runtime/streaming-art	runtime/ps2ui.h	555	 * The swap takes effect on the next bind, which is what ps2ui_render	 *	 * does for every texture it draws. clut_set does not bind by itself.
+runtime/streaming-art	runtime/ps2ui.h	492	 * unmoved for as long as the slot can be drawn -- gsKit re-reads it	 * `texels` becomes this slot's DMA source, so it must stay alive and	 * whenever the texture manager re-binds an evicted texture, which is
+runtime/streaming-art	runtime/ps2ui.h	551	 * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.	 *	 * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
+runtime/streaming-art	runtime/ps2ui.h	567	 * The swap takes effect on the next bind, which is what ps2ui_render	 *	 * does for every texture it draws. clut_set does not bind by itself.

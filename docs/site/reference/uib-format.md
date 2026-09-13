@@ -117,7 +117,7 @@ display_aspect_den  3
 | 80 | 2 | u16 | display_aspect_num | panel aspect numerator |
 | 82 | 2 | u16 | display_aspect_den | panel aspect denominator |
 
-The runtime derives the pixel aspect from the last two fields and the canvas size, see [ps2ui_pixel_aspect_x1000](repo:runtime/ps2ui.h#L677). The C struct for every record on this page is listed on [C API reference](page:runtime/api-reference#structs).
+The runtime derives the pixel aspect from the last two fields and the canvas size, see [ps2ui_pixel_aspect_x1000](repo:runtime/ps2ui.h#L689). The C struct for every record on this page is listed on [C API reference](page:runtime/api-reference#structs).
 
 ## Records
 

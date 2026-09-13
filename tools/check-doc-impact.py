@@ -21,9 +21,11 @@ that prompted this named both:
   the library      docs/site/, when it is present: page frontmatter
                    `sources:` and the `source` column of _facts rows
 
-The second is absent from a checkout until that library lands on main.
-Its absence is REPORTED rather than skipped silently, because "no
-output" and "no corpus" look identical and one of them is a defect.
+The second landed on main in #133, so an ordinary checkout has both.
+An absent library is still REPORTED rather than skipped silently --
+"no output" and "no corpus" look identical and one of them is a defect
+-- because a sparse checkout or a worktree at an older commit can
+still produce it.
 
 IT WARNS AND NEVER FAILS, and that is a decision rather than timidity.
 A change can be genuinely doc-neutral -- a comment fix, a rename inside
