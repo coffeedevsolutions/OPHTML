@@ -335,6 +335,15 @@ jobs:
                                examples/channel6/screenshots \
                                examples/opl-env/screenshots
 
+      # The documentation site embeds its own renders under
+      # docs/site/assets/, each registered with the command that made
+      # it. Re-run every registered command into a scratch directory
+      # and diff the bytes, so a renderer change cannot leave the site
+      # showing a frame the console no longer draws. Runs after every
+      # example and fixture build above, which the commands read.
+      - name: Documentation site screenshots match the renderer
+        run: python3 tools/check-site-assets.py
+
       - name: Test card still tests what its reading table claims
         run: |
           python3 tools/make_testcard.py --self-test
