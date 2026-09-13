@@ -80,7 +80,12 @@ ps2ui-bake: 1 screen(s), 8 records, 1 textures (16 KiB baked), 1 CLUTs -> theme.
 | an ordinary property in `:root` | Ignored, with a warning. There is no root cascade on this target. |
 | a custom property outside `:root` | Ignored, with a warning. Names resolve globally. |
 
-Which colour spellings parse is on [CSS](page:authoring/css#colours).
+Which colour spellings parse is on [CSS](page:authoring/css#colours). A name holding anything else is refused at the definition:
+
+```
+$ ps2ui-layout theme.html gap.css --fonts fonts/fonts.json -o out-gap.json
+error: css: line 1: --gap: "4px" is not a color, and ps2ui custom properties are colors only -- geometry is baked, so a themeable length would be a different and much larger design
+```
 
 ## Behaviour
 
@@ -110,6 +115,16 @@ $ ps2ui-bake landing.json library.json detail.json filters.json recent.json conf
 ```
 
 Entries 9 and 21 hold the same colour in row 0 and different colours in row 1. Value keying would have fused them, and moving `--ink-max` would have recoloured every untinted nine-patch.
+
+Once a sheet declares a theme, a colour written at a use site warns once per authored line:
+
+```
+$ ps2ui-layout theme.html literal.css --fonts fonts/fonts.json -o out-literal.json
+warning: css: line 3: color: "#8b94a7" is a literal in a sheet that declares a theme, so no theme can move it -- name it in :root, or leave it if staying fixed is deliberate
+ps2ui-layout: 2 paint commands, 0 focusables -> out-literal.json
+```
+
+A sheet with no `@theme` block never warns about a literal. Leaving a colour unnamed is a choice, and the warning fires only where a theme could have reached it.
 
 Colour lives in two tables. Slot base and focus colours intern through the same key, so a theme reaches dynamic text as well as panels. See [dynamic text](page:authoring/dynamic-text#behaviour).
 
@@ -143,7 +158,7 @@ Run with `--strict` to make both warnings an exit 1. See the [CRT linter](page:a
 
 ### Seeing each theme
 
-Four views, in build order. `ps2ui-bake --tints` prints the table as it writes it, with the `var()` name behind each entry and `FIXED in every theme` on any entry no theme moves. `ps2ui-check --tints` prints what a loader finds: no names, and a `where` column naming the commands and slots that point at each entry. Run both; each answers half of "why did this not change colour".
+Four views, in build order. `ps2ui-bake --tints` prints the table as it writes it, with the `var()` name behind each entry. An entry no theme moves is marked `FIXED in every theme`. `ps2ui-check --tints` prints what a loader finds: no names, and a `where` column naming the commands and slots that point at each entry. Run both; each answers half of "why did this not change colour".
 
 ```
 $ ps2ui-check --tints examples/opl-env/build/ui.uib
@@ -160,7 +175,7 @@ The flags are documented on [ps2ui-bake](page:cli/ps2ui-bake#options) and [ps2ui
 For pictures, `preview.render` takes a row number. `ps2ui-bake --preview` renders row 0 only, so render the others directly:
 
 ```
-$ PYTHONPATH=packages/baker python3 -c "from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('library-theme-1.png')"
+$ PYTHONPATH=packages/baker python3 -c "from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('docs/site/assets/authoring/theming/library-theme-1.png')"
 ```
 
 `examples/opl-env/build.sh` loops over `range(len(uib.themes))` and writes one set per row. The [previewer](page:cli/previewer#options) carries a Theme control, disabled below two themes, and a `--theme` option that opens on a chosen row.
@@ -182,14 +197,17 @@ if (n > 1) {
 More than one row requires `PS2UI_FEAT_ROLE_TINTS`, which says the indices are keyed on the declaration rather than on the resolved colour. The baker sets the bit whenever it writes more than one row. Without it `ps2ui_load` returns `PS2UI_ERR_TINTS` rather than opening a blob it cannot recolour correctly. `ps2ui-check` asserts the pair:
 
 ```
+$ ps2ui-check examples/opl-env/build/ui.uib
+...
 ok 64 - 2 theme(s) with FEAT_ROLE_TINTS set: more than one row needs the bit, or ps2ui_load refuses the blob
+...
 ```
 
 The signature and its return codes are on the [C API reference](page:runtime/api-reference#textures-and-palettes).
 
 ## Limits and errors
 
-Whether a command exists is decided by row 0 alone. A fill that is transparent in `:root` paints nothing in any theme, because a theme that could delete a command would make the command list depend on the row chosen at runtime.
+Whether a command exists is decided by row 0 alone. A fill that is transparent in `:root` paints nothing in any theme. A theme that could delete a command would make the command list depend on the row chosen at runtime.
 
 | message | stage | severity | cause | fix |
 |---|---|---|---|---|
@@ -209,7 +227,7 @@ Whether a command exists is decided by row 0 alone. A fill that is transparent i
 | `css: line <n>: <prop>: "<token>" is a literal in a sheet that declares a theme ...` | layout | warning | A colour written at a use site once a theme exists | Name it in `:root`, or leave it fixed on purpose |
 | `layout: internal: <prop> has 1 theme values, expected <n>` | layout | error | A sheet with an `@theme` block and no `:root` custom property at all | Define at least one name in `:root`. The message is a defect, not a diagnostic |
 
-The last row is a code defect. `themeCount` reports a width of 1 for an empty name table while the theme list is already longer, so the first painted colour trips an internal guard instead of a named refusal.
+The last row is a code defect. `themeCount` reports a width of 1 for an empty name table while the theme list is already longer. The first painted colour then trips an internal guard instead of a named refusal.
 
 `ps2ui-check` refuses a blob with `n_theme` of zero, and the runtime refuses more than one row without the feature bit. Both are listed with the rest of the catalogue on [ps2ui-check](page:cli/ps2ui-check#the-catalogue).
 

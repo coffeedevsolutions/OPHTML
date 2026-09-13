@@ -10,7 +10,7 @@ sources: [packages/layout/src/focus.js, packages/layout/src/box.js, packages/lay
 
 # Focus and navigation
 
-The console has a D-pad and no pointer. Mark the elements a person can land on, and the compiler answers "press right from here, go where?" once, at build time.
+The console has a D-pad and no pointer. Mark the elements a person can land on, and the compiler solves where every direction leads, once, at build time.
 
 ## What it is
 
@@ -18,7 +18,7 @@ An element carrying `focusable` becomes one focus node. The node holds the eleme
 
 The runtime never measures anything. `ps2ui_move` reads one field of one struct and assigns an index. That is the whole of D-pad navigation at runtime.
 
-Focus is also a paint state. A `:focus` rule on a focusable element compiles to a second command paired with the unfocused one, so the border below changes colour without a second layout pass. See [CSS](page:authoring/css#behaviour) for the paint side.
+Focus is also a paint state. A `:focus` rule on a focusable element compiles to a second command, paired with the unfocused one. The border below changes colour without a second layout pass. See [CSS](page:authoring/css#behaviour) for the paint side.
 
 ## Minimal example
 
@@ -49,7 +49,7 @@ ps2ui-layout tiles.html tiles.css --fonts fonts/fonts.json -o tiles.json
 ps2ui-layout: 11 paint commands, 3 focusables -> tiles.json
 ```
 
-Read the solved graph back out of the IR. The rest of this page reuses this script.
+Read the solved graph back out of the IR. Save this as `edges.js`; the blocks below reuse it.
 
 ```js
 const { resolve } = require('path');
@@ -158,7 +158,7 @@ The first focusable carrying `autofocus`, in document order, is the screen's ini
 
 ### Screens
 
-Focus is per screen. Each screen entry in the blob carries `focus_first`, `focus_count` and its own initial node. The baker appends each screen's nodes in order and rewrites every edge from the screen-local id to the global index, so no edge points outside its screen.
+Focus is per screen. Each screen entry in the blob carries `focus_first`, `focus_count` and its own initial node. The baker appends each screen's nodes in order. It then rewrites every edge from the screen-local id to the global index, so no edge points outside its screen.
 
 The memcard example builds two screens that both name a node `nav-games`:
 
@@ -208,12 +208,12 @@ More on both under [the previewer](page:cli/previewer#output).
 
 ## Limits and errors
 
-| message | stage | severity | cause | fix |
-|---|---|---|---|---|
-| `layout: <tag> line N: nested focusable inside another focusable — the D-pad model has one focus ring; flatten the hierarchy.` | layout | error, exit 1 | `focusable` inside another focusable's subtree | Move the inner `focusable` out, or drop it and style the child from the parent's `:focus` rule |
-| `focus: "<name>" is unreachable from the initial focus by D-pad` | layout | warning, exit 0 | No chain of edges reaches the node from the initial focus | Move the node so a neighbour can see it, or add `--focus-wrap` |
-| `<screen>: every focusable reachable by D-pad` | check | error, exit 1 | The same walk, re-run over the blob | As above, then rebuild |
-| `<screen>: no D-pad edge leaves the screen` | check | error, exit 1 | An edge points outside the screen's focus range | Report it; the baker remaps every edge, so this means a malformed blob |
+| message | stage | severity | cause | fix | page |
+|---|---|---|---|---|---|
+| `layout: <tag> line N: nested focusable inside another focusable — the D-pad model has one focus ring; flatten the hierarchy.` | layout | error, exit 1 | `focusable` inside another focusable's subtree | Move the inner `focusable` out, or drop it and style the child from the parent's `:focus` rule | [Diagnostics](page:reference/diagnostics) |
+| `focus: "<name>" is unreachable from the initial focus by D-pad` | layout | warning, exit 0 | No chain of edges reaches the node from the initial focus | Move the node so a neighbour can see it, or add `--focus-wrap` | [Diagnostics](page:reference/diagnostics) |
+| `<screen>: every focusable reachable by D-pad` | check | error, exit 1 | The same walk, re-run over the blob | As above, then rebuild | [ps2ui-check](page:cli/ps2ui-check#output) |
+| `<screen>: no D-pad edge leaves the screen` | check | error, exit 1 | An edge points outside the screen's focus range | Report it; the baker remaps every edge, so a failure here means a malformed blob | [ps2ui-check](page:cli/ps2ui-check#output) |
 
 A nested focusable:
 
@@ -238,7 +238,7 @@ ps2ui-layout: --strict: 1 warning(s)
 
 Four more limits have no diagnostic behind them.
 
-- Focus names are unique per screen by convention. Two focusables with the same `id` on one screen compile without a warning, `ps2ui-check` does not test for it, and the runtime's lookup returns the first match.
+- Focus names are unique per screen by convention. Two focusables with the same `id` on one screen compile without a warning. `ps2ui-check` does not test for it, and the runtime's lookup returns the first match.
 - A `:focus` rule only matches an element that carries `focusable`. On anything else it matches nothing, paints nothing, and says nothing.
 - The graph is solved against the baked layout. Nothing re-solves it at runtime, so hiding a node changes which nodes are reachable, not which edges exist.
 - `--focus-wrap` is a compile-time flag. Wrap edges are ordinary edges in the blob, indistinguishable from solved ones.
