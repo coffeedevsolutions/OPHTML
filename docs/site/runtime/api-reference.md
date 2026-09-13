@@ -88,7 +88,7 @@ Slot lookup walks every slot in the blob, at [ps2ui.c](repo:runtime/ps2ui.c#L139
 | `int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme)` | code | blob | Moves the live tint row. No GS traffic. Takes effect on the next `render`. Row 0 is the only legal value on a one-row blob. |
 | `uint32_t ps2ui_clut_csm1(uint32_t index)` | the permuted index | none | Swaps bits 3 and 4. An involution over 0..255. Exposed for tests. |
 
-Streaming and palette swaps are described on [Streaming art](page:runtime/streaming-art#tex-set). The tint table and `theme_set` are described on [Theming](page:authoring/theming#runtime).
+Streaming and palette swaps are described on [Streaming art](page:runtime/streaming-art#setting-a-slot). The tint table and `theme_set` are described on [Theming](page:authoring/theming#runtime).
 
 ### Visibility
 

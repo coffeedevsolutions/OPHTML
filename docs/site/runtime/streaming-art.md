@@ -108,7 +108,7 @@ Five stages, in order.
 
 Stage 3 is the reason a reservation is not free. A slot costs its VRAM from the moment the blob loads, filled or not. [VRAM budget](page:authoring/vram-budget#which-number-tex-set-wants) has the two cost models and the `payload` figure to pass as `len`.
 
-### tex_set
+### Setting a slot
 
 `ps2ui_tex_set` points `GSTEXTURE::Mem` at the caller's buffer, flushes that buffer from the EE cache, and invalidates the slot's residency. The invalidation is what makes a swap visible. The texture manager may hold the slot resident from a previous set. A bind without the invalidation would draw the old cover out of VRAM.
 
