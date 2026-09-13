@@ -10,18 +10,18 @@ sources: [packages/layout/src/aspect.js, packages/layout/src/box.js, packages/la
 
 # Diagnostics
 
-Search this page for the text you were shown. Each row names the stage that
-printed it, whether it stops the build, what produced it and what to change.
-The last column is the page that explains the mechanism behind it.
+Search this page for the text you were shown. Each row names what produced
+the message and what to change. The last column is the page that explains the
+mechanism behind it.
 
 Two severities exist and nothing sits between them. An error ends its stage
 with a non-zero exit and writes no output file. A warning is printed and the
 stage carries on at exit 0. `ps2ui-layout --strict` promotes every compiler
-warning to exit 1, and `ps2ui-check --strict` promotes every check warning to
-exit 1. Neither flag can pick out one rule.
+warning to exit 1. `ps2ui-check --strict` promotes every check warning to exit
+1. Neither flag can pick out one rule.
 
 Each stage prefixes its own lines. Placeholders below are written `<n>`,
-`<name>`, `<prop>`; the rest of every message is verbatim.
+`<name>` and `<prop>`. The rest of every message is verbatim.
 
 ```
 $ ps2ui-layout ok.html c2.css --fonts fonts/fonts.json -o x.json
@@ -32,7 +32,7 @@ $ echo $?
 
 ## HTML parse
 
-The parser in `packages/layout/src/html.js` raises eleven errors. Ten carry a
+[html.js](repo:packages/layout/src/html.js) raises eleven errors. Ten carry a
 `line <n>:` prefix. `ps2ui-layout` prints each as `error: <message>` on stderr
 and exits 1. The parser emits no warnings.
 
@@ -52,10 +52,10 @@ and exits 1. The parser emits no warnings.
 
 ## CSS
 
-The sheet parser and `applyDeclaration` in `packages/layout/src/css.js` raise
-29 errors and push 6 warnings. Errors print as `error: <message>` and exit 1;
-warnings print as `warning: <message>` and the compile continues. The selector
-error is the only one with no line number.
+[css.js](repo:packages/layout/src/css.js) raises 29 errors and pushes 6
+warnings. An error prints as `error: <message>` and exits 1. A warning prints
+as `warning: <message>` and the compile continues. The selector error is the
+only one with no line number.
 
 | message | severity | cause | fix | page |
 |---|---|---|---|---|
@@ -97,10 +97,10 @@ error is the only one with no line number.
 
 ## Layout
 
-The box builder, the flex solver and the display-list builder produce these.
-Errors print as `error: <message>` and exit 1. Warnings print as
-`warning: <message>`. Four are unreachable from any sheet and are listed so a
-search for them ends here.
+[box.js](repo:packages/layout/src/box.js), the flex solver and the
+display-list builder produce these. An error prints as `error: <message>` and
+exits 1. A warning prints as `warning: <message>`. Four rows are unreachable
+from any sheet, and are listed so a search for them ends here.
 
 | message | severity | cause | fix | page |
 |---|---|---|---|---|
@@ -138,10 +138,11 @@ search for them ends here.
 
 ## Lints
 
-Ten warnings over eight rule names, from `packages/layout/src/lint.js`. Each
-prints as `warning: <rule>: <message>` and leaves the exit code at 0. A lint
-from a theme row above 0 is prefixed `@theme <name>: `. `data-nocontrast` is
-the only per-rule opt-out, and it silences `contrast` alone.
+[lint.js](repo:packages/layout/src/lint.js) pushes ten warnings over eight
+rule names. Each prints as `warning: <rule>: <message>` and leaves the exit
+code at 0. A lint from a theme row above 0 is prefixed `@theme <name>: `.
+`data-nocontrast` is the only per-rule opt-out, and it silences `contrast`
+alone.
 
 | message | severity | cause | fix | page |
 |---|---|---|---|---|
@@ -158,7 +159,7 @@ the only per-rule opt-out, and it silences `contrast` alone.
 
 ## Bake
 
-`ps2ui-bake` prints `error: <message>` for the IR and cap refusals and
+`ps2ui-bake` prints `error: <message>` for the IR and cap refusals. It prints
 `ps2ui-bake: <message>` for anything it caught as an exception. Every refusal
 happens before the first write, so no `.uib` appears. Compiler warnings
 carried in the IR are re-printed as `warning (layout <stem>): <message>`.
@@ -181,7 +182,7 @@ $ echo $?
 | `ps2ui-bake: '<key>'` | error | the manifest is missing a key the loader indexes, such as `ttf` | add the key | [ps2ui-bake](page:cli/ps2ui-bake#font-manifest-resolution) |
 | `ps2ui-bake: the IR and the font manifest describe different fonts:` then one line per mismatch and a remedy line | error | the compiler measured with one face and the baker would draw another | pass one manifest to both commands | [ps2ui-bake](page:cli/ps2ui-bake#font-manifest-resolution) |
 | `ps2ui-bake: image: cannot decode '<src>': <reason>` | error | the file passed the PNG header check and Pillow still refuses it | re-encode the file | [Images](page:authoring/images#limits-and-errors) |
-| `ps2ui-bake: image: '<src>' is an indexed PNG at <w>x<h> but is laid out at <w>x<h>. Indexed sources are baked verbatim to preserve their palette, which resizing cannot do. Author it at the laid-out size, or remove ``palettize`` to have it requantized instead.` | error | `palettize` on an indexed PNG whose file size differs from its laid-out size | author it at the laid-out size | [Images](page:authoring/images#palettize) |
+| `` ps2ui-bake: image: '<src>' is an indexed PNG at <w>x<h> but is laid out at <w>x<h>. Indexed sources are baked verbatim to preserve their palette, which resizing cannot do. Author it at the laid-out size, or remove `palettize` to have it requantized instead. `` | error | `palettize` on an indexed PNG whose file size differs from its laid-out size | author it at the laid-out size | [Images](page:authoring/images#palettize) |
 | `ps2ui-bake: image: streamed slot '<name>' is laid out at <w>x<h> in one place and <w>x<h> in another; a slot has one reservation, so give them the same size or different names` | error | one `data-tex-slot` name at two sizes | match the sizes, or split the names | [Images](page:authoring/images#streamed-slots) |
 | `ps2ui-bake: screen '<name>': canvas <a> differs from <b> — all screens share one video mode` | error | two IR files baked together carry different canvases | compile every screen at one mode | [ps2ui-bake](page:cli/ps2ui-bake#exit-codes) |
 | `ps2ui-bake: unknown IR command op: <op>` | error | an IR command the flattener has no case for | recompile the screen | [ps2ui-bake](page:cli/ps2ui-bake#exit-codes) |
@@ -201,8 +202,8 @@ $ echo $?
 
 ## Check
 
-`ps2ui-check` writes TAP on stdout. A passed check is `ok <n> - <label>`, a
-failed warning is `ok <n> - <label> # TODO warning`, a failed error is
+`ps2ui-check` writes TAP on stdout. A passed check is `ok <n> - <label>`.
+A failed warning is `ok <n> - <label> # TODO warning`. A failed error is
 `not ok <n> - <label>`. A blob it cannot read produces no TAP at all: one
 `ps2ui-check: <path>: <message>` line on stderr and exit 2.
 
@@ -249,7 +250,7 @@ exit 2.
 | `ps2ui: screens[<i>] (<html>) has no stylesheet: set "css" at the top level for every screen, or on this one` | error | neither the project nor the screen names a stylesheet | set `css` | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: cannot find ps2ui-layout, which compiles the HTML and CSS.` plus three remedy lines | error | no `PS2UI_LAYOUT`, no `ps2ui-layout` on PATH and no checkout beside the package | install `@ophtml/layout`, or set `PS2UI_LAYOUT` | [ps2ui](page:cli/ps2ui#how-build-finds-the-compiler) |
 | `ps2ui: ps2ui-layout failed on <html> (exit <n>)` | error | the compiler refused that screen and already said why | fix what the compiler printed | [ps2ui](page:cli/ps2ui#build) |
-| `ps2ui: <path>: no blob to check. Run ``ps2ui build`` first -- this does not build, so that a check can never report on a blob it just made and nobody has seen.` | error | `ps2ui check` ran before any build | run `ps2ui build` | [ps2ui](page:cli/ps2ui#check) |
+| `` ps2ui: <path>: no blob to check. Run `ps2ui build` first -- this does not build, so that a check can never report on a blob it just made and nobody has seen. `` | error | `ps2ui check` ran before any build | run `ps2ui build` | [ps2ui](page:cli/ps2ui#check) |
 | `ps2ui: no screen named '<name>' in ps2ui.json. It has: <names>` | error | `ps2ui dev --screen` names a screen the project lacks | use a listed name | [ps2ui](page:cli/ps2ui#dev) |
 | `ps2ui: ps2ui dev watches one screen and this project has <n>. Name one: ps2ui dev --screen <name>, where <name> is one of: <names>` | error | `ps2ui dev` on a multi-screen project with no `--screen` | pass `--screen` | [ps2ui](page:cli/ps2ui#dev) |
 | `ps2ui: <files> in <dir> <differ\|differs> from the runtime this toolchain ships, so nothing was written.` plus the mixed-pair explanation | error | `ps2ui vendor-runtime` found an edited `ps2ui.c` or `ps2ui.h` in the destination | pass `--force`, or move your copy aside | [ps2ui](page:cli/ps2ui#vendor-runtime) |
