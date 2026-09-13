@@ -42,7 +42,7 @@ ps2ui-layout 0.6.0-dev.0
 the Node half. `ps2ui-layout` is an npm bin, not a Python entry point, so
 only the second command exercises the compiler directly.
 
-## Reference table
+## What you need
 
 | need | minimum | why |
 |---|---|---|
@@ -63,10 +63,10 @@ gsKit headers, is in
 The two installs are independent and order does not matter. `pip install
 ophtml` resolves against PyPI's stable releases; `npm install -g
 @ophtml/layout` resolves against npm's `latest` dist-tag. A prerelease such
-as this tree's `0.6.0.dev0` / `0.6.0-dev.0` publishes under `next` on npm
-and is excluded from a plain `pip install` while a stable release exists, so
-a plain install of either command always lands on a released version, not a
-prerelease.
+as this tree's `0.6.0.dev0` / `0.6.0-dev.0` publishes under `next` on npm,
+never `latest`. Pip excludes a prerelease from a plain install while a
+stable release exists. A plain install of either command therefore always
+lands on a released version, not a prerelease.
 
 ### Verify
 
@@ -116,10 +116,9 @@ status; a Pillow build without libraqm still exits 0 and silently omits
 the feature.
 
 Both macOS Pillow wheels compile Raqm into the binary and load fribidi
-from the system at run time, so a Mac that has had Homebrew installed for
-a while usually clears this with the fribidi line alone, and a clean
-runner does not. This machine's Pillow reports Raqm and fribidi both
-present:
+from the system at run time. A Mac with Homebrew installed for a while
+usually clears this with the fribidi line alone. A clean runner does not.
+This machine's Pillow reports Raqm and fribidi both present:
 
 ```sh
 $ python3 -c "from PIL import features; print(features.check('raqm'), features.check('fribidi'))"
