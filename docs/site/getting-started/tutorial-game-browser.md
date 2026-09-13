@@ -309,7 +309,7 @@ every command above stays true to the checkout.
 
 ## Related pages
 
-- [Quick start](page:getting-started/quickstart#what-it-is) runs the same
+- [Quick start](page:getting-started/quickstart#what-you-get) runs the same
   eight commands with the checker's own transcript beside each one.
 - [ps2ui](page:cli/ps2ui#build) documents every subcommand and flag used
   above.

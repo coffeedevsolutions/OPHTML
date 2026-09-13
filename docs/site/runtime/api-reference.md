@@ -26,7 +26,7 @@ The 29 functions appear in the group tables below, once each. Every signature wa
 cd runtime && cc -std=c99 -Wall -Wextra -Werror -Istub -Ivendor/gsKit -Ivendor/host-shim -I. -c api_check.c
 ```
 
-The scope column says which names a call resolves. "Blob" means the whole file. "Screen" means the current screen only, so a name that exists on another screen returns the failure value. Error codes and what triggers them are on [Errors and constants](page:runtime/errors-and-constants#error-codes). The per-frame call order is on [The frame loop](page:runtime/frame-loop#order).
+The scope column says which names a call resolves. "Blob" means the whole file. "Screen" means the current screen only, so a name that exists on another screen returns the failure value. Error codes and what triggers them are on [Errors and constants](page:runtime/errors-and-constants#error-codes). The per-frame call order is on [The frame loop](page:runtime/frame-loop#reference-table).
 
 ## Function tables by group
 
@@ -130,7 +130,7 @@ The row-name convention is `prefix` followed by the decimal row index, built at 
 
 ## Structs
 
-### ps2ui_ctx
+### Context struct
 
 `ps2ui_ctx` is a public struct, and the app owns its storage. Read the fields below directly. Write the ones marked with a function through that function only, because `render` indexes tables by `screen`, `focus` and `theme` without re-checking them.
 
@@ -146,9 +146,9 @@ The row-name convention is `prefix` followed by the decimal row index, built at 
 | `uploaded`, `vram_need` | `int`, `uint32_t` | set by a successful `upload` | `upload` |
 | `screen_focus`, `gs_tex`, `clut_pool`, `slot_text`, `slot_off`, `slot_is_set`, `hidden` | arena pointers | carved from the arena by `load` | the runtime |
 
-The focused node's geometry is `ctx->focus_nodes[ctx->focus]`, a `ps2ui_focus_node` with `x`, `y`, `w`, `h` in UI coordinates. The counters are described on [Telemetry](page:runtime/telemetry#ps2ui-stats).
+The focused node's geometry is `ctx->focus_nodes[ctx->focus]`, a `ps2ui_focus_node` with `x`, `y`, `w`, `h` in UI coordinates. The counters are described on [Telemetry](page:runtime/telemetry#reference-table).
 
-### ps2ui_list
+### List struct
 
 Every field is public. The list functions own `top` and `sel`; the app reads them.
 
@@ -160,7 +160,7 @@ Every field is public. The list functions own `top` and `sel`; the app reads the
 | `top` | `uint16_t` | item shown in row 0 |
 | `sel` | `uint16_t` | selected item index |
 
-### ps2ui_stats
+### Stats struct
 
 Eight `uint32_t` counters, reset at the top of every `render` and complete when it returns.
 
@@ -175,7 +175,7 @@ Eight `uint32_t` counters, reset at the top of every `render` and complete when 
 | `tex_unfilled` | textured draws skipped because a streamed slot has no texels |
 | `vram_lost` | 1 when the frame skipped every textured draw because VRAM shrank below the uploaded footprint |
 
-### ps2ui_dir
+### Direction type
 
 | value | direction |
 |---|---|
@@ -215,4 +215,4 @@ The error values and their triggers are on [Errors and constants](page:runtime/e
 | reading `ctx->stats` | one `render` | the next `render` | a composited frame ends holding only the last render's counters |
 | `gsKit_TexManager_nextFrame` | the flip, once per frame | the next frame's first `render` | between two composited renders it ages the first screen's textures and re-uploads them every frame |
 
-The blob and the arena outlive the context. The CLUT region is re-read by gsKit whenever it re-binds an evicted texture, which happens at render time. A `texels` buffer given to `tex_set` has the same lifetime. The full per-frame sequence is on [The frame loop](page:runtime/frame-loop#order).
+The blob and the arena outlive the context. The CLUT region is re-read by gsKit whenever it re-binds an evicted texture, which happens at render time. A `texels` buffer given to `tex_set` has the same lifetime. The full per-frame sequence is on [The frame loop](page:runtime/frame-loop#reference-table).

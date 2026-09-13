@@ -301,7 +301,7 @@ Visibility is the boundary worth knowing before it surprises you: a hidden node
 looks focusable here and is not on the console. What the runtime does with it
 is on [moving and hiding](page:runtime/moving-and-hiding#visibility). Hardware
 faults stay a bench job, and the checklist is
-[first boot](page:runtime/first-boot#what-it-is).
+[first boot](page:runtime/first-boot#before-you-start).
 
 ## Exit codes
 
@@ -344,4 +344,4 @@ build/serve/ui.uib
 - [Focus and navigation](page:authoring/focus-and-navigation#seeing-the-graph) for the graph overlay
 - [CRT linter](page:authoring/crt-linter#limits-and-errors) for the warning list
 - [Moving and hiding](page:runtime/moving-and-hiding#visibility) for what the previewer cannot draw
-- [First boot](page:runtime/first-boot#what-it-is) for the bench procedure
+- [First boot](page:runtime/first-boot#before-you-start) for the bench procedure

@@ -190,7 +190,7 @@ PyPI for as long as a stable `ophtml` release exists.
 
 ## Related pages
 
-- [Quick start](page:getting-started/quickstart#what-it-is) runs the eight
+- [Quick start](page:getting-started/quickstart#what-you-get) runs the eight
   commands from a TTF to a served preview.
 - [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) covers every fontgen
   argument, output file and exit code.

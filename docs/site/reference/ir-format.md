@@ -283,7 +283,7 @@ Streamed, from the opl-env library compile:
 }
 ```
 
-### scissor_push and scissor_pop
+### The scissor ops
 
 A push and pop pair brackets the children of every non-text box with `overflow: hidden`.
 

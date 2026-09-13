@@ -120,7 +120,7 @@ comment.
 | `THEME_CYCLE=1` | Switches tint row on a timer | `OPLENV=1`, and not `OPLENV_SCREEN`, `CYCLE` or `COMPOSE` |
 
 `MINIMAL=1` and `PROBE=1` are the first two instruments in
-[first boot](page:runtime/first-boot#what-it-is). `EE_BIN=<name>` renames
+[first boot](page:runtime/first-boot#before-you-start). `EE_BIN=<name>` renames
 the ELF and `UIB=<path>` chooses the blob. Neither is guarded.
 
 The tree carries five host targets and no others. Run them from the
@@ -281,6 +281,6 @@ on [errors and constants](page:runtime/errors-and-constants#build-time-switches)
 - [ps2ui](page:cli/ps2ui#vendor-runtime) for the subcommand and its exit codes.
 - [The frame loop](page:runtime/frame-loop#what-it-is) for the calls once the pair compiles.
 - [C API reference](page:runtime/api-reference#function-tables-by-group) for every public function.
-- [First boot](page:runtime/first-boot#what-it-is) for `MINIMAL=1`, `PROBE=1` and what each colour means.
+- [First boot](page:runtime/first-boot#before-you-start) for `MINIMAL=1`, `PROBE=1` and what each colour means.
 - [Deploying](page:runtime/deploying#what-it-is) for the path from an ELF onto hardware.
 - [Contributing](page:project/contributing) for the checks a change runs.

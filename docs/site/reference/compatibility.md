@@ -140,7 +140,7 @@ a prerelease refused `latest` and a release refused any other tag.
 | PS2SDK / ps2dev toolchain | `ghcr.io/ps2dev/ps2dev:latest`, deliberately unpinned | `.github/workflows/hw.yml` |
 
 Install both packages per
-[installation](page:getting-started/installation#reference-table).
+[installation](page:getting-started/installation#what-you-need).
 Both macOS Pillow wheels compile Raqm into `_imagingft`, but Pillow
 loads `fribidi` at run time through `dlopen`; a Mac or a runner without
 it makes `ps2ui-fontgen` refuse until `brew install fribidi` runs.

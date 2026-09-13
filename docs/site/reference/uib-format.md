@@ -280,7 +280,7 @@ Stride 4. The table is theme-major: row `t` starts at `off_tint + t * n_tint * 4
 
 ## Invariants
 
-The writer establishes each property. `ps2ui_load` refuses a file that breaks one, with the codes listed on [Errors and constants](page:runtime/errors-and-constants#errors). `ps2ui-check` asserts the same properties offline, see [ps2ui-check](page:cli/ps2ui-check#output).
+The writer establishes each property. `ps2ui_load` refuses a file that breaks one, with the codes listed on [Errors and constants](page:runtime/errors-and-constants#error-codes). `ps2ui-check` asserts the same properties offline, see [ps2ui-check](page:cli/ps2ui-check#output).
 
 | invariant | writer | runtime | ps2ui-check |
 |---|---|---|---|
@@ -338,7 +338,7 @@ The memcard blob above carries `0x3`, bits 0 and 1. Its two fonts have 291 kern 
 
 ## Versioning
 
-`version` is 7. Readers refuse any other value: `PS2UI_ERR_VERSION` in the runtime, `ValueError` in the Python reader. `PS2UI_VERSION` in [ps2ui.h](repo:runtime/ps2ui.h#L37) is that format number, not a package version. [check-versions.py](repo:tools/check-versions.py#L328) holds it equal to `uib.VERSION`, and `ps2ui vendor-runtime` writes `ps2ui.c` and `ps2ui.h` from the same package that bakes the blob. What the pledge means for an installed app is on [Compatibility](page:reference/compatibility#format).
+`version` is 7. Readers refuse any other value: `PS2UI_ERR_VERSION` in the runtime, `ValueError` in the Python reader. `PS2UI_VERSION` in [ps2ui.h](repo:runtime/ps2ui.h#L37) is that format number, not a package version. [check-versions.py](repo:tools/check-versions.py#L328) holds it equal to `uib.VERSION`, and `ps2ui vendor-runtime` writes `ps2ui.c` and `ps2ui.h` from the same package that bakes the blob. What the pledge means for an installed app is on [Compatibility](page:reference/compatibility#format-compatibility).
 
 ### The pledge
 

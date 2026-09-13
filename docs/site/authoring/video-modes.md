@@ -160,7 +160,7 @@ ps2ui-check examples/channel6/build/ui-16x9.uib
 PASS: 75 checks, 0 error(s), 1 warning(s)
 ```
 
-[ps2ui_pixel_aspect_x1000](page:runtime/api-reference#queries) derives the PAR from those fields in integer arithmetic. Loading one blob per mode and calling it returns 933, 1244, 1066 and 1422. The runtime draws in framebuffer pixels whatever the answer. Use the value to check the video mode the app set, as in [first boot, step 10](page:runtime/first-boot#behaviour).
+[ps2ui_pixel_aspect_x1000](page:runtime/api-reference#queries) derives the PAR from those fields in integer arithmetic. Loading one blob per mode and calling it returns 933, 1244, 1066 and 1422. The runtime draws in framebuffer pixels whatever the answer. Use the value to check the video mode the app set, as in [first boot, step 10](page:runtime/first-boot#steps-1-10).
 
 ### PAL
 
@@ -224,6 +224,6 @@ Declare `vramBudget` for the layout actually running. With Z buffering off the c
 | [The CRT linter](page:authoring/crt-linter#reference-table) | `aspect-distortion` beside the other rules and their thresholds |
 | [Previewer](page:cli/previewer#output) | the Aspect menu and the inspector's pixel aspect readout |
 | [C API reference](page:runtime/api-reference#queries) | `ps2ui_pixel_aspect_x1000` and the other queries |
-| [First boot](page:runtime/first-boot#behaviour) | checking the console's video mode against the blob |
+| [First boot](page:runtime/first-boot#steps-1-10) | checking the console's video mode against the blob |
 | [The project file](page:authoring/project-file#reference-table) | `mode`, `canvas`, `displayAspect` and `vramBudget` |
 | [VRAM budget](page:authoring/vram-budget#behaviour) | what a wider framebuffer costs |

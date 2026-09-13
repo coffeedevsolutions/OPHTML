@@ -151,7 +151,7 @@ ok 63 - every texture is drawn or belongs to a font
 PASS: 63 checks, 0 error(s), 0 warning(s)
 ```
 
-### -o moves the intermediates
+### The output path moves the intermediates
 
 `ps2ui build -o NEW` writes the blob at NEW and moves the per-screen IR files with it. The IR files land in NEW's directory. Their stems take a suffix derived from the two blob stems, `set_out_override` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L162):
 

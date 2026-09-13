@@ -12,7 +12,7 @@ sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/sample/main.c, runtime/sampl
 
 ## What it is
 
-`ps2ui_render` fills `ctx->stats`, a [`ps2ui_stats`](page:runtime/api-reference#ps2ui_stats)
+`ps2ui_render` fills `ctx->stats`, a [`ps2ui_stats`](page:runtime/api-reference#stats-struct)
 struct of eight `uint32_t` counters, every time it runs. The struct
 comment states the scope directly: counters only. The runtime does no
 timing, because host tests have no EE cycle counter to read. It does no
@@ -156,7 +156,7 @@ only as part of the wider visibility and scissor test suites.
 
 | page | why |
 |---|---|
-| [C API reference](page:runtime/api-reference#ps2ui_stats) | The struct field by field, and where `ps2ui_render` sits among the other calls |
+| [C API reference](page:runtime/api-reference#stats-struct) | The struct field by field, and where `ps2ui_render` sits among the other calls |
 | [The frame loop](page:runtime/frame-loop#behaviour) | Why the reset happens at entry and what a composited frame leaves in `ctx->stats` |
 | [Integrating the runtime](page:runtime/integrating#behaviour) | The sample Makefile, `TELEMETRY=1`, and the other build variants |
 | [Moving and hiding](page:runtime/moving-and-hiding#behaviour) | What sets `skipped_hidden` and `slots_hidden` |

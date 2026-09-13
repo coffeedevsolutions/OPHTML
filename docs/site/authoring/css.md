@@ -238,7 +238,7 @@ The checked keyword properties are `display` and `overflow`. Both refuse an unkn
 | `css: line <n>: property "<p>" not supported on this target; ignored` | Warning. An unknown property, `position` included. |
 | `css: line <n>: at-rule "<a>" ignored` | Warning. Any at-rule other than `@theme`. |
 
-Every message above is listed with its stage and fix in [diagnostics](page:reference/diagnostics#records).
+Every message above is listed with its stage and fix in [diagnostics](page:reference/diagnostics#css).
 
 Three gaps are worth writing down. A `:focus` compound that matches no `focusable` element is dropped in silence. A typo in the class name and a missing attribute look the same. `font-weight` inside a `:focus` rule reaches the focused command. The line was measured at the base weight, so a focused bold run can overrun its box. `letter-spacing`, `text-align` and `text-overflow` inside a `:focus` rule are accepted and then discarded at emission. All four properties sit outside the geometry guard.
 

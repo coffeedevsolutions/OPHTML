@@ -10,7 +10,7 @@ sources: [packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js,
 
 # ps2ui-layout and ps2ui-dev
 
-`ps2ui-layout` compiles one HTML file and one CSS file into the [IR](page:reference/ir-format#layout). `ps2ui-dev` runs the same compiler in a loop, bakes the result, and refreshes a preview PNG. Both ship in `@ophtml/layout` and read their version from its `package.json`. `ps2ui build` and `ps2ui dev` wrap them; see [ps2ui](page:cli/ps2ui#subcommands).
+`ps2ui-layout` compiles one HTML file and one CSS file into the [IR](page:reference/ir-format#layout). `ps2ui-dev` runs the same compiler in a loop, bakes the result, and refreshes a preview PNG. Both ship in `@ophtml/layout` and read their version from its `package.json`. `ps2ui build` and `ps2ui dev` wrap them; see [ps2ui](page:cli/ps2ui).
 
 ## Synopsis
 
@@ -33,14 +33,14 @@ Every flag is optional except `-o`. The two positionals are the HTML file and th
 | flag | argument | default | effect |
 |---|---|---|---|
 | `-o` | path to `ui.json` | none, required | Where the IR goes. Missing parent directories are created. |
-| `--mode` | `ntsc`, `ntsc16x9`, `pal`, `pal16x9` | `ntsc` geometry | Sets canvas size and display aspect from the mode table below. See [video modes](page:authoring/video-modes#modes). |
+| `--mode` | `ntsc`, `ntsc16x9`, `pal`, `pal16x9` | `ntsc` geometry | Sets canvas size and display aspect from the mode table below. See [video modes](page:authoring/video-modes#reference-table). |
 | `--display-aspect` | `W:H`, for example `16:9` | `4:3` | Sets the panel aspect alone. Overrides the aspect `--mode` set. |
 | `--canvas` | `WxH`, for example `640x448` | `640x448` | Sets the framebuffer size alone. Overrides the size `--mode` set. |
 | `--font-dir` | directory | `fonts/` three levels above `src/` | Reads `default.metrics.json` and `default-bold.metrics.json` from that directory. |
-| `--fonts` | `fonts.json` | none | Reads the `metrics` path of the `regular` and `bold` faces from the manifest `ps2ui-bake` reads. See [text and fonts](page:authoring/text-and-fonts#fonts-json). |
+| `--fonts` | `fonts.json` | none | Reads the `metrics` path of the `regular` and `bold` faces from the manifest `ps2ui-bake` reads. See [text and fonts](page:authoring/text-and-fonts#reference-table). |
 | `--focus-wrap` | none | off | Adds wrap-around edges to the focus graph. See [focus and navigation](page:authoring/focus-and-navigation#wrap). |
 | `--strict` | none | off | Exits 1 when the compile produced any warning. See [CRT linter](page:authoring/crt-linter#strict). |
-| `--min-font-size` | positive integer, px | `14` | Replaces the floor the `min-font-size` lint checks against. See [CRT linter](page:authoring/crt-linter#min-font-size). |
+| `--min-font-size` | positive integer, px | `14` | Replaces the floor the `min-font-size` lint checks against. See [CRT linter](page:authoring/crt-linter#reference-table). |
 | `-h`, `--help` | none | | Prints the usage line and exits 0. |
 | `-V`, `--version` | none | | Prints `ps2ui-layout <version>` on stdout and exits 0. |
 
@@ -152,10 +152,10 @@ Missing parent directories are created first, so `-o build/library.json` works i
 
 ## Related pages
 
-- [ps2ui](page:cli/ps2ui#subcommands) for `ps2ui build`, which runs this compiler once per screen from `ps2ui.json`.
+- [ps2ui](page:cli/ps2ui) for `ps2ui build`, which runs this compiler once per screen from `ps2ui.json`.
 - [ui.json](page:reference/ir-format#layout) for what the output contains.
-- [Video modes](page:authoring/video-modes#modes) for choosing a mode.
-- [CRT linter](page:authoring/crt-linter#rules) for every warning the compiler can print.
+- [Video modes](page:authoring/video-modes#reference-table) for choosing a mode.
+- [CRT linter](page:authoring/crt-linter#reference-table) for every warning the compiler can print.
 
 # ps2ui-dev
 
@@ -301,7 +301,7 @@ ui.uib
 
 ## Related pages
 
-- [ps2ui](page:cli/ps2ui#subcommands) for `ps2ui dev`, which fills every flag above from `ps2ui.json`.
+- [ps2ui](page:cli/ps2ui) for `ps2ui dev`, which fills every flag above from `ps2ui.json`.
 - [ps2ui-bake](page:cli/ps2ui-bake#output) for the transcript between the compile and the `built` line.
-- [Previewer](page:cli/previewer#controls) for the browser loop, which serves the same preview with an inspector.
-- [Text and fonts](page:authoring/text-and-fonts#fonts-json) for the manifest both stages share.
+- [Previewer](page:cli/previewer#the-page) for the browser loop, which serves the same preview with an inspector.
+- [Text and fonts](page:authoring/text-and-fonts#reference-table) for the manifest both stages share.

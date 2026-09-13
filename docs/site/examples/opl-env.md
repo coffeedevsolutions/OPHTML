@@ -205,5 +205,5 @@ every visible row on any scroll, which is the cost the file exists to make
 visible before anything optimises it.
 
 After the blob passes [ps2ui-check](page:cli/ps2ui-check#synopsis), the
-[first-boot checklist](page:runtime/first-boot#behaviour) is what takes it
+[first-boot checklist](page:runtime/first-boot#reading-the-probe) is what takes it
 from a host build to a console frame.

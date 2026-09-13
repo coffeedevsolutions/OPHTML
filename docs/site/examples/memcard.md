@@ -155,5 +155,5 @@ needs them:
   scrolling window is the next step past that.
 
 After the blob passes `ps2ui-check`, the
-[first-boot checklist](page:runtime/first-boot#behaviour) is what takes it
+[first-boot checklist](page:runtime/first-boot#reading-the-probe) is what takes it
 from a host build to a console frame.

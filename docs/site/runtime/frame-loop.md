@@ -65,7 +65,7 @@ The compile exited 0 with no diagnostics.
 
 Both failures are fatal in the sample. A load error loops on a solid red
 clear. An upload refusal loops on a solid yellow one. The colours are
-[first boot](page:runtime/first-boot#what-it-is) signals, so a console with
+[first boot](page:runtime/first-boot#before-you-start) signals, so a console with
 no serial line still names the stage that failed.
 
 Blending is off across the clear on purpose. gsKit does not save and
@@ -155,7 +155,7 @@ PASS: 410 checks, 0 failure(s)
 | Nothing is copied out of the blob or the arena | Both must stay alive and unmoved, and there is nothing to unload |
 
 The blend assertion exists because the equation was wrong on hardware for
-the renderer's whole life. [First boot](page:runtime/first-boot#what-it-is)
+the renderer's whole life. [First boot](page:runtime/first-boot#before-you-start)
 carries that history.
 
 Two renders in one frame are the dialog technique, covered on
@@ -215,5 +215,5 @@ the macro is compared across the seam.
 | [Screens and overlays](page:authoring/screens-and-overlays#behaviour) | Two renders in one frame, and what the overlay owns |
 | [VRAM budget](page:authoring/vram-budget#reference-table) | The budget the upload preflight enforces |
 | [Telemetry](page:runtime/telemetry#what-it-is) | `ps2ui_stats` and the sample's on-screen readout |
-| [First boot](page:runtime/first-boot#what-it-is) | The red and yellow screens, and the blend fault history |
+| [First boot](page:runtime/first-boot#before-you-start) | The red and yellow screens, and the blend fault history |
 | [Deploying](page:runtime/deploying#what-it-is) | From an ELF to a console |

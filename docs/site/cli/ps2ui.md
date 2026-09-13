@@ -81,7 +81,7 @@ ps2ui build [project] [--mode MODE] [-o OUT]
 | `--preview-display` | `PNG` | the project's `previewDisplay` | Replaces the display preview path. `none` suppresses it. |
 
 Each flag overrides one project key for one run. The suffix rule for `-o` is
-on [the project file](page:authoring/project-file#-o-moves-the-intermediates).
+on [the project file](page:authoring/project-file#the-output-path-moves-the-intermediates).
 
 The compiler runs once per screen. These project keys become its flags.
 

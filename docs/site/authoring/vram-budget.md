@@ -115,7 +115,7 @@ On memcard the allocator commits 143104 B where the budget charges
 163840 B. Only the 10437 B above the payload can be reclaimed. The rest
 is margin the budget holds back.
 
-### Which number tex_set wants
+### Which number the runtime wants
 
 `payload` is the `len` argument `ps2ui_tex_set` demands. It must equal
 the slot's reservation exactly; the page-rounded figure is
@@ -254,7 +254,7 @@ shrink what is left. When it no longer fits, every textured draw is
 skipped and `stats.vram_lost` reads 1. The signatures are on the
 [C API reference](page:runtime/api-reference#lifecycle). Check the return
 of `ps2ui_upload` before rendering; [First
-boot](page:runtime/first-boot#behaviour) turns that return into step 9.
+boot](page:runtime/first-boot#steps-1-10) turns that return into step 9.
 
 ## Limits and errors
 
@@ -290,4 +290,4 @@ measure it.
 | [Images](page:authoring/images#what-it-costs) | PSMT8 against PSMCT32, measured |
 | [Streaming art](page:runtime/streaming-art#what-it-is) | filling a streamed slot with `ps2ui_tex_set` |
 | [C API reference](page:runtime/api-reference#lifecycle) | `ps2ui_upload` and its return |
-| [First boot](page:runtime/first-boot#behaviour) | step 9, where an upload refusal shows up |
+| [First boot](page:runtime/first-boot#steps-1-10) | step 9, where an upload refusal shows up |

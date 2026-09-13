@@ -106,7 +106,7 @@ Five stages, in order.
 4. The app reads the converted file into a 16-aligned buffer and calls `ps2ui_tex_set`.
 5. The next `ps2ui_render` binds the slot and draws it.
 
-Stage 3 is the reason a reservation is not free. A slot costs its VRAM from the moment the blob loads, filled or not. [VRAM budget](page:authoring/vram-budget#which-number-tex-set-wants) has the two cost models and the `payload` figure to pass as `len`.
+Stage 3 is the reason a reservation is not free. A slot costs its VRAM from the moment the blob loads, filled or not. [VRAM budget](page:authoring/vram-budget#which-number-the-runtime-wants) has the two cost models and the `payload` figure to pass as `len`.
 
 ### Setting a slot
 
@@ -118,7 +118,7 @@ Call it before or after `ps2ui_upload`. The function has no upload-state guard, 
 
 ### Unfilled slots
 
-An unfilled slot draws nothing and increments `stats.tex_unfilled`. That is the ordinary state of a row that has just scrolled into view, so the runtime does not treat it as an error. The rest of the frame draws as usual. Read the counter through [ps2ui_stats](page:runtime/telemetry#ps2ui-stats).
+An unfilled slot draws nothing and increments `stats.tex_unfilled`. That is the ordinary state of a row that has just scrolled into view, so the runtime does not treat it as an error. The rest of the frame draws as usual. Read the counter through [ps2ui_stats](page:runtime/telemetry#reference-table).
 
 Bake the streaming bench fixture and render its first screen to see it.
 
@@ -207,7 +207,7 @@ A CLUT swap made before an upload is refused; one reverted by a second upload is
 | page | why |
 |---|---|
 | [Images](page:authoring/images#streamed-slots) | authoring `data-tex-slot`, and what a baked image does instead |
-| [VRAM budget](page:authoring/vram-budget#which-number-tex-set-wants) | the reservation's cost, and the `payload` number `len` must equal |
+| [VRAM budget](page:authoring/vram-budget#which-number-the-runtime-wants) | the reservation's cost, and the `payload` number `len` must equal |
 | [C API reference](page:runtime/api-reference#textures-and-palettes) | the signatures, return conventions and scope rules |
 | [Errors and constants](page:runtime/errors-and-constants#error-codes) | every code these calls can return |
 | [The frame loop](page:runtime/frame-loop#behaviour) | where `ps2ui_upload` and `ps2ui_render` sit |

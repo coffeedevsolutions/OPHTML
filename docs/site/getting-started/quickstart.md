@@ -172,7 +172,7 @@ another terminal cannot collide with it.
 
 ## Next
 
-- [Tutorial: a game browser](page:getting-started/tutorial-game-browser#what-it-is)
+- [Tutorial: a game browser](page:getting-started/tutorial-game-browser#1-fonts-of-your-own)
   builds this same screen out further, with a second screen and real list data.
 - [ps2ui](page:cli/ps2ui#build) documents every subcommand and flag used above.
 - [The project file](page:authoring/project-file#reference-table) lists
