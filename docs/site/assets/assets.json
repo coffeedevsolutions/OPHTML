@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "path": "assets/cli/ps2ui-bake/preview.png",
+    "page": "cli/ps2ui-bake",
+    "command": "PYTHONPATH=packages/baker python3 -m ps2ui_bake examples/memcard/build/library.json examples/memcard/build/saves.json -o OUT.uib --preview OUT",
+    "alt": "memcard library screen, root theme, 4:3, initial state",
+    "checked": true
+  },
+  {
+    "path": "assets/cli/ps2ui-bake/states.png",
+    "page": "cli/ps2ui-bake",
+    "command": "PYTHONPATH=packages/baker python3 -m ps2ui_bake examples/memcard/build/library.json examples/memcard/build/saves.json -o OUT.uib --montage OUT",
+    "alt": "memcard montage, root theme, 4:3, every focus state of both screens",
+    "checked": true
+  }
+]

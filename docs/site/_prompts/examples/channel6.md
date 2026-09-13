@@ -1,6 +1,8 @@
 # Page: examples/channel6 (channel6)
 
-Page type: `example`. Section order: `62`. Wave: `3`.
+Page type: `example`. Section order: `62`. Wave: `3`. Model tier: `sonnet`.
+
+The model tier is the one the orchestrator spawns this brief on: `opus` for a page whose claims are derived from source and proved by running code; `sonnet` for a page that consolidates facts parents already verified, follows a CI-executed script, or restates repository documents.
 
 ## Purpose and audience
 

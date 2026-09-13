@@ -1,6 +1,8 @@
 # Page: cli/previewer (Previewer)
 
-Page type: `cli`. Section order: `35`. Wave: `2`.
+Page type: `cli`. Section order: `35`. Wave: `2`. Model tier: `opus`.
+
+The model tier is the one the orchestrator spawns this brief on: `opus` for a page whose claims are derived from source and proved by running code; `sonnet` for a page that consolidates facts parents already verified, follows a CI-executed script, or restates repository documents.
 
 ## Purpose and audience
 

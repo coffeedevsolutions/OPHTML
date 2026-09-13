@@ -250,6 +250,18 @@ with the dispute appended to its brief, then the disputing child. Then start
 the next wave. After wave 4, run the verification below over the whole
 tree.
 
+## Model tiers
+
+Each brief names the model tier the orchestrator spawns it on. The rule:
+
+| tier | when | pages |
+|---|---|---|
+| opus | the page's claims are derived from source and proved by running code | every wave-0 page; every `authoring/*` page; cli/ps2ui; cli/previewer; runtime/frame-loop; runtime/integrating; runtime/streaming-art; runtime/moving-and-hiding; reference/diagnostics |
+| sonnet | the page consolidates facts its parents already verified, follows a CI-executed script, or restates repository documents | runtime/telemetry; reference/compatibility; every `getting-started/*`, `examples/*`, `project/*` page; index; runtime/deploying; runtime/first-boot |
+
+A sonnet page that finds a parent fact wrong writes a `## disputes` section like
+any other page; the rerun of the disputed parent is on opus.
+
 ## Environment
 
 Every agent runs this first and stops if any step fails:

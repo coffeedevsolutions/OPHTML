@@ -1,6 +1,8 @@
 # Page: runtime/errors-and-constants (Errors and constants)
 
-Page type: `api`. Section order: `43`. Wave: `0`.
+Page type: `api`. Section order: `43`. Wave: `0`. Model tier: `opus`.
+
+The model tier is the one the orchestrator spawns this brief on: `opus` for a page whose claims are derived from source and proved by running code; `sonnet` for a page that consolidates facts parents already verified, follows a CI-executed script, or restates repository documents.
 
 ## Purpose and audience
 

@@ -1,6 +1,8 @@
 # Page: getting-started/how-it-works (How it works)
 
-Page type: `project`. Section order: `4`. Wave: `4`.
+Page type: `project`. Section order: `4`. Wave: `4`. Model tier: `sonnet`.
+
+The model tier is the one the orchestrator spawns this brief on: `opus` for a page whose claims are derived from source and proved by running code; `sonnet` for a page that consolidates facts parents already verified, follows a CI-executed script, or restates repository documents.
 
 ## Purpose and audience
 

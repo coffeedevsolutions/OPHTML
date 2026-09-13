@@ -1,6 +1,8 @@
 # Page: cli/ps2ui-layout (ps2ui-layout and ps2ui-dev)
 
-Page type: `cli`. Section order: `31`. Wave: `0`.
+Page type: `cli`. Section order: `31`. Wave: `0`. Model tier: `opus`.
+
+The model tier is the one the orchestrator spawns this brief on: `opus` for a page whose claims are derived from source and proved by running code; `sonnet` for a page that consolidates facts parents already verified, follows a CI-executed script, or restates repository documents.
 
 ## Purpose and audience
 
