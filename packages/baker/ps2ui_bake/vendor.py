@@ -45,7 +45,22 @@ import shutil
 # and a glob here would start handing out whatever lands there next.
 FILES = ("ps2ui.c", "ps2ui.h")
 
+# The starter project: a main.c that drives the runtime and a Makefile
+# that builds it. Committed here rather than staged like the runtime,
+# because there is no second copy of them anywhere -- runtime/sample is
+# a 2800-line bring-up harness with a different job, and pointing a
+# newcomer at it was the gap this closes.
+#
+# THEY ARE NOT THE RUNTIME AND ARE NOT TREATED LIKE IT. ps2ui.c and
+# ps2ui.h must stay a matched pair, so a drifted one stops the command
+# (see the classification below). These two are a starting point whose
+# whole purpose is to be edited five minutes after it lands, so an
+# edited one is left exactly where it is and reported, never replaced.
+STARTER_FILES = ("main.c", "Makefile")
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
+
+_STARTER = os.path.join(_HERE, "starter")
 
 # Staged into the package at build time (setup.py), present in a wheel
 # and an sdist, absent in a checkout.
@@ -221,7 +236,18 @@ def cmd_vendor_runtime(args):
         print("%s already up to date." % ", ".join(same))
 
     print("runtime source: %s (%s)" % (src, label))
-    if not absent and not (args.force and drifted):
+
+    wrote_starter = []
+    if args.starter:
+        wrote_starter = _write_starter(dest, args.dest, args.force)
+
+    if not absent and not (args.force and drifted) and not wrote_starter:
+        if args.starter:
+            _say_build(args.dest)
+        return 0
+
+    if args.starter:
+        _say_build(args.dest)
         return 0
 
     # THE PATHS HERE ARE ABSOLUTE ON PURPOSE. This message is printed
@@ -234,6 +260,14 @@ def cmd_vendor_runtime(args):
     # And it names the toolchain, because handing somebody two C files
     # without saying they need a cross-compiler stops one step short of
     # the finish line. The PS2 is the target and never the build host.
+    #
+    # IT NO LONGER ENDS AT A URL. The three Makefile lines below used
+    # to be followed by "a complete worked Makefile, and a main.c that
+    # drives this runtime" pointing at runtime/sample on GitHub -- 2800
+    # lines of bring-up harness, which is not a starting point and is
+    # not reachable offline. `--starter` writes both files here instead,
+    # and the lines stay because somebody integrating into an app they
+    # already have wants the three lines rather than a new main.
     print("\nCompile these with your project against gsKit. The PS2 is a "
           "MIPS target, so this needs a cross-toolchain -- you cannot "
           "build it with the compiler your machine came with. The ps2dev "
@@ -246,17 +280,100 @@ def cmd_vendor_runtime(args):
           "include path, so your Makefile needs these three lines or "
           "ps2ui.c will not find <gsKit.h>:\n"
           "\n"
-          "    EE_CFLAGS  += -I$(PS2DEV)/gsKit/include "
-          "-I$(PS2SDK)/ports/include\n"
-          "    EE_LIBS     = -lgskit -ldmakit\n"
-          "    EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib\n"
+          "%s\n"
           "\n"
-          "A complete worked Makefile, and a `main.c` that drives this "
-          "runtime:\n"
-          "https://github.com/coffeedevsolutions/OPHTML/tree/main/runtime/"
-          "sample\n"
+          "Starting from nothing rather than adding this to an app you "
+          "already have? Re-run with --starter and you get a main.c and "
+          "a Makefile beside these, which build to an ELF as they "
+          "stand.\n"
           "\n"
           "`ps2ui check` validates the blob. The path onto a console:\n"
           "https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/"
-          "deploying.md")
+          "deploying.md" % _GSKIT_LINES)
     return 0
+
+
+# THE ONE COPY OF THESE THREE LINES IS THE STARTER MAKEFILE, and this
+# reads them out of it rather than restating them.
+#
+# They were prose here and build rules there, which is two copies of a
+# fact that moves whenever the ps2dev image moves gsKit -- the defect
+# this repository has now found in a comment outliving its macro, in a
+# README naming a Makefile target nobody deleted from the docs, and in
+# a bench card naming a cause that was proved impossible. A second copy
+# of anything is a copy that goes stale, and the message an installed
+# user reads is the copy nobody would notice.
+#
+# test_vendor.py holds this to the Makefile, so a change there that
+# this cannot find fails the suite rather than silently printing less.
+def _gskit_lines():
+    """The three build lines, read out of the starter Makefile.
+
+    Between the `>>> gskit wiring` / `<<< gskit wiring` markers, and
+    the count is asserted rather than trusted: an extraction that
+    silently returns two lines would print a message that is wrong in
+    the one way nobody re-reads, and this module's whole subject is a
+    second copy nobody notices going stale.
+    """
+    path = os.path.join(_STARTER, "Makefile")
+    out, inside = [], False
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            if line.strip() == "# >>> gskit wiring":
+                inside = True
+            elif line.strip() == "# <<< gskit wiring":
+                inside = False
+            elif inside and line.strip():
+                out.append("    " + line)
+    if len(out) != 3:
+        raise RuntimeError(
+            "%s: expected 3 lines between the gskit wiring markers, "
+            "found %d. The markers are what keeps vendor-runtime's "
+            "message and this Makefile one fact rather than two."
+            % (path, len(out)))
+    return "\n".join(out)
+
+
+_GSKIT_LINES = _gskit_lines()
+
+
+def _write_starter(dest, shown, force):
+    """main.c and the Makefile, which are yours the moment they land.
+
+    Unlike the runtime pair, an existing file here is never replaced
+    without --force and never stops the command: a main.c that differs
+    from this one is the expected end state, not a fault. Saying so is
+    the whole behaviour -- the first draft reused the runtime's drift
+    refusal and turned "you edited your own main" into an error.
+    """
+    written = []
+    for name in STARTER_FILES:
+        target = os.path.join(dest, name)
+        if os.path.exists(target) and not force:
+            print("%s is already here; left as it is."
+                  % os.path.join(shown, name))
+            continue
+        shutil.copyfile(os.path.join(_STARTER, name), target)
+        print("wrote %s" % os.path.join(shown, name))
+        written.append(name)
+    return written
+
+
+def _say_build(shown):
+    print("\nThat is a buildable project. Put your baked blob beside it "
+          "and run make:\n"
+          "\n"
+          "    cd %s\n"
+          "    docker run --rm -v \"$PWD:/work\" -w /work "
+          "ghcr.io/ps2dev/ps2dev make UIB=build/ui.uib\n"
+          "\n"
+          "The PS2 is a MIPS target, so a cross-toolchain is required "
+          "however you get it; the ps2dev image is what this project's "
+          "CI uses. main.c is yours -- read the comment at the top "
+          "before you delete anything, it says which parts have been "
+          "proved on hardware and which have only been compiled.\n"
+          "\n"
+          "`ps2ui check` validates the blob. The path onto a console:\n"
+          "https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/"
+          "deploying.md" % shown)
