@@ -4,7 +4,8 @@
 //   ps2ui-dev <page.html> <page.css> -o <outdir>
 //             [--mode ntsc|pal] [--canvas WxH]
 //             [--font-dir DIR | --fonts fonts.json]
-//             [--focus-wrap] [--montage] [--palettize-images] [--once]
+//             [--focus-wrap] [--strict] [--min-font-size PX]
+//             [--montage] [--palettize-images] [--once]
 //
 // Watches the HTML, the CSS, and the HTML's directory (assets/ lives
 // there), recompiles on change, bakes, and refreshes outdir/preview.png.
@@ -85,8 +86,20 @@ if (positional.length !== 2 || !outDir) usage(2);
 const [htmlPath, cssPath] = positional.map((p) => resolve(p));
 mkdirSync(outDir, { recursive: true });
 
-const options = { fontDir, fontManifest, focusWrap, strict };
-if (minFontSize !== null) options.minFontSize = minFontSize;
+const options = { fontDir, fontManifest, focusWrap };
+if (minFontSize !== null) {
+  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
+    console.error('ps2ui-dev: --min-font-size takes a positive integer');
+    process.exit(2);
+  }
+  // THE LINTER READS options.lint AND NOTHING ELSE. This used to set
+  // options.minFontSize and options.strict, which compile() never
+  // reads, so both flags were accepted and inert: `ps2ui dev` on
+  // opl-env (minFontSize 11, strict) printed 44 warnings at the 14px
+  // floor and exited 0, where `ps2ui build` printed none. Same shape
+  // as ps2ui-layout.js, which had it right.
+  options.lint = { ...(options.lint || {}), minFontSize };
+}
 if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;
@@ -111,6 +124,14 @@ function build() {
     ir = compileFiles(htmlPath, cssPath, options);
   } catch (err) {
     console.error(`\x1b[31mlayout error:\x1b[0m ${err.message}`);
+    return false;
+  }
+  // --strict fails the build the way ps2ui-layout does: warnings are a
+  // failed compile, so nothing is baked and --once exits 1. In watch
+  // mode the loop keeps watching and the next save retries.
+  if (strict && ir.warnings.length > 0) {
+    for (const w of ir.warnings) console.error(`  warning: ${w}`);
+    console.error(`\x1b[31mps2ui-dev: --strict: ${ir.warnings.length} warning(s)\x1b[0m`);
     return false;
   }
   // NAMED AFTER THE HTML, NOT 'ui'. A blob's screen names ARE its IR

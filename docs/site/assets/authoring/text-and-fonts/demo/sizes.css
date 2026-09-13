@@ -1,0 +1,19 @@
+/* Demo screen for docs/site/authoring/text-and-fonts.md.
+ * One string, two sizes, two weights. Kerning is a sub-em adjustment,
+ * so the T/o and A/V pairs close up at 32px and round away at 14px. */
+
+.screen {
+  flex-direction: column;
+  background: #0a0e1a;
+  padding: 40px 48px;
+  gap: 16px;
+}
+
+p {
+  color: #f2f5fa;
+  white-space: nowrap;
+}
+
+.big { font-size: 32px; }
+.small { font-size: 14px; }
+.bold { font-weight: 700; }

@@ -53,6 +53,20 @@ without moving this line.
   sentence was written from what the job was meant to say. The
   incident is recorded in the header it was wrong in.
 
+### Fixed
+
+- **`ps2ui dev` accepted `--strict` and `--min-font-size` and read
+  neither.** `ps2ui-dev` stored them as `options.strict` and
+  `options.minFontSize`; the compiler takes lint overrides from
+  `options.lint` alone, so `ps2ui dev` on opl-env (`strict`,
+  `minFontSize: 11`) printed 44 warnings at the 14px floor and exited
+  0 where `ps2ui build` printed none. The floor now goes where
+  `ps2ui-layout` puts it, and `--strict` fails the build before the
+  bake, exit 1 under `--once`. Two tests hold it: one spawns the bin on
+  a page whose only warning is a font-size one, the other runs
+  `ps2ui dev` and `ps2ui build` over opl-env and compares the warning
+  counts.
+
 ## 0.6.0 — 2026-09-12
 
 ### Added

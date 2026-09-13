@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260" role="img" aria-labelledby="t d">
+<title id="t">The build pipeline from HTML and CSS to the console</title>
+<desc id="d">Four hand-drawn boxes joined by three arrows: HTML plus CSS, ui.json, .uib, C runtime. Each box names what it is: the source, the IR, the blob, the console.</desc>
+<g fill="none" stroke="#1a1a1a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" font-family="Segoe Print, 'Bradley Hand', 'Comic Sans MS', cursive" font-size="22">
+<!-- box 1: HTML + CSS -->
+<path d="M22,58 C60,52 152,50 190,56 C194,110 192,168 190,206 C130,212 60,210 24,204 C20,150 22,100 22,58 Z"/>
+<text x="106" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">HTML + CSS</text>
+<text x="106" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the source</text>
+<!-- box 2: ui.json -->
+<path d="M252,58 C290,52 382,50 420,56 C424,110 422,168 420,206 C360,212 290,210 254,204 C250,150 252,100 252,58 Z"/>
+<text x="336" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">ui.json</text>
+<text x="336" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the IR</text>
+<!-- box 3: .uib -->
+<path d="M482,58 C520,52 612,50 650,56 C654,110 652,168 650,206 C590,212 520,210 484,204 C480,150 482,100 482,58 Z"/>
+<text x="566" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">.uib</text>
+<text x="566" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the blob</text>
+<!-- box 4: C runtime -->
+<path d="M712,58 C750,52 842,50 880,56 C884,110 882,168 880,206 C820,212 750,210 714,204 C710,150 712,100 712,58 Z"/>
+<text x="796" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">C runtime</text>
+<text x="796" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the console</text>
+<!-- arrow 1 -->
+<path d="M193,120 C210,116 220,124 240,120"/>
+<path d="M230,113 L242,120 L229,127"/>
+<!-- arrow 2 -->
+<path d="M423,120 C443,116 453,124 473,120"/>
+<path d="M463,113 L475,120 L462,127"/>
+<!-- arrow 3 -->
+<path d="M653,120 C673,116 683,124 703,120"/>
+<path d="M693,113 L705,120 L692,127"/>
+</g>
+<text x="450" y="240" text-anchor="middle" fill="#1a1a1a" font-family="Segoe Print, 'Bradley Hand', 'Comic Sans MS', cursive" font-size="15">authored once, on the build machine, then replayed every frame on the console</text>
+</svg>

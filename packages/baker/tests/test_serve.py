@@ -665,6 +665,58 @@ class TestDevAgreesWithBuild(unittest.TestCase):
                              "ps2ui dev compiled the screen differently "
                              "from ps2ui build")
 
+    def test_dev_applies_strict_and_min_font_size_like_build(self):
+        """THE FORWARDED FLAGS HAVE TO LAND, NOT JUST BE SENT.
+
+        cmd_dev forwarded --strict and --min-font-size, and ps2ui-dev
+        accepted both and read neither: it set options.strict and
+        options.minFontSize while the compiler takes lint overrides
+        from options.lint only. So `ps2ui dev` on opl-env, which sets
+        minFontSize 11 and strict, printed 44 warnings at the 14px
+        floor and exited 0 where `ps2ui build` printed none. The
+        warning count on the `built in` line is the observable.
+        """
+        import re
+        import shutil
+        import subprocess
+        from ps2ui_bake import ps2ui as front
+        src = os.path.join(ROOT, "examples", "opl-env")
+        if not os.path.exists(os.path.join(src, "ps2ui.json")):
+            raise unittest.SkipTest("no opl-env project")
+        if not (os.environ.get("PS2UI_LAYOUT") or shutil.which("node")):
+            raise unittest.SkipTest("no node for the layout stage")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            # Two screens borrow a cover from channel6 by a path that
+            # climbs to the repository root, so the copy keeps the
+            # examples/<name> shape and brings that one asset directory.
+            work = os.path.join(tmp, "examples", "opl-env")
+            shutil.copytree(src, work,
+                            ignore=shutil.ignore_patterns("build"))
+            shutil.copytree(
+                os.path.join(ROOT, "examples", "channel6", "ui", "assets"),
+                os.path.join(tmp, "examples", "channel6", "ui", "assets"))
+            cfg = os.path.join(work, "ps2ui.json")
+            with open(cfg, encoding="utf-8") as fh:
+                project = json.load(fh)
+            self.assertTrue(project.get("strict"),
+                            "opl-env must set strict for this to mean anything")
+            self.assertEqual(project.get("minFontSize"), 11)
+            self.assertEqual(front.main(["build", cfg]), 0)
+            rc = subprocess.run(
+                [sys.executable, "-m", "ps2ui_bake.ps2ui", "dev", cfg,
+                 "--screen", "library", "--once"],
+                capture_output=True, text=True,
+                env=dict(os.environ, PYTHONPATH=os.path.dirname(
+                    os.path.dirname(os.path.abspath(__file__)))))
+            self.assertEqual(rc.returncode, 0, rc.stderr)
+            plain = re.sub(r"\x1b\[[0-9;]*m", "", rc.stderr)
+            m = re.search(r"built in \d+ms .*?, (\d+) warnings?", plain)
+            self.assertIsNotNone(m, rc.stderr)
+            self.assertEqual(int(m.group(1)), 0,
+                             "ps2ui dev warned where ps2ui build did not:\n"
+                             + rc.stderr)
+
 
 class TestImportRule(unittest.TestCase):
 

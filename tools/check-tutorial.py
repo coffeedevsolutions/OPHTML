@@ -38,7 +38,13 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOC = os.path.join(ROOT, "docs", "tutorial-uc3.md")
+# Two documents carry the same eight steps: the repository tutorial
+# and the site's port of it, whose asserted output blocks are kept
+# byte-identical so this one check covers both. Each runs from its own
+# empty directory and is held to ASSERTED_BLOCKS on its own.
+DOCS = [os.path.join(ROOT, "docs", "tutorial-uc3.md"),
+        os.path.join(ROOT, "docs", "site", "getting-started",
+                     "tutorial-game-browser.md")]
 
 # ```sh ... ``` followed optionally by ```text ... ```
 BLOCK = re.compile(r"```sh\n(.*?)```(?:\s*\n```text\n(.*?)```)?", re.S)
@@ -126,11 +132,12 @@ def ttfs():
             "TTF_BOLD": manifest["bold"]["ttf"]}
 
 
-def blocks():
-    text = open(DOC, encoding="utf-8").read()
+def blocks(doc):
+    text = open(doc, encoding="utf-8").read()
     found = [(m.group(1), m.group(2)) for m in BLOCK.finditer(text)]
     if not found:
-        raise SystemExit("not ok - docs/tutorial-uc3.md has no ```sh blocks. "
+        raise SystemExit("not ok - %s has no ```sh blocks. "
+                         % os.path.relpath(doc, ROOT) +
                          "They were reformatted, and this check has stopped "
                          "running the tutorial rather than started passing "
                          "it.")
@@ -139,24 +146,27 @@ def blocks():
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    cmds = blocks()
-    asserted = {i + 1 for i, (_, out) in enumerate(cmds) if out}
-    if asserted != ASSERTED_BLOCKS:
-        lost = sorted(ASSERTED_BLOCKS - asserted)
-        gained = sorted(asserted - ASSERTED_BLOCKS)
-        raise SystemExit(
-            "not ok - the tutorial's asserted-output blocks are %s; this "
-            "check expects %s.%s%s\n  Every ```sh block listed in "
-            "ASSERTED_BLOCKS must be followed by a ```text block. A "
-            "tutorial that only checks exit statuses is the thing the "
-            "check exists to prevent, and it gets there one deleted "
-            "block at a time."
-            % (sorted(asserted) or "none", sorted(ASSERTED_BLOCKS),
-               "\n  Lost: %s -- output no longer checked." % lost if lost
-               else "",
-               "\n  Gained: %s -- add it to ASSERTED_BLOCKS." % gained
-               if gained else ""))
-    expected = len(asserted)
+    docs = {}
+    for doc in DOCS:
+        cmds = blocks(doc)
+        asserted = {i + 1 for i, (_, out) in enumerate(cmds) if out}
+        if asserted != ASSERTED_BLOCKS:
+            lost = sorted(ASSERTED_BLOCKS - asserted)
+            gained = sorted(asserted - ASSERTED_BLOCKS)
+            raise SystemExit(
+                "not ok - %s: the asserted-output blocks are %s; this "
+                "check expects %s.%s%s\n  Every ```sh block listed in "
+                "ASSERTED_BLOCKS must be followed by a ```text block. A "
+                "tutorial that only checks exit statuses is the thing the "
+                "check exists to prevent, and it gets there one deleted "
+                "block at a time."
+                % (os.path.relpath(doc, ROOT), sorted(asserted) or "none",
+                   sorted(ASSERTED_BLOCKS),
+                   "\n  Lost: %s -- output no longer checked." % lost if lost
+                   else "",
+                   "\n  Gained: %s -- add it to ASSERTED_BLOCKS." % gained
+                   if gained else ""))
+        docs[doc] = (cmds, len(asserted))
 
     # --from-registry: DO NOT SHIM. The commands then resolve to
     # whatever `pip install ophtml` and `npm install -g @ophtml/layout`
@@ -208,17 +218,33 @@ def main(argv=None):
         print("# --from-registry: %s" % ", ".join(
             "%s -> %s" % (c, shutil.which(c)) for c in sorted(SHIMS)))
     env.update(ttfs())
+    fail = []
+    log = []
+    for n, (doc, (cmds, expected)) in enumerate(docs.items()):
+        run_doc(doc, cmds, expected, os.path.join(tmp, "work%d" % n), env,
+                fail, log)
+
+    for line in log:
+        print(line)
+    for f in fail:
+        print("not ok - %s" % f)
+    if not fail:
+        shutil.rmtree(tmp, ignore_errors=True)
+    else:
+        print("# scratch kept at %s" % tmp)
+    return 1 if fail else 0
+
+
+def run_doc(doc, cmds, expected, work, env, fail, log):
+    name = os.path.relpath(doc, ROOT)
     # One shell for the whole document: `cd browser` in step 1 has to
     # still be in effect at step 5, exactly as it is for a reader.
     script, checks = [], []
     for i, (cmd, want) in enumerate(cmds):
         script.append(cmd)
         checks.append((i, cmd, want))
-    work = os.path.join(tmp, "work")
     os.makedirs(work)
 
-    fail = []
-    log = []
     for i, cmd, want in checks:
         marker = "___ps2ui_block_%d___" % i
         run = "\n".join(script[:i + 1] + ['echo "%s"' % marker])
@@ -226,35 +252,28 @@ def main(argv=None):
                               capture_output=True, text=True)
         got = proc.stdout + proc.stderr
         if proc.returncode != 0:
-            fail.append("block %d exited %d:\n    $ %s\n    %s"
-                        % (i + 1, proc.returncode, cmd.strip().splitlines()[0],
+            fail.append("%s block %d exited %d:\n    $ %s\n    %s"
+                        % (name, i + 1, proc.returncode,
+                           cmd.strip().splitlines()[0],
                            got.strip().splitlines()[-1] if got.strip() else ""))
-            break
+            return
         if want:
             missing = [ln for ln in want.splitlines()
                        if ln.strip() and ln not in got]
             if missing:
-                fail.append("block %d ran, but the tutorial's output block "
-                            "claims lines that did not appear:\n%s"
-                            % (i + 1, "\n".join("    " + m for m in missing)))
+                fail.append("%s block %d ran, but the tutorial's output "
+                            "block claims lines that did not appear:\n%s"
+                            % (name, i + 1,
+                               "\n".join("    " + m for m in missing)))
             else:
-                log.append("ok - tutorial block %d: %d output line(s) as "
-                           "documented" % (i + 1, len(want.strip().splitlines())))
+                log.append("ok - %s block %d: %d output line(s) as "
+                           "documented"
+                           % (name, i + 1, len(want.strip().splitlines())))
         else:
-            log.append("ok - tutorial block %d ran clean" % (i + 1))
-
-    for line in log:
-        print(line)
-    for f in fail:
-        print("not ok - %s" % f)
-    if not fail:
-        print("ok - docs/tutorial-uc3.md: %d block(s), %d of %d asserted "
-              "as expected, from an empty directory"
-              % (len(cmds), expected, len(ASSERTED_BLOCKS)))
-        shutil.rmtree(tmp, ignore_errors=True)
-    else:
-        print("# scratch kept at %s" % tmp)
-    return 1 if fail else 0
+            log.append("ok - %s block %d ran clean" % (name, i + 1))
+    log.append("ok - %s: %d block(s), %d of %d asserted as expected, from "
+               "an empty directory"
+               % (name, len(cmds), expected, len(ASSERTED_BLOCKS)))
 
 
 if __name__ == "__main__":
