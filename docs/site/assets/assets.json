@@ -33,5 +33,19 @@
     "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/text-and-fonts/demo/sizes.html docs/site/assets/authoring/text-and-fonts/demo/sizes.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
     "alt": "The string \"To the Victor: AV Ta Yo\" drawn four times on the demo screen, root theme, 4:3, initial state: 32px regular, 32px bold, 14px regular, 14px bold",
     "checked": true
+  },
+  {
+    "path": "assets/authoring/theming/library-theme-0.png",
+    "page": "authoring/theming",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=0).save('OUT')\"",
+    "alt": "opl-env library screen, theme 0 (root), 4:3, initial focus",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/theming/library-theme-1.png",
+    "page": "authoring/theming",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('OUT')\"",
+    "alt": "opl-env library screen, theme 1 (light), 4:3, initial focus",
+    "checked": true
   }
 ]
