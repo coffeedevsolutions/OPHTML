@@ -41,8 +41,8 @@ Nothing downstream mentions fonts again.
 
 ## 2. The screen
 
-One screen, six fixed rows, and the text each row will show left for the
-console to fill in.
+One screen, six fixed rows, and the text each row will show left blank
+for the console to fill in.
 
 ```sh
 cat > ui/library.html <<'EOF'
@@ -235,7 +235,7 @@ covers the toolchain and a worked Makefile in full;
 [the frame loop](page:runtime/frame-loop#behaviour) covers the ordering
 guarantees below.
 
-The sample checks both calls the tutorial's arena backs:
+The sample checks both calls against the arena this tutorial baked:
 
 ```c
 rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);
