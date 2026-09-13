@@ -5,7 +5,9 @@ Every command was run from the repository root in this session.
 `/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring/css`.
 The compile command is
 `ps2ui-layout <scratch>/<name>.html <scratch>/<name>.css --fonts fonts/fonts.json -o <scratch>/x.json`
-unless a row says otherwise. `node --test packages/layout/test/parse.test.js`
+unless a row says otherwise. The command blocks on the page were re-run from
+`<scratch>` with relative paths and a `fonts/fonts.json` copied there, so the
+paths they print are the ones the page shows. `node --test packages/layout/test/parse.test.js`
 printed 39 pass, 0 fail. `node --test packages/layout/test/layout.test.js`
 printed 71 pass, 0 fail.
 

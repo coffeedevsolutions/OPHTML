@@ -192,6 +192,7 @@ A paint property passes:
 
 ```
 $ ps2ui-layout f.html fweight.css --fonts fonts/fonts.json -o x.json
+...
 ps2ui-layout: 2 paint commands, 1 focusables -> x.json
 ```
 
