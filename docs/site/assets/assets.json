@@ -273,5 +273,96 @@
     "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/memcard/build/ui.uib')).save('OUT')\"",
     "alt": "memcard library screen montage, root theme, 4:3, all nine focus states, three columns by three rows",
     "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/landing-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='landing', theme=0).save('OUT')\"",
+    "alt": "opl-env landing screen, root theme, 4:3, initial focus on the first source tile: hero banner, four source tiles and three resume cards",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/landing-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='landing', theme=1).save('OUT')\"",
+    "alt": "opl-env landing screen, light theme, 4:3, initial focus on the first source tile: hero banner, four source tiles and three resume cards",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/library-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=0).save('OUT')\"",
+    "alt": "opl-env library screen, root theme, 4:3, initial focus on the ALL filter chip: nine library rows and three continue-playing tiles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/library-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('OUT')\"",
+    "alt": "opl-env library screen, light theme, 4:3, initial focus on the ALL filter chip: nine library rows and three continue-playing tiles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/detail-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='detail', theme=0).save('OUT')\"",
+    "alt": "opl-env detail screen, root theme, 4:3, initial focus on LAUNCH: cover art, six fields and four action buttons",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/detail-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='detail', theme=1).save('OUT')\"",
+    "alt": "opl-env detail screen, light theme, 4:3, initial focus on LAUNCH: cover art, six fields and four action buttons",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/filters-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='filters', theme=0).save('OUT')\"",
+    "alt": "opl-env filters screen, root theme, 4:3, initial focus on the first facet row: seven facets and five matched titles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/filters-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='filters', theme=1).save('OUT')\"",
+    "alt": "opl-env filters screen, light theme, 4:3, initial focus on the first facet row: seven facets and five matched titles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/recent-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='recent', theme=0).save('OUT')\"",
+    "alt": "opl-env recent screen, root theme, 4:3, initial focus on the first session row: nine recently played rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/recent-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='recent', theme=1).save('OUT')\"",
+    "alt": "opl-env recent screen, light theme, 4:3, initial focus on the first session row: nine recently played rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/confirm-theme-0.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='confirm', theme=0).save('OUT')\"",
+    "alt": "opl-env confirm dialog, root theme, 4:3, initial focus on CANCEL: the overlay composited over the screen beneath it",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/confirm-theme-1.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='confirm', theme=1).save('OUT')\"",
+    "alt": "opl-env confirm dialog, light theme, 4:3, initial focus on CANCEL: the overlay composited over the screen beneath it",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/opl-env/states.png",
+    "page": "examples/opl-env",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/opl-env/build/ui.uib')).save('OUT')\"",
+    "alt": "opl-env landing screen montage, root theme, 4:3, all seven focus states, three columns by three rows",
+    "checked": true
   }
 ]

@@ -354,6 +354,8 @@ with the evidence. They are fixes for separate changes, not for pages.
 | packages/layout/src/focus.js | dead `default:` throw in a switch over the four directions its only caller iterates | reference/diagnostics |
 | packages/baker/tests/test_baker.py | not importable as `tests.test_baker` either; the same `fonts_available` resolution, so `unittest discover -s tests` is the only working spelling | getting-started/installation |
 | runtime/sample/Makefile comment on SCREEN= | says an unmatched screen name holds solid blue; main.c clears to magenta and its own comment explains why blue was rejected | runtime/deploying |
+| examples/opl-env/build.sh header comment | says the script runs the host runtime tests; it runs `ps2ui build`, `tools/check-blobs.sh` and its own `check.py` and never invokes `make -C runtime` | examples/opl-env |
+| examples/opl-env/README.md scale comparison | states memcard as a 175,120-byte blob with 808 commands; the built memcard blob is 176,208 bytes with 1,062 commands, and `check-example-figures.py` does not cover this sentence | examples/opl-env |
 
 ## Brief template
 
