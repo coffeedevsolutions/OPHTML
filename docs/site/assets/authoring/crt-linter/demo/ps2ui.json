@@ -1,0 +1,5 @@
+{
+  "screens": ["ui/library.html"],
+  "css": "ui/library.css",
+  "fonts": "../../../../../../fonts/fonts.json"
+}

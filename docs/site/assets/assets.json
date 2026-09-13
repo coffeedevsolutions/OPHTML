@@ -112,5 +112,34 @@
     "alt": "the ps2ui serve previewer at 1280x800, channel6 16:9 blob served with --uib, Aspect set to force-4:3, the games-16x9 screen squeezed to 597 pixels wide",
     "checked": false,
     "note": "browser capture of the ps2ui serve page chrome; browser text rendering is not byte-stable, so this is not re-rendered by the checker"
+  },
+  {
+    "path": "assets/authoring/screens-and-overlays/library.png",
+    "page": "authoring/screens-and-overlays",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library').save('OUT')\"",
+    "alt": "The opl-env library screen, root theme, 4:3, rendered alone",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/screens-and-overlays/confirm.png",
+    "page": "authoring/screens-and-overlays",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='confirm').save('OUT')\"",
+    "alt": "The opl-env confirm screen, root theme, 4:3, rendered alone over a flat background: a scrim and a panel with CANCEL focused",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/screens-and-overlays/in-game.png",
+    "page": "authoring/screens-and-overlays",
+    "command": "PYTHONPATH=packages/baker python3 examples/channel6/preview_in_game.py examples/channel6/build/ui.uib OUT",
+    "alt": "The channel6 browser composited over a synthetic game frame, root theme, 4:3: a driving scene shows through the scrim around the cover grid",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/crt-linter/warning.png",
+    "page": "authoring/crt-linter",
+    "command": "ps2ui serve docs/site/assets/authoring/crt-linter/demo --port 8317, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8317/, waits for #frame to report a naturalWidth and for #diags to hold a warning row, clicks that row, clicks .el[data-i=\"13\"] and screenshots to OUT",
+    "alt": "ps2ui serve on the crt-linter demo project: the library screen in the root theme at 4:3, the contrast warning listed under Warnings, command 013 selected in the command list and shown in the inspector",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Serving the demo writes docs/site/assets/authoring/crt-linter/demo/build/, which is not committed."
   }
 ]
