@@ -1,0 +1,25 @@
+/* Demo sheet for docs/site/authoring/css.md.
+   Exercises border-radius, a translucent fill over an opaque one,
+   text-overflow: ellipsis, and a :focus paint delta. */
+
+.screen { flex-direction: column; justify-content: space-between;
+          background: #0e1320; padding: 40px 48px; gap: 24px }
+
+.head { flex-direction: row; justify-content: space-between; align-items: center }
+.title { width: 380px; white-space: nowrap; text-overflow: ellipsis;
+         color: #e8eef8; font-size: 26px; font-weight: bold }
+.hint { color: #7f8ca6; font-size: 18px; letter-spacing: 2px }
+
+.cards { flex-direction: row; gap: 20px }
+.card { flex-direction: column; flex-grow: 1; height: 200px; padding: 16px;
+        border-radius: 16px; border: 3px solid #222b40; background: #182339 }
+.card:focus { border-color: #7fd4ff; background: #24406b }
+.card:focus .name { color: #ffffff }
+.card:focus .meta { color: #e8f4ff }
+
+.name { color: #cfe0f6; font-size: 22px; font-weight: bold }
+.wash { background: rgba(255, 255, 255, 0.18); border-radius: 10px;
+        margin-top: 100px; padding: 10px }
+.meta { color: #b9c8e0; font-size: 16px; white-space: nowrap; text-overflow: ellipsis }
+
+.foot { flex-direction: row; justify-content: space-between }
