@@ -238,5 +238,19 @@
     "alt": "the served page after the tutorial's step 7: the library screen, row 0 focused, no warnings",
     "checked": false,
     "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Server was stopped and port 8700 confirmed closed after the capture."
+  },
+  {
+    "path": "assets/runtime/first-boot/probe.png",
+    "page": "runtime/first-boot",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='probe').save('OUT')\"",
+    "alt": "channel6 probe screen, root theme, 4:3, initial focus: the ALPHA, RADIUS, TYPE, CLIP, IMAGE, ASPECT and FLEX cells, the ground truth a console frame is compared against",
+    "checked": true
+  },
+  {
+    "path": "assets/runtime/first-boot/testcard.png",
+    "page": "runtime/first-boot",
+    "command": "python3 tools/make_testcard.py OUT.uib --preview OUT",
+    "alt": "the texel-alignment test card: the resolution wedge (flat, 1px, 2px, 4px, flat) at canvas centre, four colour-coded edge rules, four corner checkers and the step 8 interlace pair",
+    "checked": true
   }
 ]
