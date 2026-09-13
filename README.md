@@ -166,14 +166,28 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui dev \
 Console side, from an install or a checkout alike:
 
 ```sh
-ps2ui vendor-runtime src/          # writes ps2ui.c and ps2ui.h there
+ps2ui vendor-runtime src/            # ps2ui.c and ps2ui.h, for an app you have
+ps2ui vendor-runtime --starter src/  # ...and a main.c and Makefile, if you do not
 ```
 
-Compile those two with your ps2sdk/gsKit project. They come from the
-package you installed, so the runtime you build is the one that matches
-the baker that wrote your blob — `ps2ui.h`'s `PS2UI_VERSION` and the
-blob's format version cannot drift apart across a `pip install`. It will
-not overwrite files you have already edited without `--force`.
+Both write the runtime out of the package you installed, so what you
+compile matches the baker that wrote your blob — `ps2ui.h`'s
+`PS2UI_VERSION` and the blob's format version cannot drift apart across
+a `pip install`. Neither overwrites files you have already edited
+without `--force`.
+
+`--starter` is the whole gap between two C files and a console binary:
+a `main.c` that brings up gsKit, loads the blob, draws it and reads the
+pad, and a `Makefile` with the three lines that resolve gsKit inside
+the ps2dev image. `make NOPAD=1` builds it with no IOP service at all
+and holds the baked focus, which is the build to boot first. CI
+compiles and links both builds from an installed wheel on every push;
+neither is booted, and `main.c` says which of its lines came from the
+sample that is. [docs/deploying.md](docs/deploying.md) is the path onto
+hardware.
+
+Adding ps2ui to an application you already have is the other command,
+and this is the shape of it:
 
 ```c
 ps2ui_ctx ui;

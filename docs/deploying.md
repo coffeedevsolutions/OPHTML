@@ -73,20 +73,36 @@ the `ghcr.io/ps2dev/ps2dev` container.
 make -C runtime/sample UIB="$PWD/examples/channel6/build/ui.uib"
 ```
 
-**That command assumes a checkout, and this is the one step not
-reachable from a `pip install` — a property of the target rather than of
-the packaging.** The PS2 is MIPS; a host compiler cannot produce a
-console binary, so a cross-toolchain is required however the rest was
-obtained. From an install, `ps2ui vendor-runtime` writes the same two
-files into your own project and you build those instead:
+**That command assumes a checkout.** A cross-toolchain is required
+however you got here — the PS2 is MIPS and a host compiler cannot
+produce a console binary — but nothing else about this step needs the
+repository. From an install:
 
 ```sh
-docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make
+ps2ui vendor-runtime --starter src/
+cp build/ui.uib src/
+cd src && docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev \
+    make NOPAD=1 UIB=ui.uib
 ```
 
-The image ships gsKit at `$PS2DEV/gsKit` and does not put it on the
-include path; `runtime/sample/Makefile` carries the three lines that
-resolve it.
+`--starter` writes four files: `ps2ui.c` and `ps2ui.h` out of the
+installed package, and a `main.c` and `Makefile` that build them into
+an ELF as they stand. `NOPAD=1` loads no IOP service and holds the
+baked focus, which is the build to boot first: it answers *does this
+draw at all* without a controller in the question. Drop the flag for
+the pad build.
+
+**What that ELF is and is not.** CI compiles and links it in the
+ps2dev container on every push, from an installed wheel rather than
+from this checkout, in both builds. It is not booted by anything — the
+sample below is what gets captured and diffed — and `main.c`'s own
+header says which of its lines came from the sample that was.
+
+Without `--starter` you get the two C files alone, which is what you
+want when ps2ui is going into an application you already have. The
+command then prints the three Makefile lines that resolve gsKit: the
+ps2dev image ships it at `$PS2DEV/gsKit` and does not put it on the
+include path, so without them `ps2ui.c` cannot find `<gsKit.h>`.
 
 The checkout command above produces `runtime/sample/ps2ui_sample.elf`.
 Useful variants:
@@ -101,12 +117,11 @@ Useful variants:
   be reached on a console at all.
 
 **That command builds THIS repository's sample, so it assumes a
-checkout.** For your own project, `ps2ui vendor-runtime src/` writes
-`ps2ui.c` and `ps2ui.h` out of the installed package and you compile
-them with your own sources — no clone, and the runtime matches the
-baker that wrote your blob (F26). The sample is still the faster way to
-put *this* project's example on a console, which is what the rest of
-this document is about.
+checkout.** The sample is the faster way to put *this* project's
+example on a console, which is what the rest of this document is
+about, and it is the ELF every bring-up step below refers to. For your
+own project use `--starter` above — no clone, and the runtime matches
+the baker that wrote your blob (F26).
 
 ## 3. Get it onto the console
 

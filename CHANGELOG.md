@@ -14,6 +14,45 @@ decays. It becomes one the moment a format move lands, and
 reading it back, so the check fails the change that moves the format
 without moving this line.
 
+### Added
+
+- **`ps2ui vendor-runtime --starter` — the four files that build to a
+  console binary, instead of the two that do not.** An install gave a
+  stranger `ps2ui.c`, `ps2ui.h`, three Makefile lines of prose and a
+  link to `runtime/sample` on GitHub for a worked example — 2810 lines
+  of bring-up instrumentation behind eighteen build flags, which is not
+  a starting point and is not reachable offline. `--starter` writes a
+  `main.c` that brings up gsKit, loads the blob, draws it and reads the
+  pad, and a `Makefile` carrying the gsKit resolution, beside the
+  runtime pair. `make NOPAD=1` builds with no IOP service at all and
+  holds the baked focus: the build to boot first, because it answers
+  *does this draw* without a controller in the question (F31).
+
+  The starter's rules are the opposite of the runtime's on purpose.
+  A drifted `ps2ui.c` stops the command, because a mixed pair compiles
+  and misbehaves. A drifted `main.c` is left exactly where it is and
+  reported, because being edited is what it is for.
+
+  The three gsKit lines the bare command prints are now read out of the
+  starter Makefile rather than restated, with the count asserted: they
+  were prose in one file and build rules in another, and a second copy
+  of a fact that moves when the ps2dev image moves is a copy that goes
+  stale.
+
+  **Compiled and linked on every push, not booted.** CI builds both
+  variants in the ps2dev container from a venv install of a built
+  wheel — not from the checkout, which would prove the toolchain can
+  compile its own files and nothing about the artifact. The pad path
+  has never been exercised by any test here, and `main.c`'s header says
+  so rather than letting a green check imply otherwise.
+
+  That header first claimed the file *"cannot stop linking"* in the run
+  where the pad build did not link: `EE_LIBS` was copied from a sample
+  that names no `libpad` symbol, so `-lpad` never came with it. The job
+  caught it and the sentence about the job did not, because the
+  sentence was written from what the job was meant to say. The
+  incident is recorded in the header it was wrong in.
+
 ## 0.6.0 — 2026-09-12
 
 ### Added

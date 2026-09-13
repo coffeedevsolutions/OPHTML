@@ -132,6 +132,32 @@ jobs:
               sys.exit("conform.elf opens on screen 'probe'; blob has %s" % names)
           print('ok - the channel-6 blob has the screen conform.elf opens on')
           PY
+      - name: A stranger's project, built from an installed wheel
+        run: |
+          # WHAT THIS PRODUCES IS WHAT THE elf JOB COMPILES, and that
+          # is the whole point of doing it here. check-runtime-shipped
+          # builds the wheel, installs it into a venv OUTSIDE this
+          # checkout and runs `ps2ui vendor-runtime --starter` the way
+          # somebody who ran `pip install ophtml` does. --export leaves
+          # the result on disk instead of in a temp directory.
+          #
+          # It runs in `bake` rather than in `elf` where the ELF is
+          # built, for the reason the arena check above gives: `elf`
+          # runs inside the ps2dev container and that image has no
+          # python3.
+          #
+          # So the ELF the next job builds is the one an INSTALL
+          # produces. Assembling the same four files out of the
+          # checkout would compile just as well and prove nothing about
+          # the artifact -- which is the distinction F26 was about.
+          python3 tools/check-runtime-shipped.py --export "$PWD/starter-project"
+          cp examples/memcard/build/ui.uib starter-project/ui.uib
+          ls -l starter-project
+      - uses: actions/upload-artifact@v7
+        with:
+          name: starter-project
+          retention-days: 14
+          path: starter-project/
       - uses: actions/upload-artifact@v7
         with:
           name: baked
@@ -178,6 +204,10 @@ jobs:
         with:
           name: bench-stream
           path: fixtures/bench-stream/build
+      - uses: actions/download-artifact@v8
+        with:
+          name: starter-project
+          path: starter-project
       - name: Every blob the ELF builds against is present
         run: |
           test -f examples/memcard/build/ui.uib
@@ -621,6 +651,51 @@ jobs:
           test -f runtime/sample/ladder.elf
           test -f runtime/sample/ladder2.elf
           test -f runtime/sample/oplenv.elf
+      - name: The starter project builds to an ELF, as handed out
+        run: |
+          # THE CLAIM THIS STEP EXISTS TO MAKE: somebody who has never
+          # cloned this repository can `pip install ophtml`, bake a
+          # blob, run `ps2ui vendor-runtime --starter`, and get a
+          # console binary out of the four files that lands. Before the
+          # starter existed that person got two C files and a link to
+          # runtime/sample -- 2800 lines of bring-up harness, which is
+          # not a starting point and is not reachable offline.
+          #
+          # NOTHING HERE REACHES INTO THE CHECKOUT, and that is the
+          # point rather than tidiness. The directory came out of a
+          # venv install of a built wheel in `bake`, the blob was
+          # copied in beside it there, and the only arguments are the
+          # ones a reader of main.c would pass. Assembling the same
+          # four files out of runtime/ would compile just as well and
+          # would prove the toolchain can build its own files, which is
+          # not the question F26 left open.
+          #
+          # NOPAD=1 first: that build loads no IOP service and holds
+          # the baked focus, which is the one the host syntax check can
+          # also compile and the one the emulator job boots.
+          cd starter-project
+          make NOPAD=1 UIB=ui.uib
+          test -f ps2ui_app.elf
+          # Then the pad build, which nothing else in this tree can
+          # compile: libpad.h, loadfile.h and sifrpc.h do not exist on
+          # the host, and after the fileio.h episode this tree does not
+          # write a shim to pretend otherwise. So this container is the
+          # only arbiter that path has. It is COMPILED AND NOT BOOTED,
+          # and main.c says so in its own header rather than letting a
+          # green check imply more than it proved -- no test in this
+          # repository has ever pressed a button.
+          make clean
+          make UIB=ui.uib EE_BIN=ps2ui_app_pad.elf
+          test -f ps2ui_app_pad.elf
+          # And put the held build back, because that is the artifact.
+          make clean
+          make NOPAD=1 UIB=ui.uib
+          test -f ps2ui_app.elf
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ps2ui-starter-elf
+          retention-days: 14
+          path: starter-project/ps2ui_app.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-sample-elf

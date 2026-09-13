@@ -42,9 +42,10 @@ def run_quiet(args):
 
 
 class Args(object):
-    def __init__(self, dest, force=False):
+    def __init__(self, dest, force=False, starter=False):
         self.dest = dest
         self.force = force
+        self.starter = starter
 
 
 class VendorRuntimeTest(unittest.TestCase):
@@ -256,3 +257,150 @@ class ShippedListTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StarterTest(unittest.TestCase):
+    """`vendor-runtime --starter`, whose rules are the opposite of the
+    runtime pair's on purpose.
+
+    ps2ui.c and ps2ui.h must stay matched, so a drifted one stops the
+    command. main.c and the Makefile are a starting point that exists
+    to be edited, so a drifted one is left alone and reported -- and
+    the command still succeeds. Getting that backwards would turn
+    "you edited your own main" into an error, which is what the first
+    draft of this did.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self._saved = (vendor._PACKAGED, vendor._CHECKOUT)
+        self.addCleanup(self._restore)
+        d = os.path.join(self.tmp, "pkg")
+        os.makedirs(d)
+        for f in vendor.FILES:
+            with open(os.path.join(d, f), "w") as fh:
+                fh.write("/* runtime */ " + f)
+        vendor._PACKAGED = d
+        vendor._CHECKOUT = os.path.join(self.tmp, "absent")
+        self.dest = os.path.join(self.tmp, "someproject")
+
+    def _restore(self):
+        vendor._PACKAGED, vendor._CHECKOUT = self._saved
+
+    def test_no_starter_by_default(self):
+        rc, out = run_quiet(Args(self.dest))
+        self.assertEqual(rc, 0)
+        for f in vendor.STARTER_FILES:
+            self.assertFalse(os.path.exists(os.path.join(self.dest, f)),
+                             "%s was written without --starter" % f)
+
+    def test_starter_writes_both_files_from_the_package(self):
+        rc, out = run_quiet(Args(self.dest, starter=True))
+        self.assertEqual(rc, 0)
+        for f in vendor.STARTER_FILES:
+            got = os.path.join(self.dest, f)
+            self.assertTrue(os.path.exists(got), "%s not written" % f)
+            with open(got, "rb") as a, \
+                    open(os.path.join(vendor._STARTER, f), "rb") as b:
+                self.assertEqual(a.read(), b.read())
+
+    def test_an_edited_main_is_left_alone_and_is_not_an_error(self):
+        os.makedirs(self.dest)
+        mine = os.path.join(self.dest, "main.c")
+        with open(mine, "w") as fh:
+            fh.write("/* six months of my app */\n")
+        rc, out = run_quiet(Args(self.dest, starter=True))
+        self.assertEqual(rc, 0)
+        with open(mine) as fh:
+            self.assertEqual(fh.read(), "/* six months of my app */\n")
+        self.assertIn("already here", out)
+        # and the file that was NOT there still lands
+        self.assertTrue(os.path.exists(os.path.join(self.dest, "Makefile")))
+
+    def test_force_replaces_an_edited_starter(self):
+        os.makedirs(self.dest)
+        with open(os.path.join(self.dest, "main.c"), "w") as fh:
+            fh.write("/* mine */\n")
+        rc, out = run_quiet(Args(self.dest, starter=True, force=True))
+        self.assertEqual(rc, 0)
+        with open(os.path.join(self.dest, "main.c"), "rb") as a, \
+                open(os.path.join(vendor._STARTER, "main.c"), "rb") as b:
+            self.assertEqual(a.read(), b.read())
+
+    def test_the_message_changes_with_the_flag(self):
+        _, plain = run_quiet(Args(os.path.join(self.tmp, "a")))
+        _, started = run_quiet(Args(os.path.join(self.tmp, "b"), starter=True))
+        # Without it: the three build lines, and a pointer to the flag.
+        self.assertIn("--starter", plain)
+        self.assertIn("EE_CFLAGS", plain)
+        # With it: what to run, and no instructions for a Makefile the
+        # reader has already been handed.
+        self.assertIn("buildable project", started)
+        self.assertNotIn("your Makefile needs these three lines", started)
+
+    # THE ONE COPY. vendor.py prints the gsKit wiring for somebody
+    # integrating into an app they already have, and the starter
+    # Makefile carries it as build rules. Two statements of one fact
+    # that moves whenever the ps2dev image moves gsKit -- so the
+    # message reads the Makefile rather than restating it, and this is
+    # what holds the extraction to the file.
+    def test_the_printed_wiring_is_the_makefile_s(self):
+        mk = os.path.join(vendor._STARTER, "Makefile")
+        with open(mk) as fh:
+            body = fh.read()
+        self.assertIn("# >>> gskit wiring", body)
+        self.assertIn("# <<< gskit wiring", body)
+        for line in vendor._gskit_wiring().split("\n"):
+            self.assertIn(line.strip(), body)
+        self.assertEqual(len(vendor._gskit_wiring().split("\n")), 3)
+
+    def test_a_moved_marker_is_an_error_not_a_shorter_message(self):
+        import tempfile as _tf
+        saved = vendor._STARTER
+        self.addCleanup(setattr, vendor, "_STARTER", saved)
+        d = _tf.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        with open(os.path.join(d, "Makefile"), "w") as fh:
+            fh.write("EE_CFLAGS += -I$(PS2DEV)/gsKit/include\n")
+        vendor._STARTER = d
+        del vendor._GSKIT_CACHE[:]
+        self.addCleanup(vendor._GSKIT_CACHE.clear)
+        with self.assertRaises(RuntimeError):
+            vendor._gskit_wiring()
+
+    # THE IMPORT-TIME RAISE, which is what this looked like before.
+    # Reading the starter Makefile at module scope meant a missing
+    # starter killed `vendor-runtime` in the form that needs no
+    # starter -- before argument handling, with a bare traceback, in a
+    # module where every other failure explains itself. Deferring the
+    # read to the one place that prints the lines is the fix; this is
+    # what says the fix is still in place.
+    def test_a_missing_starter_does_not_break_the_plain_command(self):
+        saved = vendor._STARTER
+        self.addCleanup(setattr, vendor, "_STARTER", saved)
+        self.addCleanup(vendor._GSKIT_CACHE.clear)
+        vendor._STARTER = os.path.join(self.tmp, "no-starter-here")
+        del vendor._GSKIT_CACHE[:]
+        rc, out = run_quiet(Args(self.dest))
+        self.assertEqual(rc, 0)
+        for f in vendor.FILES:
+            self.assertTrue(os.path.exists(os.path.join(self.dest, f)))
+
+    # And asking for a starter this install does not carry is a
+    # sentence, not a traceback. Same reasoning as the plain command
+    # above, one step further in: the runtime pair has already landed,
+    # so the failure must not read like nothing worked.
+    def test_asking_for_an_absent_starter_explains_itself(self):
+        from ps2ui_bake.project import ProjectError
+        saved = vendor._STARTER
+        self.addCleanup(setattr, vendor, "_STARTER", saved)
+        self.addCleanup(vendor._GSKIT_CACHE.clear)
+        vendor._STARTER = os.path.join(self.tmp, "no-starter-here")
+        del vendor._GSKIT_CACHE[:]
+        with self.assertRaises(ProjectError) as caught:
+            run_quiet(Args(self.dest, starter=True))
+        self.assertIn("carries no starter", str(caught.exception))
+        # ...and the runtime still landed, which is what the message says
+        for f in vendor.FILES:
+            self.assertTrue(os.path.exists(os.path.join(self.dest, f)))

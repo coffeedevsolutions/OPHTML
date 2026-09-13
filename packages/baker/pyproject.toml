@@ -47,4 +47,12 @@ packages = ["ps2ui_bake"]
 # (F26). There is no second copy in git to go stale; see setup.py for
 # why a hook rather than a checked-in duplicate, and for the measured
 # reason package-data cannot simply point at ../../runtime.
-ps2ui_bake = ["serve_page.html", "runtime/ps2ui.c", "runtime/ps2ui.h"]
+# `starter/*` is COMMITTED, unlike `runtime/*`: main.c and the
+# Makefile `vendor-runtime --starter` hands out have no canonical
+# copy elsewhere in the tree to stage from, so they live in the
+# package and are declared like any other data file. Without this
+# line `--starter` works in a checkout and raises FileNotFoundError
+# for everybody who installed the package -- the same shape as the
+# serve page above, and the reason that comment is worth reading.
+ps2ui_bake = ["serve_page.html", "runtime/ps2ui.c", "runtime/ps2ui.h",
+              "starter/main.c", "starter/Makefile"]

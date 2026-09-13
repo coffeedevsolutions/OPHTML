@@ -412,6 +412,12 @@ def main(argv=None):
                     help="where to write them (default: here)")
     vr.add_argument("--force", action="store_true",
                     help="overwrite files that are already there")
+    # The runtime alone is for adding ps2ui to an app that exists. This
+    # is for the other case, which had nothing: two C files and a link
+    # to a 2800-line bring-up harness on GitHub.
+    vr.add_argument("--starter", action="store_true",
+                    help="also write a main.c and a Makefile that build "
+                         "to an ELF as they stand")
     vr.set_defaults(fn=_vendor_runtime)
 
     d = sub.add_parser("dev", help="rebuild on every edit")

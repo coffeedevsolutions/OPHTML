@@ -78,6 +78,10 @@ SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE
 HOST_NOASM := $(shell $(CC) -fno-integrated-as -S -o /dev/null -x c /dev/null >/dev/null 2>&1 \
 	&& echo -fno-integrated-as)
 
+# `ps2ui vendor-runtime --starter` hands this out, written against
+# ps2ui.h, and ps2ui.h is what moves. syntax-check compiles it.
+STARTER := ../packages/baker/ps2ui_bake/starter/main.c
+
 syntax-check:
 	@for v in $(SAMPLE_VARIANTS); do \
 		$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null $$v \
@@ -92,6 +96,30 @@ syntax-check:
 		-DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_SCREEN='"probe"' \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. sample/main.c
 	@echo "ok - sample compiles: -DPS2UI_SAMPLE_SCREEN"
+# THE STARTER, which lives in the Python package rather than here.
+#
+# `ps2ui vendor-runtime --starter` hands somebody a main.c written
+# against THIS header, and the header is what moves. Compiled here
+# because this is the target that already knows how to build a
+# gsKit-facing file on a host with no PS2 toolchain, and because the
+# alternative is finding out in the elf job -- or, worse, finding out
+# from somebody who installed the package.
+#
+# NOPAD only, and the reason is the one runtime/vendor/README.md gives
+# for the USB path: libpad.h, loadfile.h and sifrpc.h do not exist on
+# the host, and after the fileio.h episode this tree does not write a
+# shim to pretend otherwise. The pad build is compiled by the elf job
+# in the ps2dev container, which is the arbiter for that path.
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
+		-DPS2UI_STARTER_NOPAD \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. $(STARTER)
+	@echo "ok - starter compiles: -DPS2UI_STARTER_NOPAD"
+# The stringised screen name, separately, for the quoting reason the
+# sample's own SCREEN line gives right above.
+	@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \
+		-DPS2UI_STARTER_NOPAD -DPS2UI_STARTER_SCREEN='"probe"' \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. $(STARTER)
+	@echo "ok - starter compiles: -DPS2UI_STARTER_SCREEN"
 # The step 6 probe's falsification arm pairs two defines the loop
 # above never combines: column G branches on PS2UI_CLUT_PERMUTE inside
 # the PROBE6 block, so this is the only line that compiles that branch.
