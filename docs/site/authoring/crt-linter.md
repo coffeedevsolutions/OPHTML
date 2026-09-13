@@ -113,7 +113,7 @@ ps2ui-layout: 11 paint commands, 2 focusables -> build/kitchen.json
 
 | rule | threshold | message | opt-out |
 |---|---|---|---|
-| `aspect-distortion` | pixel aspect further than 0.08 from 1.0; counted once per document over rects with a radius and over images | `N rounded corner(s) draw P% wider than tall at PAR X; divide the radius by Y to look round`, and `N image(s) draw P% wider than tall at PAR X; pre-squash the art or set an explicit width` | none; change the mode or the display aspect |
+| `aspect-distortion` | pixel aspect further than 0.08 from 1.0; counted once per document over rects with a radius and over images | `N rounded corner(s) draw P% wider than tall at PAR X; divide the radius by Y to look round`, and `N image(s) draw P% wider than tall at PAR X; pre-squash the art or set an explicit width`. A pixel aspect below 1.0 reads `narrower` in place of `wider` | none; change the mode or the display aspect |
 | `interlace-flicker` | a 1px border, or a filled rect 1px tall | `1px line at (x,y) will shimmer on an interlaced CRT; use 2px` | none; use 2px |
 | `ntsc-red-bleed` | a fill with red above 200 and both green and blue below 80 | `saturated red fill rgb(r,g,b) at (x,y) smears on composite video` | none; desaturate the fill |
 | `min-font-size` | text below 14px, or below the `--min-font-size` value | `"TEXT" is Npx; below Mpx is unreadable from a couch` | none; raise the floor |
@@ -267,7 +267,7 @@ ps2ui-layout: 3 paint commands, 0 focusables -> build/theme.json
 
 ## Limits and errors
 
-`ps2ui dev` and `ps2ui-dev` accept `--strict` and `--min-font-size` and act on neither. The watch loop sets them on the wrong object, and the compiler reads lint overrides from one field the flags never reach. This is a defect and is queued as a separate change; until it lands, lint against `ps2ui build`.
+`ps2ui dev` and `ps2ui-dev` accept `--strict` and `--min-font-size` and act on neither. The watch loop sets them on the wrong object. The compiler reads lint overrides from one field the flags never reach. This is a defect, queued as a separate change. Lint against `ps2ui build` until it lands.
 
 The example project sets `strict: true` and `minFontSize: 11`. The build honours both and reports nothing.
 
@@ -294,7 +294,7 @@ built in 486ms — 84 commands, 17 focusables, 44 warnings -> build/dev/preview.
 ...
 ```
 
-Three further limits are worth knowing before a rule looks wrong.
+Three further limits change what a rule reports.
 
 - The focusable form of `overscan` names the action-safe area and tests the canvas edge. A focusable 640px wide on a 640x448 canvas passes, and 641px warns.
 - The `Safe area` overlay in `ps2ui serve` draws a 10% inset. The `overscan` rule uses 5%, so the overlay is not the rectangle the rule enforces.

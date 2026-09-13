@@ -224,10 +224,17 @@ ui = preview.render(uib, background=(0, 0, 0, 0), screen="games")
 frame.alpha_composite(ui)
 ```
 
-An overlay's translucency is baked into its own quads. The opl-env
-scrim is authored `rgba(6, 9, 16, 0.62)`, and the confirm screen
-rendered on full transparency has alpha between 157 and 255. Nothing in
-the blob is left for the frame alpha to supply.
+An overlay's translucency is baked into its own quads. The opl-env scrim
+is authored `rgba(6, 9, 16, 0.62)`. Render that screen on full
+transparency and read the alpha channel back.
+
+```sh
+$ python3 -c "from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; print(preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='confirm', background=(0, 0, 0, 0)).getchannel('A').getextrema())"
+(157, 255)
+```
+
+The floor is the scrim, at 0.62 of 255. Nothing in the blob is left for
+the frame alpha to supply.
 
 ## Related pages
 
