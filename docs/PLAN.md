@@ -71,9 +71,14 @@ distortion); bake refusal over table caps / VRAM budget / scissor depth;
 dead-geometry trim; Python previewer replaying the baked command list;
 `ps2ui-check` standalone validator; frame fingerprint tool.
 
-**Verification:** the layout, baker and runtime suites, the runtime one
-run twice (modern gsKit and the `HAS_FUNCTION=0` fallback), each
-example's contract checks, and `ps2ui-check` over every example blob.
+**Verification:** the layout, baker and runtime suites, each example's
+contract checks, and `ps2ui-check` over every example blob. This phase's
+verification used to say the runtime suite was *"run twice (modern gsKit
+and the `HAS_FUNCTION=0` fallback)"*. It never is: #39 removed that
+build, because gsKit has no `GSTEXTURE::Function` and the fallback
+compiled a path it has never had (F-005). A phase gate naming a run that
+does not happen is the worst place in this document for stale text, and
+F28 is the inventory of the rest.
 Sizes are not restated: `npm test`, `python3 -m unittest`,
 `make -C runtime test` and each `build.sh` print them. Six figures used
 to sit here and every one had drifted by a factor of 1.6 to 2.3 when
@@ -228,9 +233,13 @@ after this section was first written.
 - **Step 10 — display aspect: characterised.** 4:3 pillarboxed into a
   16:9 panel, which is correct behaviour.
 
-**Left:** steps 3-9 — CLUT upload and CSM1 swizzle, text tinting and
-its `HAS_FUNCTION=0` fallback, modulate domain, texel centres via the
-test card, scissor nesting, interlace field order, VRAM pressure. The
+**Left:** steps 3-9 — CLUT upload and CSM1 swizzle, text tinting,
+modulate domain, texel centres via the test card, scissor nesting,
+interlace field order, VRAM pressure. (The `HAS_FUNCTION=0` fallback
+was listed here as outstanding bench work; it is not work, it is a
+build that no longer exists — and `docs/bringup.md` §4 already opens
+*"SETTLED BY SOURCE. No bench slot, no ELF, nothing to look at"*, so
+this line was stale twice over.) The
 bench is now cheap to re-enter: the drive works, `probe.elf` runs, and
 the loop has been done once end to end.
 

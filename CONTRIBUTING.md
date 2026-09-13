@@ -13,8 +13,17 @@ Pillow-only.
 cd packages/layout && node --test test/*.test.js
 cd packages/baker  && python3 -m unittest discover -s tests
 ./examples/memcard/build.sh        # end-to-end + C runtime tests
-make -C runtime test-compat        # old-gsKit build
 ```
+
+`make -C runtime test-compat` used to be a fourth line here. There is no
+such target and there has not been since #39 (`499212c`) removed the
+mechanism it built: gsKit has **no** `GSTEXTURE::Function` field and
+hardcodes `TEX0.TFX = 0` at all 30 of its `TEX0` sites, so the
+"old-gsKit fallback" it compiled is a path gsKit has never had
+([F-005](docs/findings.md)). The line has outlived the removal by 21
+days (`499212c`, 2026-08-23), which makes a failed `make` the first thing a new contributor
+sees — and teaches them, correctly, that these instructions are not run.
+F28 is the inventory of where else that text is still standing.
 
 The dev loop while working on layout/baker changes:
 

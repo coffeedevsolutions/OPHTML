@@ -120,6 +120,27 @@ syntax-check:
 		-DPS2UI_STARTER_NOPAD -DPS2UI_STARTER_SCREEN='"probe"' \
 		-Istub -Ivendor/gsKit -Ivendor/host-shim -I. $(STARTER)
 	@echo "ok - starter compiles: -DPS2UI_STARTER_SCREEN"
+# THE HOST SHIM IS LOAD-BEARING ON A PLATFORM THIS NEVER RUNS ON, so
+# assert it here where it does. vendor/gsKit/src/gsTexture.c is
+# verbatim upstream and includes <malloc.h>, which Linux has and macOS
+# does not; vendor/host-shim/malloc.h forwards to <stdlib.h> so both
+# resolve. Delete that shim and every ubuntu job stays green -- checked
+# by deleting it: 410 checks, rc=0, the include falling through to
+# /usr/include/malloc.h. The only thing that would have noticed is a
+# weekly macOS job, so the fix was one shim away from being unfenced
+# on every gate that actually blocks a PR.
+#
+# -H prints the include tree, so this asserts WHICH header was opened
+# rather than that the compile worked. That is the distinction: on
+# Linux the compile works either way.
+	@$(CC) -std=c99 -O2 -fsyntax-only -DF_gsKit_texture_size \
+		-Ivendor/gsKit -Ivendor/host-shim -H \
+		vendor/gsKit/src/gsTexture.c 2>&1 \
+		| grep -q 'vendor/host-shim/malloc\.h' \
+		|| { echo "not ok - gsTexture.c did not open vendor/host-shim/malloc.h."; \
+		     echo "  It fell through to the system header, which macOS has not."; \
+		     exit 1; }
+	@echo "ok - gsTexture.c resolves <malloc.h> through the host shim"
 # The step 6 probe's falsification arm pairs two defines the loop
 # above never combines: column G branches on PS2UI_CLUT_PERMUTE inside
 # the PROBE6 block, so this is the only line that compiles that branch.
