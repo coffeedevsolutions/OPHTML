@@ -1,11 +1,11 @@
 ---
 id: cli/ps2ui
 title: ps2ui
-description: The umbrella command: every subcommand, the project keys it forwards, what it writes and its exit codes.
+description: The umbrella command over the toolchain: every subcommand, the project keys it forwards, what it writes and its exit codes.
 section: cli
 order: 30
 version: 0.6.0
-sources: [packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/project.py, packages/baker/pyproject.toml, packages/baker/ps2ui_bake/__main__.py, packages/layout/package.json, packages/baker/tests/test_baker.py, packages/baker/tests/test_serve.py, examples/memcard/build.sh, examples/channel6/build.sh, README.md, CHANGELOG.md]
+sources: [packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/__main__.py, packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/tests/test_baker.py, packages/baker/tests/test_serve.py, examples/memcard/build.sh, examples/channel6/build.sh, README.md, CHANGELOG.md]
 ---
 
 # ps2ui
@@ -13,7 +13,7 @@ sources: [packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/serve.py
 `ps2ui` drives the whole toolchain from one project file. Each subcommand
 reads `ps2ui.json`, turns its keys into flags, and runs the tool that owns
 that stage. Read [the project file](page:authoring/project-file#reference-table)
-for what the keys mean; this page states where each one goes.
+for what the keys mean. This page states where each key goes.
 
 ```console
 $ ps2ui --version
@@ -51,8 +51,10 @@ ps2ui: error: the following arguments are required: cmd
 ```
 
 Every subcommand except `fontgen` and `vendor-runtime` changes directory into
-the project root first. Paths in the output are therefore relative to the
-project file, not to the shell.
+the project root first. Paths in the output are relative to the project file,
+not to the shell. Every command block below was run from inside a scratch copy
+of `examples/memcard`, so the project argument is left off and defaults to
+`ps2ui.json`.
 
 ## build
 
@@ -66,23 +68,22 @@ ps2ui build [project] [--mode MODE] [-o OUT]
             [--preview PNG] [--montage PNG] [--preview-display PNG]
 ```
 
-`project` is a `ps2ui.json` or a directory holding one. It defaults to
-`ps2ui.json` in the current directory.
+`project` is a `ps2ui.json` or a directory holding one.
 
 ### Options
 
 | flag | argument | default | effect |
 |---|---|---|---|
 | `--mode` | `MODE` | the project's `mode` | Replaces the video mode passed to the compiler. |
-| `-o`, `--out` | `OUT` | the project's `out` | Moves the blob and its intermediates. |
+| `-o`, `--out` | `OUT` | the project's `out` | Moves the blob, and the intermediates with it. |
 | `--preview` | `PNG` | the project's `preview` | Replaces the preview path. `none` suppresses it. |
 | `--montage` | `PNG` | the project's `montage` | Replaces the montage path. `none` suppresses it. |
 | `--preview-display` | `PNG` | the project's `previewDisplay` | Replaces the display preview path. `none` suppresses it. |
 
-Each flag overrides one project key for this run only. The suffix rule for
-`-o` is on [the project file](page:authoring/project-file#-o-moves-the-intermediates).
+Each flag overrides one project key for one run. The suffix rule for `-o` is
+on [the project file](page:authoring/project-file#-o-moves-the-intermediates).
 
-The compiler is run once per screen. These project keys become its flags.
+The compiler runs once per screen. These project keys become its flags.
 
 | key | flag on ps2ui-layout |
 |---|---|
@@ -94,15 +95,16 @@ The compiler is run once per screen. These project keys become its flags.
 | `minFontSize` | `--min-font-size` |
 | `focusWrap` | `--focus-wrap`, per screen |
 
-Their meanings are on [ps2ui-layout](page:cli/ps2ui-layout#options). The
-argv is visible by pointing `PS2UI_LAYOUT` at `/bin/echo`.
+Their meanings are on [ps2ui-layout](page:cli/ps2ui-layout#options). Point
+`PS2UI_LAYOUT` at `/bin/echo` to see the argv for a given project. The run
+below is a scratch project that sets every key.
 
 ```console
-$ PS2UI_LAYOUT=/bin/echo ps2ui build /tmp/scratch/allkeys
+$ PS2UI_LAYOUT=/bin/echo ps2ui build
 ui/library.html ui/library.css -o build/library.json --fonts fonts/fonts.json --mode ntsc16x9 --canvas 704x448 --display-aspect 16:9 --strict --min-font-size 11 --focus-wrap
 ```
 
-The baker is run once over every IR file. These keys become its flags.
+The baker runs once over every IR file. These keys become its flags.
 
 | key | flag on ps2ui-bake |
 |---|---|
@@ -119,10 +121,10 @@ The transcript those flags produce is on [ps2ui-bake](page:cli/ps2ui-bake#output
 ### Output
 
 The compiler's warnings and summary come first, one block per screen. The
-baker's transcript follows. Both go to stderr; stdout stays empty.
+baker's transcript follows. Both go to stderr, and stdout stays empty.
 
 ```console
-$ ps2ui build /tmp/scratch/memcard
+$ ps2ui build
 warning: overscan: text "PS2" at (28,25) leaves the title-safe area; a CRT may crop it
 warning: min-font-size: "MEMORY CARD" is 12px; below 14px is unreadable from a couch
 ...
@@ -148,8 +150,8 @@ ps2ui-bake: montage -> build/states.png
 | 2 | argparse rejected the command line |
 
 A compiler failure is reported as `ps2ui: ps2ui-layout failed on <html>
-(exit N)`. The wrapper exits 1 whatever `N` was. The compiler's own message
-is printed above it and is the one to read.
+(exit N)`. The wrapper exits 1 whatever `N` was. The compiler prints its own
+message above that line, and that is the one to read.
 
 ### Files written
 
@@ -184,25 +186,27 @@ ps2ui check [project]
 ### Options
 
 None beyond `-h`. New in 0.6.0. Two project keys reach the checker, so one
-project means one answer in both halves.
+project means one answer in both halves of the toolchain.
 
 | key | flag on ps2ui-check |
 |---|---|
 | `vramBudget` | `--vram-budget` |
 | `strict` | `--strict` |
 
-The keys are listed again on
+The same pair is listed on
 [the project file](page:authoring/project-file#keys-that-reach-the-checker).
-Every check the flags govern is on [ps2ui-check](page:cli/ps2ui-check#options).
+What the flags govern is on [ps2ui-check](page:cli/ps2ui-check#options).
 
 ### Output
 
-The checker's TAP stream, unchanged. See
-[ps2ui-check](page:cli/ps2ui-check#output) for the shape.
+The checker's TAP stream, unchanged. Its shape is on
+[ps2ui-check](page:cli/ps2ui-check#output).
 
 ```console
-$ ps2ui check /tmp/scratch/memcard
+$ ps2ui check
 ...
+ok 61 - no 1px quads to shimmer on an interlaced CRT
+ok 62 - every command can produce a pixel
 ok 63 - every texture is drawn or belongs to a font
 1..63
 # build/ui.uib: 640x448 at 4:3, 2 screen(s), 1062 commands, 11 textures, 6 slots
@@ -215,19 +219,19 @@ PASS: 63 checks, 0 error(s), 0 warning(s)
 |---|---|
 | 0 | the checker passed |
 | 1 | the blob is missing, or the checker reported an error |
-| 2 | the blob cannot be read |
+| 2 | the blob cannot be read, or argparse rejected the command line |
 
 This subcommand never builds. A missing blob is refused by name.
 
 ```console
-$ ps2ui check /tmp/scratch/memcard
+$ ps2ui check
 ps2ui: build/ui.uib: no blob to check. Run `ps2ui build` first -- this does not build, so that a check can never report on a blob it just made and nobody has seen.
 ```
 
-An unreadable blob passes the checker's own code through.
+An unreadable blob passes the checker's own code straight through.
 
 ```console
-$ ps2ui check /tmp/scratch/corrupt
+$ ps2ui check
 ps2ui-check: build/ui.uib: crc mismatch (file 0x4d8c37e4, computed 0x5dc0fb31)
 ```
 
@@ -260,10 +264,10 @@ manifest it writes, or leave the directory beside `ps2ui.json` and let
 One line per file, on stderr.
 
 ```console
-$ ps2ui fontgen fonts/vendor/DejaVuSans.ttf fonts/vendor/DejaVuSans-Bold.ttf -o /tmp/scratch/fonts
-ps2ui-fontgen: 115 glyphs, 284 kern pairs -> /tmp/scratch/fonts/default.metrics.json
-ps2ui-fontgen: 115 glyphs, 163 kern pairs -> /tmp/scratch/fonts/default-bold.metrics.json
-ps2ui-fontgen: manifest -> /tmp/scratch/fonts/fonts.json
+$ ps2ui fontgen DejaVuSans.ttf DejaVuSans-Bold.ttf -o fonts
+ps2ui-fontgen: 115 glyphs, 284 kern pairs -> fonts/default.metrics.json
+ps2ui-fontgen: 115 glyphs, 163 kern pairs -> fonts/default-bold.metrics.json
+ps2ui-fontgen: manifest -> fonts/fonts.json
 ```
 
 Both faces carry the family name `default`. The weights are 400 and 700. The
@@ -275,7 +279,10 @@ single-face tool and its charset are on
 | code | when |
 |---|---|
 | 0 | both faces and the manifest were written |
-| non-zero | the first failing face returns its own code; no manifest is written |
+| 1 | a TTF cannot be read, or the weight is not an integer |
+| 2 | Pillow has no Raqm layout engine, or argparse rejected the command line |
+
+The first failing face returns its own code and no manifest is written.
 
 ### Files written
 
@@ -301,7 +308,7 @@ ps2ui serve [project] [--uib BLOB] [--port PORT] [--screen NAME]
 | flag | argument | default | effect |
 |---|---|---|---|
 | `--uib` | `BLOB` | none | Serves a pre-baked blob. No compiler is needed and nothing is watched. |
-| `--port` | `PORT` | 8080, walking up | Binds this port only. A busy port is not retried. |
+| `--port` | `PORT` | 8080, walking up | Binds this port only. A busy explicit port is not retried. |
 | `--screen` | `NAME` | screen 0 | The screen the page opens on. |
 | `--theme` | `N` | 0 | The theme row the page opens on. |
 | `--no-watch` | | off | Builds once and serves, without rebuilding on edits. |
@@ -309,25 +316,26 @@ ps2ui serve [project] [--uib BLOB] [--port PORT] [--screen NAME]
 
 Everything else comes from
 [the project file](page:authoring/project-file#reference-table), through the
-same code path `ps2ui build` uses. The controls, the routes and the inspector
-are on [the previewer](page:cli/previewer#options).
+code path `ps2ui build` uses. The controls, the routes and the inspector are
+on [the previewer](page:cli/previewer#options).
 
 ### Output
 
-One line naming the URL, after the build transcript.
+The build transcript, then one line naming the URL.
 
 ```console
-$ ps2ui serve /tmp/scratch/memcard --port 8433
+$ ps2ui serve --port 8433
 ...
 ps2ui-layout: 89 paint commands, 9 focusables -> build/serve/library.json
 ps2ui-layout: 43 paint commands, 7 focusables -> build/serve/saves.json
+...
 ps2ui serve: http://127.0.0.1:8433/ -- ctrl-c to stop
 ```
 
-`--selftest` prints one line per route and a verdict.
+`--selftest` prints one line per route and a verdict, then exits.
 
 ```console
-$ ps2ui serve /tmp/scratch/memcard --selftest
+$ ps2ui serve --selftest
 ...
 ok - / 29569 bytes
 ok - /frame.png 51449 bytes
@@ -346,9 +354,18 @@ PASS: 6 route(s)
 | 1 | the project is refused, the first build failed, or Node is absent |
 | 2 | argparse rejected the command line |
 
-Refusals here carry the prefix `ps2ui serve: `, not `ps2ui: `. Two failures
-still escape as tracebacks: a `--uib` path that does not exist, and an
-explicit `--port` that is already bound.
+Refusals here carry the prefix `ps2ui serve: `, not `ps2ui: `.
+
+```console
+$ env -i PATH=/usr/bin:/bin HOME=/root PYTHONPATH=/home/user/OPHTML/packages/baker /usr/bin/python3 -m ps2ui_bake.ps2ui serve --selftest
+ps2ui serve: watch mode compiles HTML and CSS, which needs the Node half.
+  Install it:  npm install -g @ophtml/layout
+  Or serve a blob you already have, which needs no Node:
+      ps2ui serve --uib build/ui.uib
+```
+
+Two failures still escape as tracebacks: a `--uib` path that does not exist,
+and an explicit `--port` that is already bound. Both exit 1.
 
 ### Files written
 
@@ -357,7 +374,8 @@ explicit `--port` that is already bound.
 | `<build>/serve/<screen>.json`, one per screen |
 | `<build>/serve/ui.uib` |
 
-No preview PNG is written. The server renders its own frames.
+No preview PNG is written. The server renders its own frames. The listing
+below was taken while the server above was running.
 
 ```console
 $ find build | sort
@@ -393,7 +411,7 @@ ps2ui vendor-runtime [dest] [--force]
 |---|---|---|---|
 | `--force` | | off | Overwrites a file that differs from the shipped runtime. |
 
-This subcommand reads no project file. It writes beside the sources that will
+This subcommand reads no project file. It writes beside the sources that
 compile against it, wherever
 [the project file](page:authoring/project-file#what-it-is) happens to live.
 The cross toolchain and a worked Makefile are on
@@ -401,13 +419,13 @@ The cross toolchain and a worked Makefile are on
 
 ### Output
 
-One `wrote` line per file, then the source it came from, then the toolchain
+One `wrote` line per file, the source they came from, then the toolchain
 notes.
 
 ```console
-$ ps2ui vendor-runtime /tmp/scratch/vend
-wrote /tmp/scratch/vend/ps2ui.c
-wrote /tmp/scratch/vend/ps2ui.h
+$ ps2ui vendor-runtime src
+wrote src/ps2ui.c
+wrote src/ps2ui.h
 runtime source: /home/user/OPHTML/runtime (this checkout)
 ...
 ```
@@ -415,7 +433,7 @@ runtime source: /home/user/OPHTML/runtime (this checkout)
 A second run reports the pair as unchanged and writes nothing.
 
 ```console
-$ ps2ui vendor-runtime /tmp/scratch/vend
+$ ps2ui vendor-runtime src
 ps2ui.c, ps2ui.h already up to date.
 runtime source: /home/user/OPHTML/runtime (this checkout)
 ```
@@ -424,7 +442,7 @@ runtime source: /home/user/OPHTML/runtime (this checkout)
 
 | code | when |
 |---|---|
-| 0 | both files are present and match, or were written |
+| 0 | both files match already, or were written |
 | 1 | a file differs and `--force` was not given, or no runtime was found |
 | 2 | argparse rejected the command line |
 
@@ -432,8 +450,8 @@ Every file is classified before any file is written. One edited file stops
 the whole command, so a fresh header never lands beside a stale source.
 
 ```console
-$ ps2ui vendor-runtime /tmp/scratch/vend
-ps2ui: ps2ui.c in /tmp/scratch/vend differs from the runtime this toolchain ships, so nothing was written.
+$ ps2ui vendor-runtime src
+ps2ui: ps2ui.c in src differs from the runtime this toolchain ships, so nothing was written.
   Writing the rest would leave you compiling a mixed pair -- ps2ui.c includes ps2ui.h and is written against its structs, and a version check will not catch it: the format is pledged frozen at v7, so PS2UI_VERSION no longer moves when the runtime does.
   Pass --force to take this toolchain's copy, or move your edited file aside first.
 ```
@@ -466,33 +484,41 @@ The project keys go to `ps2ui-dev`, which is the compiler and the baker in
 one watch loop. The set is the compiler's, plus `--palettize-images`. Read
 [ps2ui-dev](page:cli/ps2ui-layout#ps2ui-dev) for the loop itself, and
 [the project file](page:authoring/project-file#reference-table) for the keys.
+The run below is the same all-keys scratch project.
 
 ```console
-$ PS2UI_LAYOUT=/bin/echo ps2ui dev /tmp/scratch/allkeys --once
+$ PS2UI_LAYOUT=/bin/echo ps2ui dev --once
 ui/library.html ui/library.css -o build/dev --fonts fonts/fonts.json --mode ntsc16x9 --canvas 704x448 --display-aspect 16:9 --strict --min-font-size 11 --focus-wrap --palettize-images --once
 ```
 
 `--strict` and `--min-font-size` are forwarded and do nothing. `ps2ui-dev`
-sets them on its options object while the compiler reads lint overrides from
-`options.lint` alone. Treat both keys as absent here until the fix lands; the
+sets them on its options object, and the compiler reads lint overrides from
+`options.lint` alone. Treat both keys as absent here until the fix lands. The
 detail is under [inert flags](page:cli/ps2ui-layout#inert-flags).
 
-The scratch copy of `examples/opl-env` sets `strict` and `minFontSize: 11`.
-`ps2ui build` on it printed no warnings and exited 0. `ps2ui dev` on one of
-its screens printed nine warnings against the default 14px floor, and still
-exited 0.
+A scratch copy of `examples/opl-env` sets `strict` and `minFontSize: 11`.
+`ps2ui build` on it printed no warning lines and exited 0. `ps2ui dev` on one
+of its screens printed nine warnings against the default 14px floor, and
+still exited 0.
 
 ```console
-$ ps2ui dev /tmp/scratch/opl-env --screen landing --once
+$ ps2ui dev --screen landing --once
 ...
-built in 341ms — 31 commands, 7 focusables, 9 warnings -> build/dev/preview.png
+built in 361ms — 31 commands, 7 focusables, 9 warnings -> build/dev/preview.png
   warning: min-font-size: "218 titles" is 11px; below 14px is unreadable from a couch
 ...
 ```
 
 ### Output
 
-`ps2ui-dev`'s own transcript, unchanged.
+`ps2ui-dev`'s own transcript, unchanged. Its lines are on
+[ps2ui-dev](page:cli/ps2ui-layout#ps2ui-dev).
+
+```console
+$ ps2ui dev --screen library --once
+...
+built in 320ms — 89 commands, 9 focusables, 28 warnings -> build/dev/preview.png
+```
 
 ### Exit codes
 
@@ -505,7 +531,7 @@ built in 341ms — 31 commands, 7 focusables, 9 warnings -> build/dev/preview.pn
 Naming no screen in a project with several is an error that lists them.
 
 ```console
-$ ps2ui dev /tmp/scratch/memcard --once
+$ ps2ui dev --once
 ps2ui: ps2ui dev watches one screen and this project has 2. Name one: ps2ui dev --screen <name>, where <name> is one of: library, saves
 ```
 
@@ -547,12 +573,12 @@ Python process to run it. They look in three places, in this order.
 
 `dev` builds its command from the same list and swaps `ps2ui-layout` for
 `ps2ui-dev` in it. The third entry is the checkout case. It exists for people
-who have the repository and is never assumed for anyone else.
+who have the repository, and is never assumed for anyone else.
 
 When none of the three answers, the command refuses with the install line.
 
 ```console
-$ env -i PATH=/usr/bin:/bin python3 -m ps2ui_bake.ps2ui build /tmp/scratch/memcard
+$ env -i PATH=/usr/bin:/bin HOME=/root PYTHONPATH=/home/user/OPHTML/packages/baker /usr/bin/python3 -m ps2ui_bake.ps2ui build
 ps2ui: cannot find ps2ui-layout, which compiles the HTML and CSS.
   Install it:      npm install -g @ophtml/layout
   Or point at it:  PS2UI_LAYOUT='node /path/to/ps2ui-layout.js'
@@ -563,14 +589,14 @@ An override that runs and fails is reported as a compiler failure, not as a
 missing install.
 
 ```console
-$ PS2UI_LAYOUT=/bin/false ps2ui build /tmp/scratch/memcard
+$ PS2UI_LAYOUT=/bin/false ps2ui build
 ps2ui: ps2ui-layout failed on ui/library.html (exit 1)
 ```
 
 ## From a checkout
 
 Pages show the installed spelling. A clone that has not installed the
-packages runs the same programs through these commands. The examples'
+packages runs the same programs through the commands below. The examples'
 `build.sh` scripts and CI use the Python column.
 
 | command | checkout spelling |
@@ -582,6 +608,8 @@ packages runs the same programs through these commands. The examples'
 | `ps2ui-layout` | `node packages/layout/bin/ps2ui-layout.js` |
 | `ps2ui-dev` | `node packages/layout/bin/ps2ui-dev.js` |
 
+Run these from the repository root.
+
 ```console
 $ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui --version
 ps2ui 0.6.0.dev0
@@ -589,9 +617,8 @@ $ node packages/layout/bin/ps2ui-layout.js --version
 ps2ui-layout 0.6.0-dev.0
 ```
 
-The two version numbers differ in spelling because one is a Python version
-and the other is an npm version. `tools/check-versions.py` holds them
-together.
+The two numbers differ in spelling because one is a Python version and the
+other is an npm version. `tools/check-versions.py` holds them together.
 
 ## Related pages
 
