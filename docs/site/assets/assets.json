@@ -47,5 +47,26 @@
     "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/opl-env/build/ui.uib'), screen='library', theme=1).save('OUT')\"",
     "alt": "opl-env library screen, theme 1 (light), 4:3, initial focus",
     "checked": true
+  },
+  {
+    "path": "assets/authoring/dynamic-text/slots.png",
+    "page": "authoring/dynamic-text",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', slot_text={'count': '42 titles'}).save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, initial focus state, with the count slot set to \"42 titles\" instead of its baked placeholder \"6 titles\"",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/lists/rows.png",
+    "page": "authoring/lists",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/lists/demo/ui/library.html docs/site/assets/authoring/lists/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "Library screen, root theme, 4:3, initial state: six baked rows with placeholder text, the first row focused",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/lists/rows-states.png",
+    "page": "authoring/lists",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/lists/demo/ui/library.html docs/site/assets/authoring/lists/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --montage OUT",
+    "alt": "Library screen montage, root theme, 4:3, six frames, one per focus state: the blue highlight steps down the six rows",
+    "checked": true
   }
 ]
