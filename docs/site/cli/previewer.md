@@ -16,7 +16,7 @@ to the server. Reach for it once the first frame looks right and the questions
 become harder: where the D-pad goes, what the second screen holds, how a longer
 string sits in a slot.
 
-![The previewer on the memcard project, library screen, root theme, as authored at 4:3: the toolbar, the command list, the frame, the slot box, the inspector and 45 warnings](../assets/cli/previewer/page.png)
+![The previewer on the memcard project, library screen, root theme, as authored at 4:3, initial focus on Games: the toolbar, the command list, the frame, the slot box, an empty inspector and 45 warnings](../assets/cli/previewer/page.png)
 
 The browser draws no UI pixels. Every frame comes from `preview.render` on the
 server and arrives as PNG bytes in an `<img>`. The grid, the focus rectangles
@@ -141,7 +141,7 @@ capacity rules are under [dynamic text](page:authoring/dynamic-text#truncation).
 Clicking the frame hit-tests front to back and selects the topmost command
 drawn at that point. A row in the Commands list selects the same record.
 
-![The previewer with command 14 selected: the inspector reads index 14, op texquad, position 28 92, size 7 x 7, rgba #0a0d16, tex 2, state 1 unfocused, focus nav-games](../assets/cli/previewer/inspector.png)
+![The previewer on the memcard library screen, root theme, as authored at 4:3, with command 14 selected: the inspector reads index 14, op texquad, position 28 92, size 7 x 7, rgba #0a0d16, tex 2, state 1 unfocused, focus nav-games, drawn now no](../assets/cli/previewer/inspector.png)
 
 The Inspector reads alpha in the GS domain, 0 to 128, so a fully opaque command
 shows `a128/128`. `drawn now` answers whether this record draws in the current
@@ -154,7 +154,7 @@ Four modes resample one framebuffer. `authored` is the default and runs the
 frame through the blob's own display aspect. `framebuffer` is the 1:1 render,
 byte-identical to what `--preview` writes.
 
-![The memcard library screen forced to 16:9: the same 640x448 framebuffer squeezed into a wider frame, with text and covers noticeably narrower](../assets/cli/previewer/aspect-16x9.png)
+![The memcard library screen, root theme, forced to 16:9: the same 640x448 framebuffer resampled narrower, with the text and the covers squeezed](../assets/cli/previewer/aspect-16x9.png)
 
 `force-4:3` and `force-16:9` put the UI on a set the header did not ask for.
 That pair is the reason the menu exists, since every other artifact the
@@ -225,7 +225,7 @@ waits 0.12 s for an editor's save burst to settle before rebuilding.
 A failed build never takes the frame away. The last good blob stays on screen
 and the build's message appears in a banner above it.
 
-![The previewer over the last good memcard frame with a banner reading ps2ui-layout failed on ui/library.html (exit 1), revision 2](../assets/cli/previewer/error-banner.png)
+![The previewer on the memcard library screen, root theme, as authored at 4:3, showing the last good frame under a banner reading ps2ui-layout failed on ui/library.html (exit 1), at revision 2](../assets/cli/previewer/error-banner.png)
 
 ```console
 $ printf '\n.tile { background: #12g4f6; }\n' >> ui/library.css
