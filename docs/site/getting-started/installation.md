@@ -128,22 +128,16 @@ True True
 so the refusal below is quoted from a mocked test run, not a live refusal.
 
 ```
-ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot
-be extracted; refusing to write a metrics file without it.
-The Pillow you have (12.3.0, linux/x86_64) reports no Raqm, and no fribidi
-either.
-Raqm is compiled into Pillow's binary and fribidi is loaded from your
-system at run time, so the missing piece is probably fribidi alone. Try
-that first, it needs no rebuild:
+ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.
+The Pillow you have (12.3.0, linux/x86_64) reports no Raqm, and no fribidi either.
+Raqm is compiled into Pillow's binary and fribidi is loaded from your system at run time, so the missing piece is probably fribidi alone. Try that first, it needs no rebuild:
     brew install fribidi          # macOS
     apt install libfribidi0       # Debian/Ubuntu
     dnf install fribidi           # Fedora
-Check it took, with the feature and not pip's exit status ...
+...
 If it is still false, rebuild Pillow against both:
     pip install --no-binary pillow --force-reinstall pillow
-Use --no-binary pillow, not --no-binary :all: -- the bare form
-source-builds every dependency and spends tens of minutes bootstrapping
-CMake.
+Use --no-binary pillow, not --no-binary :all: -- the bare form source-builds every dependency and spends tens of minutes bootstrapping CMake.
 ```
 
 ### From a checkout
@@ -178,6 +172,9 @@ setup, the cross-compile image, and the sample Makefile are on
 [integrating the runtime](page:runtime/integrating#the-cross-toolchain).
 
 ## Limits and errors
+
+Without Raqm, `ps2ui fontgen` refuses outright and writes nothing; see
+[If fontgen refuses](#if-fontgen-refuses) for the remedy per platform.
 
 `ps2ui-fontgen`'s usage line names the checkout spelling,
 `python -m ps2ui_bake.fontgen`, even when the installed `ps2ui-fontgen`
