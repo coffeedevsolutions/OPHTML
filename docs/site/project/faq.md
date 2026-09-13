@@ -61,7 +61,7 @@ own `GS_SETREG_ALPHA` every call for exactly this reason, rather than
 inheriting gsKit's state. See
 [The frame loop](page:runtime/frame-loop#behaviour).
 
-### PS2UI_ERR_ARENA at boot
+### The arena error at boot
 
 `ps2ui_load` returns `PS2UI_ERR_ARENA` when the `arena` pointer is NULL or
 `arena_size` is below `ps2ui_arena_size()`. Size the arena from the bake
@@ -70,7 +70,7 @@ buffer. The figure is per blob and per target, not a constant to
 hardcode. See
 [Errors and constants](page:runtime/errors-and-constants#error-codes).
 
-### PS2UI_ERR_SIZE from tex_set
+### The size error when setting a texture
 
 `ps2ui_tex_set` returns `PS2UI_ERR_SIZE` when `len` differs from the
 streamed texture's reservation by any amount. Pass the `payload` figure
