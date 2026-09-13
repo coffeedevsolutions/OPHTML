@@ -185,6 +185,71 @@ jobs:
   #
   # So the absence is asserted rather than assumed. A red here is good
   # news that needs a documentation change, and the message says so.
+  # THE CONTRIBUTOR SUITE, ON THE PLATFORM THAT NEVER RAN IT.
+  #
+  # CONTRIBUTING.md tells a new contributor to run three commands
+  # before every PR. Every job that has ever run them is ubuntu, so
+  # what they do on a Mac has never been measured -- and a contributor
+  # whose first act is running the project's own instructions is the
+  # worst person to discover that nobody checks them.
+  #
+  # ONE KNOWN DEFECT IS ALREADY FIXED BY THE COMMIT THAT ADDS THIS
+  # JOB: `vendor/gsKit/src/gsTexture.c` is verbatim upstream and
+  # includes <malloc.h>, a glibc-ism macOS does not have, so
+  # `make -C runtime test` died at the include. It is compiled with
+  # only -DF_gsKit_texture_size, which names no allocator at all, so
+  # the include has to RESOLVE and nothing needs it to declare
+  # anything -- `vendor/host-shim/malloc.h` forwards to <stdlib.h>,
+  # beside the kernel.h shim that has stood there for the same file
+  # since the vendoring landed.
+  #
+  # A SECOND IS REPORTED AND NOT REPRODUCED, and this job exists to
+  # settle it rather than let a guess be committed. A stranger-path
+  # report says six baker tests fail on macOS because mkdtemp returns
+  # /var/folders/..., a symlink to /private/var/..., so a relpath
+  # comes out short. The mechanism is real and reproduces in isolation
+  # -- relpath(realpath(f), unresolved_root) does return
+  # `../../...` -- but the suite passes under a symlinked TMPDIR on
+  # Linux, single test and whole suite alike, so the reported failure
+  # has some other cause and patching project.py on the strength of a
+  # plausible story would be a fix for a defect nobody has shown. This
+  # job is what produces the failure text.
+  #
+  # Not gating a PR: it runs on the schedule and on dispatch, where
+  # macos-plain already sits, which is this repository's existing
+  # answer to what a macOS runner costs.
+  macos-contributor-suite:
+    name: the contributor instructions, on macOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Deps, the way CONTRIBUTING.md describes them
+        run: |
+          python3 -m pip install Pillow
+          # DejaVu is what fonts/fonts.json names. A Mac has no
+          # fonts-dejavu-core package, and the tests that need a TTF
+          # skip rather than fail without one -- which would make this
+          # job quietly weaker than the ubuntu one it is checking
+          # against. Fetch it so the same tests actually run.
+          brew install --quiet fontconfig || true
+          mkdir -p ~/.fonts
+      - name: Layout tests
+        run: cd packages/layout && node --test test/*.test.js
+      - name: Baker tests
+        run: cd packages/baker && python3 -m unittest discover -s tests
+      - name: The runtime suite, which is where <malloc.h> bit
+        run: make -C runtime test
+      - name: ...and the syntax check, under whatever clang ships here
+        run: make -C runtime syntax-check
+      - name: The example end to end
+        run: ./examples/memcard/build.sh
+
   macos-plain:
     name: the documented macOS failure is still the failure
     runs-on: macos-14
