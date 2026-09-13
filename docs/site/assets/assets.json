@@ -216,5 +216,27 @@
     "alt": "the ps2ui serve page for the quick start project: the library screen with row 0 focused, the command list, the focusables list and the slots panel, no warnings",
     "checked": false,
     "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Served from the tutorial's scratch project, not from the committed demo/ sources."
+  },
+  {
+    "path": "assets/getting-started/tutorial-game-browser/preview.png",
+    "page": "getting-started/tutorial-game-browser",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/getting-started/quickstart/demo/ui/library.html docs/site/assets/getting-started/quickstart/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "the tutorial library screen, six rows, theme 0",
+    "checked": true
+  },
+  {
+    "path": "assets/getting-started/tutorial-game-browser/states.png",
+    "page": "getting-started/tutorial-game-browser",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/getting-started/quickstart/demo/ui/library.html docs/site/assets/getting-started/quickstart/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --montage OUT",
+    "alt": "every focus state of the library screen on one sheet",
+    "checked": true
+  },
+  {
+    "path": "assets/getting-started/tutorial-game-browser/serve.png",
+    "page": "getting-started/tutorial-game-browser",
+    "command": "cd <scratch>/browser (the tutorial's own steps 1-4) && ps2ui serve --port 8700, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8700/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
+    "alt": "the served page after the tutorial's step 7: the library screen, row 0 focused, no warnings",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Server was stopped and port 8700 confirmed closed after the capture."
   }
 ]
