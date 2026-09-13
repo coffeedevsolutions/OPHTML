@@ -69,7 +69,7 @@ Parent facts reused without restatement: `api.functions.visible_set`,
 | offset.new | The draw-time offset is the 0.6.0 addition (F27). Runtime visibility shipped in 0.3.0 | CHANGELOG.md:35-42 (0.6.0 Added); CHANGELOG.md:541-543 (0.3.0 Added) | `grep -n '^## ' CHANGELOG.md` puts line 541 under `## 0.3.0` and line 35 under `## Unreleased — 0.6.0.dev0` | verified |
 | preview.offset | `preview.render(uib, ..., offset=(dx, dy))` is the host mirror of `ps2ui_offset_set`. It applies the offset in `clip_rect`, the funnel every command rect passes through, seeds the scissor stack with an unoffset canvas rect, and raises `ValueError` naming `PS2UI_ERR_RANGE` outside int16 | packages/baker/ps2ui_bake/preview.py:126-128, :143-151, :171-177 | `TestPreviewOffset` (4 checks) and `TestPreviewOffsetMovesText` (1 check) ran and passed; the three renders in this session produced `offset-0.png`, `offset-up.png` and `offset-right.png` | verified |
 | preview.no-visibility | `preview.render` has no visibility parameter, so `ps2ui_visible_set` and the list-window APIs are outside what the previewer shows. The module states it as a boundary | packages/baker/ps2ui_bake/serve.py:36-43 | `grep -n 'visib' packages/baker/ps2ui_bake/preview.py` matches nothing; the `render` signature at preview.py:126-128 lists `focus_current`, `background`, `slot_text`, `screen`, `tex_fills`, `theme` and `offset` | verified |
-| serve.no-offset | `ps2ui serve` has no offset control. Its handler calls `preview.render` without the `offset` argument, so a served frame is always at (0, 0) | packages/baker/ps2ui_bake/serve.py:235-239, :788-791 | `ps2ui serve --help` printed the options `--uib`, `--port`, `--screen`, `--theme`, `--no-watch`, `--selftest` and no offset flag; `grep -n offset packages/baker/ps2ui_bake/serve.py` matches nothing | verified |
+| serve.no-offset | Neither `ps2ui serve` nor `ps2ui-bake --preview` has an offset control. `render_png` calls `preview.render` without the `offset` argument, so a served frame is always at (0, 0). The offset is reachable from the Python API only. README.md:372-374 says both commands apply the same offset | packages/baker/ps2ui_bake/serve.py:233-239, :788-791; README.md:372-374 | `ps2ui serve --help` printed `--uib`, `--port`, `--screen`, `--theme`, `--no-watch`, `--selftest` and no offset flag; `ps2ui-bake --help` printed `--preview`, `--montage`, `--preview-display` and no offset flag; `grep -n offset packages/baker/ps2ui_bake/serve.py packages/baker/ps2ui_bake/cli.py packages/baker/ps2ui_bake/ps2ui.py` matches nothing | contradicts-readme |
 | serve.parity | `ps2ui serve --selftest` asserts the served frame is byte-identical to what `--preview` writes, which is what keeps the browser page and the baker one renderer | packages/baker/ps2ui_bake/serve.py:778-795 | `ps2ui serve examples/memcard --selftest` printed `ok - the frame is byte-identical to --preview` and `PASS: 6 route(s)` | verified |
 
 ## follow-up
@@ -81,3 +81,12 @@ already records for the same comment. Recorded here because the paragraph is the
 reader reaches while looking up the offset, and the accurate replacement is
 `ctx->focus_nodes[ctx->focus]`, the field this session read in `<scratch>/probe` to prove
 the paragraph's actual claim.
+
+`README.md:372-374` says `ps2ui serve` and `ps2ui-bake --preview` "apply the same offset
+(`preview.render(..., offset=(dx, dy))`)". Neither does. `grep -n offset` over `serve.py`,
+`cli.py` and `ps2ui.py` matches nothing, `ps2ui serve --help` and `ps2ui-bake --help` list
+no offset flag, and `render_png` (serve.py:233-239) calls `preview.render` with
+`focus_current`, `screen`, `slot_text` and `theme` only. The parameter exists on
+`preview.render` and is reachable from a Python one-liner, which is how this page's three
+images were made. Either add the flag and a serve control, or narrow the README sentence
+to the Python API. No drift row covers this one.

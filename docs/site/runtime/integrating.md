@@ -50,7 +50,8 @@ https://github.com/coffeedevsolutions/OPHTML/tree/main/runtime/sample
 https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/deploying.md
 ```
 
-The command exited 0 and `ls src/` printed those two names alone.
+The command exited 0. `ls src/` then printed those two names and nothing
+else.
 
 Put the three lines it names into the project Makefile. Without them the
 compile stops at `ps2ui.c`'s `#include <gsKit.h>`.
@@ -61,7 +62,7 @@ EE_LIBS     = -lgskit -ldmakit
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 ```
 
-Build inside the toolchain image.
+Build inside the toolchain image, with the line printed above.
 
 ```sh
 docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make
@@ -73,8 +74,8 @@ drive the context from the app. The calls are on
 [the frame loop](page:runtime/frame-loop#what-it-is).
 
 The pair stands on its own. `ps2ui.c` from the run above compiled under
-`-std=c99 -Wall -Wextra -Werror` against gsKit's headers, with no other
-source from this repository on the command line.
+`-std=c99 -Wall -Wextra -Werror` against gsKit's headers. No other source
+from this repository was on the command line.
 
 ## Reference table
 
@@ -192,9 +193,10 @@ ps2ui.c, ps2ui.h already up to date.
 runtime source: /home/user/OPHTML/runtime (this checkout)
 ```
 
-A file that differs stops the whole command, including the file that was
-absent. `ps2ui.c` includes `ps2ui.h` and is written against its structs, so
-a half-written pair compiles against the wrong declarations.
+A file that differs stops the whole command. Nothing is written, not even
+a file that was absent. `ps2ui.c` includes `ps2ui.h` and is written against
+its structs, so a half-written pair compiles against the wrong
+declarations.
 
 ```sh
 $ ps2ui vendor-runtime src/
@@ -218,14 +220,14 @@ runtime source: /home/user/OPHTML/runtime (this checkout)
 ...
 ```
 
-The toolchain notes print only when a file was written. The second run
-above stopped after two lines.
+The toolchain notes print only when a file was written. The up-to-date run
+above stopped after its two lines.
 
 ### The cross toolchain
 
 New in 0.6.0. The command prints the toolchain it needs rather than the
 two files alone. CI compiles the ELF in the same image,
-`ghcr.io/ps2dev/ps2dev:latest`, and leaves it unpinned on purpose, so a
+`ghcr.io/ps2dev/ps2dev:latest`. That tag stays unpinned on purpose, so a
 gsKit change shows up as a red job.
 
 `runtime/vendor/gsKit/` holds verbatim public headers from ps2dev/gsKit at
@@ -239,10 +241,10 @@ on.
 ### What the host targets prove
 
 `syntax-check` compiles every build arm with `-S` rather than
-`-fsyntax-only`, because a compiler emits unused-function warnings during
-code generation. A probe asks whether the compiler accepts
-`-fno-integrated-as` and adds it when it does, so clang reaches the same
-27 compiles that gcc does.
+`-fsyntax-only`. A compiler emits unused-function warnings during code
+generation, which `-fsyntax-only` never reaches. A probe asks whether the
+compiler accepts `-fno-integrated-as` and adds it when it does. Clang then
+reaches the same 27 compiles that gcc does.
 
 ```sh
 $ make -C runtime syntax-check CC=clang
@@ -255,7 +257,7 @@ so a divergence is a compile error. Three classes stay console-only:
 drawing behaviour, EE type widths and `printf` formats, and whether PS2SDK
 permits an API at all. The last one has already cost a build. A shim for
 `fioOpen` made the host green for functions the newlib port rejects at the
-header, so an ELF that had never compiled for a target passed every local
+header. An ELF that had never compiled for a target passed every local
 suite.
 
 ## Limits and errors
@@ -266,8 +268,8 @@ suite.
 | Two complete sources that disagree | The command refuses and names both paths. Rebuild `packages/baker` or delete the staged directory. |
 | Neither source present | The command reports a packaging bug and names the sdist workaround. |
 | No Makefile is vendored | `dest` receives two C files. The build rules are the reader's, or copied from `runtime/sample/`. |
-| `make -C runtime test-compat` | No such target. `make` stops with `No rule to make target 'test-compat'` and exits 2. |
-| `-DPS2UI_GSKIT_HAS_FUNCTION=0` | No such macro. gsKit declares no per-texture TFX field, so there is no fallback build to select. |
+| A target outside the table above | The five are all there are. `make` stops with `No rule to make target` and exits 2. |
+| An older-gsKit build arm | There is none. gsKit declares no per-texture TFX field, so the runtime sets none and there is nothing to select between. |
 | A pairing flag without its arm | `make` stops at a `$(error)` and exits 2 before any recipe runs. All thirteen guards were exercised in this session. |
 | `syntax-check` and PS2SDK | It answers C-language questions only. `hw.yml`'s `elf` job is the arbiter for anything touching PS2SDK. |
 

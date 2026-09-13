@@ -67,7 +67,7 @@ The same five signatures, with their return conventions, are on the [C API refer
 
 ### Visibility
 
-The unit is a focus node's subtree, because that is the only grouping the baked command list carries. Every record and every slot stores the focus node it belongs to. The render loop tests that field twice, once over commands and once over slots, so a hidden node loses its panel and its text together.
+The unit is a focus node's subtree, because that is the only grouping the baked command list carries. Every record and every slot stores the focus node it belongs to. The render loop tests that field twice, once over commands and once over slots. A hidden node loses its panel and its text together.
 
 A run over the memcard blob hid `save-ico` on the saves screen, which owns the slot `save-0`.
 
@@ -93,7 +93,7 @@ Lists drive this for you. `ps2ui_list_apply_visibility` hides the rows past the 
 
 New in 0.6.0. The runtime could change what was drawn and never where. The offset is the missing half, and it is a draw-time transform over records that already exist. No record, header field or format version changed for it. A blob baked by any 0.x toolchain renders where it always did, because a freshly loaded context starts at (0, 0).
 
-The translation is added at the sink, where coordinates reach gsKit, not at the call sites that read a command's x. Textured and untextured primitives take it alike, and so does the glyph pen that derives its position from a slot entry rather than from a command. [test_runtime.c](repo:runtime/tests/test_runtime.c#L3561) asserts that every primitive in a frame moved by exactly the offset, which is the check that caught an earlier version applying it in three places out of five.
+The translation is added at the sink, where coordinates reach gsKit, not at the call sites that read a command's x. Textured and untextured primitives take it alike. So does the glyph pen, which derives its position from a slot entry rather than from a command. [test_runtime.c](repo:runtime/tests/test_runtime.c#L3561) asserts that every primitive in a frame moved by exactly the offset. That check caught an earlier version applying it in three places out of five.
 
 A scissor pushed by a command takes the offset, because a panel's clip slides with the panel. The rect the scissor stack is seeded with does not, because it is the display edge. The result is that a frame slid past the edge is cut by the screen rather than drawn outside it.
 
@@ -142,9 +142,9 @@ The compositing rules the second render obeys are on [Screens and overlays](page
 
 `PS2UI_ERR_RANGE` and the other codes are listed on [Errors and constants](page:runtime/errors-and-constants#error-codes).
 
-The previewer shows neither of these. `preview.render` has no visibility parameter, and `ps2ui serve` has no offset control, so a served frame is always at (0, 0) with everything shown. Both are stated boundaries in [serve.py](repo:packages/baker/ps2ui_bake/serve.py#L36), described on [Previewer](page:cli/previewer#output).
+The browser page draws neither of these. `preview.render` has no visibility parameter, so hiding is outside what the browser page shows. That boundary is stated in [serve.py](repo:packages/baker/ps2ui_bake/serve.py#L36) and described on [Previewer](page:cli/previewer#output).
 
-The offset is the exception a script can reach. `preview.render(uib, offset=(dx, dy))` is the host mirror of `ps2ui_offset_set`, down to refusing a value outside int16. The three images above came from it.
+The offset reaches one pen only. `preview.render(uib, offset=(dx, dy))` is the host mirror of `ps2ui_offset_set`, down to refusing a value outside int16, and the three images above came from it. No command-line flag carries it: `ps2ui serve --help` and `ps2ui-bake --help` list none, and a served frame is always at (0, 0). Call `preview.render` directly to preview one.
 
 ## Related pages
 

@@ -5,7 +5,7 @@ description: Reserve a texture slot at build time and fill it at runtime with ps
 section: runtime
 order: 44
 version: 0.6.0
-sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/sample/main.c, runtime/sample/cover_pattern.h, runtime/tests/test_runtime.c, tools/make_cover_raw.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/vram.py, packages/baker/tests/test_baker.py, packages/layout/src/box.js, fixtures/bench-stream/ui/covers.html, fixtures/bench-stream/ui/dialog.html, fixtures/bench-stream/ui/bench.css, docs/deploying.md, CHANGELOG.md]
+sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/sample/main.c, runtime/sample/cover_pattern.h, runtime/tests/test_runtime.c, tools/make_cover_raw.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/vram.py, packages/baker/tests/test_baker.py, packages/layout/src/box.js, fixtures/bench-stream/ui/covers.html, fixtures/bench-stream/ui/dialog.html, fixtures/bench-stream/ui/bench.css, fixtures/bench-stream/build.sh, docs/deploying.md, CHANGELOG.md]
 ---
 
 # Streaming art
@@ -76,7 +76,7 @@ Six constraints hold for every `ps2ui_tex_set` call.
 | `len` equals the entry's reservation exactly | `PS2UI_ERR_SIZE`. A short buffer would DMA past its end; a long one means the app and the bake disagree about the geometry ([ps2ui.c](repo:runtime/ps2ui.c#L697)). |
 | `texels` is 16-byte aligned | `PS2UI_ERR_ALIGN`. A DMA source address truncates silently below qword alignment ([ps2ui.c](repo:runtime/ps2ui.c#L703)). |
 | `name` is a streamed slot in this blob | `PS2UI_ERR_NOT_STREAMED`. A baked texture and an unknown name return the same code ([ps2ui.c](repo:runtime/ps2ui.c#L692)). |
-| `texels` stays alive and unmoved while the slot can be drawn | gsKit re-reads the pointer at render time when it re-binds an evicted texture. A freed buffer draws whatever replaced it, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L479)). |
+| `texels` stays alive and unmoved while the slot can be drawn | gsKit re-reads the pointer at render time when it re-binds an evicted texture. A freed buffer draws whatever replaced it, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L480)). |
 | `texels` holds PSMCT32 with alpha in 0 to 128 | The GS reads 0x80 as opaque. Alpha 255 asks for about twice the coverage the texel has and composites overbright. |
 | the texels are written before the call | `ps2ui_tex_set` flushes `len` bytes from the EE cache at call time ([ps2ui.c](repo:runtime/ps2ui.c#L726)). A CPU write made after the call is not flushed. |
 
@@ -88,9 +88,9 @@ Six constraints hold for every `ps2ui_tex_set` call.
 | Pass a linear palette | The CSM1 permutation is applied on the way into the pool, exactly as `ps2ui_upload` does ([ps2ui.c](repo:runtime/ps2ui.c#L765)). |
 | `ncolors` is at most the baked width | A wider palette returns `PS2UI_ERR_SIZE` rather than recolouring indices no texel references ([ps2ui.c](repo:runtime/ps2ui.c#L761)). |
 | A short palette blanks the tail | `permute_clut` opens with `memset(out, 0, 256 * 4)`. A 16-entry palette handed to a 256-entry CLUT erases the other 240 to transparent black ([ps2ui.c](repo:runtime/ps2ui.c#L546)). |
-| Every texture sharing the index changes together | One palette recolours every atlas drawn from it. Two that must diverge need two CLUTs at bake time ([ps2ui.c](repo:runtime/ps2ui.c#L770)). |
-| A swap does not survive an upload | A second `ps2ui_upload` re-permutes every CLUT from the blob and reverts the swap, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L537)). |
-| The swap takes effect on the next bind | `ps2ui_render` binds every texture it draws. `ps2ui_clut_set` does not bind by itself ([ps2ui.h](repo:runtime/ps2ui.h#L556)). |
+| Every texture sharing the index changes together | One palette recolours every atlas drawn from it. Two that must diverge need two CLUTs at bake time ([ps2ui.c](repo:runtime/ps2ui.c#L771)). |
+| A swap does not survive an upload | A second `ps2ui_upload` re-permutes every CLUT from the blob and reverts the swap, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L539)). |
+| The swap takes effect on the next bind | `ps2ui_render` binds every texture it draws. `ps2ui_clut_set` does not bind by itself ([ps2ui.h](repo:runtime/ps2ui.h#L555)). |
 
 For tints against palettes, see [Theming](page:authoring/theming#runtime). `ps2ui_theme_set` moves a pointer and schedules no transfer. `ps2ui_clut_set` sends 1 KiB per sharing texture. An app that uses both does the CLUT swap last.
 
@@ -110,7 +110,7 @@ Stage 3 is the reason a reservation is not free. A slot costs its VRAM from the 
 
 ### tex_set
 
-`ps2ui_tex_set` points `GSTEXTURE::Mem` at the caller's buffer, flushes that buffer from the EE cache, and invalidates the slot's residency. The invalidation is what makes a swap visible: the texture manager may hold the slot resident from a previous set, and a bind without it would draw the old cover out of VRAM.
+`ps2ui_tex_set` points `GSTEXTURE::Mem` at the caller's buffer, flushes that buffer from the EE cache, and invalidates the slot's residency. The invalidation is what makes a swap visible. The texture manager may hold the slot resident from a previous set. A bind without the invalidation would draw the old cover out of VRAM.
 
 Call it again to swap texels. Scrolling a list of covers is a sequence of such calls, one per row that moved.
 
@@ -149,7 +149,7 @@ The four boxes are blank. Each one reserves 65536 B and holds no texels. The pre
 
 `tools/make_cover_raw.py` turns art into texels. Output is a bare `.raw` of exactly `width * height * 4` bytes of PSMCT32, row-major, with no header. The ELF reads it straight into its buffer and checks the file size, which is the integrity check a header would have given.
 
-Every alpha goes through the same `css_alpha_to_gs` the baker uses, so an opaque texel lands at 0x80 and a streamed cover composites like a baked one. Converting with a plain `img.tobytes("raw", "RGBA")` would reintroduce the 2x overbright fault.
+Every alpha goes through the same `css_alpha_to_gs` the baker uses. An opaque texel therefore lands at 0x80, and a streamed cover composites like a baked one. Converting with a plain `img.tobytes("raw", "RGBA")` would reintroduce the 2x overbright fault.
 
 ```sh
 $ python3 tools/make_cover_raw.py --self-test

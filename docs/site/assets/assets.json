@@ -162,5 +162,12 @@
     "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library', offset=(80, 0)).save('OUT')\"",
     "alt": "memcard library screen, root theme, 4:3, slid right 80 px and clipped at the display edge",
     "checked": true
+  },
+  {
+    "path": "assets/runtime/streaming-art/covers-empty.png",
+    "page": "runtime/streaming-art",
+    "command": "node packages/layout/bin/ps2ui-layout.js fixtures/bench-stream/ui/covers.html fixtures/bench-stream/ui/bench.css -o OUT.covers.json && node packages/layout/bin/ps2ui-layout.js fixtures/bench-stream/ui/dialog.html fixtures/bench-stream/ui/bench.css -o OUT.dialog.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.covers.json OUT.dialog.json -o OUT.uib --preview OUT",
+    "alt": "The bench covers screen, root theme, 4:3, all four slots unfilled: the title, the four captions and the two status lines draw, and the four 128x128 cover boxes are empty background",
+    "checked": true
   }
 ]
