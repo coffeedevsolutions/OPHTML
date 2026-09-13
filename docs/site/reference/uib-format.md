@@ -384,7 +384,7 @@ The C side is held separately. The runtime test `struct layout matches the on-di
 
 ### History
 
-Every struct-size change bumped the version. The entries for v5 to v7 are in [docs/format-uib.md](repo:docs/format-uib.md#L466); v1 to v4 are recorded in [docs/PLAN.md](repo:docs/PLAN.md#L87), and `check-versions.py` holds that line to run v1 through the current version.
+Every struct-size change bumped the version. The entries for v5 to v7 are in [docs/format-uib.md](repo:docs/format-uib.md#L466); v1 to v4 are recorded in [docs/PLAN.md](repo:docs/PLAN.md#L92), and `check-versions.py` holds that line to run v1 through the current version.
 
 | version | change | stride moved | feature bit |
 |---|---|---|---|

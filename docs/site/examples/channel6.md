@@ -117,7 +117,7 @@ memcard's and opl-env's screenshot directories
 ([ci.yml](repo:.github/workflows/ci.yml#L326-L336)); "Validate every blob
 against the runtime's assumptions" runs `tools/check-blobs.sh` by name
 against both channel6 blobs plus the other two examples'
-([ci.yml](repo:.github/workflows/ci.yml#L361-L382)).
+([ci.yml](repo:.github/workflows/ci.yml#L370-L391)).
 
 ## Numbers from the blob
 

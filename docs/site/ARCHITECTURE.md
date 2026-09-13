@@ -107,11 +107,21 @@ sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/vram.py]
 `sources` lists the repository files the page was verified against. A
 change to any of them marks the page for review.
 
+Site version: 0.6.0
+
+Every page carries that value in `version`. `tools/check-site-pages.py` reads
+it from the line above, so a stamp that disagrees fails the check.
+
 ## Links
 
 - Internal: `[the project file](page:authoring/project-file#keys)`. The site
   build rewrites `page:` URLs. The id must exist in the index above.
 - Repository: `[cli.py](repo:packages/baker/ps2ui_bake/cli.py#L131)`.
+  A line number is a citation with an expiry date, so
+  `docs/site/_citations.tsv` records the text of every cited line.
+  `tools/check-site-pages.py` fails when a cited line changes,
+  `--fix` moves the citation when that text now sits on one other line,
+  and `--pin` rewrites the record after citations are added or edited.
 - External: an ordinary URL. Only for ps2dev, gsKit, PyPI, npm, the emulators.
 - Headings use kebab-case anchors, so cross-page anchors are predictable.
 
@@ -380,43 +390,15 @@ The brief is self-contained: it pastes the voice rules and the drift rows
 it needs rather than linking them, so an agent that reads only its brief
 still writes to the contract.
 
-## Verification after wave 4
+## Verification
+
+Two committed tools, both run by CI:
 
 ```sh
-# every page exists and carries frontmatter with an id that matches its path
-python3 - <<'PY'
-import os, re, sys
-root = "docs/site"
-ids = set()
-for d, _, fs in os.walk(root):
-    for f in fs:
-        if not f.endswith(".md") or d.endswith(("_prompts", "_facts")) or f == "ARCHITECTURE.md":
-            continue
-        p = os.path.join(d, f)
-        text = open(p).read()
-        m = re.search(r"^id: (.+)$", text, re.M)
-        want = os.path.relpath(p, root)[:-3]
-        if want == "index":
-            want = "index"
-        assert m and m.group(1).strip() == want, (p, m and m.group(1))
-        ids.add(want)
-bad = []
-for d, _, fs in os.walk(root):
-    for f in fs:
-        if f.endswith(".md"):
-            for link in re.findall(r"\(page:([^)#]+)", open(os.path.join(d, f)).read()):
-                if link not in ids:
-                    bad.append((f, link))
-print("pages:", len(ids), "broken links:", bad)
-sys.exit(1 if bad else 0)
-PY
-
-# forbidden phrases
-grep -rniE "\b(let's|we'll|in this section|in this guide|simply|seamless|robust|leverage|powerful|note that|worth noting|keep in mind|as you can see|of course|essentially|basically|easily|straightforward|delve|dive into|unlock|empower|journey|crucial|vital)\b" docs/site --include=*.md | grep -v ARCHITECTURE.md | grep -v "Forbidden:"
-
-# assets are current
-python3 tools/check-site-assets.py
-
-# the tutorial page still executes
-python3 tools/check-tutorial.py    # pointed at getting-started/tutorial-game-browser.md once that page exists
+python3 tools/check-site-pages.py   # ids, version stamps, page: and repo: links, citation drift, voice, images, word budgets
+python3 tools/check-site-assets.py  # every checked render re-rendered and byte-compared
+python3 tools/check-tutorial.py     # both tutorials execute: docs/tutorial-uc3.md and getting-started/tutorial-game-browser.md
 ```
+
+After editing a `repo:` citation, run `python3 tools/check-site-pages.py --pin`
+and commit `_citations.tsv` with the page.

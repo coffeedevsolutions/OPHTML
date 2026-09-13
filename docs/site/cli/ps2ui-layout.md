@@ -198,7 +198,7 @@ The baker is spawned as `python3 -m ps2ui_bake` with `PYTHONPATH` pointing at th
 
 ### Strict and the font floor
 
-Both flags reach the linter the way they do in `ps2ui-layout`. The memcard library screen shows the floor moving: both tools double their `min-font-size` warnings at a 40px floor.
+In 0.6.0 as released, `ps2ui-dev` accepts both flags and applies neither; the fix ships in 0.7.0. From that release on, both flags reach the linter the way they do in `ps2ui-layout`. The memcard library screen shows the floor moving: both tools double their `min-font-size` warnings at a 40px floor.
 
 ```sh
 ps2ui-layout examples/memcard/ui/library.html examples/memcard/ui/library.css -o floor/layout14.json 2>&1 | grep -c "min-font-size:"

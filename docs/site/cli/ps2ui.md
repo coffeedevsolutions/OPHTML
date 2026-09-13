@@ -491,7 +491,9 @@ $ PS2UI_LAYOUT=/bin/echo ps2ui dev --once
 ui/library.html ui/library.css -o build/dev --fonts fonts/fonts.json --mode ntsc16x9 --canvas 704x448 --display-aspect 16:9 --strict --min-font-size 11 --focus-wrap --palettize-images --once
 ```
 
-`--strict` and `--min-font-size` take effect in `ps2ui-dev` as they do in
+In 0.6.0 as released, `ps2ui dev` accepts `--strict` and `--min-font-size` and
+applies neither; the fix ships in 0.7.0. From that release on, both flags
+take effect in `ps2ui-dev` as they do in
 `ps2ui-layout`, so `ps2ui dev` and `ps2ui build` warn on the same text and
 fail on the same warnings. The detail is under
 [strict and the font floor](page:cli/ps2ui-layout#strict-and-the-font-floor).
