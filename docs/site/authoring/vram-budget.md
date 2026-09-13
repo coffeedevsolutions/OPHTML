@@ -13,9 +13,9 @@ sources: [packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/cli.py, p
 ## What it is
 
 The Graphics Synthesizer holds 4 MiB of VRAM. Framebuffers and textures
-share it. `ps2ui-bake` sums every texture and CLUT in the blob and charges the sum
-against a budget. It prints a per-texture breakdown. It returns 1 without
-writing the blob when the sum is over.
+share it. `ps2ui-bake` sums every texture and CLUT in the blob and
+charges the sum against a budget. It prints a per-texture breakdown. It
+returns 1 without writing the blob when the sum is over.
 
 The budget is a bake-time decision, not a console-time one. The baker
 knows every texture it emits. An over-budget UI therefore fails at the
@@ -27,7 +27,8 @@ with `--vram-budget`.
 
 ## Minimal example
 
-Bake the memcard example and read the last five lines of the breakdown.
+Bake the memcard example. The breakdown is trimmed here to one texture
+row, the CLUT row and the totals.
 
 ```
 $ ps2ui-bake examples/memcard/build/library.json examples/memcard/build/saves.json -o memcard.uib
@@ -111,7 +112,8 @@ ok - and differs from the page model on 5120 of them, which is why both are repo
 
 The gap between the two is why `reclaimable` exists as its own number.
 On memcard the allocator commits 143104 B where the budget charges
-163840 B, and only the 10437 B above the payload is a prize.
+163840 B. Only the 10437 B above the payload can be reclaimed. The rest
+is margin the budget holds back.
 
 ### Which number tex_set wants
 
@@ -121,7 +123,9 @@ the slot's reservation exactly; the page-rounded figure is
 
 ```
 $ ps2ui-layout fixtures/bench-stream/ui/covers.html fixtures/bench-stream/ui/bench.css -o covers.json
+ps2ui-layout: 6 paint commands, 0 focusables -> covers.json
 $ ps2ui-layout fixtures/bench-stream/ui/dialog.html fixtures/bench-stream/ui/bench.css -o dialog.json
+ps2ui-layout: 11 paint commands, 2 focusables -> dialog.json
 $ ps2ui-bake covers.json dialog.json -o bench.uib
 ...
   tex[ 1] PSMCT32   128x128  streamed    65536 B payload ->   65536 B in pages
@@ -172,6 +176,8 @@ the textures.
 
 ```
 $ ps2ui-layout wide.html wide.css --canvas 796x448 -o wide.json
+...
+ps2ui-layout: 2 paint commands, 0 focusables -> wide.json
 $ ps2ui-bake wide.json -o wide.uib
 ...
   framebuffers assumed: 2x draw/display + 1x Z @ 796x448 = 4472832 B
@@ -226,7 +232,8 @@ unusable at this canvas, see notes`. The checker's VRAM check is on
 `ps2ui_upload` preflights before it transfers anything. It sums
 `gsKit_texture_size` per texture and adds one 16x16 PSMCT32 block per
 PSMT8 texture for the palette. It returns -1 when that sum plus the
-current VRAM pointer exceeds 4 MiB. Nothing is transferred and `ctx->uploaded` stays 0.
+current VRAM pointer exceeds 4 MiB. Nothing is transferred, and
+`ctx->uploaded` stays 0.
 
 The refusal is all-or-nothing by design. `gsKit_TexManager_bind` cannot
 report exhaustion. Its allocator evicts in a loop that never exits when
@@ -261,9 +268,9 @@ boot](page:runtime/first-boot#behaviour) turns that return into step 9.
 | VRAM shrinks after upload | `ps2ui_render` skips every textured draw and sets `stats.vram_lost` |
 
 The budget covers textures and CLUTs only. The arena is host RAM and is
-counted separately. Its figure is per blob, not a constant. The bakes above
-printed `arena 1662 bytes` for memcard, `arena 1875 bytes` for the bench
-blob and `arena 1066 bytes` for the 796x448 blob.
+counted separately. Its figure is per blob, not a constant. The bakes
+above printed `arena 1662 bytes` for memcard, `arena 1875 bytes` for the
+bench blob and `arena 1066 bytes` for the 796x448 blob.
 
 The page model charges whole pages, so a texture smaller than a page
 costs a whole one. The memcard bake charges 8192 B for an 11x11 icon of
