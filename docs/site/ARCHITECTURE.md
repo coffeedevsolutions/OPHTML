@@ -352,6 +352,7 @@ with the evidence. They are fixes for separate changes, not for pages.
 | packages/layout/bin/ps2ui-dev.js usage | omits `--display-aspect`, which the tool accepts and acts on | reference/diagnostics |
 | packages/layout/src/paint.js vectorOf | dead throw: resolveColorValue always sets the name and the vector together | reference/diagnostics |
 | packages/layout/src/focus.js | dead `default:` throw in a switch over the four directions its only caller iterates | reference/diagnostics |
+| packages/baker/tests/test_baker.py | not importable as `tests.test_baker` either; the same `fonts_available` resolution, so `unittest discover -s tests` is the only working spelling | getting-started/installation |
 
 ## Brief template
 
