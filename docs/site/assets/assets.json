@@ -12,5 +12,26 @@
     "command": "PYTHONPATH=packages/baker python3 -m ps2ui_bake examples/memcard/build/library.json examples/memcard/build/saves.json -o OUT.uib --montage OUT",
     "alt": "memcard montage, root theme, 4:3, every focus state of both screens",
     "checked": true
+  },
+  {
+    "path": "assets/authoring/css/demo.png",
+    "page": "authoring/css",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/css/demo/demo.html docs/site/assets/authoring/css/demo/demo.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "CSS demo screen, root theme, 4:3, first card focused: rounded panels, a translucent wash over each panel fill, an ellipsized title and the focus ring",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/css/demo-states.png",
+    "page": "authoring/css",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/css/demo/demo.html docs/site/assets/authoring/css/demo/demo.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --montage OUT",
+    "alt": "CSS demo screen montage, root theme, 4:3, every focus state: the ring and the lighter panel fill move across the three cards",
+    "checked": true
+  },
+  {
+    "path": "assets/authoring/text-and-fonts/sizes.png",
+    "page": "authoring/text-and-fonts",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/authoring/text-and-fonts/demo/sizes.html docs/site/assets/authoring/text-and-fonts/demo/sizes.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "The string \"To the Victor: AV Ta Yo\" drawn four times on the demo screen, root theme, 4:3, initial state: 32px regular, 32px bold, 14px regular, 14px bold",
+    "checked": true
   }
 ]
