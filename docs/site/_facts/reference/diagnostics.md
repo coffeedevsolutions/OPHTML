@@ -1,0 +1,117 @@
+# facts: reference/diagnostics
+
+Every command was run from the repository root in this session unless a row
+says otherwise. `<scratch>` is
+`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/reference-diagnostics`.
+Three scratch trees live there: `err/` (a one-screen project plus the
+malformed HTML, CSS, IR and `.uib` files each refusal needs), `proj/` (ten
+malformed `ps2ui.json` files) and `badproj/` (a project whose stylesheet does
+not compile). Nothing under `examples/*/build/` was written; the memcard blob
+was read only.
+
+Suites run here: `make -C runtime test` printed `1..410` and
+`PASS: 410 checks, 0 failure(s)`. `cd packages/baker && python3 -m unittest
+discover -s tests -p test_baker.py -k TestFontgenRefusesWithoutRaqm` printed
+`Ran 6 tests ... OK`.
+
+This page restates no parent fact. Its tables are the union of the parents'
+message rows plus the rows below, which are the messages no parent page
+covered. Parent facts reused without restatement: `html.errors`,
+`html.errors.eof-in-tag`, `html.errors.malformed-attr`, `html.errors.unquoted`,
+`html.errors.unterminated-attr`, `html.errors.unterminated-comment`,
+`html.errors.stray-close`, `html.errors.mismatch`, `html.errors.bare-lt`,
+`html.errors.unterminated-skip`, `html.errors.never-closed`,
+`html.errors.malformed-tag`, `html.attributes.unknown-data`,
+`html.slot.needs-name`, `html.slot.single-text`, `html.repeat.root`,
+`css.selectors`, `css.syntax.errors`, `css.properties.unknown`,
+`css.properties.display`, `css.properties.overflow`, `css.units`,
+`css.colors.unknown`, `css.border`, `css.border-radius`, `css.box-shorthand`,
+`css.at-rules`, `css.focus.geometry-props`, `css.flex-direction.message`,
+`theme.syntax.colours-only`, `theme.syntax.root-ordinary`,
+`theme.syntax.outside-root`, `theme.syntax.at-theme-head`,
+`theme.syntax.at-theme-body`, `theme.syntax.at-theme-unknown-name`,
+`theme.syntax.at-theme-duplicate`, `theme.syntax.omitted-name`,
+`theme.var.no-fallback`, `theme.var.undefined`, `theme.literal-warning`,
+`theme.defect.theme-without-root`, `text.slot-single-line`,
+`text.wrap.non-latin`, `fonts.font-dir`, `images.errors.layout`,
+`images.errors.bake`, `images.palettize.indexed`, `images.streamed`,
+`slot.capacity.uint16`, `slot.rules.unique-in-blob`, `slot.spacing.i16`,
+`repeat.rules.count`, `repeat.rules.literal`, `repeat.rules.nesting`,
+`repeat.warn.no-index`, `repeat.warn.duplicate-slot`, `focus.nesting`,
+`focus.reachability`, `lint.rules`, `lint.rules.messages`, `lint.severity`,
+`lint.strict`, `cli.bake.exit-conditions`, `cli.bake.exit-conditions.caps`,
+`cli.bake.transcript`, `cli.bake.fonts.default`, `cli.bake.fonts.resolution`,
+`cli.bake.fonts.agreement`, `vram.bake.refusal`, `check.exit-codes`,
+`check.exit-codes.unreadable-messages`, `check.tap-shape`, `check.order`,
+`check.allow.exact`, `check.catalogue.01` to `check.catalogue.50`,
+`cli.ps2ui.exit-codes`, `cli.ps2ui.exit-codes.argparse`,
+`cli.ps2ui.exit-codes.serve`, `cli.ps2ui.layout-discovery`,
+`cli.ps2ui.check-never-builds`, `cli.ps2ui.dev.screen`,
+`cli.ps2ui.vendor-runtime`, `cli.ps2ui.fontgen`, `serve.routes.input`,
+`serve.screen-theme-validated`, `serve.exit-codes`, `serve.ports`,
+`errors.table`, `errors.truncated`, `errors.magic`, `errors.version`,
+`errors.features`, `errors.bounds`, `errors.bounds.null`, `errors.too_many`,
+`errors.crc`, `errors.align`, `errors.arena`, `errors.not_streamed`,
+`errors.size`, `errors.range`, `errors.state`, `errors.tints`,
+`errors.upload.minus1`, `errors.returners`, `load.order`.
+
+| id | fact | source | verified by | status |
+|---|---|---|---|---|
+| diagnostics.index | The page carries 185 rows over ten stage tables: HTML parse 11, CSS 35, layout 31, lints 10, bake 23, check 13, project and CLI 28, previewer 16, runtime load 10, runtime calls 8. The grep over the brief's sources finds 182 diagnostic sites: 70 error and 21 warning sites in `packages/layout/src/*.js`, 57 `raise` sites and 16 printed-diagnostic sites in `packages/baker/ps2ui_bake/*.py`, 4 TAP emitter sites in `check.py`, and 14 failure codes in `runtime/ps2ui.h`. Two layout sites are duplicate templates (`unterminated comment` at css.js:201 and :211, `at-rule ... ignored` at css.js:258 and :280), so 180 distinct templates answer 185 rows. The surplus five rows are the four TAP emitter sites split into the classes a reader sees (error, warning, VRAM, declared-count) and the `check.py` read refusal, plus the `ps2ui-layout`/`ps2ui-dev`/`ps2ui-fontgen` usage lines, which are argparse-level and appear in no grep. No site in any source is absent from the tables | packages/layout/src/*.js; packages/baker/ps2ui_bake/*.py; runtime/ps2ui.h:412-429 | a Python count over the three source sets in this session printed `layout error sites: 70  warning sites: 21`, `baker raise sites: 57`, `cli.py 12` (9 of them diagnostics, 3 are `preview ->` lines), `quads.py 1`, `caps.py 3`, `fontgen.py 6` (3 of them diagnostics); `grep -c "^#define PS2UI_ERR_\|^#define PS2UI_OK" runtime/ps2ui.h` printed 15 | verified |
+| diagnostics.prefixes | Each stage prefixes its own messages. `ps2ui-layout` prints `error: <message>` and `warning: <message>` on stderr; the compiler's own strings already begin `html:`, `css:`, `layout:`, `focus:` or a lint rule name. `ps2ui-bake` prints `error: <message>` for the IR and cap refusals and `ps2ui-bake: <message>` for everything it caught as an exception. `ps2ui-check` prints TAP on stdout and `ps2ui-check: <message>` on stderr. `ps2ui` prints `ps2ui: <message>`, except `ps2ui serve`, which prints `ps2ui serve: <message>` | packages/layout/bin/ps2ui-layout.js:91, :111; packages/baker/ps2ui_bake/cli.py:169, :213; packages/baker/ps2ui_bake/check.py:734; packages/baker/ps2ui_bake/ps2ui.py:430; packages/baker/ps2ui_bake/serve.py:807 | one refusal driven through each command in this session: `ps2ui-layout ok.html c2.css --fonts fonts/fonts.json -o x.json` printed `error: css: line 1: border-color: bad color "orange"`; `ps2ui-bake deep.json -o deep.uib` printed `error: scissor nesting: ...`; `ps2ui-check crc.uib` printed `ps2ui-check: crc.uib: crc mismatch (...)`; `ps2ui build p1.json` printed `ps2ui: p1.json: not valid JSON -- ...`; `ps2ui serve --selftest` in `<scratch>/badproj` printed `ps2ui serve: the first build failed, ...` | verified |
+| diagnostics.severity | Two severities and nothing between them. An error ends the stage with a non-zero exit and no output file. A warning is printed and the stage continues at exit 0. `ps2ui-layout --strict` promotes every compiler warning to exit 1; `ps2ui-check --strict` promotes every check warning to exit 1. Neither flag can select a rule | packages/layout/bin/ps2ui-layout.js:106-109; packages/baker/ps2ui_bake/check.py:749 | parent facts `lint.severity`, `lint.strict`, `check.exit-codes`; re-run here: `ps2ui-layout ok.html base.css --fonts fonts/fonts.json -o ok.json` exited 0 after `ps2ui-layout: 2 paint commands, 0 focusables -> ok.json` | verified |
+| diagnostics.css.at-theme-value | A theme block whose custom property holds a non-colour is `css: line <n>: @theme <name>: <prop>: "<value>" is not a color`. No parent page carries this message: `theme.syntax.at-theme-body` covers a non-custom property in the block, not a bad value on a custom one | packages/layout/src/css.js:449-453 | compiled `<scratch>/err/c1.css` (`:root { --panel: #12182a }` plus `@theme light { --panel: notacolour }`): `error: css: line 2: @theme light: --panel: "notacolour" is not a color`, exit 1 | verified |
+| diagnostics.css.border-color | `border-color` has its own bad-colour message, shorter than the one `background` and `color` share: `css: line <n>: border-color: bad color "<value>"` | packages/layout/src/css.js:679-683 | compiled `<scratch>/err/c2.css` (`border-color: orange`): `error: css: line 1: border-color: bad color "orange"`, exit 1 | verified |
+| diagnostics.css.opacity | `opacity` refuses a value `parseFloat` cannot read, and names no token: `css: line <n>: opacity: bad value` | packages/layout/src/css.js:722-725 | compiled `<scratch>/err/c3.css` (`opacity: none`): `error: css: line 1: opacity: bad value`, exit 1 | verified |
+| diagnostics.css.only-px | A px-only property given a length in another unit is `css: line <n>: <prop>: only px supported, got "<value>"`. This is the third of `pxOrThrow`'s three messages; parent `css.units` quotes the other two | packages/layout/src/css.js:554-568 | compiled `<scratch>/err/c4.css` (`font-size: 50%`): `error: css: line 1: font-size: only px supported, got "50%"`, exit 1 | verified |
+| diagnostics.css.margin-values | `margin` carries its own count message, separate from `padding`'s: `css: line <n>: margin: 1-4 values` | packages/layout/src/css.js:643-646 | read in source beside the `padding` twin at css.js:631-634, which parent `css.box-shorthand` proved by compile; the two branches are textually identical but for the property name | code-only |
+| diagnostics.layout.tex-slot-name | A `data-tex-slot` value with leading or trailing whitespace is refused: `layout: <img> on line <n>: data-tex-slot needs a name with no leading or trailing whitespace — it is how the app addresses the slot at runtime, matched byte for byte, and "<value>" would not match what it reads here` | packages/layout/src/box.js:230-236 | compiled `<scratch>/err/texslot.html` (`data-tex-slot=" cover "`): that line verbatim, exit 1 | verified |
+| diagnostics.layout.manifest-unreadable | The compiler's own `--fonts` refusals are two messages the baker does not share: `<path>: cannot be read as a fonts.json manifest (<parser message>). It maps "regular" and "bold" to { ttf: [...], metrics: "..." }; ps2ui-bake reads the same file.` and `<path>: no "<face>" face with a "metrics" path. Generate one with: ps2ui-fontgen <font.ttf> default <400\|700> <out.metrics.json>` | packages/layout/src/index.js:96-108 | `ps2ui-layout ok.html base.css --fonts bad.json -o x.json` printed the first with `(Unexpected token 'o', "not json ..." is not valid JSON)`; `--fonts nometrics.json` printed the second for `"regular"`; both exit 1 | verified |
+| diagnostics.layout.internal | Two `layout: internal:` messages exist. `<what> has <n> theme values, expected <m>` is reachable from a sheet, and `<what> carries the name <var> but no per-theme values -- a themed colour resolved through a path that did not carry the vector` is not | packages/layout/src/paint.js:43-51 | parent `theme.defect.theme-without-root` reached the first; the second needs a style carrying `colorVar` with no `colorThemes`, which `resolveColorValue` never produces, so no sheet reaches it | verified (the first); code-only (the second) |
+| diagnostics.layout.bad-direction | `bad direction <dir>` in the focus solver is a programming-error guard, not an authoring diagnostic. `findTarget` is called only from the four-element `DIRS` loop | packages/layout/src/focus.js:41-46, :117 | code-only: the switch's `default` is unreachable from any CLI path, because the only caller iterates a frozen four-name list | code-only |
+| diagnostics.cli.aspect | `parseAspect` raises `aspect: "<text>" is not a ratio like 4:3 or 16:9` for a value that is not `<digits>:<digits>`, and `aspect: "<text>" has a zero term` when either term is zero | packages/layout/src/aspect.js:19-30 | `ps2ui-layout ok.html base.css --fonts fonts/fonts.json -o x.json --display-aspect 4x3` printed the first, `--display-aspect 0:3` the second; both exit 1 | verified |
+| diagnostics.cli.aspect.traceback | Both aspect messages reach the terminal as an uncaught Node stack trace, not as an `error:` line. `ps2ui-layout.js` calls `parseAspect` at line 72, sixteen lines above the `try` that wraps `compileFiles`. `ps2ui-dev.js` has the same shape. A defect; see `## follow-up` | packages/layout/bin/ps2ui-layout.js:72, :88-112; packages/layout/bin/ps2ui-dev.js:96 | the two runs above each printed `file:///home/user/OPHTML/packages/layout/src/aspect.js:22`, the source line, a five-frame stack and `Node.js v22.22.2`, exit 1; `ps2ui-dev ok.html base.css -o devout --fonts fonts/fonts.json --display-aspect 4x3 --once` printed the same head | verified |
+| diagnostics.cli.usage | Three commands answer a malformed command line with a usage line and exit 2, with no `error:` prefix: `ps2ui-layout`, `ps2ui-dev` and `ps2ui-fontgen`. `ps2ui-layout` adds one named refusal, `ps2ui-layout: --min-font-size takes a positive integer`, also exit 2 | packages/layout/bin/ps2ui-layout.js:21-24, :74-77; packages/layout/bin/ps2ui-dev.js:21-27; packages/baker/ps2ui_bake/fontgen.py:277-282 | `--canvas 640` and `--mode vga` each printed the `ps2ui-layout` usage line, exit 2; `--min-font-size 0` printed the named refusal, exit 2; bare `ps2ui-dev` printed its usage line; bare `ps2ui-fontgen` printed `usage: python -m ps2ui_bake.fontgen <font.ttf> <family> <weight> <out.metrics.json> [charset-file]` | verified |
+| diagnostics.bake.streamed-size | Two `data-tex-slot` elements sharing a name at different laid-out sizes are a bake refusal: `image: streamed slot '<name>' is laid out at <w>x<h> in one place and <w>x<h> in another; a slot has one reservation, so give them the same size or different names` | packages/baker/ps2ui_bake/quads.py:400-412 | compiled `<scratch>/err/two.html` (one slot named `cover` at 64x48 and at 32x24), then `ps2ui-bake two.json -o two.uib --fonts fonts/fonts.json`: `ps2ui-bake: image: streamed slot 'cover' is laid out at 64x48 in one place and 32x24 in another; ...`, exit 1 | verified |
+| diagnostics.bake.unknown-op | An IR command carrying an op the flattener does not know is `unknown IR command op: <op>`, reported as a bake failure | packages/baker/ps2ui_bake/quads.py:575 | appended `{"op": "wobble"}` to a compiled IR and baked it: `ps2ui-bake: unknown IR command op: wobble`, exit 1 | verified |
+| diagnostics.bake.scissor-cap | The scissor cap refusal is reachable from the CLI: `error: scissor nesting: <n> levels reaches PS2UI_MAX_SCISSOR_DEPTH = 8. ps2ui_render has a fixed stack and cannot report an overflow, so the deepest subtree would draw under its parent's clip instead of its own. Flatten the nesting or raise PS2UI_MAX_SCISSOR_DEPTH in runtime/ps2ui.h.` Parent `cli.bake.exit-conditions.caps` records that no test drives it through the CLI; a hand-written IR does | packages/baker/ps2ui_bake/caps.py:83-96; packages/baker/ps2ui_bake/cli.py:251-254 | wrote `<scratch>/err/deep.json` with nine `scissor_push` records and nine pops; `ps2ui-bake deep.json -o deep.uib --fonts fonts/fonts.json` printed the line above after `  runtime tables: 0 textures, 0 CLUTs, 0 slots, 1 screens`, exit 1, and `deep.uib` was not written | verified |
+| diagnostics.bake.tint-internal | Three `uib.py` write-side messages have no CLI path in this tree: `tint vector has <n> themes, expected <m>`, `tint vector row 0 <rgba> does not match the colour it belongs to <rgba>` and `more than 65536 distinct tints`. The first two are invariants the compiler already enforces; the third needs a blob past the uint16 ceiling | packages/baker/ps2ui_bake/uib.py:209-218, :262-266 | code-only: parent `theme.tint-table.ceiling` records the same for the ceiling, and no sheet in this tree can hand the writer a short vector, because `vectorOf` in packages/layout/src/paint.js:41-47 refuses one first | code-only |
+| diagnostics.check.read-refusals | `read_uib` has nine refusals. Eight are reachable by editing a header field and restamping the CRC: `truncated header`, `not a .uib (magic 0x<n>)`, `version <n>, expected 7`, `unknown feature bits 0x<n>`, `crc mismatch (file 0x<a>, computed 0x<b>)`, `truncated (blob extends past EOF)`, `n_theme is 0 (a themeless blob still has one row)`, `<n> themes without FEAT_ROLE_TINTS -- tints keyed on the resolved colour cannot diverge between themes`. Each prints as `ps2ui-check: <path>: <message>` with no TAP and exit 2. The ninth, `<kind> <i> <which> index <n> is past the <m>-entry tint table`, needs a command record edited inside the blob | packages/baker/ps2ui_bake/uib.py:489-539; packages/baker/ps2ui_bake/check.py:730-734 | baked `<scratch>/err/good.uib` from a scratch IR, then wrote eight edited copies with `struct.pack_into` and a restamped CRC; `ps2ui-check` on each printed the eight messages above and exited 2 every time. Parent `check.exit-codes.unreadable-messages` marks seven of the eight `code-only` for want of a fixture; these copies are the fixture, and the parent fact is correct as written | verified (eight); code-only (the tint-index message) |
+| diagnostics.project.refusals | `load()` and `_screen()` carry ten refusals, all printed as `ps2ui: <message>` with exit 1: no such project file (four lines), not valid JSON, the top level must be an object, unknown key(s) with the full key list, `"screens"` is required and must not be empty, `"screens"` must be a list, `screens[i] is <repr>`, `screens[i] has unknown key(s)`, `screens[i] has no "html"`, `screens[i] (<html>) has no stylesheet` | packages/baker/ps2ui_bake/project.py:88-110, :190-224 | ten malformed files under `<scratch>/proj`, each run as `ps2ui build <file>`: all ten messages printed verbatim, each exit 1. The unknown-key line printed `A project takes: canvas, css, displayAspect, focusWrap, fonts, minFontSize, mode, montage, out, palettizeImages, preview, previewDisplay, screens, strict, vramBudget`; the screen unknown-key line printed `a screen takes css, focusWrap, html` | verified |
+| diagnostics.serve.first-build | `ps2ui serve` refuses to start when the first build fails: `ps2ui serve: the first build failed, so there is nothing to serve:` followed by the pipeline's one-line summary. The compiler's own diagnostic goes to the terminal, not into this message | packages/baker/ps2ui_bake/serve.py:706-709 | `<scratch>/badproj` holds a stylesheet with `background: #12g4f6`; `ps2ui serve --selftest` printed `error: css: line 1: background: bad color "#12g4f6" (flat colors only — gradients are a texture you bake yourself)` from the compiler, then `ps2ui serve: the first build failed, so there is nothing to serve:` and `ps2ui-layout failed on ui/library.html (exit 1)` | verified |
+| diagnostics.preview.api | `ps2ui_bake.preview` raises five ValueErrors a Python caller can hit and two it cannot: `no screen named '<name>'`, `theme <n> is past the <m>-row tint table`, `offset (<x>, <y>) does not fit the int16 pair on the context; ps2ui_offset_set returns PS2UI_ERR_RANGE for this`, `slot '<name>': <n> bytes of texels for a <w>x<h> PSMCT32 reservation (<m> B). ps2ui_tex_set would return PS2UI_ERR_SIZE for this.` and `texture format <n>`; the unreachable pair is `op <n>` and `unbalanced scissor stack in command list` | packages/baker/ps2ui_bake/preview.py:38-45, :60-65, :118-149, :236-243 | a Python session over `<scratch>/err/good.uib`: `render(u, screen='nope')`, `render(u, theme=5)` and `render(u, offset=(40000,0))` raised the first three verbatim. The texel-length and format messages were read in source; a blob that reaches `render` has passed `read_uib`, which admits only the two formats and the four ops | verified (three); code-only (four) |
+| diagnostics.rounding.domain | `rounding` guards both directions of the GS colour crossing: `channel <n> outside 0..255` and `GS alpha <n> outside 0..128`. Both are host-side invariants, not authoring diagnostics | packages/baker/ps2ui_bake/rounding.py:52-53, :64-66 | `css_channel_to_gs(300)` raised `ValueError: channel 300 outside 0..255` and `gs_alpha_to_css(200)` raised `ValueError: GS alpha 200 outside 0..128` in a Python session | verified |
+| diagnostics.fontgen.raqm | `ps2ui-fontgen` refuses before opening the TTF when Pillow has no Raqm layout engine, printing `ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.` plus a platform-specific remedy, and returns 2. `build_kerning` has its own note for Python callers, which `main` makes unreachable | packages/baker/ps2ui_bake/fontgen.py:57-64, :272-276 | `python3 -m unittest discover -s tests -p test_baker.py -k TestFontgenRefusesWithoutRaqm` in packages/baker printed `Ran 6 tests ... OK`, including `test_main_exits_nonzero_and_writes_nothing` at tests/test_baker.py:163. This machine has Raqm, so the unmocked tool never refuses here | verified |
+| diagnostics.vendor.sources | `ps2ui vendor-runtime` has two source-side refusals beyond the drift one parent `cli.ps2ui.vendor-runtime` covers: `two copies of the runtime disagree, so this will not guess which one you meant.` and `no C runtime to vendor.` | packages/baker/ps2ui_bake/vendor.py:131-159 | code-only: the first needs a staged package-data copy that differs from the checkout, the second needs a wheel built without its runtime; neither exists in a checkout, and the run rules forbid installing one | code-only |
+
+## follow-up
+
+Not in the drift table, found while verifying:
+
+1. `--display-aspect` with a malformed value prints a Node stack trace, not a
+   diagnostic. `packages/layout/bin/ps2ui-layout.js:72` calls `parseAspect`
+   before the `try` that starts at line 88, so the two `aspect:` messages in
+   `packages/layout/src/aspect.js:22` and `:27` never reach the
+   `console.error('error: ' + err.message)` handler at line 111. Every other
+   refusal in that file prints one line. `packages/layout/bin/ps2ui-dev.js:96`
+   has the same shape. Moving the `parseAspect` call inside the `try`, or
+   wrapping it in its own, would make the two messages readable. Row
+   `diagnostics.cli.aspect.traceback`.
+2. `ps2ui-dev --help` does not list `--display-aspect`, which the tool accepts
+   and acts on. `packages/layout/bin/ps2ui-dev.js:22-26` prints
+   `[--mode ntsc|pal] [--canvas WxH] ...` while the argument loop reads
+   `--display-aspect` and passes it to `parseAspect`. `ps2ui-layout`'s usage
+   line does list it. Verified by running
+   `ps2ui-dev ok.html base.css -o devout --display-aspect 4x3 --once`, which
+   reached `parseAspect` rather than the usage line.
+3. `packages/layout/src/paint.js:50` is unreachable. `vectorOf` throws
+   `layout: internal: <what> carries the name <var> but no per-theme values`
+   when `varName` is set and `themes` is not, but `resolveColorValue`
+   (packages/layout/src/css.js:501-544) sets `varName` and `rgbaThemes`
+   together at every return, and the four call sites in paint.js pass the
+   pair through unchanged. Either drop the branch or make the pairing a type
+   the compiler can hold.
+4. `packages/layout/src/focus.js:45` is a `default: throw new Error('bad
+   direction ...')` in a switch over the four `DIRS` entries the only caller
+   iterates (focus.js:117). Same shape as the dead `malformed tag` throw the
+   `authoring/html` agent recorded.
