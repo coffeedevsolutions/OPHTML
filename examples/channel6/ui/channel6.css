@@ -11,13 +11,22 @@
  * shimmers on an interlaced CRT), nothing below 14px, no saturated reds,
  * and :focus only ever repaints.
  *
- * Two budgets are load-bearing here: PS2UI_MAX_TEXTURES (32) and
- * PS2UI_MAX_SLOTS (16) in ps2ui.h. Every distinct rounded-box *style*
- * bakes one nine-patch texture and every distinct (size, weight) bakes
- * one glyph atlas, so this sheet deliberately reuses a handful of each
- * rather than styling every element freely. Since B10 the baker fails
- * the bake outright when a change would push either count past what
- * ps2ui_load() accepts, and prints the occupancy on every build. */
+ * REUSE IS STILL THE RULE HERE, AND THE REASON HAS CHANGED. This
+ * paragraph named PS2UI_MAX_TEXTURES (32) and PS2UI_MAX_SLOTS (16)
+ * "in ps2ui.h" as load-bearing budgets. Neither constant exists: #52
+ * removed the fixed ceilings and the tables are sized from the blob,
+ * which this example's own README already records ("Four constants
+ * used to stand here"). The README was corrected and this file was
+ * not.
+ *
+ * What is still true is the cost, which is what the sheet is actually
+ * written around: every distinct rounded-box *style* bakes one
+ * nine-patch texture and every distinct (size, weight) bakes one glyph
+ * atlas, so styling every element freely spends VRAM and arena rather
+ * than hitting a ceiling. `ps2ui build` prints the occupancy and the
+ * VRAM budget on every run, and the bake refuses when a blob will not
+ * fit the budget it was given. That is a real limit; 32 and 16 were
+ * not, for the 27 days this comment has stood. */
 
 .screen {
   flex-direction: column;
