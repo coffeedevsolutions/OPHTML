@@ -201,5 +201,20 @@
     "alt": "The previewer on the memcard library screen, root theme, as authored at 4:3, showing the last good frame under a banner reading ps2ui-layout failed on ui/library.html (exit 1), at revision 2",
     "checked": false,
     "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command appends an invalid colour to the scratch project's library.css so the watched rebuild fails."
+  },
+  {
+    "path": "assets/getting-started/quickstart/preview.png",
+    "page": "getting-started/quickstart",
+    "command": "node packages/layout/bin/ps2ui-layout.js docs/site/assets/getting-started/quickstart/demo/ui/library.html docs/site/assets/getting-started/quickstart/demo/ui/library.css --fonts fonts/fonts.json -o OUT.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.json -o OUT.uib --fonts fonts/fonts.json --preview OUT",
+    "alt": "the quick start library screen, root theme, 4:3, initial focus on row 0, six placeholder rows and a 0-title count",
+    "checked": true
+  },
+  {
+    "path": "assets/getting-started/quickstart/serve.png",
+    "page": "getting-started/quickstart",
+    "command": "cd <scratch>/browser && ps2ui serve --port 8600, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8600/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
+    "alt": "the ps2ui serve page for the quick start project: the library screen with row 0 focused, the command list, the focusables list and the slots panel, no warnings",
+    "checked": false,
+    "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Served from the tutorial's scratch project, not from the committed demo/ sources."
   }
 ]
