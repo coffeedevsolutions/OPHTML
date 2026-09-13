@@ -1,8 +1,60 @@
 # Changelog
 
-## Unreleased — 0.6.0.dev0
+## Unreleased — 0.7.0.dev0
+
+`.uib` format **version 7**, unchanged from the release below.
+Zero format moves have landed since 0.6.0, which is what a section
+opened straight after a release should say: the release under it
+shipped the format this tree still writes, so a blob baked here loads
+under a 0.6.0 runtime and the other way round.
+
+That count is the one number in this file that starts correct and
+decays. It becomes one the moment a format move lands, and
+`tools/check-versions.py` derives it from the section below rather than
+reading it back, so the check fails the change that moves the format
+without moving this line.
+
+### Added
+
+- **`ps2ui vendor-runtime --starter` — the four files that build to a
+  console binary, instead of the two that do not.** An install gave a
+  stranger `ps2ui.c`, `ps2ui.h`, three Makefile lines of prose and a
+  link to `runtime/sample` on GitHub for a worked example — 2810 lines
+  of bring-up instrumentation behind eighteen build flags, which is not
+  a starting point and is not reachable offline. `--starter` writes a
+  `main.c` that brings up gsKit, loads the blob, draws it and reads the
+  pad, and a `Makefile` carrying the gsKit resolution, beside the
+  runtime pair. `make NOPAD=1` builds with no IOP service at all and
+  holds the baked focus: the build to boot first, because it answers
+  *does this draw* without a controller in the question (F31).
+
+  The starter's rules are the opposite of the runtime's on purpose.
+  A drifted `ps2ui.c` stops the command, because a mixed pair compiles
+  and misbehaves. A drifted `main.c` is left exactly where it is and
+  reported, because being edited is what it is for.
+
+  The three gsKit lines the bare command prints are now read out of the
+  starter Makefile rather than restated, with the count asserted: they
+  were prose in one file and build rules in another, and a second copy
+  of a fact that moves when the ps2dev image moves is a copy that goes
+  stale.
+
+  **Compiled and linked on every push, not booted.** CI builds both
+  variants in the ps2dev container from a venv install of a built
+  wheel — not from the checkout, which would prove the toolchain can
+  compile its own files and nothing about the artifact. The pad path
+  has never been exercised by any test here, and `main.c`'s header says
+  so rather than letting a green check imply otherwise.
+
+  That header first claimed the file *"cannot stop linking"* in the run
+  where the pad build did not link: `EE_LIBS` was copied from a sample
+  that names no `libpad` symbol, so `-lpad` never came with it. The job
+  caught it and the sentence about the job did not, because the
+  sentence was written from what the job was meant to say. The
+  incident is recorded in the header it was wrong in.
 
 ### Fixed
+
 - **`ps2ui dev` accepted `--strict` and `--min-font-size` and read
   neither.** `ps2ui-dev` stored them as `options.strict` and
   `options.minFontSize`; the compiler takes lint overrides from
@@ -14,44 +66,11 @@
   a page whose only warning is a font-size one, the other runs
   `ps2ui dev` and `ps2ui build` over opl-env and compares the warning
   counts.
-- **README.md and CONTRIBUTING.md told contributors to run
-  `make -C runtime test-compat`, a target that does not exist.** The
-  `PS2UI_GSKIT_HAS_FUNCTION=0` build it described was removed on
-  purpose, because gsKit has no per-texture TFX field (F-005). Both
-  documents now name `make test` and `make syntax-check CC=clang`, the
-  two runs CI makes. `docs/PLAN.md`, the channel6 bench card and a CSS
-  comment lose the same claim, and two `ps2ui.c` comments stop naming
-  `PS2UI_MAX_TEXTURES` and `PS2UI_MAX_LIST_ROWS`, macros that no longer
-  exist (BACKLOG F28).
-- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was
-  false, and the real cause is a cheaper fix.** It told every macOS
-  reader *"pip's macOS wheels are built without it"* and routed them
-  through a Pillow source build. Both Pillow 12.3.0 macOS wheels were
-  opened and compared: each has Raqm **compiled into `_imagingft`** —
-  the linker breadcrumb `src/thirdparty/raqm/raqm.o` is in the binary —
-  neither bundles `libraqm` or `fribidi`, and both carry
-  `libfribidi.dylib` / `libfribidi.so.0` as `dlopen` candidates.
 
-  **The wheels are identical. What varies is whether the machine has
-  fribidi**, which Pillow loads at run time: a Mac with Homebrew
-  history usually does, a clean `macos-14` runner does not. That is the
-  entire reported "architectural" split, and it is not architectural.
-
-  So the message now reports what it detected — Pillow version,
-  platform, machine — asks Pillow about `fribidi` separately, and when
-  that is the missing piece leads with `brew install fribidi` and no
-  rebuild at all, keeping the source build as the fallback. It states
-  no rule about anybody's wheels, on any branch; the previous text also
-  handed Windows readers a fact about manylinux wheels as their remedy.
-
-  This blocks a release rather than a doc pass because the text ships
-  **inside the wheel**: `_raqm_remedy()` is what a stranger reads when
-  `pip install ophtml` then `ps2ui fontgen` refuses. The tutorial's
-  section-1 blockquote and `registry.yml`'s macos-plain job are
-  corrected with it — the job now reports `raqm` and `fribidi` side by
-  side, so if it ever flips, its output says which of the two moved.
+## 0.6.0 — 2026-09-12
 
 ### Added
+
 - **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change
   *where* something is drawn.** Focus, theme, slot text, textures,
   visibility, screen and the list window all change *what* is drawn;
@@ -90,6 +109,35 @@
   every frame either pen had ever drawn.
 
 ### Fixed
+
+- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was
+  false, and the real cause is a cheaper fix.** It told every macOS
+  reader *"pip's macOS wheels are built without it"* and routed them
+  through a Pillow source build. Both Pillow 12.3.0 macOS wheels were
+  opened and compared: each has Raqm **compiled into `_imagingft`** —
+  the linker breadcrumb `src/thirdparty/raqm/raqm.o` is in the binary —
+  neither bundles `libraqm` or `fribidi`, and both carry
+  `libfribidi.dylib` / `libfribidi.so.0` as `dlopen` candidates.
+
+  **The wheels are identical. What varies is whether the machine has
+  fribidi**, which Pillow loads at run time: a Mac with Homebrew
+  history usually does, a clean `macos-14` runner does not. That is the
+  entire reported "architectural" split, and it is not architectural.
+
+  So the message now reports what it detected — Pillow version,
+  platform, machine — asks Pillow about `fribidi` separately, and when
+  that is the missing piece leads with `brew install fribidi` and no
+  rebuild at all, keeping the source build as the fallback. It states
+  no rule about anybody's wheels, on any branch; the previous text also
+  handed Windows readers a fact about manylinux wheels as their remedy.
+
+  This blocks a release rather than a doc pass because the text ships
+  **inside the wheel**: `_raqm_remedy()` is what a stranger reads when
+  `pip install ophtml` then `ps2ui fontgen` refuses. The tutorial's
+  section-1 blockquote and `registry.yml`'s macos-plain job are
+  corrected with it — the job now reports `raqm` and `fribidi` side by
+  side, so if it ever flips, its output says which of the two moved.
+
 - **`vendor-runtime` stopped one step short and cited a file the reader
   cannot open.** It handed over `ps2ui.c` and `ps2ui.h` and then said
   *"docs/deploying.md is the path onto a console"* — a repo path,
@@ -121,7 +169,6 @@
   `docs/deploying.md` section 2, whose build command assumes a checkout
   and now says what the installed path is instead.
 
-### Fixed
 - **`ps2ui check` is given the settings `ps2ui build` was given.** One
   project, two commands that disagreed about the same numbers.
   `vramBudget` reached `ps2ui-bake` and was dropped on the way to the

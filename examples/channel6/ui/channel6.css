@@ -462,9 +462,13 @@ h1 {
  *
  * Which of the two steps it is comes from the direction. Text brighter
  * than its block means the tint is not being applied at all and glyphs
- * are rendering at raw atlas white -- step 4, and not
- * GSTEXTURE::Function, a field gsKit does not have (F-005), so a cause
- * bring-up has not yet named. Text merely the wrong
+ * are rendering at raw atlas white -- step 4, cause open. This comment
+ * used to name two: GSTEXTURE::Function and an unintended
+ * PS2UI_GSKIT_HAS_FUNCTION=0 build. NEITHER CAN HAPPEN. F-005 settled
+ * that gsKit declares no such field and hardcodes TEX0.TFX = 0 at all
+ * 30 of its TEX0 sites, and #39 (499212c, 2026-08-23) removed the
+ * macro 21 days before this correction. A symptom with a disproved cause beside it is worse
+ * than one with none: it ends the search. Text merely the wrong
  * shade means the tint applied in the wrong domain -- step 5, the
  * 0x80-identity modulate rule, which the previewer structurally cannot
  * catch because it normalises by 255.

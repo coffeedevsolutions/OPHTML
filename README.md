@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ophtml-logo-releaseVersion050-plain-white-darkbg.png"
+  <img src="docs/assets/ophtml-logo-releaseVersion060-plain-white-darkbg.png"
        alt="OPHTML" width="600">
 </p>
 
@@ -85,21 +85,23 @@ Three ways in, depending on what you want:
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 **Both packages are published**, so `pip install ophtml` and
-`npm install -g @ophtml/layout` are the way in. Those give you `0.5.0`,
-tagged `v0.5.0`, including `ps2ui vendor-runtime`, which writes
+`npm install -g @ophtml/layout` are the way in. Those give you `0.6.0`,
+tagged `v0.6.0`, including `ps2ui vendor-runtime`, which writes
 `ps2ui.c` and `ps2ui.h` out of the installed package — so the console
 half needs no clone, and the runtime you compile is the one matching the
-baker that wrote your blob. This tree has since moved on to `0.6.0.dev0`
-(`0.6.0-dev.0` on npm), a prerelease that is on neither registry and is
-not meant to be. The two still understand each other, because the blobs
-baked here are format **v7** and zero moves of the `.uib` format have
-landed since 0.5.0: that is the stability pledge, made at v7 and
-enforced by `tools/check-format-frozen.py` rather than announced, so a
-blob this tree writes loads under a 0.5.0 runtime and the other way
-round. Every CLI answers `--version`. What is left of Phase 4's exit
-gate in [docs/PLAN.md](docs/PLAN.md) is the half that always needed a
-console; [docs/releasing.md](docs/releasing.md) is the procedure, and
-`tools/check-versions.py` keeps this paragraph honest.
+baker that wrote your blob, and `ps2ui_offset_set`, the first call that
+changes *where* the runtime draws rather than what. This tree has since
+moved on to `0.7.0.dev0` (`0.7.0-dev.0` on npm), a prerelease that is on
+neither registry and is not meant to be. The two still understand each
+other, because the blobs baked here are format **v7** and zero moves of
+the `.uib` format have landed since 0.6.0: that is the stability
+pledge, made at v7 and enforced by `tools/check-format-frozen.py`
+rather than announced, so a blob this tree writes loads under a 0.6.0
+runtime and the other way round. Every CLI answers `--version`. What is
+left of Phase 4's exit gate in [docs/PLAN.md](docs/PLAN.md) is the half
+that always needed a console; [docs/releasing.md](docs/releasing.md) is
+the procedure, and `tools/check-versions.py` keeps this paragraph
+honest.
 
 Requirements:
 
@@ -164,14 +166,28 @@ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui dev \
 Console side, from an install or a checkout alike:
 
 ```sh
-ps2ui vendor-runtime src/          # writes ps2ui.c and ps2ui.h there
+ps2ui vendor-runtime src/            # ps2ui.c and ps2ui.h, for an app you have
+ps2ui vendor-runtime --starter src/  # ...and a main.c and Makefile, if you do not
 ```
 
-Compile those two with your ps2sdk/gsKit project. They come from the
-package you installed, so the runtime you build is the one that matches
-the baker that wrote your blob — `ps2ui.h`'s `PS2UI_VERSION` and the
-blob's format version cannot drift apart across a `pip install`. It will
-not overwrite files you have already edited without `--force`.
+Both write the runtime out of the package you installed, so what you
+compile matches the baker that wrote your blob — `ps2ui.h`'s
+`PS2UI_VERSION` and the blob's format version cannot drift apart across
+a `pip install`. Neither overwrites files you have already edited
+without `--force`.
+
+`--starter` is the whole gap between two C files and a console binary:
+a `main.c` that brings up gsKit, loads the blob, draws it and reads the
+pad, and a `Makefile` with the three lines that resolve gsKit inside
+the ps2dev image. `make NOPAD=1` builds it with no IOP service at all
+and holds the baked focus, which is the build to boot first. CI
+compiles and links both builds from an installed wheel on every push;
+neither is booted, and `main.c` says which of its lines came from the
+sample that is. [docs/deploying.md](docs/deploying.md) is the path onto
+hardware.
+
+Adding ps2ui to an application you already have is the other command,
+and this is the shape of it:
 
 ```c
 ps2ui_ctx ui;
@@ -361,10 +377,10 @@ them.
   The `.uib` v7 pledge is untouched.
 - **The screen edge does not move with it.** Content pushed far enough
   is clipped by the display, which is what should happen.
-- **Queries stay in UI coordinates.** `ps2ui_focus_rect` and friends
-  answer in the coordinates the blob was authored in, so your own
-  hit-testing keeps working; add the offset yourself with
-  `ps2ui_offset_get` when you draw art beside the UI.
+- **Queries stay in UI coordinates.** The focused node's rect is
+  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by
+  the offset, so your own hit-testing keeps working; add the offset
+  yourself with `ps2ui_offset_get` when you draw art beside the UI.
 - **It composites.** `ps2ui_render` never clears, so an offset render
   followed by a `(0, 0)` one is a scrolling page under a dialog that
   stays put.
@@ -670,10 +686,9 @@ check it, then look at what passed.
 cd packages/layout && npm test
 cd packages/baker  && python3 -m unittest discover -s tests
 cd runtime         && make test
-cd runtime         && make syntax-check CC=clang
 ```
 
-The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `make test` also runs `test-narrow` and `syntax-check`; `syntax-check CC=clang` compiles every sample build variant under a second compiler, as CI does.
+The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `make syntax-check` compiles it under every build variant, and `make test-narrow` runs the 32-bit host case.
 
 ## Status
 

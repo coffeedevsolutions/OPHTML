@@ -52,7 +52,25 @@ BAKER = os.path.join(ROOT, "packages", "baker")
 CANONICAL = os.path.join(ROOT, "runtime")
 FILES = ("ps2ui.c", "ps2ui.h")
 
+# The starter project `vendor-runtime --starter` hands out. Declared
+# package-data like the runtime, but COMMITTED rather than staged, so
+# the failure mode is different and just as silent: nothing in a
+# checkout notices a missing package-data line, and `--starter` would
+# raise FileNotFoundError for everybody who installed the package while
+# working perfectly for everybody developing it. That is the serve-page
+# defect (pyproject.toml says so) and the font-path defect the exit gate
+# found, and this is the same assertion for the third instance.
+STARTER_FILES = ("main.c", "Makefile")
+STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")
+
 fail = []
+
+# `--export <dir>` leaves the stranger's project on disk instead of in
+# a temp directory. The elf job compiles what it finds there, so the
+# ELF CI builds is the one an installed wheel produces rather than a
+# second thing assembled from the checkout -- which would prove the
+# toolchain can build its own files and nothing about the artifact.
+EXPORT = None
 
 
 def check(ok, ok_msg, bad_msg):
@@ -62,6 +80,16 @@ def check(ok, ok_msg, bad_msg):
 
 
 def main():
+    global EXPORT
+    argv = sys.argv[1:]
+    if argv[:1] == ["--export"]:
+        if len(argv) != 2:
+            print("usage: check-runtime-shipped.py [--export DIR]")
+            return 2
+        EXPORT = os.path.abspath(argv[1])
+    elif argv:
+        print("usage: check-runtime-shipped.py [--export DIR]")
+        return 2
     tmp = tempfile.mkdtemp(prefix="ps2ui-shipped-")
     try:
         return run(tmp)
@@ -142,6 +170,14 @@ def run(tmp):
     # 1. The files are in the archive, at the path that makes them
     #    package data rather than site-packages litter.
     names = set(zipfile.ZipFile(whl).namelist())
+    for name in STARTER_FILES:
+        want = "ps2ui_bake/starter/%s" % name
+        check(want in names,
+              "the wheel carries %s" % want,
+              "the wheel does NOT carry %s, so `ps2ui vendor-runtime "
+              "--starter` raises FileNotFoundError for anyone who "
+              "installed the package. Check the package-data line in "
+              "packages/baker/pyproject.toml." % want)
     for name in FILES:
         want = "ps2ui_bake/runtime/%s" % name
         check(want in names,
@@ -208,6 +244,12 @@ def run(tmp):
         return 1
     tar = tarfile.open(os.path.join(sdists, tarballs[0]))
     members = set(tar.getnames())
+    for name in STARTER_FILES:
+        want = [m for m in members
+                if m.endswith("/ps2ui_bake/starter/%s" % name)]
+        check(bool(want),
+              "the sdist carries ps2ui_bake/starter/%s" % name,
+              "the sdist does NOT carry ps2ui_bake/starter/%s" % name)
     for name in FILES:
         want = [m for m in members
                 if m.endswith("/ps2ui_bake/runtime/%s" % name)]
@@ -244,9 +286,16 @@ def run(tmp):
     # OUTSIDE the checkout on purpose. Run from inside one and vendor.py
     # falls back to repo-root runtime/, which would pass this check with
     # the wheel contributing nothing at all.
-    workdir = os.path.join(tmp, "someones-project")
+    workdir = EXPORT or os.path.join(tmp, "someones-project")
+    if EXPORT and os.path.isdir(EXPORT):
+        shutil.rmtree(EXPORT)
     os.makedirs(workdir)
-    proc = subprocess.run([ps2ui, "vendor-runtime", "."],
+    # --starter, so this checks the whole thing a stranger is handed
+    # rather than the two files that are only half of it. It is also
+    # what --export leaves behind for the elf job to compile: that job
+    # runs in the ps2dev container, which has no python3, so the
+    # project has to be produced here and travel as an artifact.
+    proc = subprocess.run([ps2ui, "vendor-runtime", "--starter", "."],
                           cwd=workdir, capture_output=True, text=True)
     check(proc.returncode == 0,
           "`ps2ui vendor-runtime` runs from an installed wheel",
@@ -271,6 +320,22 @@ def run(tmp):
             check(a.read() == b.read(),
                   "%s landed byte-identical to runtime/%s" % (name, name),
                   "%s landed but differs from runtime/%s" % (name, name))
+
+    for name in STARTER_FILES:
+        got = os.path.join(workdir, name)
+        if not os.path.exists(got):
+            check(False, "", "%s was not written into the project dir. The "
+                             "wheel carried it, so --starter did not ask "
+                             "for it or asked the wrong path." % name)
+            continue
+        with open(got, "rb") as a, open(os.path.join(STARTER_SRC, name),
+                                        "rb") as b:
+            check(a.read() == b.read(),
+                  "%s landed byte-identical to the committed starter" % name,
+                  "%s landed but differs from the committed starter" % name)
+
+    if EXPORT:
+        print("# exported a stranger's project to %s" % EXPORT)
 
     if fail:
         print("not ok - %d part(s) of the runtime's distribution are broken"

@@ -1,6 +1,6 @@
 {
   "name": "@ophtml/layout",
-  "version": "0.6.0-dev.0",
+  "version": "0.7.0-dev.0",
   "publishConfig": {
     "access": "public",
     "tag": "next"

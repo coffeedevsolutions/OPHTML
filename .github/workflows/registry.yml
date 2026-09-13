@@ -246,3 +246,93 @@ jobs:
           # PREMISE -- that a plain pip install on macOS has no Raqm --
           # is a fact about somebody else's build and can only be
           # checked here. Each claim is asserted where it can be true.
+
+  # THE CONTRIBUTOR SUITE, ON THE PLATFORM THAT NEVER RAN IT.
+  #
+  # CONTRIBUTING.md tells a new contributor to run three commands
+  # before every PR. Every job that has ever run them is ubuntu, so
+  # what they do on a Mac has never been measured -- and a contributor
+  # whose first act is running the project's own instructions is the
+  # worst person to discover that nobody checks them.
+  #
+  # SO IT RUNS THOSE THREE COMMANDS VERBATIM AND IN ORDER, which the
+  # first version of this job did not, and the difference was not
+  # cosmetic. It ran `make -C runtime test` on its own before
+  # build.sh, and that target needs ../examples/memcard/build/ui.uib --
+  # gitignored, and baked by build.sh. On a fresh checkout, which is
+  # what actions/checkout produces:
+  #
+  #   make: *** No rule to make target '../examples/memcard/build/ui.uib',
+  #             needed by 'test-narrow'.  Stop.
+  #
+  # Permanently red on every platform, for a reason with nothing to do
+  # with macOS, and the two steps after it never ran. A job that is
+  # always red cannot tell anyone that something started failing.
+  #
+  # The order was already written down. build.sh:21 is
+  # `make -C "$repo/runtime" UIB=".../ui.uib" test` -- the runtime
+  # suite comes WITH the documented third command, carrying the blob it
+  # just baked. Reordering the instructions is exactly the trip a
+  # contributor takes, so this job does not get to reorder them.
+  #
+  # ONE KNOWN DEFECT IS FIXED BY THE COMMIT THAT ADDS THIS JOB:
+  # vendor/gsKit/src/gsTexture.c is verbatim upstream and includes
+  # <malloc.h>, a glibc-ism macOS does not have, so `make -C runtime
+  # test` died at the include. vendor/host-shim/malloc.h forwards to
+  # <stdlib.h>, beside the kernel.h shim that has stood there for the
+  # same file since the vendoring landed. That file is compiled by
+  # `test` and by nothing else -- syntax-check never touches it -- so
+  # build.sh below is what exercises the fix on macOS.
+  #
+  # A SECOND IS REPORTED AND NOT REPRODUCED, and this job exists to
+  # settle it rather than let a guess be committed. A stranger-path
+  # report says six baker tests fail on macOS because mkdtemp returns
+  # /var/folders/..., a symlink to /private/var/..., so a relpath comes
+  # out short. The mechanism is real and reproduces in isolation, but
+  # the suite passes under a symlinked TMPDIR on Linux -- all 285 --
+  # so the reported failure has some other cause and patching
+  # project.py on a plausible story would be a fix for a defect nobody
+  # has shown. The baker step below is what produces the failure text.
+  #
+  # Not gating a PR: it runs on the schedule and on dispatch, where
+  # macos-plain already sits, which is this repository's existing
+  # answer to what a macOS runner costs.
+  macos-contributor-suite:
+    name: the contributor instructions, on macOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Deps, the way CONTRIBUTING.md describes them
+        run: python3 -m pip install Pillow
+      # NO FONT INSTALL, and that is a measured decision rather than an
+      # omission. fonts/fonts.json ends both candidate lists with
+      # `vendor/DejaVuSans[-Bold].ttf`, load_font_manifest resolves a
+      # relative candidate against the manifest's own directory, and
+      # fonts/vendor/ carries both faces in every checkout. So the face
+      # is present on macOS with nothing fetched. The first version of
+      # this job ran `brew install fontconfig` (a library, not a font)
+      # and created ~/.fonts (a Linux convention that appears nowhere
+      # in fonts.json), which fetched nothing and was consulted by
+      # nothing. PS2UI_REQUIRE_FONTS is what actually enforces the
+      # worry that step was reaching for: tests/fonts_available.py
+      # turns a skip into a failure, because "a skip that should be
+      # impossible is a failure that names itself".
+      - name: 1/3 -- layout tests
+        run: cd packages/layout && node --test test/*.test.js
+      - name: 2/3 -- baker tests
+        env:
+          PS2UI_REQUIRE_FONTS: "1"
+        run: cd packages/baker && python3 -m unittest discover -s tests
+      - name: 3/3 -- the example end to end, which runs the runtime suite
+        run: ./examples/memcard/build.sh
+      # Not one of the three, and worth having anyway: the host syntax
+      # check runs whatever clang ships on this image, against a
+      # runtime otherwise only ever compiled by ubuntu's gcc and clang.
+      - name: ...and the syntax check, under this image's clang
+        run: make -C runtime syntax-check

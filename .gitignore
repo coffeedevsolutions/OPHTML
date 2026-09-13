@@ -26,3 +26,9 @@ packages/baker/build/
 # goes into the wheel and the sdist (F25). Committing it would recreate
 # the stale-second-copy defect the hook exists to avoid.
 packages/baker/ps2ui_bake/runtime/
+
+# `tools/check-runtime-shipped.py --export` writes a stranger's project
+# here in CI so the elf job can compile it. Build output of a check,
+# not source: the starter it contains is committed at
+# packages/baker/ps2ui_bake/starter/.
+starter-project/

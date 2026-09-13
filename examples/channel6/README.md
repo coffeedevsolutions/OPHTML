@@ -242,11 +242,23 @@ own recognizable way:
 |------|-------------|------------|
 | ALPHA | four rungs step evenly from 25% to opaque | uniformly dark or double-darkened, GS alpha domain (bring-up step 2) |
 | RADIUS | 0/3/8/13px corners, no seams | nine-patch UVs or the half-texel bias (step 6) |
-| TYPE | 14/16/20px, regular vs bold, then wide tracking | banded noise = CLUT/CSM1 (step 3); flat white = tint not applied, and not `GSTEXTURE::Function`, a field gsKit does not have (F-005), so a cause step 4 has not named; washed out = modulate domain (step 5) |
+| TYPE | 14/16/20px, regular vs bold, then wide tracking | banded noise = CLUT/CSM1 (step 3); flat white = the tint is not reaching the glyphs at all (step 4) — **cause unknown, and this card used to name one that cannot happen**; washed out = modulate domain (step 5) |
 | CLIP | the first line ellipsizes, the amber line is cut mid-glyph at the padding edge | 1px bleed = the inclusive-scissor off-by-one (step 7) |
 | IMAGE | the two cards are indistinguishable | CLUT8 wrong = palettization or CLUT upload |
 | ASPECT | exactly one of gold / blue / green reads square | see below; this cell measures the television, not the blob |
 | FLEX | bars in a 1:2:3 ratio, three lines left/centre/right | layout, not the GS |
+
+**On TYPE's `flat white` row.** It read *"flat white = no
+`GSTEXTURE::Function` (step 4)"* until 2026-09-13. That is a cause
+[F-005](../../docs/findings.md) proved impossible: gsKit declares no
+such field and hardcodes `TEX0.TFX = 0` — MODULATE — at all 30 of its
+`TEX0` sites, so there is no build in which it is absent. An operator
+holding this card next to a capture would have chased it, found
+nothing, and stopped looking for the cause that is actually there. The
+row now says what is observed and admits the cause is open, which is
+the only honest thing a diagnostic can say about a symptom whose one
+named explanation was disproved. `.github/workflows/hw.yml:188-231`
+compiles a probe that fires if F-005's falsifier ever appears.
 
 The ASPECT cell is three boxes of equal height, each pre-squashed for a
 different pixel aspect: **gold** is square in framebuffer pixels,
