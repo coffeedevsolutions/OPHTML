@@ -252,5 +252,26 @@
     "command": "python3 tools/make_testcard.py OUT.uib --preview OUT",
     "alt": "the texel-alignment test card: the resolution wedge (flat, 1px, 2px, 4px, flat) at canvas centre, four colour-coded edge rules, four corner checkers and the step 8 interlace pair",
     "checked": true
+  },
+  {
+    "path": "assets/examples/memcard/library.png",
+    "page": "examples/memcard",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='library').save('OUT')\"",
+    "alt": "memcard library screen, root theme, 4:3, initial focus on Games: six tiles in a grid and the count slot reading 6 titles",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/memcard/saves.png",
+    "page": "examples/memcard",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/memcard/build/ui.uib'), screen='saves').save('OUT')\"",
+    "alt": "memcard saves screen, root theme, 4:3, initial focus on Saves: four save rows and the save-count slot reading 4 saves",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/memcard/states.png",
+    "page": "examples/memcard",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/memcard/build/ui.uib')).save('OUT')\"",
+    "alt": "memcard library screen montage, root theme, 4:3, all nine focus states, three columns by three rows",
+    "checked": true
   }
 ]
