@@ -348,6 +348,10 @@ with the evidence. They are fixes for separate changes, not for pages.
 | packages/baker/ps2ui_bake/serve.py /input | rejections return the bare offending value as the error, where build_server has the helpful message | cli/previewer |
 | packages/baker/ps2ui_bake/serve.py | HEAD requests answer 501 | cli/previewer |
 | packages/baker/tests/test_serve.py | not importable as `tests.test_serve` because `fonts_available` is resolved from the tests directory only | cli/previewer |
+| packages/layout/bin/ps2ui-layout.js and ps2ui-dev.js | `--display-aspect` is parsed above the try block, so a bad ratio prints a Node stack trace instead of the one-line `aspect:` diagnostic | reference/diagnostics |
+| packages/layout/bin/ps2ui-dev.js usage | omits `--display-aspect`, which the tool accepts and acts on | reference/diagnostics |
+| packages/layout/src/paint.js vectorOf | dead throw: resolveColorValue always sets the name and the vector together | reference/diagnostics |
+| packages/layout/src/focus.js | dead `default:` throw in a switch over the four directions its only caller iterates | reference/diagnostics |
 
 ## Brief template
 
