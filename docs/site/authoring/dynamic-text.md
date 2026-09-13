@@ -20,8 +20,8 @@ element becomes the placeholder, drawn until the app calls
 Everything except the string is decided at compile time. The slot's
 position, width, font, size, weight, letter-spacing, alignment,
 ellipsis policy and both colours travel in the blob. The runtime walks
-the baked glyph table and composes quads with the same pen the baker
-used, so runtime text sits beside baked text in the same face.
+the baked glyph table. It composes quads with the pen the baker used,
+so runtime text matches the baked text beside it.
 
 Reserve the bytes with `data-slot-capacity`. Leave it off and the slot
 gets 63 bytes.
@@ -101,7 +101,7 @@ run is drawn and the enclosing scissor clips it.
 ### Names
 
 Slot names resolve over the whole blob. `ps2ui_slot_set` walks every
-slot in the file and takes the first match, so a name repeated on two
+slot in the file and takes the first match. A name repeated on two
 screens would leave the second slot unreachable. The baker refuses that
 blob. Prefix per-screen readouts with the screen name, as
 `runtime/sample/main.c` does.
@@ -145,7 +145,8 @@ $ ps2ui-bake big.json -o big.uib --fonts fonts/fonts.json
 error: slot 'count': capacity 70000 does not fit the format's uint16 capacity field.
 ```
 
-Three previewer limits. `preview.render(uib, slot_text=...)` draws the
+The host previewer diverges from the console in three ways.
+`preview.render(uib, slot_text=...)` draws the
 string it is handed without applying the capacity, so a render can show
 text the console would cut. It treats an empty override as no override
 and draws the placeholder, where `ps2ui_slot_set(ctx, name, "")` blanks
