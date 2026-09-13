@@ -304,6 +304,42 @@ truth column; it never repeats the claim column.
 Two rows are code defects (D9, D1) and are queued as separate changes.
 Pages document the current behaviour and say the limit is a defect.
 
+## Follow-ups found while writing pages
+
+Code and repository-document defects the page agents found that no drift
+row listed. Each is recorded in the named facts file under `## follow-up`
+with the evidence. They are fixes for separate changes, not for pages.
+
+| where | finding | facts file |
+|---|---|---|
+| packages/layout/src/text.js comment | the "To" kern at 11px is -2px, not the 0px the comment states | authoring/text-and-fonts |
+| packages/layout/src/index.js fromManifest | `~` in a manifest `metrics` path expands in the baker but not the compiler | authoring/text-and-fonts |
+| packages/layout/src/html.js "malformed tag" | unreachable throw; parseAttrs returns only on the two characters the caller then tests | authoring/html |
+| packages/layout/src/box.js unknown-attribute warning | covers `data-` names only, so `focusabel` compiles silently to zero focusables | authoring/html |
+| packages/layout/src/box.js ":focus styles matched ... can never show" | unreachable warning; a `:focus` compound never matches outside a focusable scope | authoring/focus-and-navigation |
+| packages/layout/src/css.js GEOMETRY_PROPS | `position` is listed but has no case, so it is refused under `:focus` and warned elsewhere | authoring/css |
+| packages/layout/src/css.js compoundMatches | a `:focus` compound matching no focusable element is dropped with no diagnostic | authoring/css |
+| packages/layout/src/paint.js | `letter-spacing`, `text-align`, `text-overflow` under `:focus` are accepted and discarded; `font-weight` reaches the focused command unmeasured | authoring/css |
+| packages/layout/src/css.js themeCount | an `@theme` block in a sheet with no `:root` name fails with an internal vector-width error | authoring/theming |
+| runtime/ps2ui.h theme comment | says no baker sets PS2UI_FEAT_ROLE_TINTS; uib.py sets it from n_theme | authoring/theming |
+| README.md "What it looks like" | calls a theme a CLUT row; it is a tint-table row | authoring/theming |
+| packages/baker/ps2ui_bake/preview.py | never applies a slot's capacity; an empty override falls back to the placeholder | authoring/dynamic-text |
+| packages/baker/ps2ui_bake/serve_page.html | slot box `maxLength` counts UTF-16 units against a byte capacity | authoring/dynamic-text |
+| runtime/ps2ui.c list API | `ps2ui_list.rows` is never reconciled with the blob; `list_sync_focus`'s result is discarded at both call sites | authoring/lists |
+| runtime/ps2ui.c, README.md, ps2ui.h | focus-name uniqueness within a screen is stated as a guarantee and enforced nowhere | authoring/focus-and-navigation |
+| packages/baker/ps2ui_bake/quads.py | `Image.getdata()` is deprecated in current Pillow and warns on every PSMCT32 bake | authoring/images |
+| packages/baker/ps2ui_bake/cli.py | a missing IR path raises an uncaught traceback instead of a one-line refusal | authoring/screens-and-overlays |
+| BACKLOG.md "Two gaps" | says a transparent-background render returns alpha 255 everywhere; measured extrema are (157, 255) | authoring/screens-and-overlays |
+| docs/tutorial-uc3.md | the unfixed contrast pair is 2.28:1, not the 2.33:1 the prose says | authoring/crt-linter |
+| packages/layout/src/lint.js overscan (focusable) | the message names an action-safe area the check never computes; it tests the canvas edge | authoring/crt-linter |
+| packages/baker/ps2ui_bake/serve_page.html | the safe-area overlay draws a 10% inset; the lint uses 5% | authoring/crt-linter |
+| packages/baker/ps2ui_bake/serve.py | warnings never carry a `command`, so the page's jump-to-command branch is dead | authoring/crt-linter |
+| examples/channel6/ui/channel6.css | cites PS2UI_MAX_TEXTURES and PS2UI_MAX_SLOTS, which do not exist | authoring/video-modes |
+| packages/baker/ps2ui_bake/project.py set_out_override | `-o` renames the screens inside the blob, so `screen_set("games")` fails on the 16:9 channel6 bake | authoring/video-modes |
+| README.md "Multiple screens" | places gsKit_TexManager_nextFrame before the flip; the sample places it after | runtime/frame-loop |
+| runtime/ps2ui.c tex_index_by_name | a third comment naming PS2UI_MAX_TEXTURES, beyond the two in drift row D11 | authoring/vram-budget |
+| docs/format-ir.md | the streamed image form `{streamed, name}` is undocumented, beyond drift row D8 | reference/ir-format |
+
 ## Brief template
 
 Each `_prompts/<page-id>.md` has exactly these ten sections:
