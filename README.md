@@ -363,10 +363,10 @@ them.
   The `.uib` v7 pledge is untouched.
 - **The screen edge does not move with it.** Content pushed far enough
   is clipped by the display, which is what should happen.
-- **Queries stay in UI coordinates.** `ps2ui_focus_rect` and friends
-  answer in the coordinates the blob was authored in, so your own
-  hit-testing keeps working; add the offset yourself with
-  `ps2ui_offset_get` when you draw art beside the UI.
+- **Queries stay in UI coordinates.** The focused node's rect is
+  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by
+  the offset, so your own hit-testing keeps working; add the offset
+  yourself with `ps2ui_offset_get` when you draw art beside the UI.
 - **It composites.** `ps2ui_render` never clears, so an offset render
   followed by a `(0, 0)` one is a scrolling page under a dialog that
   stays put.
