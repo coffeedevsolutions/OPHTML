@@ -733,13 +733,14 @@ void ps2ui_visible_reset(ps2ui_ctx *ctx);
  * already exist, so it works on blobs baked by any 0.x toolchain and
  * costs nothing in the file. The v7 pledge is untouched.
  *
- * RENDER-TIME ONLY, DELIBERATELY. ps2ui_focus_rect and everything else
- * that reports geometry keep answering in UI coordinates -- the
- * coordinates the blob was authored in and that an app hit-tests
- * against. An app drawing its own cursor from a focus rect adds the
- * offset itself, via ps2ui_offset_get. Folding it into the queries
- * instead would silently break any caller that does its own hit-test,
- * and there is no way for such a caller to notice.
+ * RENDER-TIME ONLY, DELIBERATELY. Everything that reports geometry
+ * keeps answering in UI coordinates -- the coordinates the blob was
+ * authored in and that an app hit-tests against. The rect of the
+ * focused node is ctx->focus_nodes[ctx->focus], whose x, y, w and h
+ * are unaffected by this call. An app drawing its own cursor from
+ * that rect adds the offset itself, via ps2ui_offset_get. Folding it
+ * into the queries instead would silently break any caller that does
+ * its own hit-test, and there is no way for such a caller to notice.
  *
  * COMPOSITION STILL WORKS, and this is how an overlay stays put while
  * the page behind it moves: ps2ui_render never clears, so set an

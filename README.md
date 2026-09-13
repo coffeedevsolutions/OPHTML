@@ -363,10 +363,10 @@ them.
   The `.uib` v7 pledge is untouched.
 - **The screen edge does not move with it.** Content pushed far enough
   is clipped by the display, which is what should happen.
-- **Queries stay in UI coordinates.** `ps2ui_focus_rect` and friends
-  answer in the coordinates the blob was authored in, so your own
-  hit-testing keeps working; add the offset yourself with
-  `ps2ui_offset_get` when you draw art beside the UI.
+- **Queries stay in UI coordinates.** The focused node's rect is
+  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by
+  the offset, so your own hit-testing keeps working; add the offset
+  yourself with `ps2ui_offset_get` when you draw art beside the UI.
 - **It composites.** `ps2ui_render` never clears, so an offset render
   followed by a `(0, 0)` one is a scrolling page under a dialog that
   stays put.
@@ -671,10 +671,10 @@ check it, then look at what passed.
 ```sh
 cd packages/layout && npm test
 cd packages/baker  && python3 -m unittest discover -s tests
-cd runtime         && make test test-compat
+cd runtime         && make test
 ```
 
-The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `test-compat` repeats everything with `PS2UI_GSKIT_HAS_FUNCTION=0` for older gsKit (text loses tinting).
+The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `make syntax-check` compiles it under every build variant, and `make test-narrow` runs the 32-bit host case.
 
 ## Status
 

@@ -92,6 +92,9 @@ jobs:
       - name: The v7 layout has not moved
         run: python3 tools/check-format-frozen.py
 
+      - name: every identifier the shipped runtime's comments name exists
+        run: python3 tools/check-runtime-identifiers.py
+
       # DOES A BUILT WHEEL ACTUALLY CARRY THE C RUNTIME (F26)?
       #
       # `pip install ophtml` used to give a stranger everything up to
