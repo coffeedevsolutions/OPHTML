@@ -364,5 +364,33 @@
     "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/opl-env/build/ui.uib')).save('OUT')\"",
     "alt": "opl-env landing screen montage, root theme, 4:3, all seven focus states, three columns by three rows",
     "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/games.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='games').save('OUT')\"",
+    "alt": "channel6 games screen, root theme, 4:3, initial focus on Aurora Drift: a six-cover grid, the detail column and three actions",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/probe.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.render(read_uib('examples/channel6/build/ui.uib'), screen='probe').save('OUT')\"",
+    "alt": "channel6 probe screen, root theme, 4:3, initial focus on ALPHA: eight labelled conformance cells",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/states.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 -c \"from ps2ui_bake.uib import read_uib; from ps2ui_bake import preview; preview.montage(read_uib('examples/channel6/build/ui.uib')).save('OUT')\"",
+    "alt": "channel6 games screen montage, root theme, 4:3, all nine focus states, three columns by three rows",
+    "checked": true
+  },
+  {
+    "path": "assets/examples/channel6/in-game.png",
+    "page": "examples/channel6",
+    "command": "PYTHONPATH=packages/baker python3 examples/channel6/preview_in_game.py examples/channel6/build/ui.uib OUT",
+    "alt": "synthetic composite: the games screen's translucent scrim over a made-up driving-game frame, no clear between them",
+    "checked": true
   }
 ]

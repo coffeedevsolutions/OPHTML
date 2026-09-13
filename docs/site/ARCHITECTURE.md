@@ -356,6 +356,7 @@ with the evidence. They are fixes for separate changes, not for pages.
 | runtime/sample/Makefile comment on SCREEN= | says an unmatched screen name holds solid blue; main.c clears to magenta and its own comment explains why blue was rejected | runtime/deploying |
 | examples/opl-env/build.sh header comment | says the script runs the host runtime tests; it runs `ps2ui build`, `tools/check-blobs.sh` and its own `check.py` and never invokes `make -C runtime` | examples/opl-env |
 | examples/opl-env/README.md scale comparison | states memcard as a 175,120-byte blob with 808 commands; the built memcard blob is 176,208 bytes with 1,062 commands, and `check-example-figures.py` does not cover this sentence | examples/opl-env |
+| examples/channel6/README.md, `check.py` sentence | says `check.py` runs 24 checks; it prints `PASS: 47 checks, 0 failure(s)`, and no checker covers the sentence | examples/channel6 |
 
 ## Brief template
 
