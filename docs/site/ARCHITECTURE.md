@@ -343,6 +343,11 @@ with the evidence. They are fixes for separate changes, not for pages.
 | runtime/Makefile `test` target | test-narrow runs last, so `PASS: 5 checks` prints before `PASS: 410 checks` | runtime/integrating |
 | packages/baker/ps2ui_bake/vendor.py closing message | prints the docker line before the reader has a Makefile; the sample Makefile is linked two paragraphs later | runtime/integrating |
 | tools/make_cover_raw.py convert() | a second deprecated `Image.getdata()` site, unreached by `--self-test` | runtime/streaming-art |
+| packages/baker/ps2ui_bake/serve.py BuildPipeline.build | redirect_stderr rebinds sys.stderr only, so the compiler subprocess's diagnostic never reaches the build banner | cli/previewer |
+| packages/baker/ps2ui_bake/serve.py PreviewState | focus is one name for all screens, not remembered per screen as docs/tutorial-uc3.md says; the test passes only because both memcard screens share a name | cli/previewer |
+| packages/baker/ps2ui_bake/serve.py /input | rejections return the bare offending value as the error, where build_server has the helpful message | cli/previewer |
+| packages/baker/ps2ui_bake/serve.py | HEAD requests answer 501 | cli/previewer |
+| packages/baker/tests/test_serve.py | not importable as `tests.test_serve` because `fonts_available` is resolved from the tests directory only | cli/previewer |
 
 ## Brief template
 

@@ -169,5 +169,37 @@
     "command": "node packages/layout/bin/ps2ui-layout.js fixtures/bench-stream/ui/covers.html fixtures/bench-stream/ui/bench.css -o OUT.covers.json && node packages/layout/bin/ps2ui-layout.js fixtures/bench-stream/ui/dialog.html fixtures/bench-stream/ui/bench.css -o OUT.dialog.json && PYTHONPATH=packages/baker python3 -m ps2ui_bake OUT.covers.json OUT.dialog.json -o OUT.uib --preview OUT",
     "alt": "The bench covers screen, root theme, 4:3, all four slots unfilled: the title, the four captions and the two status lines draw, and the four 128x128 cover boxes are empty background",
     "checked": true
+  },
+  {
+    "path": "assets/cli/previewer/page.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The previewer on the memcard project, library screen, root theme, as authored at 4:3, initial focus on Games: the toolbar, the command list, the frame, the slot box, an empty inspector and 45 warnings",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written."
+  },
+  {
+    "path": "assets/cli/previewer/inspector.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.click('.el[data-i=\\\"14\\\"]');await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The previewer on the memcard library screen, root theme, as authored at 4:3, with command 14 selected: the inspector reads index 14, op texquad, position 28 92, size 7 x 7, rgba #0a0d16, tex 2, state 1 unfocused, focus nav-games, drawn now no",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command clicks command row 14 in the Commands list."
+  },
+  {
+    "path": "assets/cli/previewer/aspect-16x9.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.selectOption('#aspectSel','force-16:9');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>700});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The memcard library screen, root theme, forced to 16:9: the same 640x448 framebuffer resampled narrower, with the text and the covers squeezed",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command sets the Aspect menu to force-16:9."
+  },
+  {
+    "path": "assets/cli/previewer/error-banner.png",
+    "page": "cli/previewer",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && printf '\\n.tile { background: #12g4f6; }\\n' >> /tmp/prev/ui/library.css && sleep 6 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForFunction(()=>{const n=document.getElementById('banner');return n&&n.classList.contains('on')},null,{timeout:60000});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "alt": "The previewer on the memcard library screen, root theme, as authored at 4:3, showing the last good frame under a banner reading ps2ui-layout failed on ui/library.html (exit 1), at revision 2",
+    "checked": false,
+    "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command appends an invalid colour to the scratch project's library.css so the watched rebuild fails."
   }
 ]

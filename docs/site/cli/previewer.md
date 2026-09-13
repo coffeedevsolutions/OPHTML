@@ -197,11 +197,12 @@ $ for r in / /frame.png /montage.png /state /rev /nope; do
 
 `/state` holds 16 keys: `revision`, `error`, `screens`, `screen`, `themes`,
 `theme`, `aspect`, `aspects`, `canvas`, `display`, `display_aspect`, `focus`,
-`focusables`, `commands`, `slots` and `warnings`. The last four cover the
-screen in view and nothing else, because focus and slot names are unique within
-a screen only.
+`focusables`, `commands`, `slots` and `warnings`. `focusables`, `commands` and
+`slots` cover the screen in view and nothing else, because focus and slot names
+are unique within a screen only. `warnings` covers every screen and names each.
 
-`/input` takes one field per request. Anything it does not recognise is 400.
+`/input` takes one field per request. Anything it does not recognise is 400. A
+rejected screen or theme comes back as the bare offending value.
 
 ```console
 $ curl -s -X POST -d '{"nonsense":1}' -w '  <- %{http_code}\n' http://127.0.0.1:8501/input
@@ -319,7 +320,7 @@ subcommand prints `ps2ui: `.
 |---|---|---|
 | `<build>/serve/<screen>.json` | project mode, every build | the IR for one screen |
 | `<build>/serve/ui.uib` | project mode, every build | the blob the page replays |
-| nothing | `--uib` and `--selftest --uib` | the blob is read, not written |
+| nothing | `--uib` | the blob is read, never written |
 
 Output goes under `build/serve/` so that a `ps2ui build` in another terminal and
 a live server cannot clobber each other. The server writes no PNG, since it
