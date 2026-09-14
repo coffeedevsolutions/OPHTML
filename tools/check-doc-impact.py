@@ -45,6 +45,16 @@ WHAT IT CANNOT DO, stated here rather than discovered later:
     of the problem this does not touch.
   - A DOCUMENT THAT NAMES NO PATHS IS INVISIBLE TO IT. Prose about
     behaviour, with no file reference, cannot be reached from a diff.
+  - A BARE FILENAME IS NOT A PATH, and this one bites hardest on the
+    question in the first line. Only tokens containing "/" are
+    indexed, so a document writing `ps2ui.h` rather than
+    `runtime/ps2ui.h` is not reached by a change to that header.
+    Measured on this tree: 14 tracked documents name it bare and
+    never qualified -- README.md, CHANGELOG.md, docs/bringup.md,
+    docs/deploying.md, docs/releasing.md, docs/tutorial-uc3.md and
+    eight more. Resolving them is F30's, because `check.py` alone
+    answers to three real files and guessing is worse than missing;
+    naming the limit here is not.
 
 Usage:
     tools/check-doc-impact.py [<base>]        # default: origin/main
@@ -70,7 +80,20 @@ PATH = re.compile(r"[A-Za-z0-9_./*-]+\.(?:%s)(?![A-Za-z0-9])"
                   % "|".join(sorted(_EXT, key=len, reverse=True)))
 
 # Files whose change says nothing about any document.
-IGNORE = re.compile(r"^(\.github/|.*/__pycache__/|.*\.lock$)")
+#
+# `.github/` WAS IN HERE AND IS THE REASON THIS COMMENT IS LONG. It
+# looked like obvious noise and is the opposite: 33 tracked markdown
+# files cite .github/workflows/ paths, 17 of them ci.yml -- PLAN.md,
+# the channel-6 README, and the library's integrating, deploying and
+# first-boot pages among them. A workflow is a documented subject
+# here, not plumbing. #132 edited registry.yml and #133 edited
+# ci.yml; under the rule this tool serves, both would have been told
+# nothing changed.
+#
+# What remains is genuinely unreadable by anything: compiled caches
+# and lockfiles. Adding to this set is a claim that NO document can
+# cite the thing, and the claim above was wrong once already.
+IGNORE = re.compile(r"^(.*/__pycache__/|.*\.lock$)")
 
 
 def sh(*args):
@@ -79,10 +102,24 @@ def sh(*args):
 
 
 def changed(base):
+    """Changed paths, and how many were filtered out reaching them.
+
+    THE COUNT IS RETURNED RATHER THAN DISCARDED, and that is the whole
+    point of this signature. The filter used to run here and throw the
+    number away, so a diff of nothing and a diff entirely of ignored
+    files both produced "nothing changed" -- and with .github/ in the
+    set, a workflow-only PR got exactly that.
+
+    This module already knew the shape: the absent-library path says
+    so out loud, and the suppression path counts. Those are two doors
+    into one room and this was the third, left open because a filter
+    that runs before the counting does not look like a result.
+    """
     merge_base = sh("git", "merge-base", base, "HEAD")
     ref = merge_base[0] if merge_base else base
-    return [p for p in sh("git", "diff", "--name-only", ref, "--")
-            if p and not IGNORE.match(p)]
+    all_paths = [p for p in sh("git", "diff", "--name-only", ref, "--") if p]
+    kept = [p for p in all_paths if not IGNORE.match(p)]
+    return kept, len(all_paths) - len(kept)
 
 
 def split_cells(line):
@@ -146,9 +183,15 @@ def references(path):
 
 def main():
     base = sys.argv[1] if len(sys.argv) > 1 else "origin/main"
-    touched = changed(base)
+    touched, ignored = changed(base)
     if not touched:
-        print("ok - nothing changed against %s" % base)
+        if ignored:
+            print("ok - %d changed file(s) against %s, all of them "
+                  "ignored (%s)" % (ignored, base, IGNORE.pattern))
+            print("#    NOT an empty diff. If one of those is cited by a "
+                  "document, this tool cannot say so.")
+        else:
+            print("ok - nothing changed against %s" % base)
         return 0
 
     code = [p for p in touched if not p.endswith(".md")]
@@ -157,8 +200,9 @@ def main():
     repo = repo_documents()
     library = library_documents()
 
-    print("# %d changed file(s) against %s, %d of them not documents"
-          % (len(touched), base, len(code)))
+    print("# %d changed file(s) against %s, %d of them not documents%s"
+          % (len(touched), base, len(code),
+             ", %d ignored" % ignored if ignored else ""))
     if library is None:
         # SAID OUT LOUD. An empty corpus and a clean result read the
         # same, and one of them means this check knew nothing.

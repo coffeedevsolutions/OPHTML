@@ -217,10 +217,14 @@ written twice to avoid.
    draws in `BACKLOG.md`.
 
    **Why `5b` and not `6`.** The numbers in this list are cited from
-   outside it — `tools/check-versions.py` names steps 4, 8 and 9, and
-   `packages/baker/ps2ui_bake/__init__.py` names step 9 — so
-   renumbering would silently falsify three files to save one
-   character. The letter is the cheaper honesty.
+   outside it. `tools/check-versions.py` names steps **4, 5, 8 and 9**
+   across 17 citations, and
+   `packages/baker/ps2ui_bake/__init__.py` names step 9 once, so
+   renumbering would silently falsify both files to save one
+   character. **Step 5 is in that list and is the step this one is
+   lettered off**, which makes the argument stronger than the first
+   draft of this paragraph, where it said three numbers and omitted
+   the relevant one. The letter is the cheaper honesty.
 
 6. **`packages/layout/package.json`** — drop `publishConfig.tag` (or
    set it to `latest`) only when the version stops being a prerelease.

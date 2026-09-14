@@ -76,6 +76,12 @@ Three things it cannot do, so do not read a clean run as a clean bill:
   ought to describe it.
 - **A document that names no paths is invisible to it.** Prose about
   behaviour cannot be reached from a diff.
+- **A bare filename is not a path**, and this is the one that bites on
+  the question the tool is for. A document writing `ps2ui.h` rather
+  than `runtime/ps2ui.h` is not reached by a change to that header —
+  and 14 documents in this tree do exactly that, `README.md` and
+  `CHANGELOG.md` among them. Resolving them is F30's work; knowing it
+  is you.
 
 The board is four months of what happens without this: a header comment
 that outlived its macro by 20 days, a README naming a Makefile target
