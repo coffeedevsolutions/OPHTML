@@ -23,8 +23,11 @@ memory card. Works for any PS2 homebrew project.
 ## What it looks like
 
 One blob, two themes, swapped on the console at runtime by
-`ps2ui_theme_set`. No rebuild, no second asset set: the palette is a CLUT
-row and switching it is a table swap.
+`ps2ui_theme_set`. No rebuild, no second asset set: a theme is a row of
+the blob's tint table, and switching it moves a pointer. `ps2ui.h` is
+precise about the difference, because the two theming calls are not
+alike — `ps2ui_clut_set` sends bytes to the GS and needs a `GSGLOBAL`;
+`ps2ui_theme_set` takes none and schedules no transfer.
 
 <table>
 <tr>
@@ -385,9 +388,12 @@ them.
   followed by a `(0, 0)` one is a scrolling page under a dialog that
   stays put.
 
-`ps2ui serve` and `ps2ui-bake --preview` apply the same offset
-(`preview.render(..., offset=(dx, dy))`), so what you see off a console
-is what the console draws.
+`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies
+it exactly as the runtime does, so a host render of an offset frame
+matches the console. **Neither `ps2ui serve` nor `ps2ui-bake --preview`
+passes it today**: `serve.py` renders with no `offset=` and
+`cli.py`'s `--preview` calls `render(uib)` bare, so both always draw at
+(0, 0). Reaching it means calling `preview.render` yourself.
 
 ## Multiple screens
 
@@ -413,8 +419,8 @@ modal feature:
 ```c
 ps2ui_screen_set(&ui, "library");  ps2ui_render(&ui, gs);   /* base    */
 ps2ui_screen_set(&ui, "confirm");  ps2ui_render(&ui, gs);   /* overlay */
-gsKit_TexManager_nextFrame(gs);                             /* once    */
 gsKit_queue_exec(gs);  gsKit_sync_flip(gs);
+gsKit_TexManager_nextFrame(gs);                  /* once, after the flip */
 ```
 
 The second render composites over the first. Author the overlay screen

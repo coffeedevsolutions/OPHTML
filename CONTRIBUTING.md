@@ -33,6 +33,67 @@ node packages/layout/bin/ps2ui-dev.js \
     -o build/dev
 ```
 
+## Before you open a PR: what does this change make wrong?
+
+Run it, and read the list:
+
+```sh
+python3 tools/check-doc-impact.py        # against origin/main
+```
+
+It names the documents that cite the files you touched, at both levels
+— the repository's own (`README.md`, `docs/*.md`, the example READMEs)
+and the deep-dive library under `docs/site/`, which every checkout has
+since #133.
+
+**It warns and never fails, and that is deliberate.** A change can be
+genuinely doc-neutral, and a check that fires on correct work grows a
+skip flag that everyone passes within a week. The list is for a person
+to read. Acting on it is the rule; the tool only makes the rule cheap.
+
+**One part of this does gate, and it is the part that can.**
+`tools/check-site-pages.py` fails when a `repo:<path>#L<n>` citation in
+the library points at a line whose text has changed, because that is a
+fact rather than a judgement — the pinned text either still sits there
+or it does not. Move a line and it goes red; `--fix` relocates the
+citation when the recorded line is findable, and reports the rest for a
+hand fix. Run it before you push:
+
+```sh
+python3 tools/check-site-pages.py           # or --fix, then re-read the diff
+```
+
+Do not reach for `--pin` to clear it. That rewrites the record to
+whatever now sits at those numbers, which turns a citation pointing at
+the wrong line into a citation nobody will question again.
+
+Three things it cannot do, so do not read a clean run as a clean bill:
+
+- **File-level, not claim-level.** A comment fix flags the same
+  documents as an API removal.
+- **It cannot see a document that *should* have cited your file and did
+  not.** If you added a public function, no diff reaches the page that
+  ought to describe it.
+- **A document that names no paths is invisible to it.** Prose about
+  behaviour cannot be reached from a diff.
+- **A bare filename is not a path**, and this is the one that bites on
+  the question the tool is for. A document writing `ps2ui.h` rather
+  than `runtime/ps2ui.h` is not reached by a change to that header —
+  and 14 documents in this tree do exactly that, `README.md` and
+  `CHANGELOG.md` among them. Resolving them is F30's work; knowing it
+  is you.
+
+The board is four months of what happens without this: a header comment
+that outlived its macro by 20 days, a README naming a Makefile target
+#39 deleted, a bench card naming a cause [F-005](docs/findings.md)
+proved impossible, and a stylesheet still citing constants #52 removed
+— that last one ten lines from prose corrected the day before, in the
+same file, missed because the sweep that caught the others keyed on a
+different removal's vocabulary.
+
+**Every version bump updates `docs/site/` too.** That is a release
+step, not a follow-up: see [docs/releasing.md](docs/releasing.md).
+
 ## How the codebase is shaped
 
 Three stages, two documented seams — read these first:
