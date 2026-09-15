@@ -59,13 +59,16 @@ jobs:
           OPHTML_DOCS_REF: ${{ github.sha }}
         run: mkdocs build --strict -f website/mkdocs.yml
 
-      - if: github.event_name != 'pull_request'
+      - if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: website/build
 
+  # Only main publishes. workflow_dispatch carries no branch restriction
+  # of its own, so without the ref test a manual run from any branch
+  # would put that branch on the live site.
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
     permissions:

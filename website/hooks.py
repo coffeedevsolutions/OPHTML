@@ -8,9 +8,12 @@ stay generator-neutral:
      frontmatter. on_config scans the pages and builds the nav from those
      fields, ordered as the architecture's page index lists them.
   2. `page:<id>#<anchor>` links. on_page_markdown rewrites each to a
-     relative link to the target page's markdown file. MkDocs then
-     resolves the file and checks the anchor, so a link to a missing
-     heading fails a --strict build.
+     relative link to the target page's markdown file, which MkDocs then
+     resolves, so a link to a missing page fails a --strict build. The
+     heading half is not this build's to catch: MkDocs reports a missing
+     anchor at INFO, which --strict does not escalate. That is
+     tools/check-site-pages.py's job, and ci.yml runs it on every pull
+     request with no paths filter.
   3. `repo:<path>#L<n>[-L<m>]` links. on_page_markdown rewrites each to a
      GitHub blob URL pinned to the commit being built (OPHTML_DOCS_REF,
      else git HEAD, else main). A line citation is verified by
@@ -86,17 +89,19 @@ def _frontmatter(path):
         return _parse_frontmatter(f.read())[0]
 
 
-def _excluded(rel, patterns):
-    for pat in patterns:
-        pat = pat.strip()
-        if not pat:
-            continue
-        if pat.endswith("/"):
-            if rel.startswith(pat):
-                return True
-        elif rel == pat:
-            return True
-    return False
+def _excluded(rel, spec):
+    """Whether MkDocs excludes this path, asked of MkDocs itself.
+
+    `exclude_docs` is gitignore syntax, and MkDocs resolves it into a
+    pathspec matcher before any hook runs. Reusing that matcher is what
+    keeps this walk and MkDocs' own file collection from disagreeing: a
+    second implementation here would silently diverge the first time a
+    pattern is respelled (`_facts/**` for `_facts/`), and the build would
+    then fail naming the files rather than the pattern.
+    """
+    if spec is None:
+        return False
+    return spec.match_file(rel)
 
 
 def _git_ref():
@@ -130,12 +135,7 @@ def on_config(config):
     REF = _git_ref()
 
     docs_dir = config["docs_dir"]
-    excluded = config.get("exclude_docs")
-    patterns = excluded.patterns if hasattr(excluded, "patterns") else []
-    patterns = [str(p) for p in patterns] or [
-        "ARCHITECTURE.md", "_citations.tsv", "_facts/", "_prompts/",
-        "assets/README.md", "assets/assets.json",
-    ]
+    spec = config.get("exclude_docs")
 
     PAGES.clear()
     pages = []
@@ -146,12 +146,14 @@ def on_config(config):
                 continue
             path = os.path.join(root, name)
             rel = os.path.relpath(path, docs_dir).replace(os.sep, "/")
-            if _excluded(rel, patterns):
+            if _excluded(rel, spec):
                 continue
             meta = _frontmatter(path)
             pid = meta.get("id")
             if not pid:
-                log.warning("%s has no id in its frontmatter", rel)
+                log.warning("%s has no id in its frontmatter, so it is "
+                            "neither a page nor excluded; give it one or "
+                            "add it to exclude_docs in mkdocs.yml", rel)
                 continue
             if pid in PAGES:
                 log.warning("page id %s is claimed by %s and %s", pid,
