@@ -1092,3 +1092,103 @@ test('theme: a colour lint is reported per theme even when the message is identi
   assert.equal(contrast.length, 2, 'both themes fail and both must be named');
   assert.ok(contrast.some((w) => w.startsWith('@theme light:')));
 });
+
+// ------------------------------------------------------- reversed axes (B4)
+
+// WHAT `-reverse` MEANS, AND WHAT THIS TREE DID INSTEAD. In CSS,
+// `flex-direction: row-reverse` flips the main axis: main-START becomes
+// the right edge, so `justify-content: flex-start` packs against the
+// RIGHT. The solver reversed the item ORDER and left the packing end
+// alone, so a reversed container packed from the left with its items
+// backwards.
+//
+// It was right for `center`, `space-between` and `space-around` --
+// those distribute symmetrically, so reversing the order alone lands
+// on the same pixels. That is why the defect reads as correct in a
+// screenshot and is wrong in exactly the two cases nobody had a test
+// for: nothing in this repository used `-reverse` at all, not an
+// example, not a fixture, not a test.
+
+test('flex: row-reverse + flex-start packs against the RIGHT edge', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>',
+    '.r { display: flex; flex-direction: row-reverse; justify-content: flex-start;'
+    + '     width: 100px; height: 20px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }');
+  const [a, b] = rects(ir).slice(1);          // skip the container
+  // First child sits at the main-start end, which is the right edge.
+  assert.equal(a.x + a.w, 100, 'first child should touch the right edge');
+  assert.equal(b.x + b.w, a.x, 'second child sits immediately to its left');
+});
+
+test('flex: row-reverse + flex-end packs against the LEFT edge', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>',
+    '.r { display: flex; flex-direction: row-reverse; justify-content: flex-end;'
+    + '     width: 100px; height: 20px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }');
+  const [a, b] = rects(ir).slice(1);
+  assert.equal(b.x, 0, 'last child should touch the left edge');
+  assert.equal(a.x, b.x + b.w, 'first child sits immediately to its right');
+});
+
+test('flex: column-reverse + flex-start packs against the BOTTOM', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>',
+    '.r { display: flex; flex-direction: column-reverse; justify-content: flex-start;'
+    + '     width: 20px; height: 100px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }');
+  const [a, b] = rects(ir).slice(1);
+  assert.equal(a.y + a.h, 100, 'first child should touch the bottom edge');
+  assert.equal(b.y + b.h, a.y, 'second child sits immediately above it');
+});
+
+// THE ARM THAT MUST NOT MOVE. These three were already correct, by the
+// symmetry above, and a fix that changes them has broken something.
+test('flex: reversing does not move the symmetric justifications', () => {
+  const css = (dir, just) =>
+    `.r { display: flex; flex-direction: ${dir}; justify-content: ${just};`
+    + '     width: 100px; height: 20px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }';
+  const html =
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>';
+  for (const just of ['center', 'space-between', 'space-around']) {
+    const fwd = rects(compileCss(html, css('row', just))).slice(1);
+    const rev = rects(compileCss(html, css('row-reverse', just))).slice(1);
+    // Same occupied columns, whichever order the two boxes are named in.
+    const cols = (r) => r.map((c) => c.x).sort((p, q) => p - q);
+    assert.deepEqual(cols(rev), cols(fwd), `${just} should occupy the same columns`);
+  }
+});
+
+// `flex-wrap: wrap-reverse` was accepted and then ignored: css.js stores
+// the value unvalidated and the solver only ever compared it against
+// `'wrap'`, so a wrap-reverse container did not wrap at all. Worse than
+// a refusal, because the author wrote something, got no diagnostic, and
+// got neither the wrapping nor the reversed stacking.
+test('flex: wrap-reverse wraps, and stacks its lines from the bottom', () => {
+  const html = '<screen name="s"><div class="r">'
+    + '<div class="a"></div><div class="b"></div><div class="c"></div></div></screen>';
+  const css = (w) =>
+    `.r { display: flex; flex-direction: row; flex-wrap: ${w};`
+    + '     width: 50px; height: 60px; background: #000 }'
+    + '.a { width: 30px; height: 20px; background: #f00 }'
+    + '.b { width: 30px; height: 20px; background: #0f0 }'
+    + '.c { width: 30px; height: 20px; background: #00f }';
+
+  const fwd = rects(compileCss(html, css('wrap'))).slice(1);
+  const rev = rects(compileCss(html, css('wrap-reverse'))).slice(1);
+
+  // It wraps: three 30px items in a 50px box cannot share one row.
+  assert.equal(new Set(fwd.map((r) => r.y)).size, 3, 'wrap should make three lines');
+  assert.equal(new Set(rev.map((r) => r.y)).size, 3, 'wrap-reverse should wrap too');
+
+  // And the lines stack the other way: the first item is on the last line.
+  assert.equal(fwd[0].y, 0, 'wrap puts the first item on the top line');
+  assert.equal(rev[0].y, fwd[2].y, 'wrap-reverse puts it on the bottom line');
+  assert.equal(rev[2].y, 0, 'and the last item on the top line');
+});

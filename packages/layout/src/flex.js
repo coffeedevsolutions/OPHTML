@@ -32,6 +32,28 @@ function isReverse(style) {
   return style.flexDirection.endsWith('-reverse');
 }
 
+/**
+ * Does this container wrap at all?
+ *
+ * Both gates used to read `flexWrap === 'wrap'`, and css.js stores the
+ * declared value without validating it, so `flex-wrap: wrap-reverse`
+ * was accepted and then behaved as `nowrap`: no wrapping, no reversed
+ * stacking, no diagnostic. The author wrote a real CSS value and got
+ * neither the behaviour nor a refusal, which is the worst of the three
+ * outcomes.
+ *
+ * Found next to B4 and fixed with it because it is the same defect one
+ * property over: a value the solver recognises in one form and
+ * silently drops in another.
+ */
+function wraps(style) {
+  return style.flexWrap !== 'nowrap';
+}
+
+function wrapReverse(style) {
+  return style.flexWrap === 'wrap-reverse';
+}
+
 // Axis helpers: main/cross accessors over a {w, h} pair.
 function mainOf(axis, w, h) { return axis === ROW ? w : h; }
 function crossOf(axis, w, h) { return axis === ROW ? h : w; }
@@ -205,7 +227,7 @@ export function computeFlexLines(container, innerMain, innerCross, place, ctx) {
   const s = container.style;
   const axis = axisOf(s);
   const gapMain = axis === ROW ? s.columnGap : s.rowGap;
-  const wrap = s.flexWrap === 'wrap';
+  const wrap = wraps(s);
 
   const items = container.children.map((box) => ({
     box,
@@ -310,7 +332,7 @@ function minContentSize(box, dim, ctx) {
   });
   if (childMin.length === 0) return pbSum;
   if (!queryIsMain) return Math.max(...childMin) + pbSum;
-  if (s.flexWrap === 'wrap') return Math.max(...childMin) + pbSum;
+  if (wraps(s)) return Math.max(...childMin) + pbSum;
   const gap = axis === ROW ? s.columnGap : s.rowGap;
   return childMin.reduce((a, b) => a + b, 0) + gap * (childMin.length - 1) + pbSum;
 }
@@ -362,6 +384,38 @@ function resolveFlexibleLengths(line, axis, innerMain, gapMain, ctx) {
     }
     free = innerMain - outerSum();
   }
+}
+
+/**
+ * `justify-content` as seen from main-START, which a reversed
+ * direction moves to the other end of the box.
+ *
+ * `flex-direction: row-reverse` does not merely reverse the items: it
+ * flips the main axis, so main-start IS the right edge and
+ * `justify-content: flex-start` packs against the right. The solver
+ * placed items left to right from a main-start lead and reversed only
+ * the order, which packed a reversed container from the LEFT with its
+ * items backwards.
+ *
+ * Swapping the two ends here is the whole fix, because everything
+ * downstream already works in main-start terms: reverse the order,
+ * then take the free space off the other end, and the result is the
+ * CSS placement.
+ *
+ * IT READ AS CORRECT BECAUSE THE OTHER THREE ARE SYMMETRIC. `center`,
+ * `space-between` and `space-around` distribute the same from either
+ * end, so reversing the order alone lands on identical pixels and only
+ * `flex-start` and `flex-end` were ever wrong -- the two nothing in
+ * this tree exercised. There was no example, no fixture and no test
+ * using `-reverse` at all when this was found, which is why a solver
+ * bug survived the cross-language pen: all three pens agreed, on the
+ * wrong answer, because none of them was ever asked. B4.
+ */
+function mainStartJustify(s) {
+  if (!isReverse(s)) return s.justifyContent;
+  if (s.justifyContent === 'flex-start') return 'flex-end';
+  if (s.justifyContent === 'flex-end') return 'flex-start';
+  return s.justifyContent;
 }
 
 function justifyOffsets(justify, free, count, gapMain) {
@@ -439,13 +493,21 @@ export function placeNode(box, x, y, w, h, ctx) {
 
   const lines = computeFlexLines(box, innerMain, innerCross, true, ctx);
 
-  // Multi-line cross distribution: lines stack from cross-start.
+  // Multi-line cross distribution: lines stack from cross-start, or
+  // from cross-END under `wrap-reverse`, which is the whole of what
+  // that keyword asks for once wrapping itself is honoured. Reversing
+  // the line array rather than the arithmetic keeps every offset below
+  // in cross-start terms, the same move mainStartJustify makes on the
+  // other axis.
   let crossPos = 0;
-  for (const line of lines) {
+  const stacked = wrapReverse(s) ? [...lines].reverse() : lines;
+  for (const line of stacked) {
     const used = line.items.reduce(
       (a, it) => a + it.mainSize + marginMain(axis, it.box.style), 0,
     ) + gapMain * Math.max(line.items.length - 1, 0);
-    const [lead, extra] = justifyOffsets(s.justifyContent, innerMain - used, line.items.length, gapMain);
+    const [lead, extra] = justifyOffsets(
+      mainStartJustify(s), innerMain - used, line.items.length, gapMain,
+    );
 
     let mainPos = lead;
     const ordered = isReverse(s) ? [...line.items].reverse() : line.items;
