@@ -55,6 +55,25 @@ without moving this line.
 
 ### Fixed
 
+- **`row-reverse` and `column-reverse` packed from the wrong end.**
+  `flex-direction: row-reverse` flips the main axis — main-start
+  becomes the right edge, so `justify-content: flex-start` packs
+  against the right. The solver reversed the item order and left the
+  packing end alone, so a reversed container packed from the left with
+  its items backwards (B4).
+
+  It read as correct because three of the five justifications are
+  symmetric: `center`, `space-between` and `space-around` distribute
+  the same from either end, so only `flex-start` and `flex-end` were
+  ever wrong. Nothing in the repository used `-reverse` at all — no
+  example, no fixture, no test — which is why three pens agreed on it.
+  Every example rebuilds byte-identical.
+
+- **`flex-wrap: wrap-reverse` was accepted and then ignored.** The
+  value was stored unvalidated and only ever compared against
+  `'wrap'`, so such a container did not wrap and did not stack its
+  lines in reverse. It now does both.
+
 - **`ps2ui dev` accepted `--strict` and `--min-font-size` and read
   neither.** `ps2ui-dev` stored them as `options.strict` and
   `options.minFontSize`; the compiler takes lint overrides from

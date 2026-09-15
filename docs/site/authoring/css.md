@@ -62,7 +62,7 @@ Layout:
 |---|---|---|---|
 | `display` | `flex`, `none` | `flex` | Any other value is an error. `none` drops the element and its whole subtree. |
 | `flex-direction` | `row`, `row-reverse`, `column`, `column-reverse` | none | Required. See [the two hard rules](#the-two-hard-rules). |
-| `flex-wrap` | `nowrap`, `wrap` | `nowrap` | Only `wrap` changes the result. |
+| `flex-wrap` | `nowrap`, `wrap`, `wrap-reverse` | `nowrap` | `wrap-reverse` wraps and stacks its lines from the cross-end. |
 | `justify-content` | `flex-start`, `flex-end`, `center`, `space-between`, `space-around` | `flex-start` | Main axis. |
 | `align-items` | `flex-start`, `flex-end`, `center`, `stretch` | `stretch` | Cross axis. `stretch` skips an `<img>`, see [images](page:authoring/images#behaviour). |
 | `align-self` | `auto`, plus the `align-items` values | `auto` | Overrides the parent for one item. |
