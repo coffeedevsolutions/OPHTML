@@ -103,7 +103,10 @@ Writes into `examples/channel6/build/`:
 | `games.json` / `probe.json` | the IR, if you need to look at what layout decided |
 
 Then it runs [check.py](check.py), which re-reads the blob and asserts
-its contract in TAP. 24 checks, and a red one names what broke.
+its contract in TAP. 47 checks, and a red one names what broke. (The
+number was 24 and is derived from nothing — `check.py` prints its own
+total, `PASS: 47 checks, 0 failure(s)`, and no checker holds this
+sentence to it. Re-read it from the run rather than trusting it.)
 
 The 4:3 bake is expected to be **silent**. Earlier revisions emitted
 three `charset` warnings for the ×, ○ and △ face-button glyphs in the

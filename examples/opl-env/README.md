@@ -103,8 +103,16 @@ det-art                  120x72   34,560 B
                                   62,784 B total
 ```
 
-Against the memcard example, for scale: 175,120-byte blob, 6 slots,
-808 commands. This is roughly **20× the slot count** on 1.4× the blob.
+Against the memcard example, for scale: **176,208-byte blob, 6 slots,
+1,062 records**, against this one's 269,824 bytes, 137 slots and 2,158
+records — roughly **23× the slot count** on 1.5× the blob.
+
+Every figure here is `os.path.getsize` and `len()` over the two built
+blobs read back with `read_uib`, which is the only way to state them:
+the previous version said 175,120 bytes and *"808 commands"*, a byte
+count that has moved and a quantity the blob does not carry. Records
+are what `ps2ui-bake` prints; paint commands are the compiler's count
+and are 132 for memcard, which is neither number.
 
 **Frame time and prim counts on hardware are not measured yet.** They
 need the runtime driver, and the exit gate wants them; until then this

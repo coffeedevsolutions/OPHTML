@@ -39,7 +39,7 @@ the probe never share a frame.
 | One project file compiles two screens against one shared stylesheet; only `probe.html` sets `focusWrap: true` | [ps2ui.json](repo:examples/channel6/ps2ui.json#L1-L10) |
 | `focusable`/`autofocus` sets initial focus per screen; `games` dead-ends at its grid edges, `probe` wraps | [games.html](repo:examples/channel6/ui/games.html#L18), [probe.html](repo:examples/channel6/ui/probe.html#L17) |
 | `data-slot` with `data-slot-capacity` for 13 games-screen slots and 2 probe-screen slots | [games.html](repo:examples/channel6/ui/games.html#L12), [probe.html](repo:examples/channel6/ui/probe.html#L12) |
-| `data-keep` protects the CLIP cell's out-of-clip scissor instrument from the bake-time dead-geometry trim | [probe.html](repo:examples/channel6/ui/probe.html#L53-L54), [channel6.css](repo:examples/channel6/ui/channel6.css#L387-L397) |
+| `data-keep` protects the CLIP cell's out-of-clip scissor instrument from the bake-time dead-geometry trim | [probe.html](repo:examples/channel6/ui/probe.html#L53-L54), [channel6.css](repo:examples/channel6/ui/channel6.css#L396-L406) |
 | A second `ps2ui build --mode ntsc16x9 -o build/ui-16x9.uib` of the same project bakes the widescreen blob; there is no `variants` key | [build.sh](repo:examples/channel6/build.sh#L26-L29) |
 | `preview_in_game.py` renders the blob on full transparency and composites it over a synthetic driving-game frame | [preview_in_game.py](repo:examples/channel6/preview_in_game.py#L87-L94) |
 | `check.py` re-reads the baked blob and asserts the focus graph, slot capacities, vanish-row colours and the swizzle tile's region order | [check.py](repo:examples/channel6/check.py#L109-L433) |

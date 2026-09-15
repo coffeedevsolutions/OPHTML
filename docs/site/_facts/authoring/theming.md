@@ -57,9 +57,9 @@ Parent facts reused without restatement: `css.colors`, `css.colors.unknown`,
 | theme.runtime.feature-bit | A blob with `n_theme > 1` must carry `PS2UI_FEAT_ROLE_TINTS` (bit 4, 0x10) or `ps2ui_load` returns `PS2UI_ERR_TINTS` (-14). The baker sets the bit from the row count, so every blob it writes with two or more themes carries it. A one-theme blob keeps the bit clear | runtime/ps2ui.h:62, :429; runtime/ps2ui.c:292-294; packages/baker/ps2ui_bake/uib.py:372-378 | `make -C runtime test` ok 373, ok 374, ok 391; `ps2ui-check examples/opl-env/build/ui.uib` printed `ok 64 - 2 theme(s) with FEAT_ROLE_TINTS set: more than one row needs the bit, or ps2ui_load refuses the blob`; a header parse of that blob printed `feature_flags=0x1f` | verified |
 | theme.runtime.cycle | The sample cycles rows by reading `ui.hdr->n_theme` and calling `ps2ui_theme_set` only when it is above 1 | runtime/sample/main.c:2067-2073 | read in the tree; the sample builds only under the ps2dev cross toolchain, which is not installed here | code-only |
 | theme.defect.theme-without-root | A sheet that declares `@theme` while defining no `:root` custom property fails with an internal error instead of a diagnostic. `themeCount` reads the width from the first entry of `vars` and returns 1 for an empty map, while `themeNames` is already 2 long, so the first painted colour trips the width guard | packages/layout/src/css.js:546-550; packages/layout/src/paint.js:41-47 | compiled `@theme light { }` with a literal background and no `:root`: `error: layout: internal: background has 1 theme values, expected 2`, exit 1. Adding one `:root` name to the same sheet compiles clean | verified |
-| theme.defect.stale-header-comment | `runtime/ps2ui.h` says the live row is "Still 0 on every blob this toolchain can currently bake, since more than one row needs PS2UI_FEAT_ROLE_TINTS and no baker sets it yet". The baker does set it | runtime/ps2ui.h:359-362 vs packages/baker/ps2ui_bake/uib.py:377-378 | the opl-env header parse printed `feature_flags=0x1f` with `n_theme` 2, and `ps2ui-check` ok 64 confirms the bit; not a drift row the brief listed | verified |
+| theme.defect.stale-header-comment | **FIXED.** `runtime/ps2ui.h` said the live row is "Still 0 on every blob this toolchain can currently bake, since more than one row needs PS2UI_FEAT_ROLE_TINTS and no baker sets it yet". The baker does set it, and the comment now says so and carries the two blobs' measured flags | runtime/ps2ui.h:359-362 vs packages/baker/ps2ui_bake/uib.py:377-378 | the opl-env header parse printed `feature_flags=0x1f` with `n_theme` 2, and `ps2ui-check` ok 64 confirms the bit; not a drift row the brief listed | verified |
 | theme.readme.absent | README.md's "Supported CSS" list names no custom properties, no `var()` and no `@theme`, so the whole authoring mechanism is undocumented there | README.md:193-206; packages/layout/src/css.js:300, :259, :494 | every construct above compiled in this session; drift row D7 | contradicts-readme |
-| theme.readme.clut | README.md:24-26 says "the palette is a CLUT row and switching it is a table swap". A theme is a row of the tint table, not a CLUT. `ps2ui_theme_set` touches no palette and schedules no transfer; `ps2ui_clut_set` is the separate CLUT mechanism and is refused before `ps2ui_upload` | README.md:24-26; runtime/ps2ui.c:780-794 vs :739-777; runtime/ps2ui.h:564-575 | `make -C runtime test` ok 385-401 (theme_set, no GSGLOBAL argument) against ok 352-364 (clut_set, refused before upload); parent facts `api.functions.theme_set` and `api.scope.rules.clut-theme` | contradicts-readme |
+| theme.readme.clut | **FIXED.** README.md:24-26 said "the palette is a CLUT row and switching it is a table swap". A theme is a row of the tint table, not a CLUT. `ps2ui_theme_set` touches no palette and schedules no transfer; `ps2ui_clut_set` is the separate CLUT mechanism and is refused before `ps2ui_upload` | README.md:24-26; runtime/ps2ui.c:780-794 vs :739-777; runtime/ps2ui.h:564-575 | `make -C runtime test` ok 385-401 (theme_set, no GSGLOBAL argument) against ok 352-364 (clut_set, refused before upload); parent facts `api.functions.theme_set` and `api.scope.rules.clut-theme` | contradicts-readme |
 
 ## follow-up
 
@@ -70,10 +70,12 @@ Not in the drift table, found while verifying:
    (`themeCount` in packages/layout/src/css.js:546). The condition is
    diagnosable at parse time: `themeBlocks.length > 0 && vars.size === 0`.
    Row `theme.defect.theme-without-root`.
-2. The comment on `ps2ui_ctx.theme` (runtime/ps2ui.h:359-362) still says no
-   baker sets `PS2UI_FEAT_ROLE_TINTS`. packages/baker/ps2ui_bake/uib.py:377
-   sets it from `n_theme`, and examples/opl-env/build/ui.uib carries it.
-   Row `theme.defect.stale-header-comment`.
-3. README.md:24-26 describes a theme as a CLUT row. The two mechanisms are
-   distinct, have different signatures and different ordering rules.
+2. **FIXED.** The comment on `ps2ui_ctx.theme` (runtime/ps2ui.h:359-362)
+   said no baker sets `PS2UI_FEAT_ROLE_TINTS`.
+   packages/baker/ps2ui_bake/uib.py:377 sets it from `n_theme`, and
+   examples/opl-env/build/ui.uib carries it. It now says so and carries
+   both blobs' flags. Row `theme.defect.stale-header-comment`.
+3. **FIXED.** README.md:24-26 described a theme as a CLUT row. The two
+   mechanisms are distinct, have different signatures and different
+   ordering rules, and the paragraph now says which is which.
    Row `theme.readme.clut`.

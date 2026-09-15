@@ -8,7 +8,7 @@ version: 0.6.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/tests/test_narrow.c, runtime/Makefile, runtime/sample/main.c, runtime/sample/Makefile, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/uib.py, tools/check-versions.py, docs/format-uib.md, README.md]
 ---
 
-The runtime reports failure through fifteen integer codes declared in [runtime/ps2ui.h](repo:runtime/ps2ui.h#L412). Five functions return them: `ps2ui_load`, `ps2ui_tex_set`, `ps2ui_clut_set`, `ps2ui_theme_set` and `ps2ui_offset_set`. See [runtime/api-reference](page:runtime/api-reference#function-tables-by-group) for what every other function returns. Compare a return against the macro, not against the number. Handle a failure as [runtime/frame-loop](page:runtime/frame-loop#limits-and-errors) describes: a failed load or upload is fatal, a failed setter leaves the context as it was.
+The runtime reports failure through fifteen integer codes declared in [runtime/ps2ui.h](repo:runtime/ps2ui.h#L424). Five functions return them: `ps2ui_load`, `ps2ui_tex_set`, `ps2ui_clut_set`, `ps2ui_theme_set` and `ps2ui_offset_set`. See [runtime/api-reference](page:runtime/api-reference#function-tables-by-group) for what every other function returns. Compare a return against the macro, not against the number. Handle a failure as [runtime/frame-loop](page:runtime/frame-loop#limits-and-errors) describes: a failed load or upload is fatal, a failed setter leaves the context as it was.
 
 ## Error codes
 
@@ -30,7 +30,7 @@ The runtime reports failure through fifteen integer codes declared in [runtime/p
 | `PS2UI_ERR_STATE` | -13 | `ps2ui_clut_set` before `ps2ui_upload` ([ps2ui.c](repo:runtime/ps2ui.c#L753)). | Call `ps2ui_upload` first. |
 | `PS2UI_ERR_TINTS` | -14 | `ps2ui_load`: `n_theme` above 1 in a blob without `PS2UI_FEAT_ROLE_TINTS` ([ps2ui.c](repo:runtime/ps2ui.c#L294)). | Rebake. A themed blob must declare bit 4. |
 
-`ps2ui_upload` does not use this table. It returns -1 when the texture footprint would pass 4 MiB of VRAM, and 0 otherwise ([ps2ui.c](repo:runtime/ps2ui.c#L597)). `ps2ui_arena_size` returns 0 for a blob it cannot size ([ps2ui.h](repo:runtime/ps2ui.h#L436)). The list queries `ps2ui_list_item_at` and `ps2ui_list_selected_row` return -1 for an empty or out-of-range row ([ps2ui.c](repo:runtime/ps2ui.c#L1707)).
+`ps2ui_upload` does not use this table. It returns -1 when the texture footprint would pass 4 MiB of VRAM, and 0 otherwise ([ps2ui.c](repo:runtime/ps2ui.c#L597)). `ps2ui_arena_size` returns 0 for a blob it cannot size ([ps2ui.h](repo:runtime/ps2ui.h#L448)). The list queries `ps2ui_list_item_at` and `ps2ui_list_selected_row` return -1 for an empty or out-of-range row ([ps2ui.c](repo:runtime/ps2ui.c#L1707)).
 
 The sample treats both entry points as fatal: a red screen for any load code, a yellow screen for an upload failure ([runtime/sample/main.c](repo:runtime/sample/main.c#L1645)).
 

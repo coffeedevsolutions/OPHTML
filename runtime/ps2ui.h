@@ -356,11 +356,23 @@ typedef struct ps2ui_ctx {
      * n_theme -- ps2ui_render indexes the table by this value and
      * does not re-check, exactly as it does not re-check `screen`.
      *
-     * Still 0 on every blob this toolchain can currently bake, since
-     * more than one row needs PS2UI_FEAT_ROLE_TINTS and no baker sets
-     * it yet. That is a fact about the baker, not about the runtime:
-     * a hand-written two-row blob loads, switches and renders today,
-     * and test_runtime builds one to prove it. */
+     * THE BAKER SETS PS2UI_FEAT_ROLE_TINTS AND HAS SINCE P3b. This
+     * comment said the opposite -- "still 0 on every blob this
+     * toolchain can currently bake ... no baker sets it yet" -- which
+     * was true when written and stopped being true when the tint
+     * table shipped. uib.py sets the bit from n_theme, and
+     * examples/opl-env bakes two rows with it:
+     *
+     *   examples/opl-env/build/ui.uib   themes=2  flags=0x1f
+     *   examples/memcard/build/ui.uib   themes=1  flags=0x03
+     *
+     * So a multi-theme blob is ordinary output, not a hand-written
+     * fixture, and README.md's own first screenshots are one blob
+     * rendered at theme 0 and theme 1. 0 is still the value on a
+     * single-theme blob, which most are. Found by a documentation
+     * agent reading this header against the baker (F33); it is the
+     * fourth comment in this pair to outlive what it described, after
+     * the three #129 corrected. */
     uint16_t  theme;
 
     /* Everything below points into the caller's arena, carved by
