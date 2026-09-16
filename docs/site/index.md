@@ -18,7 +18,7 @@ or lays out a frame. Focus, navigation, theming and dynamic text are all
 decided before the blob ships. The console only moves a cursor and swaps
 a table.
 
-![The build pipeline from HTML and CSS to the console: four hand-drawn boxes, HTML + CSS, ui.json, .uib and C runtime, joined by three arrows](assets/index/pipeline.svg)
+![The build pipeline from HTML and CSS to the console: four boxes, HTML + CSS, ui.json, .uib and C runtime, joined by three arrows](assets/index/pipeline.svg)
 
 Two tools sit between the two files the pipeline names. `ps2ui-layout`
 turns HTML and CSS into `ui.json`, and `ps2ui-bake` turns `ui.json` into

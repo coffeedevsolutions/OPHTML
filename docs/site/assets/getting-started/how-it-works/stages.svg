@@ -1,34 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 300" width="860" height="300" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 260" width="860" height="260" role="img" aria-labelledby="t d">
 <title id="t">The three stages and the two files between them</title>
-<desc id="d">Three hand-drawn boxes, layout, baker and runtime, joined by two arrows labelled ui.json and .uib. Each box names its pen: layout measures, baker rasterizes, runtime draws.</desc>
-<g fill="none" stroke="#1a1a1a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" font-family="Segoe Print, 'Bradley Hand', 'Comic Sans MS', cursive" font-size="22">
-<!-- box 1: layout -->
-<path d="M20,58 C60,52 200,50 250,56 C256,110 254,168 250,206 C180,212 60,210 22,204 C18,150 20,100 20,58 Z"/>
-<text x="135" y="100" text-anchor="middle" stroke="none" fill="#1a1a1a">layout</text>
-<text x="135" y="128" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">ps2ui-layout</text>
-<text x="135" y="152" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">HTML + CSS</text>
-<text x="135" y="185" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">pen: measures</text>
-<!-- box 2: baker -->
-<path d="M330,54 C374,48 500,50 548,58 C552,112 550,166 546,206 C480,212 370,210 332,203 C328,150 330,100 330,54 Z"/>
-<text x="439" y="100" text-anchor="middle" stroke="none" fill="#1a1a1a">baker</text>
-<text x="439" y="128" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">ps2ui-bake</text>
-<text x="439" y="152" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">fonts + images</text>
-<text x="439" y="185" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">pen: rasterizes</text>
-<!-- box 3: runtime -->
-<path d="M628,58 C670,50 800,52 838,58 C842,110 840,168 837,205 C770,211 660,210 630,203 C626,150 628,100 628,58 Z"/>
-<text x="733" y="100" text-anchor="middle" stroke="none" fill="#1a1a1a">runtime</text>
-<text x="733" y="128" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">ps2ui.c</text>
-<text x="733" y="152" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the console</text>
-<text x="733" y="185" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">pen: draws</text>
-<!-- seam 1: ui.json -->
-<path d="M253,120 C275,116 285,124 305,120"/>
-<path d="M295,113 L307,120 L294,127"/>
-<text x="279" y="90" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="16">ui.json</text>
-<!-- seam 2: .uib -->
-<path d="M551,120 C575,116 585,124 605,120"/>
-<path d="M595,113 L607,120 L594,127"/>
-<text x="578" y="90" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="16">.uib</text>
+<desc id="d">Three boxes, layout, baker and runtime, joined by two arrows labelled ui.json and .uib. Each box names its pen: layout measures, baker rasterizes, runtime draws.</desc>
+<style>
+  /* Same reasoning as the index pipeline figure: an img element is a
+     separate document, only the system preference crosses into it, and
+     the figure paints its own ground so no glyph -- the two captions
+     included -- ever sits on a page colour this file cannot see. */
+  .ground { fill: #f1f3f7; }
+  .box  { fill: #ffffff; stroke: #c3c8d4; stroke-width: 1.5; }
+  .name { fill: #14151a; font: 600 20px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .line { fill: #33384a; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .role { fill: #565b6b; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .seam { fill: #14151a; font: 600 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .flow { fill: #7d8496; stroke: #7d8496; stroke-width: 1.5; }
+  .cap  { fill: #565b6b; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  @media (prefers-color-scheme: dark) {
+    .ground { fill: #23262f; }
+    .box  { fill: #2c313d; stroke: #4c5265; }
+    .name { fill: #eceef3; }
+    .line { fill: #ced3e0; }
+    .role { fill: #adb3c4; }
+    .seam { fill: #eceef3; }
+    .flow { fill: #858ca3; stroke: #858ca3; }
+    .cap  { fill: #adb3c4; }
+  }
+</style>
+
+<rect class="ground" x="0" y="0" width="860" height="260" rx="8"/>
+
+<rect class="box" x="25"  y="40" width="210" height="150" rx="6"/>
+<text class="name" x="130" y="80"  text-anchor="middle">layout</text>
+<text class="line" x="130" y="108" text-anchor="middle">ps2ui-layout</text>
+<text class="line" x="130" y="130" text-anchor="middle">HTML + CSS</text>
+<text class="role" x="130" y="162" text-anchor="middle">pen: measures</text>
+
+<rect class="box" x="325" y="40" width="210" height="150" rx="6"/>
+<text class="name" x="430" y="80"  text-anchor="middle">baker</text>
+<text class="line" x="430" y="108" text-anchor="middle">ps2ui-bake</text>
+<text class="line" x="430" y="130" text-anchor="middle">fonts + images</text>
+<text class="role" x="430" y="162" text-anchor="middle">pen: rasterizes</text>
+
+<rect class="box" x="625" y="40" width="210" height="150" rx="6"/>
+<text class="name" x="730" y="80"  text-anchor="middle">runtime</text>
+<text class="line" x="730" y="108" text-anchor="middle">ps2ui.c</text>
+<text class="line" x="730" y="130" text-anchor="middle">the console</text>
+<text class="role" x="730" y="162" text-anchor="middle">pen: draws</text>
+
+<g class="flow">
+  <path d="M243,118 H307"/><path d="M307,113 L317,118 L307,123 Z" stroke="none"/>
+  <path d="M543,118 H607"/><path d="M607,113 L617,118 L607,123 Z" stroke="none"/>
 </g>
-<text x="430" y="250" text-anchor="middle" fill="#1a1a1a" font-family="Segoe Print, 'Bradley Hand', 'Comic Sans MS', cursive" font-size="15">build time: layout, then baker</text>
-<text x="733" y="250" text-anchor="middle" fill="#1a1a1a" font-family="Segoe Print, 'Bradley Hand', 'Comic Sans MS', cursive" font-size="15">the console, every frame</text>
+<text class="seam" x="280" y="100" text-anchor="middle">ui.json</text>
+<text class="seam" x="580" y="100" text-anchor="middle">.uib</text>
+
+<text class="cap" x="280" y="228" text-anchor="middle">build time: layout, then baker</text>
+<text class="cap" x="730" y="228" text-anchor="middle">the console, every frame</text>
 </svg>

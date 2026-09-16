@@ -1,0 +1,18 @@
+/* Site-specific styling on top of Material. Keep this short: the pages
+   are tables, code blocks and screenshots, which the theme already
+   renders well. */
+
+/* Screenshots are console frames on a dark ground; give each an edge so
+   the frame's own black edge reads as the picture, not the page. The
+   figures are SVG and draw their own boxes on a transparent ground, so
+   a frame around them reads as a second, emptier box. */
+.md-typeset img:not([src$=".svg"]) {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 2px;
+}
+
+/* Reference tables carry flags and error codes in code spans; keep the
+   cells from wrapping mid-identifier. */
+.md-typeset table:not([class]) code {
+  white-space: nowrap;
+}
