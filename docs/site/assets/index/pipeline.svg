@@ -2,22 +2,31 @@
 <title id="t">The build pipeline from HTML and CSS to the console</title>
 <desc id="d">Four boxes joined by three arrows: HTML plus CSS, ui.json, .uib, C runtime. Each box names what it is: the source, the IR, the blob, the console.</desc>
 <style>
-  /* Loaded through an img element, so currentColor cannot reach the
-     page's text colour. The site's palette follows the reader's system
-     preference, so the same media query keeps the figure with it. */
-  .box  { fill: #f7f8fb; stroke: #b6bac7; stroke-width: 1.5; }
+  /* The figure loads through an img element, so it is a separate
+     document: currentColor cannot reach it and the page's theme toggle
+     cannot either. Only the system preference crosses that boundary, so
+     the palette keys off it, and the figure paints its own ground. That
+     ground is what makes the caption safe. A reader whose toggle
+     disagrees with their system setting sees the figure in the other
+     scheme -- a card in the wrong colour, still fully legible -- rather
+     than caption glyphs at 2.2:1 on a page that moved without it. */
+  .ground { fill: #f1f3f7; }
+  .box  { fill: #ffffff; stroke: #c3c8d4; stroke-width: 1.5; }
   .name { fill: #14151a; font: 600 19px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-  .role { fill: #5c606f; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-  .flow { fill: #8d91a1; stroke: #8d91a1; stroke-width: 1.5; }
-  .cap  { fill: #5c606f; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .role { fill: #565b6b; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .flow { fill: #7d8496; stroke: #7d8496; stroke-width: 1.5; }
+  .cap  { fill: #565b6b; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
   @media (prefers-color-scheme: dark) {
-    .box  { fill: #2a2d3a; stroke: #565b70; }
-    .name { fill: #e8e9ee; }
-    .role { fill: #a9aec0; }
-    .flow { fill: #838aa3; stroke: #838aa3; }
-    .cap  { fill: #a9aec0; }
+    .ground { fill: #23262f; }
+    .box  { fill: #2c313d; stroke: #4c5265; }
+    .name { fill: #eceef3; }
+    .role { fill: #adb3c4; }
+    .flow { fill: #858ca3; stroke: #858ca3; }
+    .cap  { fill: #adb3c4; }
   }
 </style>
+
+<rect class="ground" x="0" y="0" width="900" height="210" rx="8"/>
 
 <rect class="box" x="21"  y="44" width="168" height="104" rx="6"/>
 <text class="name" x="105" y="90"  text-anchor="middle">HTML + CSS</text>

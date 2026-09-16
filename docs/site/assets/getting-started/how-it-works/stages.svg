@@ -2,26 +2,31 @@
 <title id="t">The three stages and the two files between them</title>
 <desc id="d">Three boxes, layout, baker and runtime, joined by two arrows labelled ui.json and .uib. Each box names its pen: layout measures, baker rasterizes, runtime draws.</desc>
 <style>
-  /* Loaded through an img element, so currentColor cannot reach the
-     page's text colour. The site's palette follows the reader's system
-     preference, so the same media query keeps the figure with it. */
-  .box  { fill: #f7f8fb; stroke: #b6bac7; stroke-width: 1.5; }
+  /* Same reasoning as the index pipeline figure: an img element is a
+     separate document, only the system preference crosses into it, and
+     the figure paints its own ground so no glyph -- the two captions
+     included -- ever sits on a page colour this file cannot see. */
+  .ground { fill: #f1f3f7; }
+  .box  { fill: #ffffff; stroke: #c3c8d4; stroke-width: 1.5; }
   .name { fill: #14151a; font: 600 20px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-  .line { fill: #3d414f; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-  .role { fill: #5c606f; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .line { fill: #33384a; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .role { fill: #565b6b; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
   .seam { fill: #14151a; font: 600 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .flow { fill: #8d91a1; stroke: #8d91a1; stroke-width: 1.5; }
-  .cap  { fill: #5c606f; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .flow { fill: #7d8496; stroke: #7d8496; stroke-width: 1.5; }
+  .cap  { fill: #565b6b; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
   @media (prefers-color-scheme: dark) {
-    .box  { fill: #2a2d3a; stroke: #565b70; }
-    .name { fill: #e8e9ee; }
-    .line { fill: #ced2e0; }
-    .role { fill: #a9aec0; }
-    .seam { fill: #e8e9ee; }
-    .flow { fill: #838aa3; stroke: #838aa3; }
-    .cap  { fill: #a9aec0; }
+    .ground { fill: #23262f; }
+    .box  { fill: #2c313d; stroke: #4c5265; }
+    .name { fill: #eceef3; }
+    .line { fill: #ced3e0; }
+    .role { fill: #adb3c4; }
+    .seam { fill: #eceef3; }
+    .flow { fill: #858ca3; stroke: #858ca3; }
+    .cap  { fill: #adb3c4; }
   }
 </style>
+
+<rect class="ground" x="0" y="0" width="860" height="260" rx="8"/>
 
 <rect class="box" x="25"  y="40" width="210" height="150" rx="6"/>
 <text class="name" x="130" y="80"  text-anchor="middle">layout</text>
