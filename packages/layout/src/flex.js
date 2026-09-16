@@ -32,6 +32,28 @@ function isReverse(style) {
   return style.flexDirection.endsWith('-reverse');
 }
 
+/**
+ * Does this container wrap at all?
+ *
+ * Both gates used to read `flexWrap === 'wrap'`, and css.js stores the
+ * declared value without validating it, so `flex-wrap: wrap-reverse`
+ * was accepted and then behaved as `nowrap`: no wrapping, no reversed
+ * stacking, no diagnostic. The author wrote a real CSS value and got
+ * neither the behaviour nor a refusal, which is the worst of the three
+ * outcomes.
+ *
+ * Found next to B4 and fixed with it because it is the same defect one
+ * property over: a value the solver recognises in one form and
+ * silently drops in another.
+ */
+function wraps(style) {
+  return style.flexWrap !== 'nowrap';
+}
+
+function wrapReverse(style) {
+  return style.flexWrap === 'wrap-reverse';
+}
+
 // Axis helpers: main/cross accessors over a {w, h} pair.
 function mainOf(axis, w, h) { return axis === ROW ? w : h; }
 function crossOf(axis, w, h) { return axis === ROW ? h : w; }
@@ -108,6 +130,59 @@ function childBaseSize(child, axis, innerMain, innerCross, ctx) {
  * Measure pass: how big is `box` given available space (either may be null
  * = unconstrained)? Returns {w, h} border-box.
  */
+
+/**
+ * Resolve a size, and say so when a percentage had nothing to resolve
+ * against.
+ *
+ * A percentage needs a DEFINITE containing size. When the container
+ * has none -- an auto-height column, a shrink-to-fit row -- CSS's
+ * `resolveLength` returns null here and every caller downstream reads
+ * null as `auto`. So `height: 50%` inside an auto-height column became
+ * "size to content": the author wrote a constraint, got a different
+ * layout, and got nothing connecting the two. B7.
+ *
+ * WARNED RATHER THAN IMPLEMENTED, which is the choice B7 offers. CSS's
+ * fallbacks here are per-property and subtle (min-* floors at 0, max-*
+ * at none, width behaves as auto in normal flow but not for a flex
+ * base), and getting them subtly wrong would replace a visible silence
+ * with an invisible disagreement. The silence is the part that costs
+ * someone an afternoon.
+ *
+ * DEDUPED ON THE BOX AND THE PROPERTY, AND THE DEDUPE IS CURRENTLY
+ * UNOBSERVABLE. The first version of this comment said measureNode
+ * runs more than once per box so "two boxes produced eight lines".
+ * That was reasoning, not a measurement, and measuring it refuted it:
+ * with the key forced open, a flat row with one child, a flat row with
+ * two, and nests one and two deep all produce exactly one line per box
+ * -- the same counts as with it closed.
+ *
+ * The key stays because it is three lines and it bounds a real risk:
+ * this warning rides the measure path, and a future solver that
+ * re-measures a subtree would otherwise repeat itself once per pass at
+ * a person. But nothing here demonstrates that today, and a falsifier
+ * that removes it passes, which is recorded rather than papered over.
+ */
+function resolveSize(box, prop, len, avail, ctx) {
+  const v = resolveLength(len, avail);
+  if (v == null && len != null && len.unit === '%' && ctx && ctx.warnings) {
+    const key = `${box.id}:${prop}`;
+    ctx.pctSeen = ctx.pctSeen || new Set();
+    if (!ctx.pctSeen.has(key)) {
+      ctx.pctSeen.add(key);
+      const el = box.el;
+      const where = el ? `<${el.tag}> line ${el.line}` : 'a box';
+      ctx.warnings.push(
+        `css: ${where} sets ${prop}: ${len.value}% but its container has no `
+        + `definite ${prop === 'width' || prop === 'min-width' || prop === 'max-width'
+            ? 'width' : 'height'}, so the percentage cannot resolve and is `
+        + 'treated as auto',
+      );
+    }
+  }
+  return v;
+}
+
 export function measureNode(box, availW, availH, ctx) {
   const s = box.style;
   const pb = paddingBorder(s);
@@ -116,8 +191,8 @@ export function measureNode(box, availW, availH, ctx) {
     const innerAvailW = availW == null ? null : availW - pb.left - pb.right;
     const t = measureText(box, innerAvailW, ctx.fonts);
     return {
-      w: clampSize(t.w + pb.left + pb.right, resolveLength(s.minWidth, availW), resolveLength(s.maxWidth, availW)),
-      h: clampSize(t.h + pb.top + pb.bottom, resolveLength(s.minHeight, availH), resolveLength(s.maxHeight, availH)),
+      w: clampSize(t.w + pb.left + pb.right, resolveSize(box, 'min-width', s.minWidth, availW, ctx), resolveSize(box, 'max-width', s.maxWidth, availW, ctx)),
+      h: clampSize(t.h + pb.top + pb.bottom, resolveSize(box, 'min-height', s.minHeight, availH, ctx), resolveSize(box, 'max-height', s.maxHeight, availH, ctx)),
     };
   }
 
@@ -155,8 +230,8 @@ export function measureNode(box, availW, availH, ctx) {
     };
   }
 
-  let w = resolveLength(s.width, availW);
-  let h = resolveLength(s.height, availH);
+  let w = resolveSize(box, 'width', s.width, availW, ctx);
+  let h = resolveSize(box, 'height', s.height, availH, ctx);
   if (w != null && h != null) return { w, h };
 
   const axis = axisOf(s);
@@ -205,7 +280,7 @@ export function computeFlexLines(container, innerMain, innerCross, place, ctx) {
   const s = container.style;
   const axis = axisOf(s);
   const gapMain = axis === ROW ? s.columnGap : s.rowGap;
-  const wrap = s.flexWrap === 'wrap';
+  const wrap = wraps(s);
 
   const items = container.children.map((box) => ({
     box,
@@ -310,7 +385,7 @@ function minContentSize(box, dim, ctx) {
   });
   if (childMin.length === 0) return pbSum;
   if (!queryIsMain) return Math.max(...childMin) + pbSum;
-  if (s.flexWrap === 'wrap') return Math.max(...childMin) + pbSum;
+  if (wraps(s)) return Math.max(...childMin) + pbSum;
   const gap = axis === ROW ? s.columnGap : s.rowGap;
   return childMin.reduce((a, b) => a + b, 0) + gap * (childMin.length - 1) + pbSum;
 }
@@ -362,6 +437,38 @@ function resolveFlexibleLengths(line, axis, innerMain, gapMain, ctx) {
     }
     free = innerMain - outerSum();
   }
+}
+
+/**
+ * `justify-content` as seen from main-START, which a reversed
+ * direction moves to the other end of the box.
+ *
+ * `flex-direction: row-reverse` does not merely reverse the items: it
+ * flips the main axis, so main-start IS the right edge and
+ * `justify-content: flex-start` packs against the right. The solver
+ * placed items left to right from a main-start lead and reversed only
+ * the order, which packed a reversed container from the LEFT with its
+ * items backwards.
+ *
+ * Swapping the two ends here is the whole fix, because everything
+ * downstream already works in main-start terms: reverse the order,
+ * then take the free space off the other end, and the result is the
+ * CSS placement.
+ *
+ * IT READ AS CORRECT BECAUSE THE OTHER THREE ARE SYMMETRIC. `center`,
+ * `space-between` and `space-around` distribute the same from either
+ * end, so reversing the order alone lands on identical pixels and only
+ * `flex-start` and `flex-end` were ever wrong -- the two nothing in
+ * this tree exercised. There was no example, no fixture and no test
+ * using `-reverse` at all when this was found, which is why a solver
+ * bug survived the cross-language pen: all three pens agreed, on the
+ * wrong answer, because none of them was ever asked. B4.
+ */
+function mainStartJustify(s) {
+  if (!isReverse(s)) return s.justifyContent;
+  if (s.justifyContent === 'flex-start') return 'flex-end';
+  if (s.justifyContent === 'flex-end') return 'flex-start';
+  return s.justifyContent;
 }
 
 function justifyOffsets(justify, free, count, gapMain) {
@@ -439,13 +546,21 @@ export function placeNode(box, x, y, w, h, ctx) {
 
   const lines = computeFlexLines(box, innerMain, innerCross, true, ctx);
 
-  // Multi-line cross distribution: lines stack from cross-start.
+  // Multi-line cross distribution: lines stack from cross-start, or
+  // from cross-END under `wrap-reverse`, which is the whole of what
+  // that keyword asks for once wrapping itself is honoured. Reversing
+  // the line array rather than the arithmetic keeps every offset below
+  // in cross-start terms, the same move mainStartJustify makes on the
+  // other axis.
   let crossPos = 0;
-  for (const line of lines) {
+  const stacked = wrapReverse(s) ? [...lines].reverse() : lines;
+  for (const line of stacked) {
     const used = line.items.reduce(
       (a, it) => a + it.mainSize + marginMain(axis, it.box.style), 0,
     ) + gapMain * Math.max(line.items.length - 1, 0);
-    const [lead, extra] = justifyOffsets(s.justifyContent, innerMain - used, line.items.length, gapMain);
+    const [lead, extra] = justifyOffsets(
+      mainStartJustify(s), innerMain - used, line.items.length, gapMain,
+    );
 
     let mainPos = lead;
     const ordered = isReverse(s) ? [...line.items].reverse() : line.items;

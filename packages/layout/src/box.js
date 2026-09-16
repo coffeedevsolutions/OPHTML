@@ -290,6 +290,26 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
       + 'the D-pad model has one focus ring; flatten the hierarchy.',
     );
   }
+  // THE GS SCISSOR IS A RECTANGLE, so `overflow: hidden` clips square
+  // however round the box is. The corners the author rounded are
+  // exactly where the difference shows: children run out to the
+  // straight edge and the radius becomes decoration behind them.
+  //
+  // Rounded clipping needs stencil or alpha work the runtime does not
+  // have -- B6 keeps that open -- so this is the honest half of it,
+  // said at compile time rather than discovered on a television. It
+  // fires on the box that does both, because either alone is fine:
+  // a rounded card that does not clip draws correctly, and a square
+  // one that clips clips correctly.
+  if (style.overflow === 'hidden' && style.borderRadius > 0) {
+    warnings.push(
+      `css: <${el.tag}> line ${el.line} sets overflow: hidden with `
+      + `border-radius: ${style.borderRadius}px; the clip is a rectangle, so `
+      + 'children are cut at the square edge and the rounded corners only '
+      + 'cover the background behind them',
+    );
+  }
+
   const scope = focusable ? box.id : focusScope;
   box.focusable = focusable;
   box.focusId = scope;

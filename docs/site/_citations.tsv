@@ -5,7 +5,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	856	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	158	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	203	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -42,7 +42,7 @@ examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
 examples/channel6	examples/channel6/ps2ui.json	1	{		  "screens": [
-examples/channel6	examples/channel6/ui/channel6.css	396	/* Bring-up step 7's instrument, and the reason data-keep exists.		 *
+examples/channel6	examples/channel6/ui/channel6.css	395	/* Bring-up step 7's instrument, and the reason data-keep exists.		 *
 examples/channel6	examples/channel6/ui/games.html	12	      <p class="value" data-slot="count" data-slot-capacity="4">6</p>	      <p class="label">TITLES</p>	    </div>
 examples/channel6	examples/channel6/ui/games.html	18	      <div class="tile" id="game-aurora" focusable autofocus>	    <div class="grid">	        <img class="cover" src="assets/cover-aurora.png" palettize>
 examples/channel6	examples/channel6/ui/probe.html	12	      <p class="value" data-slot="build" data-slot-capacity="12">ps2ui</p>	      <p class="label">BUILD</p>	    </div>

@@ -1092,3 +1092,191 @@ test('theme: a colour lint is reported per theme even when the message is identi
   assert.equal(contrast.length, 2, 'both themes fail and both must be named');
   assert.ok(contrast.some((w) => w.startsWith('@theme light:')));
 });
+
+// ------------------------------------------------------- reversed axes (B4)
+
+// WHAT `-reverse` MEANS, AND WHAT THIS TREE DID INSTEAD. In CSS,
+// `flex-direction: row-reverse` flips the main axis: main-START becomes
+// the right edge, so `justify-content: flex-start` packs against the
+// RIGHT. The solver reversed the item ORDER and left the packing end
+// alone, so a reversed container packed from the left with its items
+// backwards.
+//
+// It was right for `center`, `space-between` and `space-around` --
+// those distribute symmetrically, so reversing the order alone lands
+// on the same pixels. That is why the defect reads as correct in a
+// screenshot and is wrong in exactly the two cases nobody had a test
+// for: nothing in this repository used `-reverse` at all, not an
+// example, not a fixture, not a test.
+
+test('flex: row-reverse + flex-start packs against the RIGHT edge', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>',
+    '.r { display: flex; flex-direction: row-reverse; justify-content: flex-start;'
+    + '     width: 100px; height: 20px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }');
+  const [a, b] = rects(ir).slice(1);          // skip the container
+  // First child sits at the main-start end, which is the right edge.
+  assert.equal(a.x + a.w, 100, 'first child should touch the right edge');
+  assert.equal(b.x + b.w, a.x, 'second child sits immediately to its left');
+});
+
+test('flex: row-reverse + flex-end packs against the LEFT edge', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>',
+    '.r { display: flex; flex-direction: row-reverse; justify-content: flex-end;'
+    + '     width: 100px; height: 20px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }');
+  const [a, b] = rects(ir).slice(1);
+  assert.equal(b.x, 0, 'last child should touch the left edge');
+  assert.equal(a.x, b.x + b.w, 'first child sits immediately to its right');
+});
+
+test('flex: column-reverse + flex-start packs against the BOTTOM', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>',
+    '.r { display: flex; flex-direction: column-reverse; justify-content: flex-start;'
+    + '     width: 20px; height: 100px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }');
+  const [a, b] = rects(ir).slice(1);
+  assert.equal(a.y + a.h, 100, 'first child should touch the bottom edge');
+  assert.equal(b.y + b.h, a.y, 'second child sits immediately above it');
+});
+
+// THE ARM THAT MUST NOT MOVE. These three were already correct, by the
+// symmetry above, and a fix that changes them has broken something.
+test('flex: reversing does not move the symmetric justifications', () => {
+  const css = (dir, just) =>
+    `.r { display: flex; flex-direction: ${dir}; justify-content: ${just};`
+    + '     width: 100px; height: 20px; background: #000 }'
+    + '.a { width: 20px; height: 20px; background: #f00 }'
+    + '.b { width: 20px; height: 20px; background: #0f0 }';
+  const html =
+    '<screen name="s"><div class="r"><div class="a"></div><div class="b"></div></div></screen>';
+  for (const just of ['center', 'space-between', 'space-around']) {
+    const fwd = rects(compileCss(html, css('row', just))).slice(1);
+    const rev = rects(compileCss(html, css('row-reverse', just))).slice(1);
+    // Same occupied columns, whichever order the two boxes are named in.
+    const cols = (r) => r.map((c) => c.x).sort((p, q) => p - q);
+    assert.deepEqual(cols(rev), cols(fwd), `${just} should occupy the same columns`);
+  }
+});
+
+// `flex-wrap: wrap-reverse` was accepted and then ignored: css.js stores
+// the value unvalidated and the solver only ever compared it against
+// `'wrap'`, so a wrap-reverse container did not wrap at all. Worse than
+// a refusal, because the author wrote something, got no diagnostic, and
+// got neither the wrapping nor the reversed stacking.
+test('flex: wrap-reverse wraps, and stacks its lines from the bottom', () => {
+  const html = '<screen name="s"><div class="r">'
+    + '<div class="a"></div><div class="b"></div><div class="c"></div></div></screen>';
+  const css = (w) =>
+    `.r { display: flex; flex-direction: row; flex-wrap: ${w};`
+    + '     width: 50px; height: 60px; background: #000 }'
+    + '.a { width: 30px; height: 20px; background: #f00 }'
+    + '.b { width: 30px; height: 20px; background: #0f0 }'
+    + '.c { width: 30px; height: 20px; background: #00f }';
+
+  const fwd = rects(compileCss(html, css('wrap'))).slice(1);
+  const rev = rects(compileCss(html, css('wrap-reverse'))).slice(1);
+
+  // It wraps: three 30px items in a 50px box cannot share one row.
+  assert.equal(new Set(fwd.map((r) => r.y)).size, 3, 'wrap should make three lines');
+  assert.equal(new Set(rev.map((r) => r.y)).size, 3, 'wrap-reverse should wrap too');
+
+  // And the lines stack the other way: the first item is on the last line.
+  assert.equal(fwd[0].y, 0, 'wrap puts the first item on the top line');
+  assert.equal(rev[0].y, fwd[2].y, 'wrap-reverse puts it on the bottom line');
+  assert.equal(rev[2].y, 0, 'and the last item on the top line');
+});
+
+// ------------------------------------------- indefinite percentages (B7)
+
+// A percentage resolves against a DEFINITE containing size. A row
+// container with no width is measured shrink-to-fit, so its main axis
+// is indefinite while the children are being sized -- and there
+// `resolveLength` returns null, which every caller downstream reads as
+// `auto`. The author wrote a constraint, got a different layout, and
+// got nothing connecting the two.
+//
+// WHICH AXIS, MEASURED RATHER THAN ASSUMED. The first draft of these
+// tests used `height: 50%` in an auto-height column and did not
+// reproduce: this solver passes AVAILABLE space down, and the canvas
+// gives a definite height, so that percentage resolves against the
+// canvas. It is a real divergence from CSS -- the percentage should
+// see the parent, not the viewport -- but it is a different one, it is
+// not silent, and it is not what B7 describes. Left alone here.
+
+function warnings(ir) { return ir.warnings ?? []; }
+function pctWarnings(ir) { return warnings(ir).filter((m) => /cannot resolve/.test(m)); }
+
+test('lint: a percentage against an indefinite container is named', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="row"><div class="k">x</div></div></screen>',
+    '.row { display: flex; flex-direction: row; background: #000 }'
+    + '.k { width: 50%; color: #fff }');
+  const w = pctWarnings(ir);
+  assert.equal(w.length, 1, `expected one, got ${JSON.stringify(warnings(ir))}`);
+  assert.match(w[0], /width: 50%/);
+  assert.match(w[0], /auto/);
+});
+
+test('lint: a percentage against a definite container says nothing', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="row"><div class="k">x</div></div></screen>',
+    '.row { display: flex; flex-direction: row; width: 120px; background: #000 }'
+    + '.k { width: 50%; color: #fff }');
+  assert.deepEqual(pctWarnings(ir), []);
+});
+
+// ONE LINE PER BOX, WHICH IS AN ASSERTION ABOUT OVER-DEDUPING rather
+// than under. Keying the dedupe on the property alone, or on the
+// message text, collapses two offending boxes into one line and hides
+// the second from the author.
+//
+// It does NOT demonstrate the dedupe: measured with the key forced
+// open, this scene and three others still produce one line per box, so
+// removing the dedupe passes this test. That is recorded in
+// resolveSize's comment rather than dressed up here.
+test('lint: two offending boxes get two warnings, not one', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="row"><div class="k">x</div><div class="k">y</div></div></screen>',
+    '.row { display: flex; flex-direction: row; background: #000 }'
+    + '.k { width: 50%; color: #fff }');
+  assert.equal(pctWarnings(ir).length, 2);
+});
+
+// ------------------------------------ rounded corners under a clip (B6)
+
+// The GS scissor is a rectangle. `overflow: hidden` becomes a scissor,
+// so a rounded box that clips its children clips them SQUARE: the
+// corners the author rounded are exactly where the difference shows.
+// Rounded clipping needs stencil or alpha work the runtime does not
+// have, so this says so at compile time rather than on a television.
+test('lint: overflow hidden with a border-radius is named', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="card"><div class="in">x</div></div></screen>',
+    '.card { display: flex; flex-direction: column; overflow: hidden; border-radius: 8px;'
+    + '        width: 60px; height: 40px; background: #123 }'
+    + '.in { width: 80px; height: 20px; background: #f00 }');
+  const w = warnings(ir).filter((m) => /clip/.test(m) && /radius|round/.test(m));
+  assert.equal(w.length, 1, `expected one rounded-clip warning, got ${JSON.stringify(warnings(ir))}`);
+  assert.match(w[0], /8px/);
+});
+
+test('lint: a radius without a clip, and a clip without a radius, are silent', () => {
+  const rounded = compileCss(
+    '<screen name="s"><div class="card">x</div></screen>',
+    '.card { display: flex; flex-direction: column; border-radius: 8px;'
+    + '        width: 60px; height: 40px; background: #123; color: #fff }');
+  const clipped = compileCss(
+    '<screen name="s"><div class="card">x</div></screen>',
+    '.card { display: flex; flex-direction: column; overflow: hidden;'
+    + '        width: 60px; height: 40px; background: #123; color: #fff }');
+  for (const ir of [rounded, clipped]) {
+    assert.deepEqual(warnings(ir).filter((m) => /clip/.test(m) && /radius|round/.test(m)), []);
+  }
+});
