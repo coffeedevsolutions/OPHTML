@@ -1,0 +1,4 @@
+# Pinned so a docs deploy is reproducible. Dependabot does not watch this
+# file; bump by hand after checking `mkdocs build --strict` still passes.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
