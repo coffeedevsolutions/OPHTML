@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{#
+  The home page's <title> read "OPHTML - OPHTML".
+
+  Material renders `{{ page.meta.title }} - {{ site_name }}` for any page
+  carrying a frontmatter title, and only falls back to the bare site name
+  on a home page without one. Every page in docs/site/ carries a title by
+  contract, and the home page's title is the site name, so that fallback
+  never ran and the name doubled.
+
+  Overriding the block rather than deleting the page's meta title keeps
+  the change to the one thing that was wrong: partials/header.html reads
+  the same value for the header's scrolled topic, and should still show
+  the page's own title there.
+#}
+{% block htmltitle %}
+  {% if page.is_homepage %}
+    <title>{{ config.site_name }}</title>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}

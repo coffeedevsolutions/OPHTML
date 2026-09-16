@@ -10,6 +10,7 @@ delete it and the pages are unchanged.
 | `mkdocs.yml` | site configuration. `docs_dir` points at `../docs/site`, output goes to `website/build/` (gitignored). |
 | `hooks.py` | builds the navigation from each page's `section` and `order` frontmatter, rewrites `page:` links to site paths and `repo:` links to GitHub blob URLs pinned to the commit being built, and publishes `static/`. |
 | `static/` | the favicon and the stylesheet, served at `/static/`. |
+| `overrides/main.html` | one Material template override, so the home page's `<title>` does not repeat the site name. |
 | `requirements.txt` | pinned MkDocs and Material versions. |
 
 The deploy workflow is `.github/workflows/docs.yml`. It runs
@@ -52,9 +53,12 @@ with its key capitalised.
 Colours, fonts, the header icon, and the navigation features are the
 `theme:` block in `mkdocs.yml`; the Material reference at
 <https://squidfunk.github.io/mkdocs-material/setup/> documents each key.
-Page styling goes in `static/extra.css`. Template overrides, if ever
-needed, are a `custom_dir` under `theme:` pointing at a directory here,
-not inside `docs/site/`.
+Page styling goes in `static/extra.css`. Template overrides live in
+`overrides/`, named by `custom_dir` under `theme:`, and each one extends
+the Material template it replaces so the rest of the theme still applies.
+`main.html` is the only one, and its comment says why it exists. Keep it
+that way where a config key or a stylesheet rule would do: an override is
+a copy of a template this project does not maintain.
 
 `requirements.txt` pins MkDocs 1.6. Material prints a notice about MkDocs
 2.0 on every build; the pin is why it does not apply.
