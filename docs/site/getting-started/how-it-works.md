@@ -10,7 +10,7 @@ sources: [docs/site/ARCHITECTURE.md, docs/site/_facts/reference/ir-format.md, do
 
 # How it works
 
-![Three hand-drawn boxes, layout, baker and runtime, joined by two arrows labelled ui.json and .uib. Each box names its pen: layout measures, baker rasterizes, runtime draws.](../assets/getting-started/how-it-works/stages.svg)
+![Three boxes, layout, baker and runtime, joined by two arrows labelled ui.json and .uib. Each box names its pen: layout measures, baker rasterizes, runtime draws.](../assets/getting-started/how-it-works/stages.svg)
 
 ## The three stages
 

@@ -3,8 +3,10 @@
    renders well. */
 
 /* Screenshots are console frames on a dark ground; give each an edge so
-   the frame's own black edge reads as the picture, not the page. */
-.md-typeset img {
+   the frame's own black edge reads as the picture, not the page. The
+   figures are SVG and draw their own boxes on a transparent ground, so
+   a frame around them reads as a second, emptier box. */
+.md-typeset img:not([src$=".svg"]) {
   border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: 2px;
 }

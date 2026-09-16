@@ -42,6 +42,9 @@ hooks:
 
 theme:
   name: material
+  # Only overrides/main.html, and only to stop the home page's <title>
+  # from repeating the site name. See the comment in that file.
+  custom_dir: overrides
   # System fonts: no request to Google Fonts from a reader's browser.
   font: false
   icon:
