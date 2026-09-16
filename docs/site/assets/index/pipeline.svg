@@ -1,32 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 210" width="900" height="210" role="img" aria-labelledby="t d">
 <title id="t">The build pipeline from HTML and CSS to the console</title>
-<desc id="d">Four hand-drawn boxes joined by three arrows: HTML plus CSS, ui.json, .uib, C runtime. Each box names what it is: the source, the IR, the blob, the console.</desc>
-<g fill="none" stroke="#1a1a1a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" font-family="Segoe Print, 'Bradley Hand', 'Comic Sans MS', cursive" font-size="22">
-<!-- box 1: HTML + CSS -->
-<path d="M22,58 C60,52 152,50 190,56 C194,110 192,168 190,206 C130,212 60,210 24,204 C20,150 22,100 22,58 Z"/>
-<text x="106" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">HTML + CSS</text>
-<text x="106" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the source</text>
-<!-- box 2: ui.json -->
-<path d="M252,58 C290,52 382,50 420,56 C424,110 422,168 420,206 C360,212 290,210 254,204 C250,150 252,100 252,58 Z"/>
-<text x="336" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">ui.json</text>
-<text x="336" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the IR</text>
-<!-- box 3: .uib -->
-<path d="M482,58 C520,52 612,50 650,56 C654,110 652,168 650,206 C590,212 520,210 484,204 C480,150 482,100 482,58 Z"/>
-<text x="566" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">.uib</text>
-<text x="566" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the blob</text>
-<!-- box 4: C runtime -->
-<path d="M712,58 C750,52 842,50 880,56 C884,110 882,168 880,206 C820,212 750,210 714,204 C710,150 712,100 712,58 Z"/>
-<text x="796" y="108" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="19">C runtime</text>
-<text x="796" y="140" text-anchor="middle" stroke="none" fill="#1a1a1a" font-size="15">the console</text>
-<!-- arrow 1 -->
-<path d="M193,120 C210,116 220,124 240,120"/>
-<path d="M230,113 L242,120 L229,127"/>
-<!-- arrow 2 -->
-<path d="M423,120 C443,116 453,124 473,120"/>
-<path d="M463,113 L475,120 L462,127"/>
-<!-- arrow 3 -->
-<path d="M653,120 C673,116 683,124 703,120"/>
-<path d="M693,113 L705,120 L692,127"/>
+<desc id="d">Four boxes joined by three arrows: HTML plus CSS, ui.json, .uib, C runtime. Each box names what it is: the source, the IR, the blob, the console.</desc>
+<style>
+  /* Loaded through an img element, so currentColor cannot reach the
+     page's text colour. The site's palette follows the reader's system
+     preference, so the same media query keeps the figure with it. */
+  .box  { fill: #f7f8fb; stroke: #b6bac7; stroke-width: 1.5; }
+  .name { fill: #14151a; font: 600 19px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .role { fill: #5c606f; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .flow { fill: #8d91a1; stroke: #8d91a1; stroke-width: 1.5; }
+  .cap  { fill: #5c606f; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  @media (prefers-color-scheme: dark) {
+    .box  { fill: #2a2d3a; stroke: #565b70; }
+    .name { fill: #e8e9ee; }
+    .role { fill: #a9aec0; }
+    .flow { fill: #838aa3; stroke: #838aa3; }
+    .cap  { fill: #a9aec0; }
+  }
+</style>
+
+<rect class="box" x="21"  y="44" width="168" height="104" rx="6"/>
+<text class="name" x="105" y="90"  text-anchor="middle">HTML + CSS</text>
+<text class="role" x="105" y="116" text-anchor="middle">the source</text>
+
+<rect class="box" x="251" y="44" width="168" height="104" rx="6"/>
+<text class="name" x="335" y="90"  text-anchor="middle">ui.json</text>
+<text class="role" x="335" y="116" text-anchor="middle">the IR</text>
+
+<rect class="box" x="481" y="44" width="168" height="104" rx="6"/>
+<text class="name" x="565" y="90"  text-anchor="middle">.uib</text>
+<text class="role" x="565" y="116" text-anchor="middle">the blob</text>
+
+<rect class="box" x="711" y="44" width="168" height="104" rx="6"/>
+<text class="name" x="795" y="90"  text-anchor="middle">C runtime</text>
+<text class="role" x="795" y="116" text-anchor="middle">the console</text>
+
+<g class="flow">
+  <path d="M197,96 H239"/><path d="M239,91 L249,96 L239,101 Z" stroke="none"/>
+  <path d="M427,96 H469"/><path d="M469,91 L479,96 L469,101 Z" stroke="none"/>
+  <path d="M657,96 H699"/><path d="M699,91 L709,96 L699,101 Z" stroke="none"/>
 </g>
-<text x="450" y="240" text-anchor="middle" fill="#1a1a1a" font-family="Segoe Print, 'Bradley Hand', 'Comic Sans MS', cursive" font-size="15">authored once, on the build machine, then replayed every frame on the console</text>
+
+<text class="cap" x="450" y="186" text-anchor="middle">authored once, on the build machine, then replayed every frame on the console</text>
 </svg>
