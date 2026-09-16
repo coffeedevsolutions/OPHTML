@@ -7,6 +7,26 @@ Node ≥ 18, Python 3.9+ with Pillow, a C compiler, DejaVu Sans (or edit
 an accident: the layout package must stay zero-dependency, the baker
 Pillow-only.
 
+**On macOS, one more piece, and it is not Pillow.** Both macOS Pillow
+wheels compile Raqm *into* the binary and neither bundles fribidi,
+which Pillow `dlopen`s from the machine at run time — so a Mac without
+it reports `raqm=False` and `ps2ui fontgen` refuses to write metrics.
+The two baker tests that need the layout engine then skip (they are the
+only two that call `require_raqm`; the other font tests run off the
+vendored faces and are unaffected). Ask for the feature, not for the
+install:
+
+```sh
+python3 -c "from PIL import features; print(features.check('raqm'))"
+brew install fribidi        # if that printed False
+```
+
+Check the feature again afterwards: Pillow builds and installs happily
+without these and simply omits them, so pip's exit status answers a
+different question. If it is *still* false, run `ps2ui fontgen` with no
+arguments — its refusal prints the rebuild route for the machine you
+are on.
+
 ## Run the tests (all three, before every PR)
 
 ```sh

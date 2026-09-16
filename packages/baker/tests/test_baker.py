@@ -4225,7 +4225,16 @@ class TestProjectFile(unittest.TestCase):
                 os.path.join("build", "preview.png")))
             self.assertIsNone(proj.preview_path("montage"))
             # Every path is relative to the PROJECT, not the cwd.
-            self.assertTrue(proj.screens[0].html.startswith(tmp))
+            #
+            # realpath(tmp), not tmp: proj.root is resolved, because it
+            # is also the directory the build chdir's to. mkdtemp hands
+            # back the UNRESOLVED spelling, and on macOS the two differ
+            # -- /var/folders/... against /private/var/folders/... --
+            # so startswith(tmp) was an assertion about which spelling
+            # this platform's tempfile happens to return.
+            self.assertEqual(
+                proj.screens[0].html,
+                os.path.join(os.path.realpath(tmp), "ui", "a.html"))
             self.assertTrue(proj.screens[0].css.endswith("app.css"))
 
     def _check_argv(self, tmp, extra):
@@ -4473,6 +4482,62 @@ class TestProjectFile(unittest.TestCase):
                              "is supposed to be relative to the project")
             self.assertTrue(os.path.exists(
                 os.path.join(proj_dir, "build", "ui.uib")))
+
+    def test_a_project_under_a_depth_changing_symlink_builds(self):
+        require_ttf()
+        """THE WHOLE macOS SUITE, IN ONE SYMLINK.
+
+        `ps2ui build` relpath's every path against proj.root and then
+        chdir's to proj.root, so the `..` chain it writes is counted
+        from one spelling of the root and walked from another. chdir
+        resolves symlinks and abspath does not, so the two spellings
+        only agree while the symlink keeps the depth -- and macOS's
+        tempfile hands out /var/folders/..., where /var is a symlink to
+        /private/var, one component deeper. Three tests in this file
+        failed there and nowhere else, reporting a fonts.json that
+        "cannot be read" at a path with six `../` in it.
+
+        THIS IS WHY IT WAS LOOKED FOR AND NOT FOUND. The obvious probe
+        is a symlinked TMPDIR, and /tmp/link -> /tmp/real is the same
+        depth from either side: the miscount is zero, all 286 pass, and
+        the report reads like a story about some other cause. The
+        registry workflow's macos-contributor-suite carried a paragraph
+        saying exactly that, and it was wrong in one word -- the
+        symlink has to change the DEPTH, not merely exist.
+
+        So the link here lands two components deeper than it sits, and
+        the manifest is absolute, which is what makes the compiler's
+        argument a `..` chain rather than a name inside the project.
+        Revert project.py's realpath and this is an ENOENT on Linux.
+        """
+        import tempfile
+        from ps2ui_bake import ps2ui as front, project
+        with tempfile.TemporaryDirectory() as tmp:
+            real = os.path.join(tmp, "a", "b", "real")
+            os.makedirs(real)
+            link = os.path.join(tmp, "link")
+            os.symlink(real, link)
+            path = self.dev_project(link, ["s"])
+
+            # THE INVARIANT ITSELF, not only its consequence. The build
+            # below is the defect a person hit; this line is the rule
+            # that makes it one, and it is the thing a future reader
+            # has to keep true -- every relpath in ps2ui.py is against
+            # proj.root, and the process reads them from the cwd.
+            proj = project.load(path)
+            with front.in_project(proj):
+                self.assertEqual(os.getcwd(), proj.root,
+                                 "the project root is not the cwd it "
+                                 "chdir's to; every relative path the "
+                                 "compiler is handed is counted wrong")
+
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = front.main(["build", path])
+            out = err.getvalue()
+            self.assertEqual(rc, 0, out)
+            self.assertTrue(os.path.exists(
+                os.path.join(real, "build", "ui.uib")), out)
 
     # ------------------------------------------------------ ps2ui dev
 

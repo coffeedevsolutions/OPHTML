@@ -76,7 +76,31 @@ class Project:
 
     def __init__(self, path, data):
         self.path = path
-        self.root = os.path.dirname(os.path.abspath(path))
+        # realpath, NOT abspath: the root is also the CWD.
+        #
+        # in_project chdir's here and every path handed to the layout
+        # compiler is relpath'd against this, so the `..` chain in a
+        # relative path is counted from THIS spelling and walked from
+        # whatever os.getcwd() reports after the chdir. chdir resolves
+        # symlinks; abspath does not. When the two spellings sit at
+        # different depths the counts disagree and the path lands
+        # somewhere else entirely.
+        #
+        # That is the default on macOS, not a corner: tempfile hands
+        # out /var/folders/..., and /var is a symlink to /private/var,
+        # one component deeper. `ps2ui build` on any project under a
+        # temporary directory passed the compiler
+        # `../../../../../../Users/you/repo/fonts/fonts.json` -- six
+        # `..` counted from a seven-deep unresolved path, walked from
+        # an eight-deep real one, arriving at /private/Users. ENOENT,
+        # reported as an unreadable fonts.json.
+        #
+        # A symlinked TMPDIR alone does NOT reproduce it, which is why
+        # this stood while being looked for: /tmp/link -> /tmp/real is
+        # the same depth either way, the counts agree by accident and
+        # all 286 tests pass. The symlink has to CHANGE THE DEPTH. The
+        # test is test_a_project_under_a_depth_changing_symlink_builds.
+        self.root = os.path.realpath(os.path.dirname(os.path.abspath(path)))
         for key, default in DEFAULTS.items():
             setattr(self, _attr(key), data.get(key, default))
         self.screens = [self._screen(s, i)
