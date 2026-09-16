@@ -160,8 +160,26 @@ def on_config(config):
                             PAGES[pid], rel)
                 continue
             PAGES[pid] = rel
-            pages.append((meta.get("section", ""), int(meta.get("order", 0)),
-                          pid, meta.get("title", pid), rel))
+
+            # Both fields decide where the page lands in the nav, and a
+            # bad one is a page defect: warn naming the page, which
+            # --strict turns into a failed build, rather than raising a
+            # traceback that names no page or building a nav nobody
+            # reads. A local `mkdocs serve` still renders, wrong but
+            # visibly so.
+            section = meta.get("section", "").strip()
+            if not section:
+                log.warning("%s (%s) has no section in its frontmatter, so "
+                            "it has no nav heading to sit under", rel, pid)
+            raw_order = meta.get("order", "0")
+            try:
+                order = int(raw_order)
+            except (TypeError, ValueError):
+                log.warning("%s (%s) has order %r, which is not a whole "
+                            "number; ordering it first", rel, pid, raw_order)
+                order = 0
+
+            pages.append((section, order, pid, meta.get("title", pid), rel))
 
     # Sections in architecture order, then any unknown section by the
     # order of its first page. Pages inside a section by order, then id.
@@ -177,7 +195,12 @@ def on_config(config):
     unknown = sorted((s for s in by_section if s not in SECTIONS and s != "root"),
                      key=lambda s: by_section[s][0][0])
     for section in known + unknown:
-        title = SECTIONS.get(section, section.replace("-", " ").capitalize())
+        # The final fallback catches the sectionless page warned about
+        # above: a named tab is wrong and obvious, a blank one is wrong
+        # and invisible.
+        title = (SECTIONS.get(section)
+                 or section.replace("-", " ").capitalize()
+                 or "Unsectioned")
         entries = [{t: rel} for (_, pid, t, rel) in by_section[section]
                    if pid != "index"]
         nav.append({title: entries})
