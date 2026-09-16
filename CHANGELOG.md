@@ -67,7 +67,11 @@ without moving this line.
   the same from either end, so only `flex-start` and `flex-end` were
   ever wrong. Nothing in the repository used `-reverse` at all — no
   example, no fixture, no test — which is why three pens agreed on it.
-  Every example rebuilds byte-identical.
+
+  **The solver change is byte-neutral**: all three example blobs are
+  identical across it, verified by building the head solver against the
+  unmodified stylesheets. `channel6`'s blob does move in this release,
+  by the `border-radius` line the B6 warning found — see below.
 
 - **`flex-wrap: wrap-reverse` was accepted and then ignored.** The
   value was stored unvalidated and only ever compared against
