@@ -74,6 +74,28 @@ without moving this line.
   `'wrap'`, so such a container did not wrap and did not stack its
   lines in reverse. It now does both.
 
+- **A percentage with nothing to resolve against is now named.** A
+  `%` size needs a definite containing size; a shrink-to-fit row has
+  none while its children are being measured, so `width: 50%` there
+  resolved to null and every caller downstream read null as `auto`.
+  The author wrote a constraint, got a different layout, and got
+  nothing connecting the two. The compiler now says so (B7).
+
+  It warns rather than implementing CSS's fallbacks, which are
+  per-property and subtle; getting them subtly wrong would replace a
+  visible silence with an invisible disagreement.
+
+- **A rounded box that clips is now named.** The GS scissor is a
+  rectangle, so `overflow: hidden` clips square however round the box
+  is — the corners the author rounded are exactly where children run
+  out to the straight edge. Rounded clipping needs stencil or alpha
+  work the runtime does not have (B6 stays open); this is the honest
+  half, said at compile time.
+
+  It found one in this repository's own conformance card, where
+  `.scissor` set both. The decorative radius is gone and
+  `examples/channel6/screenshots/probe.png` regenerates with it.
+
 - **`ps2ui dev` accepted `--strict` and `--min-font-size` and read
   neither.** `ps2ui-dev` stored them as `options.strict` and
   `options.minFontSize`; the compiler takes lint overrides from

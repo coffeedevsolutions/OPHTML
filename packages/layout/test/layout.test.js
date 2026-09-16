@@ -1192,3 +1192,91 @@ test('flex: wrap-reverse wraps, and stacks its lines from the bottom', () => {
   assert.equal(rev[0].y, fwd[2].y, 'wrap-reverse puts it on the bottom line');
   assert.equal(rev[2].y, 0, 'and the last item on the top line');
 });
+
+// ------------------------------------------- indefinite percentages (B7)
+
+// A percentage resolves against a DEFINITE containing size. A row
+// container with no width is measured shrink-to-fit, so its main axis
+// is indefinite while the children are being sized -- and there
+// `resolveLength` returns null, which every caller downstream reads as
+// `auto`. The author wrote a constraint, got a different layout, and
+// got nothing connecting the two.
+//
+// WHICH AXIS, MEASURED RATHER THAN ASSUMED. The first draft of these
+// tests used `height: 50%` in an auto-height column and did not
+// reproduce: this solver passes AVAILABLE space down, and the canvas
+// gives a definite height, so that percentage resolves against the
+// canvas. It is a real divergence from CSS -- the percentage should
+// see the parent, not the viewport -- but it is a different one, it is
+// not silent, and it is not what B7 describes. Left alone here.
+
+function warnings(ir) { return ir.warnings ?? []; }
+function pctWarnings(ir) { return warnings(ir).filter((m) => /cannot resolve/.test(m)); }
+
+test('lint: a percentage against an indefinite container is named', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="row"><div class="k">x</div></div></screen>',
+    '.row { display: flex; flex-direction: row; background: #000 }'
+    + '.k { width: 50%; color: #fff }');
+  const w = pctWarnings(ir);
+  assert.equal(w.length, 1, `expected one, got ${JSON.stringify(warnings(ir))}`);
+  assert.match(w[0], /width: 50%/);
+  assert.match(w[0], /auto/);
+});
+
+test('lint: a percentage against a definite container says nothing', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="row"><div class="k">x</div></div></screen>',
+    '.row { display: flex; flex-direction: row; width: 120px; background: #000 }'
+    + '.k { width: 50%; color: #fff }');
+  assert.deepEqual(pctWarnings(ir), []);
+});
+
+// ONE LINE PER BOX, WHICH IS AN ASSERTION ABOUT OVER-DEDUPING rather
+// than under. Keying the dedupe on the property alone, or on the
+// message text, collapses two offending boxes into one line and hides
+// the second from the author.
+//
+// It does NOT demonstrate the dedupe: measured with the key forced
+// open, this scene and three others still produce one line per box, so
+// removing the dedupe passes this test. That is recorded in
+// resolveSize's comment rather than dressed up here.
+test('lint: two offending boxes get two warnings, not one', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="row"><div class="k">x</div><div class="k">y</div></div></screen>',
+    '.row { display: flex; flex-direction: row; background: #000 }'
+    + '.k { width: 50%; color: #fff }');
+  assert.equal(pctWarnings(ir).length, 2);
+});
+
+// ------------------------------------ rounded corners under a clip (B6)
+
+// The GS scissor is a rectangle. `overflow: hidden` becomes a scissor,
+// so a rounded box that clips its children clips them SQUARE: the
+// corners the author rounded are exactly where the difference shows.
+// Rounded clipping needs stencil or alpha work the runtime does not
+// have, so this says so at compile time rather than on a television.
+test('lint: overflow hidden with a border-radius is named', () => {
+  const ir = compileCss(
+    '<screen name="s"><div class="card"><div class="in">x</div></div></screen>',
+    '.card { display: flex; flex-direction: column; overflow: hidden; border-radius: 8px;'
+    + '        width: 60px; height: 40px; background: #123 }'
+    + '.in { width: 80px; height: 20px; background: #f00 }');
+  const w = warnings(ir).filter((m) => /clip/.test(m) && /radius|round/.test(m));
+  assert.equal(w.length, 1, `expected one rounded-clip warning, got ${JSON.stringify(warnings(ir))}`);
+  assert.match(w[0], /8px/);
+});
+
+test('lint: a radius without a clip, and a clip without a radius, are silent', () => {
+  const rounded = compileCss(
+    '<screen name="s"><div class="card">x</div></screen>',
+    '.card { display: flex; flex-direction: column; border-radius: 8px;'
+    + '        width: 60px; height: 40px; background: #123; color: #fff }');
+  const clipped = compileCss(
+    '<screen name="s"><div class="card">x</div></screen>',
+    '.card { display: flex; flex-direction: column; overflow: hidden;'
+    + '        width: 60px; height: 40px; background: #123; color: #fff }');
+  for (const ir of [rounded, clipped]) {
+    assert.deepEqual(warnings(ir).filter((m) => /clip/.test(m) && /radius|round/.test(m)), []);
+  }
+});

@@ -173,7 +173,10 @@ export function compile(htmlSrc, cssSrc, options = {}) {
     );
   }
 
-  const ctx = { fonts };
+  // `warnings` rides along so the solver can name a percentage that
+  // had no definite container to resolve against -- the one moment
+  // that fact exists, and it is gone by the time paint runs (B7).
+  const ctx = { fonts, warnings };
   layoutTree(root, canvasW, canvasH, ctx);
 
   const themeNames = sheet.themeNames ?? ['root'];
