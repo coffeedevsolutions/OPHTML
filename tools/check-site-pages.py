@@ -32,6 +32,25 @@ _facts/, ARCHITECTURE.md and the READMEs:
      ones it cannot place are reported for a hand fix. A citation with
      no record, or a record with no citation, fails until `--pin` is
      run, so the record stays exact.
+  4b. THE SAME FOR A FACTS ROW'S `source` CELL, which is where the
+     evidence for every claim lives and which nothing checked until
+     0.7.0. `packages/layout/src/css.js:598-655` is pinned, drifts and
+     relocates exactly as a `repo:` link does, keyed on the first line
+     of a range so the range moves as a unit.
+
+     WHY IT WAS WORTH ADDING, measured when it was: 1087 line-anchored
+     facts citations in the library and 266 of them had drifted. One
+     was broken by the pull request two before this one, which
+     inserted a set above GEOMETRY_PROPS -- so the row about the focus
+     guard cited a different set with a similar shape, in the file the
+     row is about, four commits after a neighbouring row in the same
+     file had been re-measured by hand. The page half of this record
+     would have caught that in a page; the row carrying the evidence
+     was the half with no fence.
+
+     `--pin` AFTER FIXING THE DRIFT, NEVER BEFORE. It writes the
+     record from the tree as it stands, so pinning first would have
+     rubber-stamped all 266.
   5. Voice: the forbidden words and phrases from ARCHITECTURE.md, em
      dashes and exclamation marks, all outside code, backticks and
      table rows. `Play!` is the emulator's name and is allowed.
@@ -66,6 +85,22 @@ FORBIDDEN_RE = re.compile(
 
 PAGE_LINK = re.compile(r"\(page:([^)#\s]+)(?:#([^)\s]+))?\)")
 REPO_LINK = re.compile(r"\(repo:([^)#\s]+)(?:#L(\d+)(?:-L?(\d+))?)?\)")
+
+# A facts row's `source` cell: `packages/layout/src/css.js:598-655`.
+#
+# THE UNGUARDED HALF OF THE CITATION STORY. A page's repo: link is
+# pinned above and goes red when its line moves. A facts row's source
+# cell is where the EVIDENCE for every claim lives, and until 0.7.0 it
+# was checked by nothing -- so it drifted silently and the row still
+# read `verified`.
+#
+# Measured when this was added, over the whole library: 1087
+# line-anchored citations, 266 of them drifted. One was broken by the
+# pull request two before this one, which inserted a set above
+# GEOMETRY_PROPS: css.focus.geometry-props then cited a different set
+# with a similar shape, in the file the row is about.
+FACTS_CITE = re.compile(
+    r"((?:packages|runtime|tools|examples|fonts|docs)/[\w./-]+?):(\d+)(?:-(\d+))?")
 IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
 
@@ -148,6 +183,25 @@ def headings(text):
         if m:
             out.add(slug(m.group(1)))
     return out
+
+
+def facts_rows():
+    """(facts id, row index, source cell) for every row under _facts/."""
+    base = os.path.join(SITE, "_facts")
+    for dirpath, _, names in os.walk(base):
+        for name in sorted(names):
+            if not name.endswith(".md"):
+                continue
+            full = os.path.join(dirpath, name)
+            fid = "_facts/" + os.path.relpath(full, base)[:-3]
+            lines = open(full, encoding="utf-8").read().split("\n")
+            for i, line in enumerate(lines):
+                if not line.startswith("| ") or line.startswith("|---"):
+                    continue
+                cells = line.split(" | ")
+                if len(cells) < 4 or cells[0].lstrip("| ").strip() == "id":
+                    continue
+                yield fid, full, i, cells
 
 
 def file_lines(path):
@@ -279,6 +333,41 @@ def main(argv):
             elif records[key][0] != current[0]:
                 drifted.append((pid, path, first, last, records[key], current,
                                 m.group(0)[1:-1]))
+    # 4b. THE SAME TREATMENT FOR A FACTS ROW'S `source` CELL.
+    #
+    # Same record, same drift test, same relocation; only the place the
+    # citation is written differs. Keyed on the first line of a range
+    # exactly as a repo: link is, so a range moves as a unit.
+    n_facts = 0
+    facts_drift = []
+    facts_text = {}
+    for fid, full, idx, cells in facts_rows():
+        facts_text.setdefault(full, open(full, encoding="utf-8").read()
+                              .split("\n"))
+        for m in FACTS_CITE.finditer(cells[2]):
+            path = m.group(1)
+            if not os.path.isfile(os.path.join(ROOT, path)):
+                continue          # prose naming a path that is not a file
+            lines = file_lines(path)
+            first = int(m.group(2))
+            last = int(m.group(3)) if m.group(3) else first
+            if not (1 <= first <= last <= len(lines)):
+                bad("%s: %s:%d cites past the end of the file (%d lines)"
+                    % (fid, path, first, len(lines)))
+                continue
+            n_facts += 1
+            key = (fid, path, first)
+            seen.add(key)
+            current = window(lines, first)
+            if mode == "pin":
+                records[key] = current
+            elif key not in records:
+                bad("%s: %s:%d has no record in _citations.tsv; run "
+                    "tools/check-site-pages.py --pin" % (fid, path, first))
+            elif records[key][0] != current[0]:
+                facts_drift.append((fid, full, idx, path, first, last,
+                                    records[key], current, m.group(0)))
+
     if mode == "pin":
         records = {k: v for k, v in records.items() if k in seen}
         write_pin(records)
@@ -332,10 +421,61 @@ def main(argv):
             records.pop(key, None)
         records.update(added)
         write_pin(records)
+    # Relocation for the facts rows. One rewrite per row, applied to
+    # the whole source cell at once, for the same reason the page pass
+    # keys on the exact reference text: a row citing :598 and :656
+    # shifts both, and two sequential replaces would move the first
+    # twice.
+    facts_edits = {}
+    for fid, full, idx, path, first, last, want, got, ref in facts_drift:
+        if mode != "fix":
+            bad("%s: %s:%d cites a line that changed since it was pinned"
+                "\n    pinned: %s\n    now:    %s"
+                % (fid, path, first, want[0].strip(), got[0].strip()))
+            continue
+        lines = file_lines(path)
+        where = [i + 1 for i, ln in enumerate(lines) if ln == want[0]]
+        if len(where) > 1:
+            narrowed = [n for n in where
+                        if window(lines, n)[1] == want[1]
+                        and window(lines, n)[2] == want[2]]
+            if len(narrowed) == 1:
+                where = narrowed
+        if len(where) != 1:
+            bad("%s: %s:%d drifted and the pinned line occurs %d time(s); "
+                "move it by hand\n    pinned: %s"
+                % (fid, path, first, len(where), want[0].strip()))
+            continue
+        new_first = where[0]
+        new_ref = "%s:%d" % (path, new_first)
+        if last != first:
+            new_ref += "-%d" % (new_first + last - first)
+        facts_edits.setdefault((full, idx), []).append((ref, new_ref))
+        removed.add((fid, path, first))
+        added[(fid, path, new_first)] = window(lines, new_first)
+        oks.append("ok - %s: moved %s:%d to :%d" % (fid, path, first, new_first))
+
+    for (full, idx), pairs in facts_edits.items():
+        lines = facts_text[full]
+        cells = lines[idx].split(" | ")
+        for old_ref, new_ref in pairs:
+            cells[2] = cells[2].replace(old_ref, new_ref, 1)
+        lines[idx] = " | ".join(cells)
+    for full, lines in facts_text.items():
+        if any(k[0] == full for k in facts_edits):
+            open(full, "w", encoding="utf-8").write("\n".join(lines))
+    if mode == "fix" and facts_edits:
+        for key in removed:
+            records.pop(key, None)
+        records.update(added)
+        write_pin(records)
+
     if mode != "pin":
         oks.append("ok - %d repo: links name files in the tree; %d line "
                    "citations checked against _citations.tsv"
                    % (n_repo, n_pinned))
+        oks.append("ok - %d facts-row source citations checked against "
+                   "_citations.tsv" % n_facts)
 
     # 5. voice, 6. images, 7. word budget
     for pid, text in texts.items():

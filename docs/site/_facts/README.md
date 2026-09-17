@@ -9,7 +9,7 @@ handoff to dependent pages. Path: `_facts/<page-id>.md`.
 
 | id | fact | source | verified by | status |
 |---|---|---|---|---|
-| slot.capacity.default | data-slot-capacity defaults to 63 | packages/layout/src/box.js:212 | compiled a slot with no capacity; ir.slots[0].capacity == 63 | verified |
+| slot.capacity.default | data-slot-capacity defaults to 63 | packages/layout/src/box.js:215 | compiled a slot with no capacity; ir.slots[0].capacity == 63 | verified |
 | slot.lookup.global | ps2ui_slot_set resolves over the whole blob | runtime/ps2ui.c:1398 | runtime/tests/test_runtime.c "dynamic text (F2)" | verified |
 ```
 

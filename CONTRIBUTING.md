@@ -72,12 +72,22 @@ skip flag that everyone passes within a week. The list is for a person
 to read. Acting on it is the rule; the tool only makes the rule cheap.
 
 **One part of this does gate, and it is the part that can.**
-`tools/check-site-pages.py` fails when a `repo:<path>#L<n>` citation in
-the library points at a line whose text has changed, because that is a
-fact rather than a judgement — the pinned text either still sits there
-or it does not. Move a line and it goes red; `--fix` relocates the
-citation when the recorded line is findable, and reports the rest for a
-hand fix. Run it before you push:
+`tools/check-site-pages.py` fails when a citation in the library points
+at a line whose text has changed, because that is a fact rather than a
+judgement — the pinned text either still sits there or it does not.
+Move a line and it goes red; `--fix` relocates the citation when the
+recorded line is findable, and reports the rest for a hand fix.
+
+**Both halves are gated as of 0.7.0.** It has always covered a page's
+`repo:<path>#L<n>` links. It now also covers the `source` cell of every
+`_facts` row — `packages/layout/src/css.js:598-655` — which is where
+the evidence for every claim lives and which nothing checked before.
+That was not a theoretical gap: when the check was added, **266 of the
+1087 facts citations had drifted**, one of them broken by a pull
+request that inserted a set above `GEOMETRY_PROPS` four commits after a
+neighbouring row in the same file had been re-measured by hand. If you
+move code, run this; 1087 of those citations now move with you or go
+red. Run it before you push:
 
 ```sh
 python3 tools/check-site-pages.py           # or --fix, then re-read the diff
