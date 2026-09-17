@@ -4437,7 +4437,6 @@ class TestProjectFile(unittest.TestCase):
                 self.assertTrue(os.path.exists(s.css), s.css)
 
     def test_build_prints_paths_relative_to_the_project_not_the_cwd(self):
-        require_ttf()
         """"Every path is relative to the project" must hold for OUTPUT.
 
         The first version printed the absolute path of everything it
@@ -4451,6 +4450,7 @@ class TestProjectFile(unittest.TestCase):
         example's build.sh invokes it: `ps2ui build "$here/ps2ui.json"`
         from the repository root.
         """
+        require_ttf()
         import tempfile
         import json as _json
         from ps2ui_bake import ps2ui as front
@@ -4484,7 +4484,6 @@ class TestProjectFile(unittest.TestCase):
                 os.path.join(proj_dir, "build", "ui.uib")))
 
     def test_a_project_under_a_depth_changing_symlink_builds(self):
-        require_ttf()
         """THE WHOLE macOS SUITE, IN ONE SYMLINK.
 
         `ps2ui build` relpath's every path against proj.root and then
@@ -4510,6 +4509,7 @@ class TestProjectFile(unittest.TestCase):
         argument a `..` chain rather than a name inside the project.
         Revert project.py's realpath and this is an ENOENT on Linux.
         """
+        require_ttf()
         import tempfile
         from ps2ui_bake import ps2ui as front, project
         with tempfile.TemporaryDirectory() as tmp:
@@ -4638,7 +4638,6 @@ class TestProjectFile(unittest.TestCase):
             self.assertEqual(front.pick_screen(proj, None).name, "only")
 
     def test_dev_builds_with_a_fonts_manifest_and_stays_out_of_build(self):
-        require_ttf()
         """TWO FAILURES THAT MADE `ps2ui dev` UNRUNNABLE, together.
 
         It appended `--fonts <manifest>` to a tool that did not accept
@@ -4652,6 +4651,7 @@ class TestProjectFile(unittest.TestCase):
         preview.png, and leaving a ui.json that `ps2ui build` never
         writes, since it names intermediates after the screen.
         """
+        require_ttf()
         from ps2ui_bake import ps2ui as front
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
@@ -4745,7 +4745,6 @@ class TestProjectFile(unittest.TestCase):
                              os.path.join("build", "games-widescreen.json"))
 
     def test_a_second_build_does_not_stand_on_the_first(self):
-        require_ttf()
         """The regression, reproduced: two builds into one directory.
 
         channel6 bakes a second blob at 16:9 from the same sources, and
@@ -4755,6 +4754,7 @@ class TestProjectFile(unittest.TestCase):
         render under the 4:3 name, and two documents sent a reader to a
         file that was no longer produced.
         """
+        require_ttf()
         import tempfile
         import json as _json
         from ps2ui_bake import ps2ui as front
