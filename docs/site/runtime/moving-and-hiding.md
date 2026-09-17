@@ -4,7 +4,7 @@ title: Moving and hiding
 description: Hide a focus node's subtree at runtime, and translate everything the next render draws.
 section: runtime
 order: 45
-version: 0.6.0
+version: 0.7.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/stub/gskit_stub.h, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, packages/baker/tests/test_baker.py, packages/layout/src/box.js, CHANGELOG.md, examples/memcard/build/ui.uib]
 ---
 

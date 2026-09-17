@@ -4,7 +4,7 @@ title: HTML
 description: What the ps2ui parser accepts, every attribute the compiler reads, and every hard error the markup can raise.
 section: authoring
 order: 11
-version: 0.6.0
+version: 0.7.0
 sources: [packages/layout/src/html.js, packages/layout/src/box.js, packages/layout/src/repeat.js, packages/layout/src/focus.js, packages/layout/src/css.js, packages/layout/test/parse.test.js, packages/layout/test/fonts.test.js, docs/tutorial-uc3.md, examples/memcard/ui/library.html, README.md]
 ---
 

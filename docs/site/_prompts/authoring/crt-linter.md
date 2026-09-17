@@ -92,7 +92,7 @@ title: CRT linter
 description: <one sentence>
 section: authoring
 order: 21
-version: 0.6.0
+version: 0.7.0
 sources: [<every repository path opened>]
 ---
 ```

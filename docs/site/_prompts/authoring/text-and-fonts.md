@@ -95,7 +95,7 @@ title: Text and fonts
 description: <one sentence>
 section: authoring
 order: 13
-version: 0.6.0
+version: 0.7.0
 sources: [<every repository path opened>]
 ---
 ```

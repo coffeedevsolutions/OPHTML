@@ -90,7 +90,7 @@ title: opl-env
 description: <one sentence>
 section: examples
 order: 61
-version: 0.6.0
+version: 0.7.0
 sources: [<every repository path opened>]
 ---
 ```
