@@ -70,7 +70,16 @@ without moving this line.
   heavier of the two weights, so the box is sized for bold and one
   baked layout holds both states. Bolding the focused row is the
   ordinary thing a console UI does, so the fix is to make it work
-  rather than to refuse it; the unfocused line sits a little loose.
+  rather than to refuse it.
+
+  **And the cost of that is now said out loud**, because it is bigger
+  than "a little slack at the end of the line". On wrapping text the
+  unfocused state — the one on screen almost all the time — is wrapped
+  at the bold face's break points, so it breaks differently, and at some
+  widths it gains a line and the box grows taller in both states; in a
+  column, everything below moves. Swept over one string at seven widths,
+  the line count moves at 170px and 250px and holds at the other five,
+  and the compiler warns at exactly those two, naming both counts.
 
   `letter-spacing`, `text-align` and `text-overflow` **are now compile
   errors under `:focus`**, with a message of their own rather than the

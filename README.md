@@ -251,10 +251,17 @@ would parse, apply and then be silently dropped.
 **`font-weight` is the exception, and it is measured for.** Bolding the
 focused row is the ordinary thing a console UI does, so it is allowed —
 and the box is measured at the heavier of the two weights, which is how
-one baked layout holds both states. The unfocused line then sits a
-little loose in a box sized for bold. Before 0.7.0 the weight was
-honoured when drawing and ignored when measuring, so a focused row drew
-past the box it was measured into.
+one baked layout holds both states. Before 0.7.0 the weight was honoured
+when drawing and ignored when measuring, so a focused row drew past the
+box it was measured into.
+
+That has a cost, and it is bigger than it looks. On a single line it is
+slack at the end of it. **On wrapping text the unfocused state — the one
+on screen almost all the time — is wrapped at the bold face's break
+points**, so it breaks differently, and at some widths it gains a line
+and the box grows taller whether or not it is focused. In a column,
+everything below moves. The compiler warns when the line count changes,
+naming both counts; widen the box, or move the weight to the base rule.
 
 **A `:focus` rule whose element is not `focusable` now warns.** It
 cannot ever apply, and it used to compile to silence — indistinguishable

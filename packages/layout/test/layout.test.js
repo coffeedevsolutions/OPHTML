@@ -76,6 +76,47 @@ test('focus: a box with no focus weight delta is measured exactly as before', ()
   assert.equal(t.weight, 400);
 });
 
+test('focus: sizing for bold that costs a line is a warning, at the widths it costs one', () => {
+  // THE COST OF THE TRADE, SAID OUT LOUD. Measuring at the heavier
+  // weight is what stops a focused row drawing outside its box, and on
+  // one line the cost is slack at the end of it. Wrapping text
+  // re-breaks: the UNFOCUSED state, on screen almost all the time, is
+  // wrapped at the bold face's break points, and at some widths it
+  // gains a line and the box grows -- moving everything below it in a
+  // column.
+  //
+  // Swept rather than spot-checked, because the claim is about WHICH
+  // widths: a warning that fired on every bolded box would be noise,
+  // and one that fired on none would be the silence this PR is about.
+  // 170 and 250 are the two widths where the line count moves, and 150,
+  // 190 and 300 are three where it does not.
+  const html = '<div class="w"><div class="r" focusable>'
+             + 'Shadow of the Colossus and other long titles</div></div>';
+  const sheet = (w, focusRule) =>
+    '.w { flex-direction: column; align-items: flex-start }'
+    + `.r { font-size: 20px; font-weight: 400; background: #223344; width: ${w}px }`
+    + focusRule;
+
+  const warnsAt = (w, focusRule) => {
+    const ir = compile(html, sheet(w, focusRule), { fonts });
+    return ir.warnings.filter((x) => /measured for the heavier face/.test(x)).length;
+  };
+
+  for (const w of [170, 250]) {
+    assert.equal(warnsAt(w, '.r:focus { font-weight: 700 }'), 1,
+                 `width ${w} gains a line under the bold face and did not warn`);
+  }
+  for (const w of [150, 190, 300]) {
+    assert.equal(warnsAt(w, '.r:focus { font-weight: 700 }'), 0,
+                 `width ${w} keeps its line count and should not warn`);
+  }
+  // And nothing at all without a weight delta, at every width above.
+  for (const w of [150, 170, 190, 250, 300]) {
+    assert.equal(warnsAt(w, '.r:focus { color: #ff0000 }'), 0,
+                 `width ${w} warned with no font-weight delta`);
+  }
+});
+
 // ------------------------------------------------------------------ text
 
 test('text: the shared rounding rule is floor(units*size/1000 + 0.5)', () => {

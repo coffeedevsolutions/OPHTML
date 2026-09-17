@@ -106,7 +106,7 @@ The seven list functions are also on the [C API reference](page:runtime/api-refe
 
 ### Expansion
 
-The expansion pass runs before styles are computed, so the cascade sees N ordinary elements. Substitution rewrites attribute values and text nodes together. Give each copy a distinct `id` and distinct slot names, or the copies address the same thing. [layout.test.js](repo:packages/layout/test/layout.test.js#L913) asserts that a repeated row and a typed-out row produce identical command lists.
+The expansion pass runs before styles are computed, so the cascade sees N ordinary elements. Substitution rewrites attribute values and text nodes together. Give each copy a distinct `id` and distinct slot names, or the copies address the same thing. [layout.test.js](repo:packages/layout/test/layout.test.js#L954) asserts that a repeated row and a typed-out row produce identical command lists.
 
 A count above 1 with no `{i}` and no `{n}` anywhere in the subtree warns and compiles. The check reads descendant attributes too, so `{i}` on a nested `data-slot` alone is enough.
 
