@@ -5,7 +5,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	856	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	234	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	254	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -114,10 +114,10 @@ runtime/errors-and-constants	packages/baker/ps2ui_bake/uib.py	49	VERSION = 7	MAG
 runtime/errors-and-constants	packages/baker/ps2ui_bake/uib.py	356	    feature_flags = FEAT_DYNAMIC_TEXT if (font_entries or slot_entries) else 0		    # Set only when a font actually carries pairs, so the runtime can
 runtime/errors-and-constants	packages/baker/ps2ui_bake/uib.py	377	    if n_theme > 1:	    # clear and stays byte-identical to what v7 wrote.	        feature_flags |= FEAT_ROLE_TINTS
 runtime/errors-and-constants	packages/baker/ps2ui_bake/vendor.py	190	    # PS2UI_VERSION does not save this. ps2ui.c rejects a blob whose	    #	    # version disagrees, which sounds like the backstop -- but of 30
-runtime/errors-and-constants	runtime/Makefile	154	\t\t-DPS2UI_CLUT_PERMUTE=0 -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c	\t@$(CC) -std=c99 -Wall -Werror -fsyntax-only \\	\t@echo "ok - runtime compiles: -DPS2UI_CLUT_PERMUTE=0"
-runtime/errors-and-constants	runtime/Makefile	158	\t\t-DPS2UI_PRIMALPHA_OFF -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c	\t@$(CC) -std=c99 -Wall -Werror -fsyntax-only \\	\t@echo "ok - runtime compiles: -DPS2UI_PRIMALPHA_OFF"
-runtime/errors-and-constants	runtime/Makefile	165	\t\t-DPS2UI_SKIP_SYNCDCACHE -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c	\t@$(CC) -std=c99 -Wall -Werror -fsyntax-only \\	\t@echo "ok - runtime compiles: -DPS2UI_SKIP_SYNCDCACHE"
-runtime/errors-and-constants	runtime/Makefile	301	\t$(CC) $(CFLAGS) -DPS2UI_ARENA_LIMIT=0xFFFFFFFFull \\	\t@mkdir -p build	\t\t-Istub -Ivendor/gsKit -Ivendor/host-shim \\
+runtime/errors-and-constants	runtime/Makefile	170	\t\t-DPS2UI_CLUT_PERMUTE=0 -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c	\t@$(CC) -std=c99 -Wall -Werror -fsyntax-only \\	\t@echo "ok - runtime compiles: -DPS2UI_CLUT_PERMUTE=0"
+runtime/errors-and-constants	runtime/Makefile	174	\t\t-DPS2UI_PRIMALPHA_OFF -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c	\t@$(CC) -std=c99 -Wall -Werror -fsyntax-only \\	\t@echo "ok - runtime compiles: -DPS2UI_PRIMALPHA_OFF"
+runtime/errors-and-constants	runtime/Makefile	181	\t\t-DPS2UI_SKIP_SYNCDCACHE -Istub -Ivendor/gsKit -Ivendor/host-shim -I. ps2ui.c	\t@$(CC) -std=c99 -Wall -Werror -fsyntax-only \\	\t@echo "ok - runtime compiles: -DPS2UI_SKIP_SYNCDCACHE"
+runtime/errors-and-constants	runtime/Makefile	317	\t$(CC) $(CFLAGS) -DPS2UI_ARENA_LIMIT=0xFFFFFFFFull \\	\t@mkdir -p build	\t\t-Istub -Ivendor/gsKit -Ivendor/host-shim \\
 runtime/errors-and-constants	runtime/ps2ui.c	117	#ifndef PS2UI_ARENA_LIMIT	 * the CI image to link a -m32 build against. See `make test-narrow`. */	#define PS2UI_ARENA_LIMIT ((uint64_t)(size_t)-1)
 runtime/errors-and-constants	runtime/ps2ui.c	252	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,		               void *arena, size_t arena_size)
 runtime/errors-and-constants	runtime/ps2ui.c	259	        return PS2UI_ERR_TRUNCATED;	    if (size < sizeof(ps2ui_header))	
@@ -156,11 +156,11 @@ runtime/errors-and-constants	runtime/ps2ui.h	283	 * runtime: ps2ui_render keeps 
 runtime/errors-and-constants	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
 runtime/errors-and-constants	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but does not validate the
 runtime/errors-and-constants	runtime/sample/Makefile	58	ifdef LINEAR_CLUT	# side-by-side says which side of it this build is on.	EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
-runtime/errors-and-constants	runtime/sample/main.c	1645	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
+runtime/errors-and-constants	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 runtime/errors-and-constants	runtime/tests/test_runtime.c	52	static void recrc(void *blob, size_t len)	 * zeroing it and hashing the whole file reproduces the same value. */	{
 runtime/errors-and-constants	runtime/tests/test_runtime.c	604	        /* A refused blob must not have written to the arena. The		         * caller may reuse that buffer for the next attempt, and a
 runtime/errors-and-constants	tools/check-versions.py	328	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
-runtime/frame-loop	runtime/sample/main.c	1643	    static uint8_t arena[16 * 1024] __attribute__((aligned(PS2UI_ARENA_ALIGN)));	     * quietly hand the GS a dangling CLUT pointer. */	
+runtime/frame-loop	runtime/sample/main.c	1671	    static uint8_t arena[16 * 1024] __attribute__((aligned(PS2UI_ARENA_ALIGN)));	     * quietly hand the GS a dangling CLUT pointer. */	
 runtime/integrating	runtime/sample/Makefile	269	ui_uib.c: $(UIB)		\t$(PS2SDK)/bin/bin2c $(UIB) ui_uib.c ui_uib
 runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES NOT DO. It replays the command list faithfully, so it		cannot catch the console diverging from that list. F-048 -- the GS
 runtime/moving-and-hiding	runtime/tests/test_runtime.c	3561	    /* ---- F27: a draw-time offset moves what is drawn, not the screen ----		     *

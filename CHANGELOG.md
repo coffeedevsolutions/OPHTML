@@ -75,6 +75,26 @@ without moving this line.
   added in 0.7.0 printed the failure text, three tests rather than the
   six reported, and it reproduced on Linux the same day.
 
+- **The third of CONTRIBUTING's three commands could not finish on any
+  Mac.** `runtime/sample/main.c` reads the EE cycle counter with MIPS
+  inline asm, guarded on a build flag and not on the target, so the
+  host syntax check handed `mfc0 %0, $9` to the host compiler. The
+  Makefile's `HOST_NOASM` keeps clang's integrated assembler from
+  parsing it — but that is the assembler, not the frontend, which still
+  reads the operand: on arm64 a `u32` in an `"=r"` slot is a 32-bit
+  value in a 64-bit register, so Apple clang raised
+  `-Wasm-operand-widths` and `-Werror` made it fatal. Five sample
+  variants compiled and the sixth stopped the build. The asm is now
+  guarded on `__mips__` with a host definition beside it, so every
+  caller stays compiled and warning-checked and no flag suppresses a
+  correct diagnostic; `hw.yml` compiles the instruction for real under
+  the EE toolchain.
+
+  Reproduced on Linux by cross-targeting — `clang
+  --target=aarch64-linux-gnu` prints the runner's diagnostic word for
+  word, and the same command on x86_64 exits 0, which is why the clang
+  arm added to `ci.yml` never saw it.
+
 - **`row-reverse` and `column-reverse` packed from the wrong end.**
   `flex-direction: row-reverse` flips the main axis — main-start
   becomes the right edge, so `justify-content: flex-start` packs

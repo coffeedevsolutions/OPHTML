@@ -107,7 +107,35 @@ static inline u32 cop0_count(void)
      * -std=c99, which is strict ISO C where `asm` is not a keyword —
      * GCC only spells it that way in the gnu* dialects. The
      * underscored form is available in every mode. */
+#if defined(__mips__)
     __asm__ __volatile__("mfc0 %0, $9" : "=r"(v));
+#else
+    /* THE HOST HAS NO COP0, AND ON arm64 IT SAID SO.
+     *
+     * syntax-check compiles this file with the host compiler, and the
+     * Makefile's HOST_NOASM stops clang's integrated assembler from
+     * parsing `mfc0` — which is a fact about the assembler and not
+     * about the frontend. Apple clang on arm64 still reads the
+     * operand: `u32` in an `"=r"` slot is a 32-bit value in a 64-bit
+     * register, so it raises -Wasm-operand-widths and suggests `%w0`,
+     * which is the right answer for AArch64 and wrong for the MIPS
+     * instruction actually written here. -Werror made that fatal, and
+     * `make -C runtime test` — the third of CONTRIBUTING's three
+     * commands — could not finish on any Mac.
+     *
+     * Suppressing the warning would be treating a correct diagnostic
+     * as noise. The asm is target-specific, so it is guarded on the
+     * target, and the host gets a definition rather than a hole: every
+     * caller and all the arithmetic downstream stay compiled and
+     * -Wall -Werror checked, which is what this target is for. The
+     * instruction itself is compiled for real by hw.yml's
+     * `make -C runtime/sample TELEMETRY=1`, under the EE toolchain
+     * that can encode it.
+     *
+     * Never executed on a host: syntax-check stops at -S, and nothing
+     * links or runs main.c off the console. */
+    v = 0;
+#endif
     return v;
 }
 
