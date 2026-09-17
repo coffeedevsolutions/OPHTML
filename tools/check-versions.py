@@ -563,6 +563,25 @@ def main(argv=None):
                          "filename -- docs/releasing.md step 5.")
     else:
         src = img.group(1)
+        #      AND THE FILE HAS TO BE THERE. The rule above reads the
+        #      filename, so a src naming the right version but no real
+        #      file passes it -- measured, not assumed: pointing the
+        #      README at `...darkbgTYPO.png` left this rule green while
+        #      the landing page rendered a broken image. That is the
+        #      first element of the README, which is the worst place in
+        #      the project for a green tick to be wrong about.
+        #
+        #      It matters more now than it did. docs/assets carries four
+        #      logos whose names differ in one digit, three of them
+        #      staged ahead of their releases, and step 5's swap is a
+        #      hand edit between near-identical strings.
+        check(os.path.exists(os.path.join(ROOT, src)),
+              "and %s is actually there" % src,
+              "README's header logo points at %r, which does not exist. "
+              "The landing page renders a broken image and the version "
+              "rule above cannot see it, because that one reads the "
+              "filename. Check the spelling against `ls docs/assets/` "
+              "-- the logos differ by one digit." % src)
         check(want in src,
               "README's header logo names %s, which is %s"
               % (shown, "the release being cut" if not is_prerelease(baker)
