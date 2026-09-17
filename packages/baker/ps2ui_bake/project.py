@@ -159,6 +159,29 @@ class Project:
         beside = self._abs(os.path.join("fonts", "fonts.json"))
         return beside if os.path.exists(beside) else None
 
+    @property
+    def fonts_dir(self):
+        """`fonts/` beside the project, named whether or not it exists.
+
+        THE DOCSTRING ABOVE DESCRIBED AN INTENT THE TOOLCHAIN DID NOT
+        HAVE. "Let the baker apply its own default and say its own
+        thing" assumes the baker speaks first, and it does not:
+        `ps2ui build` runs ps2ui-layout before ps2ui-bake, so with no
+        manifest the COMPILER raised first, against its own
+        install-relative default -- `lib/node_modules/fonts` after
+        `npm install -g`, a directory no reader chose and could not
+        have created. The one message about fonts was written by the
+        half that knew least about the project.
+
+        So the project always names a font location now, and this is
+        the fallback: not a promise that the directory exists, but the
+        place a reader would have put it. It also makes the compiler's
+        own advice true -- it says to pass `--font-dir <that
+        directory>`, which never worked from `ps2ui build`, because
+        nothing passed it.
+        """
+        return self._abs("fonts")
+
     def preview_path(self, key):
         value = getattr(self, _attr(key))
         return None if value in (None, False) else self._abs(value)

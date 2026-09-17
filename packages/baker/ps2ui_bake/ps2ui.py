@@ -80,8 +80,96 @@ def rel(proj, path):
     return None if path is None else os.path.relpath(path, proj.root)
 
 
+def font_args(proj):
+    """Where the compiler looks for fonts. Always the manifest.
+
+    `require_fonts` has already refused a project without one, so this
+    is never the empty list in practice; it stays a function because
+    two call sites need the same two words and one of them used to
+    forget them.
+    """
+    path = project_fonts(proj)
+    return ["--fonts", rel(proj, path)] if path else []
+
+
+def project_fonts(proj):
+    """The manifest both halves should read, or None if there is none.
+
+    The project's own `fonts/fonts.json` first, then the baker's
+    checkout default -- `default_fonts_path()`, three levels up from
+    `ps2ui_bake`, which is the repository root in a clone and nothing
+    at all in an installed package. Its own docstring calls it "a
+    CANDIDATE, not a promise" and keeps it because every example and
+    build.sh in this repository relies on it.
+
+    READING IT HERE IS WHAT MAKES THE TWO HALVES AGREE. The baker
+    already fell back to it; the compiler never knew it existed, so in
+    a checkout with no project manifest the compiler measured against
+    its own install-relative directory and the baker rasterized from
+    the repository's -- two font configurations for one set of fonts,
+    which is the defect `--fonts` was added to end and did not, because
+    nothing passed it when there was no project manifest.
+    """
+    if proj.fonts_path:
+        return proj.fonts_path
+    from . import cli as bake_cli  # lazy: keeps Pillow off this path
+    fallback = bake_cli.default_fonts_path()
+    return fallback if os.path.exists(fallback) else None
+
+
+def require_fonts(proj):
+    """Refuse a project with no font manifest, and say what writes one.
+
+    THE MESSAGE A STRANGER GOT WAS WRITTEN BY THE HALF THAT KNEW LEAST.
+    With no manifest, `ps2ui build` passed no font flag, ps2ui-layout
+    fell back to a default resolved against its own install, and the
+    error named `lib/node_modules/fonts` -- a directory inside the npm
+    package -- as where `default.metrics.json` belongs. Measured on a
+    clean machine with `npm install -g @ophtml/layout`, which is what
+    the documentation tells a reader to run.
+
+    ITS ADVICE COULD NOT WORK, AND NOT ONLY BECAUSE NOTHING PASSED THE
+    FLAG. "Generate the metrics and pass `--font-dir <that directory>`"
+    describes a compiler-only arrangement: `--font-dir` is two fixed
+    filenames and no `ttf` paths, and the BAKER rasterizes, so a bare
+    directory cannot carry what the baker needs. Wiring `--font-dir`
+    through was tried first and got one step further before failing
+    worse -- the compile succeeded, the bake then fell back to its own
+    default manifest and refused on a family mismatch between a face
+    the IR was measured against and a face it was about to draw with.
+    Two halves resolving fonts independently is the defect; giving them
+    a second way to disagree is not the fix.
+
+    So the only thing that works end to end is the one the tutorial
+    teaches and the old message never named: `ps2ui fontgen`, which
+    writes both metrics files AND the `fonts.json` that keeps the two
+    halves agreeing. This says so, before either half runs, which is
+    what `Project.fonts_path` always claimed to arrange.
+    """
+    if project_fonts(proj):
+        return
+    raise ProjectError(
+        "no fonts for this project: %s does not exist.\n"
+        "  ps2ui bakes text at build time, so it needs metrics for your\n"
+        "  font before it can lay anything out. Make them from any TTF:\n"
+        "\n"
+        "    ps2ui fontgen <regular.ttf> <bold.ttf>\n"
+        "\n"
+        "  That writes fonts/default.metrics.json, fonts/default-bold.\n"
+        "  metrics.json and the fonts.json above, which is the file both\n"
+        "  halves read -- metrics alone are not enough, because the baker\n"
+        "  rasterizes and needs the TTF paths the manifest carries.\n"
+        "  Point `fonts` in %s at one you already have to share it."
+        % (os.path.relpath(proj.fonts_path or
+                           os.path.join(proj.fonts_dir, "fonts.json"),
+                           proj.root),
+           os.path.basename(proj.path) if getattr(proj, "path", None)
+           else "ps2ui.json"))
+
+
 def compile_screens(proj, argv_extra):
     """Run the layout compiler over every screen. Returns IR paths."""
+    require_fonts(proj)
     base = layout_command()
     os.makedirs(proj.build_dir, exist_ok=True)
     irs = []
@@ -89,8 +177,7 @@ def compile_screens(proj, argv_extra):
         out = rel(proj, proj.ir_path(screen))
         cmd = base + [rel(proj, screen.html), rel(proj, screen.css),
                       "-o", out]
-        if proj.fonts_path:
-            cmd += ["--fonts", rel(proj, proj.fonts_path)]
+        cmd += font_args(proj)
         if proj.mode:
             cmd += ["--mode", proj.mode]
         if proj.canvas:
@@ -133,8 +220,13 @@ def bake_argv(proj, irs):
     that cannot exist here.
     """
     argv = list(irs) + ["-o", rel(proj, proj.out_path)]
-    if proj.fonts_path:
-        argv += ["--fonts", rel(proj, proj.fonts_path)]
+    # THE BAKER, not the compiler: it reads a manifest and has no
+    # --font-dir. When there is no manifest it applies its own
+    # checked default and writes its own message, which is the
+    # arrangement `font_args` exists to give the compiler too.
+    path = project_fonts(proj)
+    if path:
+        argv += ["--fonts", rel(proj, path)]
     if proj.palettize_images:
         argv += ["--palettize-images"]
     if proj.vram_budget is not None:
@@ -277,6 +369,7 @@ def cmd_dev(args):
     base = layout_command()
     dev = [c.replace("ps2ui-layout", "ps2ui-dev") for c in base]
     proj = load(args.project)
+    require_fonts(proj)
     screen = pick_screen(proj, args.screen)
 
     # A SEPARATE OUTPUT DIRECTORY, AND NOT build/. This wrote straight
@@ -299,8 +392,7 @@ def cmd_dev(args):
         # Two preview paths for one project that disagree is worse than
         # one, and `ps2ui serve` reaches this through compile_screens
         # already.
-        if proj.fonts_path:
-            cmd += ["--fonts", rel(proj, proj.fonts_path)]
+        cmd += font_args(proj)
         if proj.mode:
             cmd += ["--mode", proj.mode]
         if proj.canvas:
