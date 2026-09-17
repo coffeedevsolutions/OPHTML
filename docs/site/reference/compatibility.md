@@ -55,8 +55,8 @@ skip - the tag rule, deferred to the full unflagged run at the end of this job (
 
 | component | version | reads |
 |---|---|---|
-| `ophtml` (PyPI) | 0.7.0 | `ps2ui_bake.__version__` |
-| `@ophtml/layout` (npm) | 0.7.0 | `packages/layout/package.json` |
+| `ophtml` (PyPI) | 0.8.0.dev0 | `ps2ui_bake.__version__` |
+| `@ophtml/layout` (npm) | 0.8.0-dev.0 | `packages/layout/package.json` |
 | ui.json IR | 1 | `IR_VERSION` in `packages/layout/src/index.js` |
 | `.uib` format | 7 | `VERSION` in `packages/baker/ps2ui_bake/uib.py` |
 | `PS2UI_VERSION` (runtime macro) | 7 | `runtime/ps2ui.h` |
