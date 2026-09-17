@@ -572,7 +572,7 @@ function pxOrThrow(value, prop, line) {
  * The keyword-valued properties, and what this target actually does.
  *
  * WHY THESE WERE STORED UNCHECKED FOR SO LONG. `display`, `overflow`
- * and `border` all refuse a value they cannot honour; these seven did
+ * and `border` all refuse a value they cannot honour; these eight did
  * not, and the difference was invisible because the consumer of each
  * one ends in a `default:` that means "the initial value". So a
  * misspelling did not fall through to an error, it fell through to a
