@@ -55,6 +55,27 @@ without moving this line.
 
 ### Fixed
 
+- **266 of the library's 1087 evidence citations pointed at the wrong
+  lines, and nothing could see it.** A page's `repo:<path>#L<n>` link
+  has been pinned and gated since #133: move the line and CI goes red.
+  The `source` cell of a `_facts` row — `packages/layout/src/css.js:598-655`
+  — is where the evidence for every claim lives, and it was checked by
+  nothing, so it drifted in silence while the row still read `verified`.
+
+  Found by taking `docs/releasing.md` step 5b, which says to re-measure
+  every facts row whose source moved. 251 relocated on a unique match,
+  15 needed a person, and one of those was a claim that had actually
+  gone wrong: `focus.css.state` said a `:focus` rule on a non-focusable
+  element "matches nothing and paints nothing", which this same release
+  made untrue by adding the warning. Two more rows were still recording
+  defects #134 had fixed, at status `verified`.
+
+  **The check now covers both halves**, pinning and relocating a facts
+  citation exactly as it does a page's. One sabotage is the defect that
+  motivated it: inserting a line above `GEOMETRY_PROPS` — which is what
+  the `:focus` work did — now goes red instead of silently repointing
+  the row about the focus guard at a different set.
+
 - **A `:focus` rule could bold a row that had been measured thin, and
   three other text properties it accepted did nothing at all.** The
   geometry guard refuses a `:focus` rule that changes `width`,
