@@ -275,6 +275,116 @@ test('css: a bad flex-direction no longer satisfies the must-declare check', () 
   assert.equal(good.flexDirection, 'row');
 });
 
+test('css: :focus may not set a property that is read from the base style', () => {
+  // A DIFFERENT DEFECT FROM GEOMETRY, AND A DIFFERENT MESSAGE. These
+  // three ask for nothing impossible: they are simply never read on the
+  // focus side, so the declaration parsed, applied to focusStyle, and
+  // vanished. No error, no warning, no effect -- the worst of the three
+  // outcomes a value can have.
+  for (const prop of ['letter-spacing', 'text-align', 'text-overflow']) {
+    const value = prop === 'letter-spacing' ? '2px'
+      : prop === 'text-align' ? 'right' : 'ellipsis';
+    assert.throws(
+      () => {
+        const sheet = parseStylesheet(`.a:focus { ${prop}: ${value} }`);
+        const el = parseHTML('<div class="a" focusable>x</div>');
+        computeStyle(el, sheet, null, null, []);
+      },
+      (err) => {
+        assert.match(err.message, new RegExp(`:focus may not change "${prop}"`));
+        // Not the geometry wording: these are not two-layout requests,
+        // and telling the author to "move the geometry" would send them
+        // looking for geometry they never wrote.
+        assert.match(err.message, /read from the base style/);
+        assert.doesNotMatch(err.message, /paint-only delta/);
+        return true;
+      },
+      `${prop} under :focus did not throw`,
+    );
+  }
+});
+
+test('css: :focus may still change font-weight, which is measured for', () => {
+  // THE ONE THAT STAYS. Bolding the focused row is the most ordinary
+  // thing a console UI does, and the guard's principle -- one baked
+  // layout for both states -- is satisfied by sizing that layout for
+  // the heavier face rather than by forbidding the lighter one. The
+  // measurement half is in layout.test.js; this pins that it is not an
+  // error, so a later tightening cannot quietly take it away.
+  const sheet = parseStylesheet('.a:focus { font-weight: bold }');
+  const el = parseHTML('<div class="a" focusable>x</div>');
+  const { focusStyle } = computeStyle(el, sheet, null, null, []);
+  assert.equal(focusStyle.fontWeight, 700);
+});
+
+test('css: a :focus rule that can never apply is a warning, not silence', () => {
+  // THE WARNING THAT EXISTED AND COULD NOT FIRE. box.js asked
+  // `focusDeclared && scope === null`, and those cannot both hold --
+  // compoundMatches drops the rule upstream, so focusDeclared is false
+  // exactly when scope is null. Asking there asked at the one place
+  // that can no longer tell. Here the failed match is still in hand.
+  //
+  // Both selector shapes, because they fail in different places: the
+  // rightmost compound for `.panel:focus`, the ancestor walk for
+  // `.tile:focus .title`.
+  const sheet = parseStylesheet(
+    '.panel:focus { color: red } .tile:focus .title { color: red }',
+  );
+  const root = parseHTML(
+    '<div><div class="panel">a</div><div class="panel">b</div>'
+    + '<div class="tile"><div class="title">c</div></div></div>',
+  );
+  const warnings = [];
+  const walk = (el, parent) => {
+    if (el.type !== 'element') return;
+    computeStyle(el, sheet, parent, null, warnings);
+    for (const c of el.children) walk(c, null);
+  };
+  walk(root, null);
+
+  const dead = warnings.filter((w) => /can never show/.test(w));
+  assert.equal(dead.length, 2,
+               `expected one warning per rule, got ${dead.length}: ${dead}`);
+  assert.ok(dead.some((w) => w.includes('.panel:focus')));
+  assert.ok(dead.some((w) => w.includes('.tile:focus .title')));
+  // Keyed on the rule, not the element: two .panel elements, one
+  // mistake. A per-element warning would print this twice.
+  assert.equal(dead.filter((w) => w.includes('.panel:focus')).length, 1);
+  // And the remedy, since a warning that only says "no" sends the
+  // reader to the source.
+  assert.ok(dead.every((w) => /focusable/.test(w)));
+});
+
+test('css: a :focus rule that CAN apply warns about nothing', () => {
+  // The false-positive half. Without this the warning above passes by
+  // firing on everything, which is the same bug one direction over.
+  const sheet = parseStylesheet('.panel:focus { color: red }');
+  const el = parseHTML('<div class="panel" focusable>a</div>');
+  const warnings = [];
+  computeStyle(el, sheet, null, null, warnings);
+  assert.deepEqual(warnings.filter((w) => /can never show/.test(w)), []);
+});
+
+test('css: a :focus rule for some other element is not this one\'s problem', () => {
+  // THE HOLE THE FIRST DRAFT LEFT, found by sabotage rather than by
+  // reading. Relaxing the condition to "any :focus rule that did not
+  // match" passed every test above: the positive one still counted two
+  // warnings, because they are deduped per rule, and the one below it
+  // used a rule that DOES match and so never reached the branch at all.
+  //
+  // The claim is narrow and has to be tested narrowly: warn only when
+  // the missing `focusable` attribute is the ONLY reason the rule did
+  // not match. A rule naming a class this element does not carry is an
+  // ordinary non-match and must stay silent, or every sheet warns
+  // about every focusable rule in it.
+  const sheet = parseStylesheet('.somewhere-else:focus { color: red }');
+  const el = parseHTML('<div class="panel">a</div>');
+  const warnings = [];
+  computeStyle(el, sheet, null, null, warnings);
+  assert.deepEqual(warnings.filter((w) => /can never show/.test(w)), [],
+                   'warned about a :focus rule that never named this element');
+});
+
 test('css: inherited vs reset properties', () => {
   const sheet = parseStylesheet('.parent { color: #ababab; background: #123456; font-size: 20px }');
   const parent = parseHTML('<div class="parent"><div class="child">x</div></div>');

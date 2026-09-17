@@ -158,7 +158,10 @@ function warnUnknownDataAttrs(el, warnings) {
 }
 
 export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings, focusScope = null, env = {}) {
-  const { style, focusStyle, focusDeclared } = computeStyle(
+  // focusDeclared is still returned by computeStyle and still used by
+  // its tests; this caller's only use of it was the warning below,
+  // which moved.
+  const { style, focusStyle } = computeStyle(
     el, sheet, parentStyle,
     // Inside a focus scope, children inherit from the parent's focus style
     // so e.g. a focused tile's color reaches its text.
@@ -313,16 +316,42 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
   const scope = focusable ? box.id : focusScope;
   box.focusable = focusable;
   box.focusId = scope;
-  if (focusDeclared && scope === null) {
-    warnings.push(
-      `css: :focus styles matched <${el.tag}> line ${el.line} but no enclosing element `
-      + 'has the focusable attribute; the delta can never show',
-    );
-  }
+  // THE WARNING THAT STOOD HERE COULD NOT FIRE, and it is now in
+  // css.js where it can. It tested `focusDeclared && scope === null`,
+  // and those two cannot both hold: focusDeclared is true only when a
+  // `:focus` rule MATCHED, compoundMatches only matches a `:focus`
+  // compound against an element carrying `focusable`, and such an
+  // element opens a scope -- so scope is non-null exactly when
+  // focusDeclared is true. The condition it wanted is decided upstream,
+  // before anything reaches this function, which is why asking here
+  // asked at the one place that can no longer tell.
+  //
+  // Kept as a note rather than deleted: the question was the right one
+  // and the answer now lives at computeStyle's match loop, where the
+  // rule that failed to match is still in hand.
 
   for (const child of el.children) {
     if (child.type === 'text') {
       const tbox = new Box('text', el, anonymousTextStyle(style), null);
+      // MEASURED AT THE HEAVIER OF THE TWO WEIGHTS, so one baked
+      // layout fits both states.
+      //
+      // `font-weight` is the one text property a :focus rule may
+      // change, and until this it was honoured at DRAW and not at
+      // MEASURE: emitTextLines takes the weight from the focus style
+      // while the lines were placed once, from the base. Bold glyphs
+      // are wider than regular ones, so a focused row could draw past
+      // the box it was measured into -- visible on a television, at
+      // the moment the row is focused, and nowhere else.
+      //
+      // Refusing it was the other option and is the wrong one: bolding
+      // the focused row is the most ordinary thing a console UI does,
+      // and the guard's own principle -- both states share one baked
+      // layout -- is satisfied by sizing that layout for the widest
+      // state rather than by forbidding the second one. The unfocused
+      // line then sits slightly loose inside a box measured for bold,
+      // which is the correct trade and the one CSS cannot make at all.
+      tbox.measureWeight = Math.max(style.fontWeight, focusStyle.fontWeight);
       // The lines live on this anonymous child, not on the element box,
       // so the exemption has to come down with them or it never reaches
       // the command that carries the colour. data-keep needs no such

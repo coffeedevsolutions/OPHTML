@@ -89,7 +89,11 @@ function clampSize(v, min, max) {
  */
 function measureText(box, availW, fonts) {
   const s = box.style;
-  const font = fonts.resolve(s.fontWeight);
+  // measureWeight, not fontWeight: when a :focus rule bolds this run,
+  // the box is measured for the heavier face so one baked layout holds
+  // both states. Absent (every box with no focus delta) it is the base
+  // weight and nothing changes. See box.js where it is set.
+  const font = fonts.resolve(box.measureWeight ?? s.fontWeight);
   const lineH = resolveLineHeight(s.lineHeight, s.fontSize);
   let lines;
   if (s.whiteSpace === 'nowrap') {

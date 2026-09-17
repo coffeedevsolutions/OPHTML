@@ -19,6 +19,63 @@ function compileCss(html, css) {
 function rects(ir) { return ir.commands.filter((c) => c.op === 'rect'); }
 function texts(ir) { return ir.commands.filter((c) => c.op === 'text'); }
 
+// ------------------------------------------------------------ focus text
+
+test('focus: a bolded row is measured for the bold face, so it cannot overrun', () => {
+  // THE DEFECT, IN ONE NUMBER. `font-weight` is the one text property
+  // a :focus rule may change, and it was honoured at DRAW and not at
+  // MEASURE: emitTextLines takes the weight from the focus style while
+  // the lines were placed once, from the base. Bold glyphs are wider,
+  // so the focused row drew past the box it was measured into --
+  // visible on a television, at the moment the row is focused.
+  //
+  // Measured rather than asserted qualitatively: the box has to be at
+  // least as wide as the string AT THE BOLD WEIGHT, which is the whole
+  // claim. Comparing against the regular width as well is what makes
+  // it a real test -- an implementation that ignored measureWeight
+  // would still satisfy "box >= regular width".
+  const html = '<div class="w"><div class="r" focusable>Shadow of the Colossus</div></div>';
+  const css = '.w { flex-direction: column; align-items: flex-start }'
+            + '.r { font-size: 20px; font-weight: 400; background: #223344 }'
+            + '.r:focus { font-weight: 700 }';
+  const ir = compileCss(html, css);
+
+  const regular = fonts.resolve(400).measure('Shadow of the Colossus', 20, 0);
+  const bold = fonts.resolve(700).measure('Shadow of the Colossus', 20, 0);
+  assert.ok(bold > regular,
+            'the two faces measure the same; this fixture proves nothing');
+
+  const row = texts(ir).filter((c) => c.text === 'Shadow of the Colossus');
+  assert.equal(row.length, 2, 'expected an unfocused/focused pair');
+  assert.deepEqual(row.map((c) => c.weight).sort(), [400, 700]);
+
+  // The shrink-to-fit box around it: wide enough for the bold state.
+  const box = rects(ir).find((c) => c.w >= regular);
+  assert.ok(box, 'no rect found around the row');
+  assert.ok(box.w >= bold,
+            `box is ${box.w}px, bold text is ${bold}px: the focused row `
+            + 'draws outside the box it was measured into');
+});
+
+test('focus: a box with no focus weight delta is measured exactly as before', () => {
+  // The other half, and the one that keeps the change from being a
+  // silent relayout of every document: measureWeight is the base
+  // weight whenever no :focus rule moves it, so nothing shifts.
+  const html = '<div class="w"><div class="r">Shadow of the Colossus</div></div>';
+  const css = '.w { flex-direction: column; align-items: flex-start }'
+            + '.r { font-size: 20px; font-weight: 400; background: #223344 }';
+  const ir = compileCss(html, css);
+  const regular = fonts.resolve(400).measure('Shadow of the Colossus', 20, 0);
+  const bold = fonts.resolve(700).measure('Shadow of the Colossus', 20, 0);
+  const box = rects(ir).find((c) => c.w >= regular);
+  assert.ok(box, 'no rect found around the row');
+  assert.ok(box.w < bold,
+            `box is ${box.w}px: a row with no :focus weight delta was `
+            + 'measured for the bold face');
+  const t = texts(ir).find((c) => c.text === 'Shadow of the Colossus');
+  assert.equal(t.weight, 400);
+});
+
 // ------------------------------------------------------------------ text
 
 test('text: the shared rounding rule is floor(units*size/1000 + 0.5)', () => {

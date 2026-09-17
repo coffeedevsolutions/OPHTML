@@ -236,10 +236,17 @@ ps2ui-layout: 5 paint commands, 2 focusables -> island.json
 ps2ui-layout: --strict: 1 warning(s)
 ```
 
-Four more limits have no diagnostic behind them.
+A `:focus` rule still only matches an element that carries `focusable`, but since 0.7.0 it no longer does so in silence. When the missing attribute is the only reason the rule did not match, the compiler warns and names the selector, so a forgotten `focusable` and a typo in the class name no longer look the same:
+
+```
+warning: css: line 3: ".panel:focus" matches <div> line 1, but no element in that
+selector has the focusable attribute, so the :focus delta can never show. Add
+focusable, or drop the :focus.
+```
+
+Three more limits have no diagnostic behind them.
 
 - Focus names are unique per screen by convention. Two focusables with the same `id` on one screen compile without a warning. `ps2ui-check` does not test for it, and the runtime's lookup returns the first match.
-- A `:focus` rule only matches an element that carries `focusable`. On anything else it matches nothing, paints nothing, and says nothing.
 - The graph is solved against the baked layout. Nothing re-solves it at runtime, so hiding a node changes which nodes are reachable, not which edges exist.
 - `--focus-wrap` is a compile-time flag. Wrap edges are ordinary edges in the blob, indistinguishable from solved ones.
 

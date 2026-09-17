@@ -16,6 +16,28 @@ import {
 // Properties that change geometry. A :focus rule may not touch these:
 // both focus states share one layout, so a geometry delta would be a
 // silent no-op at best and a desync between preview and console at worst.
+/**
+ * Accepted inside `:focus`, and then thrown away at emission.
+ *
+ * NOT GEOMETRY, AND A DIFFERENT DEFECT FROM IT. A geometry property in
+ * a `:focus` rule asks for two layouts where the blob has one, which is
+ * what GEOMETRY_PROPS refuses. These three ask for nothing impossible
+ * -- they are simply never read on the focus side: `emitTextLines`
+ * takes `letterSpacing` from `box.style`, and `text-align` and
+ * `text-overflow` were consumed when the lines were placed, once, from
+ * the base style. So the declaration parses, applies to `focusStyle`,
+ * and has no effect anywhere.
+ *
+ * That is the worst of the three outcomes a value can have -- worse
+ * than an error and worse than working -- because the author gets no
+ * signal at all, and the README shipped in #139 had to tell people to
+ * treat these as base-rule properties. This makes the compiler say it
+ * instead.
+ */
+export const FOCUS_DROPPED_PROPS = new Set([
+  'letter-spacing', 'text-align', 'text-overflow',
+]);
+
 export const GEOMETRY_PROPS = new Set([
   'display', 'flex-direction', 'flex-wrap', 'justify-content', 'align-items',
   'align-self', 'flex-grow', 'flex-shrink', 'flex-basis', 'gap', 'row-gap',
@@ -148,27 +170,31 @@ export function parseSelector(src) {
   return { parts, focus, specificity: [a, b, c], source: src.trim() };
 }
 
-function compoundMatches(compound, el) {
+function compoundMatches(compound, el, ignoreFocus = false) {
   if (el.type !== 'element') return false;
   if (compound.tag && compound.tag !== el.tag) return false;
   if (compound.id && compound.id !== el.id) return false;
   // A compound carrying :focus can only match a focus scope root, i.e.
   // an element with the focusable attribute — at build time "may be
   // focused" is a static property of the element.
-  if (compound.focus && !('focusable' in el.attrs)) return false;
+  //
+  // ignoreFocus relaxes exactly that one condition, and exists for one
+  // caller: computeStyle asks "would this rule have matched but for the
+  // missing attribute?" so it can say so. Everything else passes false.
+  if (!ignoreFocus && compound.focus && !('focusable' in el.attrs)) return false;
   const cls = el.classes;
   for (const c of compound.classes) if (!cls.includes(c)) return false;
   return true;
 }
 
 /** Match ignoring :focus (focus is a paint state, not a tree state). */
-export function selectorMatches(sel, el) {
+export function selectorMatches(sel, el, ignoreFocus = false) {
   const parts = sel.parts;
-  if (!compoundMatches(parts[parts.length - 1], el)) return false;
+  if (!compoundMatches(parts[parts.length - 1], el, ignoreFocus)) return false;
   let pi = parts.length - 2;
   let node = el.parent;
   while (pi >= 0 && node) {
-    if (compoundMatches(parts[pi], node)) pi--;
+    if (compoundMatches(parts[pi], node, ignoreFocus)) pi--;
     node = node.parent;
   }
   return pi < 0;
@@ -854,7 +880,33 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
   const matched = [];
   for (let i = 0; i < sheet.rules.length; i++) {
     const rule = sheet.rules[i];
-    if (selectorMatches(rule.selector, el)) matched.push({ rule, index: i });
+    if (selectorMatches(rule.selector, el)) { matched.push({ rule, index: i }); continue; }
+    // A `:focus` RULE THAT CANNOT EVER APPLY, SAID OUT LOUD.
+    //
+    // compoundMatches drops a `:focus` compound on an element with no
+    // `focusable` attribute, which is correct -- but it drops it in
+    // silence, so a typo in the class name and a forgotten attribute
+    // produce the same output as a rule that simply did not apply:
+    // nothing. box.js carried a warning for exactly this case and it
+    // was UNREACHABLE, because it tested `focusDeclared && scope ===
+    // null` and this drop happens upstream of both: nothing matches,
+    // so focusDeclared is false, so the branch cannot run. The text
+    // was right and it was asked at the one place that can no longer
+    // tell.
+    //
+    // Here the information still exists. Re-testing with the focus
+    // requirement relaxed answers "would this have matched but for the
+    // attribute?", which is the author's actual question.
+    //
+    // Keyed on the rule rather than the element: `.panel:focus` over
+    // twenty panels is one mistake, not twenty.
+    if (rule.selector.focus && selectorMatches(rule.selector, el, true)) {
+      const msg = `css: line ${rule.line}: "${rule.selector.source}" matches `
+        + `<${el.tag}> line ${el.line}, but no element in that selector has the `
+        + 'focusable attribute, so the :focus delta can never show. Add '
+        + 'focusable, or drop the :focus.';
+      if (!warnings.includes(msg)) warnings.push(msg);
+    }
   }
   matched.sort((a, b) => {
     const c = compareSpecificity(a.rule.selector.specificity, b.rule.selector.specificity);
@@ -900,6 +952,13 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
       throw new Error(
         `css: line ${d.line}: :focus may not change "${d.prop}" — focus is a paint-only delta. `
         + 'Both states share one baked layout; move the geometry to the base rule.',
+      );
+    }
+    if (FOCUS_DROPPED_PROPS.has(d.prop)) {
+      throw new Error(
+        `css: line ${d.line}: :focus may not change "${d.prop}" — it is read from the base `
+        + 'style when the line is emitted, so a value here is parsed, applied and then '
+        + 'dropped. Move it to the base rule.',
       );
     }
     applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars);
