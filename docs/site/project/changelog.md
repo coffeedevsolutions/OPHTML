@@ -67,13 +67,13 @@ tools/check-versions.py --except-tag` holds the packages, the format
 document and this section to each other:
 
 ```
-ok - @ophtml/layout 0.7.0 and ophtml 0.7.0 are the same version in the two spellings
+ok - @ophtml/layout 0.8.0-dev.0 and ophtml 0.8.0.dev0 are the same version in the two spellings
 ok - PS2UI_VERSION and uib.VERSION are both 7
 ok - docs/format-uib.md's header table says version 7
 ok - docs/format-uib.md's Versioning list explains v7
-ok - CHANGELOG's newest section is headed with 0.7.0
+ok - CHANGELOG's open section is headed with 0.8.0.dev0
 ok - CHANGELOG's open section names format v7
-ok - CHANGELOG's 0.5.0 section records the format it shipped (v7)
+ok - CHANGELOG's 0.7.0 section records the format it shipped (v7)
 ```
 
 A v7 blob loads under a 0.5.0 runtime and a 0.5.0 blob loads under this

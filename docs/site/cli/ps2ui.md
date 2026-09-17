@@ -611,9 +611,9 @@ Run these from the repository root.
 
 ```console
 $ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui --version
-ps2ui 0.7.0
+ps2ui 0.8.0.dev0
 $ node packages/layout/bin/ps2ui-layout.js --version
-ps2ui-layout 0.7.0
+ps2ui-layout 0.8.0-dev.0
 ```
 
 The two numbers differ in spelling because one is a Python version and the
