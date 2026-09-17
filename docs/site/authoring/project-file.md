@@ -153,7 +153,7 @@ PASS: 63 checks, 0 error(s), 0 warning(s)
 
 ### The output path moves the intermediates
 
-`ps2ui build -o NEW` writes the blob at NEW and moves the per-screen IR files with it. The IR files land in NEW's directory. Their stems take a suffix derived from the two blob stems, `set_out_override` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L162):
+`ps2ui build -o NEW` writes the blob at NEW and moves the per-screen IR files with it. The IR files land in NEW's directory. Their stems take a suffix derived from the two blob stems, `set_out_override` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L186):
 
 | override | intermediate for screen `games` | rule |
 |---|---|---|
@@ -218,7 +218,7 @@ ui.uib
 
 ### Keys that reach the checker
 
-New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L203). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
+New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L254). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
 
 ```sh
 cd packages/baker/tests && python3 -m unittest \

@@ -26,7 +26,7 @@ in the loop below belongs to the app except the render.
 
 ## Minimal example
 
-The loop from [main.c](repo:runtime/sample/main.c#L1643), with both
+The loop from [main.c](repo:runtime/sample/main.c#L1671), with both
 checks. This file compiled in this session under the host flags.
 
 ```c

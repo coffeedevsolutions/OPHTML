@@ -32,7 +32,7 @@ The runtime reports failure through fifteen integer codes declared in [runtime/p
 
 `ps2ui_upload` does not use this table. It returns -1 when the texture footprint would pass 4 MiB of VRAM, and 0 otherwise ([ps2ui.c](repo:runtime/ps2ui.c#L597)). `ps2ui_arena_size` returns 0 for a blob it cannot size ([ps2ui.h](repo:runtime/ps2ui.h#L448)). The list queries `ps2ui_list_item_at` and `ps2ui_list_selected_row` return -1 for an empty or out-of-range row ([ps2ui.c](repo:runtime/ps2ui.c#L1707)).
 
-The sample treats both entry points as fatal: a red screen for any load code, a yellow screen for an upload failure ([runtime/sample/main.c](repo:runtime/sample/main.c#L1645)).
+The sample treats both entry points as fatal: a red screen for any load code, a yellow screen for an upload failure ([runtime/sample/main.c](repo:runtime/sample/main.c#L1673)).
 
 ## Load check order
 
@@ -204,10 +204,10 @@ Four macros change how `ps2ui.c` compiles. Pass them with `-D`. Three are falsif
 
 | macro | default | effect | exercised by |
 |---|---|---|---|
-| `PS2UI_CLUT_PERMUTE` | 1 | 0 uploads every CLUT in linear order instead of CSM1 order ([ps2ui.c](repo:runtime/ps2ui.c#L537)). | `make -C runtime test` syntax-check compiles `-DPS2UI_CLUT_PERMUTE=0` ([Makefile](repo:runtime/Makefile#L154)). |
-| `PS2UI_ARENA_LIMIT` | `SIZE_MAX` of the target | Caps the arena carve. The build fails if the value is wider than `size_t` ([ps2ui.c](repo:runtime/ps2ui.c#L117)). Narrow only. | `make -C runtime test-narrow` compiles `-DPS2UI_ARENA_LIMIT=0xFFFFFFFFull` ([Makefile](repo:runtime/Makefile#L301)). |
-| `PS2UI_PRIMALPHA_OFF` | undefined | Defined: `ps2ui_render` sets `PrimAlphaEnable` off, so glyph alpha is ignored ([ps2ui.c](repo:runtime/ps2ui.c#L1051)). | syntax-check compiles `-DPS2UI_PRIMALPHA_OFF` ([Makefile](repo:runtime/Makefile#L158)). |
-| `PS2UI_SKIP_SYNCDCACHE` | undefined | Defined: `ps2ui_tex_set` skips the data-cache writeback, so the GIF may read stale texels ([ps2ui.c](repo:runtime/ps2ui.c#L717)). | syntax-check compiles `-DPS2UI_SKIP_SYNCDCACHE` ([Makefile](repo:runtime/Makefile#L165)). |
+| `PS2UI_CLUT_PERMUTE` | 1 | 0 uploads every CLUT in linear order instead of CSM1 order ([ps2ui.c](repo:runtime/ps2ui.c#L537)). | `make -C runtime test` syntax-check compiles `-DPS2UI_CLUT_PERMUTE=0` ([Makefile](repo:runtime/Makefile#L170)). |
+| `PS2UI_ARENA_LIMIT` | `SIZE_MAX` of the target | Caps the arena carve. The build fails if the value is wider than `size_t` ([ps2ui.c](repo:runtime/ps2ui.c#L117)). Narrow only. | `make -C runtime test-narrow` compiles `-DPS2UI_ARENA_LIMIT=0xFFFFFFFFull` ([Makefile](repo:runtime/Makefile#L317)). |
+| `PS2UI_PRIMALPHA_OFF` | undefined | Defined: `ps2ui_render` sets `PrimAlphaEnable` off, so glyph alpha is ignored ([ps2ui.c](repo:runtime/ps2ui.c#L1051)). | syntax-check compiles `-DPS2UI_PRIMALPHA_OFF` ([Makefile](repo:runtime/Makefile#L174)). |
+| `PS2UI_SKIP_SYNCDCACHE` | undefined | Defined: `ps2ui_tex_set` skips the data-cache writeback, so the GIF may read stale texels ([ps2ui.c](repo:runtime/ps2ui.c#L717)). | syntax-check compiles `-DPS2UI_SKIP_SYNCDCACHE` ([Makefile](repo:runtime/Makefile#L181)). |
 
 `PS2UI_ARENA_LIMIT` exists so the 64-bit host suite can model the 32-bit EE. The narrow build feeds the runtime a well-formed blob whose carve passes 4 GiB and the memcard example blob, and expects one refusal and one load.
 

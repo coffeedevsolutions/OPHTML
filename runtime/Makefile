@@ -75,6 +75,22 @@ SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE
 # about a compiler neither of us has heard of. Asking whether the flag
 # is accepted is the question that actually matters, and a compiler
 # that does not need it answers empty.
+#
+# AND HOST_NOASM IS ABOUT THE ASSEMBLER, WHICH IS NOT THE ONLY HALF.
+# It stops clang PARSING `mfc0`; the frontend still reads the operand
+# constraint, and on arm64 a u32 in an "=r" slot is a 32-bit value in a
+# 64-bit register. Apple clang raises -Wasm-operand-widths and suggests
+# `%w0` -- correct for AArch64, wrong for the MIPS instruction written
+# there -- and -Werror made it fatal, so `make -C runtime test` could
+# not finish on any Mac. Found by registry run 35164624418, the first
+# run that ever got this far on macOS, and reproduced here by
+# cross-targeting: `clang --target=aarch64-linux-gnu` prints the
+# runner's diagnostic word for word while the same command on x86_64
+# exits 0, which is why ci.yml's clang arm never saw it.
+#
+# The fix is in main.c, not here: the asm is guarded on __mips__ with a
+# host definition beside it, so no flag suppresses a correct
+# diagnostic and the callers stay -Wall -Werror checked.
 HOST_NOASM := $(shell $(CC) -fno-integrated-as -S -o /dev/null -x c /dev/null >/dev/null 2>&1 \
 	&& echo -fno-integrated-as)
 

@@ -55,6 +55,46 @@ without moving this line.
 
 ### Fixed
 
+- **Every `ps2ui` build under macOS's temporary directory failed, on a
+  path arithmetic that only a symlink of unequal depth can break.** The
+  project root was `abspath`'d and then `chdir`'d to; `chdir` resolves
+  symlinks and `abspath` does not, so every path handed to the layout
+  compiler counted its `../` from one spelling of the root and walked
+  them from another. macOS hands out `/var/folders/...` and `/var` is a
+  symlink to `/private/var`, one component deeper, so the count came up
+  short and an absolute `--fonts` manifest arrived as
+  `../../../../../../Users/you/repo/fonts/fonts.json` — ENOENT,
+  reported as a fonts.json that "cannot be read". The root is now
+  resolved, because it is also the working directory.
+
+  **The obvious probe could not have found it.** A symlinked `TMPDIR`
+  was tried on Linux and all 285 tests passed, and that was read as
+  "the report has some other cause" — but `/tmp/link -> /tmp/real` is
+  the same depth from either side, so the miscount is zero by
+  construction. The symlink has to *change* the depth. The macOS job
+  added in 0.7.0 printed the failure text, three tests rather than the
+  six reported, and it reproduced on Linux the same day.
+
+- **The third of CONTRIBUTING's three commands could not finish on any
+  Mac.** `runtime/sample/main.c` reads the EE cycle counter with MIPS
+  inline asm, guarded on a build flag and not on the target, so the
+  host syntax check handed `mfc0 %0, $9` to the host compiler. The
+  Makefile's `HOST_NOASM` keeps clang's integrated assembler from
+  parsing it — but that is the assembler, not the frontend, which still
+  reads the operand: on arm64 a `u32` in an `"=r"` slot is a 32-bit
+  value in a 64-bit register, so Apple clang raised
+  `-Wasm-operand-widths` and `-Werror` made it fatal. Five sample
+  variants compiled and the sixth stopped the build. The asm is now
+  guarded on `__mips__` with a host definition beside it, so every
+  caller stays compiled and warning-checked and no flag suppresses a
+  correct diagnostic; `hw.yml` compiles the instruction for real under
+  the EE toolchain.
+
+  Reproduced on Linux by cross-targeting — `clang
+  --target=aarch64-linux-gnu` prints the runner's diagnostic word for
+  word, and the same command on x86_64 exits 0, which is why the clang
+  arm added to `ci.yml` never saw it.
+
 - **`row-reverse` and `column-reverse` packed from the wrong end.**
   `flex-direction: row-reverse` flips the main axis — main-start
   becomes the right edge, so `justify-content: flex-start` packs
@@ -111,6 +151,17 @@ without moving this line.
   a page whose only warning is a font-size one, the other runs
   `ps2ui dev` and `ps2ui build` over opl-env and compares the warning
   counts.
+
+- **CONTRIBUTING's Setup section said nothing to a Mac.** Both macOS
+  Pillow wheels compile Raqm in and neither bundles fribidi, which
+  Pillow `dlopen`s at run time — so a Mac without it reports no Raqm,
+  `ps2ui fontgen` refuses, and the two tests that need the layout
+  engine skip. That was written down in `fontgen.py` and in the
+  tutorial and nowhere a contributor reads before running the suite.
+  Setup now names it, asks for the feature rather than the install, and
+  the macOS job runs the same step — which also measures, for the first
+  time, whether fribidi alone is enough. `_raqm_remedy()` says
+  "probably" because nobody had a Mac to try it on.
 
 ## 0.6.0 — 2026-09-12
 

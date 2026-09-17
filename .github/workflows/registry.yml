@@ -284,15 +284,31 @@ jobs:
   # `test` and by nothing else -- syntax-check never touches it -- so
   # build.sh below is what exercises the fix on macOS.
   #
-  # A SECOND IS REPORTED AND NOT REPRODUCED, and this job exists to
-  # settle it rather than let a guess be committed. A stranger-path
-  # report says six baker tests fail on macOS because mkdtemp returns
-  # /var/folders/..., a symlink to /private/var/..., so a relpath comes
-  # out short. The mechanism is real and reproduces in isolation, but
-  # the suite passes under a symlinked TMPDIR on Linux -- all 285 --
-  # so the reported failure has some other cause and patching
-  # project.py on a plausible story would be a fix for a defect nobody
-  # has shown. The baker step below is what produces the failure text.
+  # A SECOND WAS REPORTED AND NOT REPRODUCED, AND THIS JOB SETTLED IT.
+  # The paragraph that stood here said the /var -> /private/var relpath
+  # story "has some other cause", because the suite passed under a
+  # symlinked TMPDIR on Linux -- all 285 -- and patching project.py on
+  # a plausible story would have been a fix for a defect nobody had
+  # shown. Refusing to guess was right and the conclusion drawn from it
+  # was wrong, in one word: /tmp/link -> /tmp/real is the SAME DEPTH
+  # from either side, so the miscount is zero and the probe could only
+  # ever come back green. The symlink has to CHANGE the depth.
+  #
+  # Run 35033142181 printed the failure text this job was built to get:
+  # three baker tests, not the six reported, and a fonts.json named
+  # with six `../` in front of it. Reproduced on Linux the same day
+  # under a depth-changing symlink, fixed in project.py by resolving
+  # the root it also chdir's to, and fenced by
+  # test_a_project_under_a_depth_changing_symlink_builds.
+  #
+  # AND A THIRD, WHICH ONLY THIS JOB COULD FIND: the other two failures
+  # were PS2UI_REQUIRE_FONTS turning "no Raqm" into an error, on a
+  # runner where CONTRIBUTING's `pip install Pillow` is all that ran.
+  # macos-plain above already knew why -- Raqm is compiled into the
+  # wheel and fribidi is not, and this image has no fribidi -- so the
+  # gap was in the instructions, which said nothing about it to a Mac
+  # reader. The step below is that missing instruction, and it now sits
+  # in CONTRIBUTING.md's Setup section where a person will meet it.
   #
   # Not gating a PR: it runs on the schedule and on dispatch, where
   # macos-plain already sits, which is this repository's existing
@@ -310,6 +326,32 @@ jobs:
           python-version: "3.11"
       - name: Deps, the way CONTRIBUTING.md describes them
         run: python3 -m pip install Pillow
+
+      # THE macOS HALF OF THAT SAME SECTION, AND THE FIRST TIME ANYONE
+      # HAS RUN IT. fontgen's _raqm_remedy() leads with "the missing
+      # piece is probably fribidi alone", and says "probably" because
+      # it was inferred from two opened wheels with no Mac to try it
+      # on. This runs it on a Mac. Whichever branch it takes, the log
+      # says which -- an inference that is never executed stays an
+      # inference no matter how many documents repeat it.
+      - name: ...including the piece only a Mac needs
+        run: |
+          brew install fribidi
+          raqm() { python3 -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; }
+          if raqm; then
+            echo "ok - fribidi alone was enough. fontgen.py's \"probably\" is now measured, on $(uname -m)."
+          else
+            echo "::warning::fribidi alone did NOT enable Raqm on this runner."
+            echo "That is the advice _raqm_remedy() leads with, so it needs revisiting."
+            brew install libraqm
+            export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:$(brew --prefix libraqm)/lib/pkgconfig"
+            python3 -m pip install --no-binary pillow --force-reinstall pillow
+            raqm || { echo "::error::no Raqm even after the rebuild"; exit 1; }
+            echo "ok - needed the rebuild, not fribidi"
+          fi
+          # A SUCCESSFUL INSTALL IS NOT PROOF, which is why every check
+          # above asks features.check and not pip's exit status.
+          python3 -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
       # NO FONT INSTALL, and that is a measured decision rather than an
       # omission. fonts/fonts.json ends both candidate lists with
       # `vendor/DejaVuSans[-Bold].ttf`, load_font_manifest resolves a
