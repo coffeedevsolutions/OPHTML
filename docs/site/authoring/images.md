@@ -4,7 +4,7 @@ title: Images
 description: How an img element finds its PNG, takes its size, and bakes into a PSMCT32 or PSMT8 texture.
 section: authoring
 order: 14
-version: 0.6.0
+version: 0.7.0
 sources: [packages/layout/src/image.js, packages/layout/src/box.js, packages/layout/src/flex.js, packages/layout/src/index.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/gs.py, packages/baker/ps2ui_bake/preview.py, packages/baker/tests/test_baker.py, examples/channel6/ui/games.html, examples/channel6/ui/channel6.css, examples/channel6/ui/assets/make_assets.py, examples/channel6/ps2ui.json, examples/channel6/build.sh]
 ---
 

@@ -415,7 +415,7 @@ _facts/cli/previewer	packages/baker/ps2ui_bake/serve_page.html	121	  <div id="ba
 _facts/cli/previewer	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 _facts/cli/ps2ui	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 _facts/cli/ps2ui	examples/memcard/build.sh	18	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.7.0.dev0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.7.0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	180	    ir_suffix = ""	    # have to guess where the suffix goes.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/ps2ui.py	340	    ap.add_argument("--version", action="version",	        description="Compile, bake and check a ps2ui project.")	                    version="ps2ui %s" % __version__)
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	332	        proj.set_out_override(os.path.join(proj.build_dir, "serve", "ui.uib"))	        self.proj = proj	        # The server renders its own frames; the build does not need to
@@ -465,7 +465,7 @@ _facts/cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readab
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	40	from ps2ui_bake.cli import load_font_manifest	import sys, os	from ps2ui_bake import fontgen
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	49	    rc = fontgen.main([ttf, "DejaVu Sans", str(weight),	    print("regen: %s = %s" % (face, ttf))	                       os.path.join(here, out)])
-_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.7.0.dev0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.7.0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	82	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	22	# Latin-1 printable + the punctuation the example UI actually uses.		# chr(32) explicitly: an invisible U+00A0 once impersonated the space
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	26	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
@@ -553,8 +553,8 @@ _facts/getting-started/installation	packages/baker/ps2ui_bake/ps2ui.py	36	def la
 _facts/getting-started/installation	packages/baker/ps2ui_bake/vendor.py	237		        print("%s already up to date." % ", ".join(same))	    print("runtime source: %s (%s)" % (src, label))
 _facts/getting-started/installation	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9"]
 _facts/getting-started/installation	packages/baker/pyproject.toml	17	[project.scripts]		# One front door over a toolchain that had three. The three below stay:
-_facts/getting-started/installation	packages/layout/package.json	11	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
-_facts/getting-started/installation	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
+_facts/getting-started/installation	packages/layout/package.json	10	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
+_facts/getting-started/installation	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
 _facts/getting-started/quickstart	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        ps2ui_render(&ui, gs);	#else	#endif
@@ -580,16 +580,16 @@ _facts/project/internals	docs/site/runtime/frame-loop.md	76	### Sizing the arena
 _facts/project/internals	tools/check-findings.py	2	"""Enforce the findings graph in docs/findings.yaml.	#!/usr/bin/env python3	
 _facts/project/security-and-license	fonts/vendor/LICENSE.txt	1	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/		Upstream-Name: DejaVu fonts
 _facts/project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-_facts/project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+_facts/project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 _facts/project/security-and-license	runtime/ps2ui.c	256	    uint32_t i;	    arena_layout L;	    memset(ctx, 0, sizeof *ctx);
 _facts/project/security-and-license	runtime/vendor/README.md	1	# Vendored gsKit headers		
 _facts/project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
-_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.7.0.dev0"	# until the first real release was on PyPI.	
+_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.7.0"	# until the first real release was on PyPI.	
 _facts/reference/compatibility	packages/baker/ps2ui_bake/vendor.py	15	the tree. Handing out a runtime fetched from anywhere else reintroduces	and check-versions.py holds the two together in the tree -- but only in	exactly the skew that fence exists to prevent, and it would do it at the
 _facts/reference/compatibility	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9"]
-_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.7.0-dev.0",	  "name": "@ophtml/layout",	  "publishConfig": {
-_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.7.0-dev.0",	    "access": "public",
-_facts/reference/compatibility	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
+_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.7.0",	  "name": "@ophtml/layout",	  "publishConfig": {
+_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.7.0",	    "access": "public"
+_facts/reference/compatibility	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
 _facts/reference/compatibility	packages/layout/src/index.js	49	export const IR_VERSION = 1;		
 _facts/reference/compatibility	runtime/Makefile	4	CC      ?= cc		CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2
 _facts/reference/compatibility	runtime/ps2ui.c	173	    if (h->magic != PS2UI_MAGIC || h->version != PS2UI_VERSION)	        return 0;	        return 0;
@@ -1038,7 +1038,7 @@ cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenRefuse
 cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 examples/channel6	.github/workflows/ci.yml	173	      # clang is preinstalled on ubuntu-24.04; nothing is downloaded.	      # probed -fno-integrated-as, and this arm is what keeps it fixed.	      - name: ...and under clang, which -S used to reject outright
 examples/channel6	.github/workflows/ci.yml	326	      # The example builds refresh the committed screenshots, so if a		      # renderer change lands without rebuilding the examples, the drift
-examples/channel6	.github/workflows/ci.yml	370	          # swizzle.png is the step 3 instrument and its meaning lives	        run: |	          # in exact index values, so a hand-edit or a stale checkout
+examples/channel6	.github/workflows/ci.yml	378	          # swizzle.png is the step 3 instrument and its meaning lives	        run: |	          # in exact index values, so a hand-edit or a stale checkout
 examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
@@ -1081,7 +1081,7 @@ project/internals	docs/findings.md	1	<!-- GENERATED by tools/check-findings.py -
 project/internals	docs/method.md	1	# How this project tests itself, and the ways it has failed to		
 project/internals	docs/releasing.md	1	# Releasing		
 project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 project/security-and-license	runtime/vendor/README.md	7	Academic Free License version 2.0 — see the notice each file carries.	(`ee/gs/include/*.h` and `ee/dma/include/*.h`), licensed under the	
 project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
 reference/uib-format	docs/PLAN.md	92	**Format history:** v1 initial → v2 CRC-32 + feature bits + dynamic-text		tables → v3 multi-screen + images (0.2.0) → v4 display aspect (76-byte

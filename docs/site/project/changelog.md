@@ -4,7 +4,7 @@ title: Changelog
 description: The 0.6.0 release notes by category, the format status, and a table of every earlier release.
 section: project
 order: 70
-version: 0.6.0
+version: 0.7.0
 sources: [CHANGELOG.md, tools/check-versions.py, docs/site/_facts/reference/compatibility.md, docs/site/_facts/runtime/moving-and-hiding.md, docs/site/_facts/authoring/vram-budget.md, docs/site/_facts/runtime/integrating.md, docs/site/_facts/cli/ps2ui-fontgen.md, docs/site/_facts/cli/ps2ui-layout.md, docs/site/_facts/project/contributing.md, docs/site/cli/ps2ui-layout.md, docs/site/project/contributing.md, docs/site/runtime/integrating.md, docs/site/authoring/vram-budget.md, docs/site/cli/ps2ui-fontgen.md, docs/site/reference/compatibility.md]
 ---
 
@@ -16,8 +16,7 @@ of this page.
 
 ## 0.6.0
 
-`ophtml` 0.6.0.dev0, `@ophtml/layout` 0.6.0-dev.0. Neither package is
-tagged yet.
+`ophtml` 0.7.0, `@ophtml/layout` 0.7.0.
 
 ### Added
 
@@ -68,11 +67,11 @@ tools/check-versions.py --except-tag` holds the packages, the format
 document and this section to each other:
 
 ```
-ok - @ophtml/layout 0.6.0-dev.0 and ophtml 0.6.0.dev0 are the same version in the two spellings
+ok - @ophtml/layout 0.7.0 and ophtml 0.7.0 are the same version in the two spellings
 ok - PS2UI_VERSION and uib.VERSION are both 7
 ok - docs/format-uib.md's header table says version 7
 ok - docs/format-uib.md's Versioning list explains v7
-ok - CHANGELOG's open section is headed with 0.6.0.dev0
+ok - CHANGELOG's newest section is headed with 0.7.0
 ok - CHANGELOG's open section names format v7
 ok - CHANGELOG's 0.5.0 section records the format it shipped (v7)
 ```

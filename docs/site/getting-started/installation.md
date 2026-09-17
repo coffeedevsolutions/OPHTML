@@ -4,7 +4,7 @@ title: Installation
 description: Install both packages, prove them with --version, generate font metrics, and know when the console half needs ps2dev.
 section: getting-started
 order: 1
-version: 0.6.0
+version: 0.7.0
 sources: [packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/ps2ui.py, fonts/fonts.json, .github/workflows/registry.yml, docs/tutorial-uc3.md, docs/site/ARCHITECTURE.md]
 ---
 
@@ -33,9 +33,9 @@ npm install -g @ophtml/layout
 
 ```sh
 $ ps2ui --version
-ps2ui 0.6.0.dev0
+ps2ui 0.7.0
 $ ps2ui-layout --version
-ps2ui-layout 0.6.0-dev.0
+ps2ui-layout 0.7.0
 ```
 
 `ps2ui --version` proves the Python half; `ps2ui-layout --version` proves
@@ -62,9 +62,9 @@ gsKit headers, is in
 
 The two installs are independent and order does not matter. `pip install
 ophtml` resolves against PyPI's stable releases; `npm install -g
-@ophtml/layout` resolves against npm's `latest` dist-tag. A prerelease such
-as this tree's `0.6.0.dev0` / `0.6.0-dev.0` publishes under `next` on npm,
-never `latest`. Pip excludes a prerelease from a plain install while a
+@ophtml/layout` resolves against npm's `latest` dist-tag. A prerelease publishes under
+`next` on npm, never `latest`; this tree carries `0.7.0`, a release, so it
+takes `latest`. Pip excludes a prerelease from a plain install while a
 stable release exists. A plain install of either command therefore always
 lands on a released version, not a prerelease.
 

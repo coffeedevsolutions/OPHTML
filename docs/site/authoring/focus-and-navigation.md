@@ -4,7 +4,7 @@ title: Focus and navigation
 description: How an element becomes a focus node, how the compiler solves the D-pad graph, what --focus-wrap adds, and what the runtime does with the result.
 section: authoring
 order: 17
-version: 0.6.0
+version: 0.7.0
 sources: [packages/layout/src/focus.js, packages/layout/src/box.js, packages/layout/src/css.js, packages/layout/src/index.js, packages/layout/bin/ps2ui-layout.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/serve_page.html, runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, examples/memcard/ps2ui.json, README.md]
 ---
 

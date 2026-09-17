@@ -4,7 +4,7 @@ title: Compatibility
 description: The versions that ship together, the .uib format pledge across runtimes, registry prerelease rules, and the supported platforms.
 section: reference
 order: 53
-version: 0.6.0
+version: 0.7.0
 sources: [tools/check-versions.py, tools/check-format-frozen.py, CHANGELOG.md, docs/releasing.md, packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/__init__.py, packages/baker/ps2ui_bake/uib.py, packages/layout/src/index.js, runtime/ps2ui.h, runtime/ps2ui.c, runtime/Makefile, runtime/vendor/README.md, .github/workflows/hw.yml, .github/workflows/registry.yml, examples/memcard/build/library.json]
 ---
 
@@ -24,16 +24,16 @@ them.
 ```
 $ python3 tools/check-versions.py --except-tag
 ok - packages/baker derives its version from ps2ui_bake.__version__ and declares it nowhere else
-ok - @ophtml/layout 0.6.0-dev.0 and ophtml 0.6.0.dev0 are the same version in the two spellings
+ok - @ophtml/layout 0.7.0 and ophtml 0.7.0 are the same version in the two spellings
 ok - PS2UI_VERSION and uib.VERSION are both 7
 ok - docs/format-uib.md's header table says version 7
 ok - docs/format-uib.md's Versioning list explains v7
-ok - CHANGELOG's open section is headed with 0.6.0.dev0
+ok - CHANGELOG's newest section is headed with 0.7.0
 ok - CHANGELOG's open section names format v7
 ok - CHANGELOG's 0.5.0 section records the format it shipped (v7)
 ok - CHANGELOG counts zero format moves since 0.5.0, and v7 -> v7 is 0
 ok - CHANGELOG counts the drift from 0.5.0, the section below it
-ok - README's Quick start note names 0.6.0.dev0, 0.6.0-dev.0, format v7 and the drift since 0.5.0
+ok - README's Quick start note names 0.7.0, 0.7.0, format v7 and the drift since 0.5.0
 ok - @ophtml is scoped and publishes with access: public
 ok - @ophtml/layout publishes to the 'next' dist-tag, so a publish of this prerelease would not take `latest`
 ok - docs/releasing.md exists and still names __version__ and the tagging step (keywords, not correctness)
@@ -55,14 +55,14 @@ skip - the tag rule, deferred to the full unflagged run at the end of this job (
 
 | component | version | reads |
 |---|---|---|
-| `ophtml` (PyPI) | 0.6.0.dev0 | `ps2ui_bake.__version__` |
-| `@ophtml/layout` (npm) | 0.6.0-dev.0 | `packages/layout/package.json` |
+| `ophtml` (PyPI) | 0.7.0 | `ps2ui_bake.__version__` |
+| `@ophtml/layout` (npm) | 0.7.0 | `packages/layout/package.json` |
 | ui.json IR | 1 | `IR_VERSION` in `packages/layout/src/index.js` |
 | `.uib` format | 7 | `VERSION` in `packages/baker/ps2ui_bake/uib.py` |
 | `PS2UI_VERSION` (runtime macro) | 7 | `runtime/ps2ui.h` |
 
-`ps2ui --version` prints `ps2ui 0.6.0.dev0`. `ps2ui-layout --version`
-prints `ps2ui-layout 0.6.0-dev.0`. `PS2UI_VERSION` is the frozen
+`ps2ui --version` prints `ps2ui 0.7.0`. `ps2ui-layout --version`
+prints `ps2ui-layout 0.7.0`. `PS2UI_VERSION` is the frozen
 `.uib` format version, not a mechanism that stops the baker and the
 runtime drifting apart by itself. Baker and runtime agree because
 `ps2ui vendor-runtime` ships both files from one package in one
@@ -73,7 +73,7 @@ commit; see [the cross toolchain](page:runtime/integrating#the-cross-toolchain).
 Format v7 is the last incompatible `.uib` layout. [The
 pledge](page:reference/uib-format#the-pledge) states every future
 addition lands in a feature bit, never a struct stride. 0.3.0
-introduced v7; 0.4.0, 0.5.0 and the open 0.6.0.dev0 section each
+introduced v7; 0.4.0, 0.5.0, 0.6.0 and 0.7.0 each
 record zero format moves since the release below them, in the
 [changelog](page:project/changelog).
 
@@ -103,11 +103,11 @@ ok - all 11 Struct(s) in uib are in the record
 
 | runtime version | blob version | result |
 |---|---|---|
-| any v7 product (0.3.0 through 0.6.0.dev0) | any v7 product (0.3.0 through 0.6.0.dev0) | loads |
+| any v7 product (0.3.0 through 0.7.0) | any v7 product (0.3.0 through 0.7.0) | loads |
 | any v7 product | pre-pledge (0.1.0 or 0.2.0, format v1 through v6) | refused, `PS2UI_ERR_VERSION` |
 | pre-pledge (0.1.0 or 0.2.0) | any v7 product | refused, `PS2UI_ERR_VERSION` |
 
-A 0.5.0 runtime loads a 0.6.0.dev0 blob and a 0.6.0.dev0 runtime loads
+A 0.5.0 runtime loads a 0.7.0 blob and a 0.7.0 runtime loads
 a 0.5.0 blob, because both write format v7 and `ps2ui_load` compares
 only the header's `version` field against `PS2UI_VERSION`.
 
@@ -119,8 +119,8 @@ prerelease in different ways.
 
 | registry | package | prerelease mechanism | current state |
 |---|---|---|---|
-| npm | `@ophtml/layout` | `publishConfig.tag` set to `next` while the version is a prerelease; a plain `npm install` resolves the `latest` dist-tag, so the prerelease stays unreachable by it | tag `next`, version 0.6.0-dev.0 |
-| PyPI | `ophtml` | pip excludes a prerelease from a plain `pip install` unless no stable version satisfies the request | 0.3.0 through 0.5.0 are already on PyPI, so 0.6.0.dev0 stays excluded |
+| npm | `@ophtml/layout` | `publishConfig.tag` set to `next` while the version is a prerelease; a plain `npm install` resolves the `latest` dist-tag, so the prerelease stays unreachable by it | no `publishConfig.tag`, version 0.7.0 — a release, so `latest` is correct |
+| PyPI | `ophtml` | pip excludes a prerelease from a plain `pip install` unless no stable version satisfies the request | 0.7.0 is a release, so a plain `pip install ophtml` resolves it |
 
 A release drops `publishConfig.tag`, or sets it to `latest`; pip needs
 no equivalent step, because a real release already satisfies a plain

@@ -4,7 +4,7 @@ title: ps2ui
 description: The umbrella command over the toolchain: every subcommand, the project keys it forwards, what it writes and its exit codes.
 section: cli
 order: 30
-version: 0.6.0
+version: 0.7.0
 sources: [packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/__main__.py, packages/baker/pyproject.toml, packages/layout/package.json, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, packages/baker/tests/test_baker.py, packages/baker/tests/test_serve.py, examples/memcard/build.sh, examples/channel6/build.sh, README.md, CHANGELOG.md]
 ---
 
@@ -17,7 +17,7 @@ for what the keys mean. This page states where each key goes.
 
 ```console
 $ ps2ui --version
-ps2ui 0.6.0.dev0
+ps2ui 0.7.0
 ```
 
 ```console
@@ -491,8 +491,8 @@ $ PS2UI_LAYOUT=/bin/echo ps2ui dev --once
 ui/library.html ui/library.css -o build/dev --fonts fonts/fonts.json --mode ntsc16x9 --canvas 704x448 --display-aspect 16:9 --strict --min-font-size 11 --focus-wrap --palettize-images --once
 ```
 
-In 0.6.0 as released, `ps2ui dev` accepts `--strict` and `--min-font-size` and
-applies neither; the fix ships in 0.7.0. From that release on, both flags
+In 0.6.0, `ps2ui dev` accepted `--strict` and `--min-font-size` and applied
+neither. Fixed in 0.7.0: both flags
 take effect in `ps2ui-dev` as they do in
 `ps2ui-layout`, so `ps2ui dev` and `ps2ui build` warn on the same text and
 fail on the same warnings. The detail is under
@@ -611,9 +611,9 @@ Run these from the repository root.
 
 ```console
 $ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui --version
-ps2ui 0.6.0.dev0
+ps2ui 0.7.0
 $ node packages/layout/bin/ps2ui-layout.js --version
-ps2ui-layout 0.6.0-dev.0
+ps2ui-layout 0.7.0
 ```
 
 The two numbers differ in spelling because one is a Python version and the

@@ -4,7 +4,7 @@ title: ps2ui-layout and ps2ui-dev
 description: Compile one screen's HTML and CSS into ui.json, or watch the pair and rebake the blob and preview on every save.
 section: cli
 order: 31
-version: 0.6.0
+version: 0.7.0
 sources: [packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, packages/layout/src/aspect.js, packages/layout/src/lint.js, packages/layout/package.json, packages/layout/test/cli.test.js, packages/layout/test/fonts.test.js, packages/baker/ps2ui_bake/ps2ui.py, examples/memcard/ps2ui.json, examples/memcard/build.sh, fonts/fonts.json, README.md]
 ---
 
@@ -198,7 +198,7 @@ The baker is spawned as `python3 -m ps2ui_bake` with `PYTHONPATH` pointing at th
 
 ### Strict and the font floor
 
-In 0.6.0 as released, `ps2ui-dev` accepts both flags and applies neither; the fix ships in 0.7.0. From that release on, both flags reach the linter the way they do in `ps2ui-layout`. The memcard library screen shows the floor moving: both tools double their `min-font-size` warnings at a 40px floor.
+In 0.6.0, `ps2ui-dev` accepted both flags and applied neither. Fixed in 0.7.0: both flags reach the linter the way they do in `ps2ui-layout`. The memcard library screen shows the floor moving: both tools double their `min-font-size` warnings at a 40px floor.
 
 ```sh
 ps2ui-layout examples/memcard/ui/library.html examples/memcard/ui/library.css -o floor/layout14.json 2>&1 | grep -c "min-font-size:"

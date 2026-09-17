@@ -91,7 +91,7 @@ title: ps2ui-layout and ps2ui-dev
 description: <one sentence>
 section: cli
 order: 31
-version: 0.6.0
+version: 0.7.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -4,7 +4,7 @@ title: CSS
 description: The selector grammar, every property the compiler understands, the units and colours it accepts, and the two rules that have no CSS equivalent.
 section: authoring
 order: 12
-version: 0.6.0
+version: 0.7.0
 sources: [packages/layout/src/css.js, packages/layout/src/values.js, packages/layout/src/flex.js, packages/layout/src/paint.js, packages/layout/src/box.js, packages/layout/src/index.js, packages/layout/src/text.js, packages/layout/test/parse.test.js, packages/layout/test/layout.test.js, docs/site/assets/authoring/css/demo/demo.html, docs/site/assets/authoring/css/demo/demo.css, README.md]
 ---
 
@@ -62,7 +62,7 @@ Layout:
 |---|---|---|---|
 | `display` | `flex`, `none` | `flex` | Any other value is an error. `none` drops the element and its whole subtree. |
 | `flex-direction` | `row`, `row-reverse`, `column`, `column-reverse` | none | Required. See [the two hard rules](#the-two-hard-rules). |
-| `flex-wrap` | `nowrap`, `wrap`, `wrap-reverse` | `nowrap` | New in 0.7.0: `wrap-reverse` wraps and stacks its lines from the cross-end. In 0.6.0 it is accepted and behaves as `nowrap`. |
+| `flex-wrap` | `nowrap`, `wrap`, `wrap-reverse` | `nowrap` | New in 0.7.0: `wrap-reverse` wraps and stacks its lines from the cross-end. In 0.6.0 it was accepted and behaved as `nowrap`. |
 | `justify-content` | `flex-start`, `flex-end`, `center`, `space-between`, `space-around` | `flex-start` | Main axis. |
 | `align-items` | `flex-start`, `flex-end`, `center`, `stretch` | `stretch` | Cross axis. `stretch` skips an `<img>`, see [images](page:authoring/images#behaviour). |
 | `align-self` | `auto`, plus the `align-items` values | `auto` | Overrides the parent for one item. |

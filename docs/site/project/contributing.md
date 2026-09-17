@@ -4,7 +4,7 @@ title: Contributing
 description: Set up the tree, run the test suite CI runs, follow the five design rules, and see how a change is checked and admitted.
 section: project
 order: 71
-version: 0.6.0
+version: 0.7.0
 sources: [docs/site/ARCHITECTURE.md, CONTRIBUTING.md, .github/workflows/ci.yml, .github/ISSUE_TEMPLATE/bug.yml, .github/ISSUE_TEMPLATE/feature.yml, BACKLOG.md, docs/PLAN.md, packages/layout/package.json, examples/memcard/build.sh, tools/check-tutorial.py, tools/check-site-assets.py, tools/check-blobs.sh, tools/falsify.sh, tools/check-versions.py, tools/check-format-frozen.py, tools/check-runtime-shipped.py, tools/check-example-figures.py, tools/check-sweep-table.py, tools/check-deploying.py, tools/check-vram-model.py, tools/check-timing-probe.py, tools/check-findings.py, docs/site/runtime/integrating.md, docs/site/cli/ps2ui.md, docs/site/project/internals.md, docs/site/project/security-and-license.md, docs/site/_facts/runtime/integrating.md, docs/site/_facts/cli/ps2ui.md, docs/site/_facts/reference/compatibility.md]
 ---
 

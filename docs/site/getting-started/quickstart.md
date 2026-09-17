@@ -4,7 +4,7 @@ title: Quick start
 description: Eight commands take a TTF to a served preview, in one directory.
 section: getting-started
 order: 2
-version: 0.6.0
+version: 0.7.0
 sources: [docs/tutorial-uc3.md, tools/check-tutorial.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/vendor.py, fonts/fonts.json]
 ---
 

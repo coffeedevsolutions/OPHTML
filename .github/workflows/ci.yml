@@ -347,6 +347,14 @@ jobs:
       - name: Documentation site screenshots match the renderer
         run: python3 tools/check-site-assets.py
 
+      # The header logos' ARTWORK, which rule 10b cannot see: it
+      # reads the filename, and staging keeps three unreferenced
+      # exports around to be swapped in later by somebody who did
+      # not make them. Needs Pillow, so it cannot join
+      # check-versions.py in front of the installs.
+      - name: No two header logos claim the same version
+        run: python3 tools/check-logo-artwork.py
+
       # The prose half of the same fence: every page: link names a page
       # and a heading, every repo: link names a file, and every
       # line-pinned citation still points at the line it was pinned to

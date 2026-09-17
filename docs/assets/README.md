@@ -52,3 +52,11 @@ reference, but "historically" is not "currently".
 
 An old asset that a published release still needs is kept by that
 release's tag, so deleting it here does not break `v0.5.0`'s README.
+
+**And delete a staged logo whose version never happens.** These are
+staged against a guess at the sequence, not a commitment to it —
+nothing in `docs/PLAN.md`, `CHANGELOG.md` or `README.md` says what
+follows a given release. If `0.7.0` is followed by something other than
+`0.8.0`, then `080` and `090` are dead files wearing a note above that
+says they are not, which is the state this document exists to prevent,
+one version along. Raised in review of the change that staged them.

@@ -91,7 +91,7 @@ title: Streaming art
 description: <one sentence>
 section: runtime
 order: 44
-version: 0.6.0
+version: 0.7.0
 sources: [<every repository path opened>]
 ---
 ```

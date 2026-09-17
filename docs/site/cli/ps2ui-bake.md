@@ -4,7 +4,7 @@ title: ps2ui-bake
 description: Bake one or more ui.json files into a single .uib blob, with previews, a VRAM breakdown and the arena size.
 section: cli
 order: 32
-version: 0.6.0
+version: 0.7.0
 sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/__main__.py, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/arena.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/__init__.py, packages/baker/pyproject.toml, packages/baker/tests/test_baker.py, examples/memcard/build.sh, examples/memcard/ps2ui.json, tools/check-example-figures.py, .github/workflows/ci.yml, README.md]
 ---
 

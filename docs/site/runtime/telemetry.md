@@ -4,7 +4,7 @@ title: Telemetry
 description: What ps2ui_stats counts, when it resets, and how the sample turns it into one line per second.
 section: runtime
 order: 46
-version: 0.6.0
+version: 0.7.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/sample/main.c, runtime/sample/Makefile, runtime/Makefile, runtime/tests/test_runtime.c]
 ---
 
