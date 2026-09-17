@@ -87,18 +87,55 @@ function clampSize(v, min, max) {
  * Measure a text box: wrap (or ellipsize) into availW, return size.
  * Text layout is the leaf of the sizing recursion.
  */
-function measureText(box, availW, fonts) {
+function measureText(box, availW, ctx) {
+  const fonts = ctx.fonts;
   const s = box.style;
-  const font = fonts.resolve(s.fontWeight);
+  // measureWeight, not fontWeight: when a :focus rule bolds this run,
+  // the box is measured for the heavier face so one baked layout holds
+  // both states. Absent (every box with no focus delta) it is the base
+  // weight and nothing changes. See box.js where it is set.
+  const font = fonts.resolve(box.measureWeight ?? s.fontWeight);
   const lineH = resolveLineHeight(s.lineHeight, s.fontSize);
-  let lines;
-  if (s.whiteSpace === 'nowrap') {
-    const width = font.measure(box.text, s.fontSize, s.letterSpacing);
-    lines = [{ text: box.text, width }];
-  } else {
+  const wrapAt = (f) => {
+    if (s.whiteSpace === 'nowrap') {
+      return [{ text: box.text, width: f.measure(box.text, s.fontSize, s.letterSpacing) }];
+    }
     const max = availW == null ? Infinity : Math.max(availW, 0);
-    lines = wrapText(box.text, font, s.fontSize, max, s.letterSpacing);
+    return wrapText(box.text, f, s.fontSize, max, s.letterSpacing);
+  };
+  const lines = wrapAt(font);
+
+  // AND WHEN SIZING FOR BOLD COSTS A LINE, SAY SO.
+  //
+  // Measuring at the heavier weight is what stops a focused row drawing
+  // outside its box, and on one line the cost is slack at the end of
+  // it. Wrapping text is not so tidy: the bold face breaks in different
+  // places, so the UNFOCUSED state -- the one on screen almost all the
+  // time -- re-wraps, and at some widths it gains a line and the box
+  // grows with it. In a column everything below then moves.
+  //
+  // That follows necessarily from one baked layout holding both states,
+  // so it is not a defect to fix; it is an effect an author cannot
+  // anticipate and would find on a television. Raised in review of
+  // this PR, whose whole subject is effects that happened without
+  // saying so, against a description that called the cost "a little
+  // loose" -- true of one line and not of this.
+  const baseWeight = s.fontWeight;
+  if (box.measureWeight != null && box.measureWeight !== baseWeight
+      && ctx.warnings && s.whiteSpace !== 'nowrap') {
+    const plain = wrapAt(fonts.resolve(baseWeight));
+    if (plain.length !== lines.length) {
+      const el = box.el;
+      const msg = `css: <${el.tag}> line ${el.line}: a :focus rule changes `
+        + `font-weight to ${box.measureWeight}, so this text is measured for `
+        + `the heavier face and wraps to ${lines.length} lines where the `
+        + `unfocused text alone needs ${plain.length}. Both states share one `
+        + 'baked layout, so the box is that much taller whether or not it is '
+        + 'focused; widen it, or move the weight to the base rule.';
+      if (!ctx.warnings.includes(msg)) ctx.warnings.push(msg);
+    }
   }
+
   const w = Math.max(...lines.map((l) => l.width), 0);
   return { w, h: lines.length * lineH, lines, lineH, font };
 }
@@ -189,7 +226,7 @@ export function measureNode(box, availW, availH, ctx) {
 
   if (box.isText()) {
     const innerAvailW = availW == null ? null : availW - pb.left - pb.right;
-    const t = measureText(box, innerAvailW, ctx.fonts);
+    const t = measureText(box, innerAvailW, ctx);
     return {
       w: clampSize(t.w + pb.left + pb.right, resolveSize(box, 'min-width', s.minWidth, availW, ctx), resolveSize(box, 'max-width', s.maxWidth, availW, ctx)),
       h: clampSize(t.h + pb.top + pb.bottom, resolveSize(box, 'min-height', s.minHeight, availH, ctx), resolveSize(box, 'max-height', s.maxHeight, availH, ctx)),
@@ -510,7 +547,7 @@ export function placeNode(box, x, y, w, h, ctx) {
 
   if (box.isText()) {
     const innerW = box.width - pb.left - pb.right;
-    const t = measureText(box, innerW, ctx.fonts);
+    const t = measureText(box, innerW, ctx);
     // Ellipsize overflowing nowrap lines when asked to.
     if (s.whiteSpace === 'nowrap' && s.textOverflow === 'ellipsis') {
       const font = ctx.fonts.resolve(s.fontWeight);

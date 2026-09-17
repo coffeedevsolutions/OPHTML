@@ -302,7 +302,7 @@ truth column; it never repeats the claim column.
 | D4 | README.md "Focus and navigation", "Widescreen and video modes" | `--focus-wrap`, `--mode`, `--display-aspect` read as bake flags | They are `ps2ui-layout` flags. `--mode` is also on `ps2ui build`. `ps2ui-bake` has none of them. |
 | D5 | README.md "Previewing in a browser" | the serve option list omits `--uib` | Options: project positional, `--uib`, `--port`, `--screen`, `--theme`, `--no-watch`, `--selftest`. |
 | D6 | README.md C snippet under Quick start | `ps2ui_load` and `ps2ui_upload` called without checking returns | Document the checked form from `runtime/sample/main.c` (load failure and upload failure are fatal there). |
-| D7 | README.md "Supported CSS" | the property list | **Partly fixed in 0.7.0**, the CSS half. Now named: `opacity`, `min-*`/`max-*`, `align-self`, `flex` shorthand, `row-gap`, `column-gap`, `:root` custom properties, `var()`, `@theme`; `border-radius` stated as one px value; the eight colour names listed; the `:focus` guard's four exceptions stated rather than the guard overstated; `white-space: pre` documented as refused, which it now is. Keyword-valued properties are no longer unvalidated -- that was a code defect and is fixed, not documented around. **Still open, the non-CSS half:** `data-nocontrast`, capacity default 63, the `name` attribute, `--min-font-size`, and `&nbsp;` collapsing to a space. |
+| D7 | README.md "Supported CSS" | the property list | **Partly fixed in 0.7.0**, the CSS half. Now named: `opacity`, `min-*`/`max-*`, `align-self`, `flex` shorthand, `row-gap`, `column-gap`, `:root` custom properties, `var()`, `@theme`; `border-radius` stated as one px value; the eight colour names listed; the `:focus` guard's exceptions stated rather than the guard overstated (and in 0.7.0 three of the four became errors and the fourth is measured for, so the README now describes a guard with one deliberate exception); `white-space: pre` documented as refused, which it now is. Keyword-valued properties are no longer unvalidated -- that was a code defect and is fixed, not documented around. **Still open, the non-CSS half:** `data-nocontrast`, capacity default 63, the `name` attribute, `--min-font-size`, and `&nbsp;` collapsing to a space. |
 | D8 | docs/format-ir.md | `canvas` is `{w, h}`; no `themes`; no theme vectors on commands and slots | The emitted IR carries `canvas.displayAspect`, `canvas.par`, `canvas.display`, a top-level `themes` array, and `fillVar`/`fillThemes`/`borderColorVar`/`borderColorThemes`/`colorVar`/`colorThemes` on commands plus `colorBaseVar`/`colorFocusVar`/`colorBaseThemes`/`colorFocusThemes` on slots. |
 | D9 | packages/layout/bin/ps2ui-dev.js comment; packages/baker/ps2ui_bake/ps2ui.py `cmd_dev` | `ps2ui dev` honours `--strict` and `--min-font-size` | Fixed on this branch: `ps2ui-dev` puts the floor in `options.lint` and `--strict` fails the build before the bake, held by `packages/layout/test/cli.test.js` and `TestDevAgreesWithBuild` in `packages/baker/tests/test_serve.py`. Pages document the working flags. |
 | D10 | packages/baker/ps2ui_bake/serve.py `prog="ps2ui-serve"` | a `ps2ui-serve` command | Not installed. The command is `ps2ui serve`. |
@@ -327,10 +327,10 @@ evidence; **11 are not** — the row is the only record for
 `runtime/frame-loop`, whose facts files carry no `## follow-up` section
 at all.
 
-**A row marked *fixed* has been repaired in the repository.** Ten of
-the 45 are, as of 2026-09-13: one by #129, one by #131, one by #133's
-own `ps2ui-dev` flag change, and seven by the change that added these
-marks. The other 35 are open. Mark a row rather than deleting it — the
+**A row marked *fixed* has been repaired in the repository.** Thirteen
+of the 45 are: one by #129, one by #131, one by #133's own `ps2ui-dev`
+flag change, seven by the change that added these marks, and three by
+the `:focus` work in 0.7.0. The other 32 are open. Mark a row rather than deleting it — the
 evidence is why anyone believes the next one, and a list that quietly
 loses its closed items cannot be audited against the tree.
 
@@ -340,10 +340,10 @@ loses its closed items cannot be audited against the tree.
 | packages/layout/src/index.js fromManifest | `~` in a manifest `metrics` path expands in the baker but not the compiler | authoring/text-and-fonts |
 | packages/layout/src/html.js "malformed tag" | unreachable throw; parseAttrs returns only on the two characters the caller then tests | authoring/html |
 | packages/layout/src/box.js unknown-attribute warning | covers `data-` names only, so `focusabel` compiles silently to zero focusables | authoring/html |
-| packages/layout/src/box.js ":focus styles matched ... can never show" | unreachable warning; a `:focus` compound never matches outside a focusable scope | authoring/focus-and-navigation |
+| packages/layout/src/box.js ":focus styles matched ... can never show" | **fixed** — the warning was unreachable (`focusDeclared` is false exactly when `scope` is null, because the drop happens upstream in `compoundMatches`). The question moved to `computeStyle`'s match loop, where the failed rule is still in hand | authoring/focus-and-navigation |
 | packages/layout/src/css.js GEOMETRY_PROPS | `position` is listed but has no case, so it is refused under `:focus` and warned elsewhere | authoring/css |
-| packages/layout/src/css.js compoundMatches | a `:focus` compound matching no focusable element is dropped with no diagnostic | authoring/css |
-| packages/layout/src/paint.js | `letter-spacing`, `text-align`, `text-overflow` under `:focus` are accepted and discarded; `font-weight` reaches the focused command unmeasured | authoring/css |
+| packages/layout/src/css.js compoundMatches | **fixed** — re-tested with the focus requirement relaxed, so "would this have matched but for the attribute?" is answered and warned about, once per rule | authoring/css |
+| packages/layout/src/paint.js | **fixed** — the three discarded properties are refused by `FOCUS_DROPPED_PROPS` with their own message; `font-weight` stays allowed and the box is measured at the heavier of the two weights (236px → 270px on a 20px row, i.e. 34px that used to draw outside) | authoring/css |
 | packages/layout/src/css.js themeCount | an `@theme` block in a sheet with no `:root` name fails with an internal vector-width error | authoring/theming |
 | runtime/ps2ui.h theme comment | **fixed** — said no baker sets PS2UI_FEAT_ROLE_TINTS; uib.py sets it from n_theme | authoring/theming |
 | README.md "What it looks like" | **fixed** — called a theme a CLUT row; it is a tint-table row | authoring/theming |

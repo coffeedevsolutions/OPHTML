@@ -37,7 +37,9 @@ Parent facts reused without restatement: `html.attributes`, `html.attributes.boo
 
 ## follow-up
 
-`packages/layout/src/box.js:296-300` is dead code. The warning
+**RESOLVED IN 0.7.0, and this analysis is how.** The branch is gone from box.js and the question is asked in `computeStyle`'s match loop instead, where the rule that failed to match is still in hand: `selectorMatches` gained an `ignoreFocus` parameter, and a `:focus` rule that would have matched but for the attribute now warns, once per rule. The reasoning below is kept because it is what located the fix -- including the three fixtures tried here, which are now the two the test uses.
+
+`packages/layout/src/box.js:296-300` was dead code. The warning
 
 ```
 css: :focus styles matched <tag> line N but no enclosing element has the focusable

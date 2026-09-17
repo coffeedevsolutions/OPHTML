@@ -55,6 +55,51 @@ without moving this line.
 
 ### Fixed
 
+- **A `:focus` rule could bold a row that had been measured thin, and
+  three other text properties it accepted did nothing at all.** The
+  geometry guard refuses a `:focus` rule that changes `width`,
+  `padding` or `font-size`, because both states share one baked layout.
+  Four text properties sat outside it and each failed differently.
+
+  `font-weight` **is now measured for.** It was honoured when drawing
+  and ignored when measuring: `emitTextLines` took the weight from the
+  focus style while the lines had been placed once, from the base. Bold
+  glyphs are wider, so the focused row drew past its box — a 20px
+  `Shadow of the Colossus` row boxed at 236px and drew 270px when
+  focused, 34px of it outside. The anonymous text box now carries the
+  heavier of the two weights, so the box is sized for bold and one
+  baked layout holds both states. Bolding the focused row is the
+  ordinary thing a console UI does, so the fix is to make it work
+  rather than to refuse it.
+
+  **And the cost of that is now said out loud**, because it is bigger
+  than "a little slack at the end of the line". On wrapping text the
+  unfocused state — the one on screen almost all the time — is wrapped
+  at the bold face's break points, so it breaks differently, and at some
+  widths it gains a line and the box grows taller in both states; in a
+  column, everything below moves. Swept over one string at seven widths,
+  the line count moves at 170px and 250px and holds at the other five,
+  and the compiler warns at exactly those two, naming both counts.
+
+  `letter-spacing`, `text-align` and `text-overflow` **are now compile
+  errors under `:focus`**, with a message of their own rather than the
+  geometry one — they ask for nothing impossible, they are simply never
+  read on the focus side, so the declaration parsed, applied and
+  vanished. No error, no warning, no effect.
+
+- **A `:focus` rule on an element with no `focusable` attribute
+  compiled to silence.** It can never apply, and a forgotten attribute
+  looked exactly like a typo in the class name. `box.js` carried a
+  warning for precisely this and **could not reach it**: it asked
+  `focusDeclared && scope === null`, and those cannot both hold,
+  because the rule is dropped upstream in `compoundMatches` — so
+  nothing matches, so `focusDeclared` is false. The question is now
+  asked in the match loop, where the failed rule is still in hand:
+  re-testing with the focus requirement relaxed answers "would this
+  have matched but for the attribute?". Keyed on the rule, so twenty
+  `.panel` elements are one warning, and a rule naming a class the
+  element does not carry stays silent.
+
 - **Eight keyword-valued CSS properties accepted any string, and a typo
   bought you a different layout rather than an error.**
   `flex-direction`, `flex-wrap`, `justify-content`, `align-items`,
