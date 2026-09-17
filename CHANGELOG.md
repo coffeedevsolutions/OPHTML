@@ -55,6 +55,48 @@ without moving this line.
 
 ### Fixed
 
+- **Eight keyword-valued CSS properties accepted any string, and a typo
+  bought you a different layout rather than an error.**
+  `flex-direction`, `flex-wrap`, `justify-content`, `align-items`,
+  `align-self`, `text-align`, `white-space` and `text-overflow` stored
+  their value verbatim, and every consumer ends in a `default:` meaning
+  "the initial value" — so `flex-direction: rows` laid out as a column
+  and `text-align: centre` aligned left, both at exit 0. `display`,
+  `overflow` and `border` already refused what they could not honour;
+  these did not, and the difference was invisible because falling
+  through looked like working.
+
+  **Worse, `flex-direction: rows` also satisfied the required-direction
+  check**, which asks whether a declaration exists and not whether its
+  value parses — the one fence over this family, defeated by the same
+  typo. The value is now validated before the declared flag is set.
+
+  **The accepted sets are what the solver implements, not what CSS
+  defines**, because accepting a real value with no branch behind it
+  would recreate the bug one value over. So `justify-content:
+  space-evenly`, `align-items: baseline`, `text-align: justify` and
+  `white-space: pre` (with `pre-wrap`, `pre-line`, `break-spaces`) are
+  errors here, each naming the layout it would silently have produced.
+  A misspelling reads differently, because a typo and a missing feature
+  are not the same problem.
+
+  This can fail a build that used to compile. Every such build was
+  already producing a layout its author did not write. All three
+  example blobs are byte-identical across the change, and every keyword
+  value in every stylesheet in the tree was already valid.
+
+- **README's "Supported CSS" list was wrong in both directions
+  (drift row D7, the CSS half).** It omitted `opacity`, `min-*`/`max-*`,
+  `align-self`, the `flex` shorthand, `row-gap`/`column-gap` and
+  `:root`/`var()`/`@theme`; it said "flat colors" without naming the
+  eight that parse, so a sheet written from it could use `orange` and
+  fail to compile; and it stated the `:focus` geometry guard flatly
+  when four text properties sit outside it — `font-weight`, which
+  changes the drawn face while the line was measured at the base
+  weight, and `letter-spacing`, `text-align` and `text-overflow`, which
+  are accepted and then discarded. That defect is still open; the
+  README now states the exception rather than overstating the guard.
+
 - **Every `ps2ui` build under macOS's temporary directory failed, on a
   path arithmetic that only a symlink of unequal depth can break.** The
   project root was `abspath`'d and then `chdir`'d to; `chdir` resolves
