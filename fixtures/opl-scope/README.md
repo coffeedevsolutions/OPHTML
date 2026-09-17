@@ -187,6 +187,20 @@ in either direction. See `docs/PLAN.md` §6 — the phase gates sequence
 new capability and do not queue defect fixes, and a property that
 diverges from the standard its syntax is borrowed from is a defect.
 
+**That change shipped, and this paragraph read as pending until the
+0.7.0 documentation pass.** A container laying out two or more children
+must now declare `flex-direction`; the error names every offender and
+its line. `INITIAL_STYLE` still carries `column`, which is why the
+first sentence above is still true of the source — it is a fallback
+that a multi-child container can no longer reach.
+
+One postscript the fix needed and did not have until 0.7.0: the
+required-direction check asked whether a declaration *exists*, not
+whether its value parses, so `flex-direction: rows` satisfied it and
+laid out as a column at exit 0 — the same defect this fixture found,
+reachable through a typo, past the fence built to stop it. Keyword
+values are validated now, before the declared flag is set.
+
 **2. The contrast lint composited mutually exclusive focus states.**
 Fixed separately: a chip's focused background was being composited
 under its unfocused text, inventing a frame the console cannot draw.

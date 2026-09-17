@@ -288,6 +288,36 @@ The first fixes today's gap. The second makes tomorrow's impossible,
 because retiring a belief now fails CI until someone goes and corrects
 the text.
 
+**The same shape, measured again in 0.7.0, in the citation record.**
+`check-site-pages.py` pinned every `repo:<path>#L<n>` link in a page
+and went red when the line moved — a rule that did exactly what it
+said. What it said covered half the citations in the library. A
+`_facts` row's `source` cell, `packages/layout/src/css.js:598-655`, is
+where the *evidence* for every claim lives, and it was pinned by
+nothing. Taking `docs/releasing.md` step 5b and reconstructing each
+citation's original text from the commit that last touched its row:
+
+```
+line-anchored facts citations   1087
+still correct                    821
+drifted                          266
+```
+
+One of the 266 was broken by the pull request two before the fix, which
+inserted a set above `GEOMETRY_PROPS`: the row about the focus guard
+then cited a different set with a similar shape, in the file the row is
+about, four commits after a neighbouring row in the same file had been
+re-measured by hand. Nothing could see it, because the half of the
+record that carries the proof was the half with no fence.
+
+The repair had the same two halves, and again only the second is
+durable: relocate the 266, then pin and gate the facts citations the
+way the page citations were already gated. And an ordering the first
+draft got right by luck rather than by design — `--pin` writes the
+record from the tree as it stands, so pinning before fixing the drift
+would have rubber-stamped all 266 into a record nobody would question
+again.
+
 > **Ask of any check: not "does it fail when broken", but "over what
 > domain does it hold?"** The first question has an easy answer and the
 > second is where the coverage hides.
