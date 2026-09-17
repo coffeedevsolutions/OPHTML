@@ -191,11 +191,30 @@ written twice to avoid.
    the tag.
 
    ```sh
-   python3 tools/check-doc-impact.py <previous tag>
+   python3 tools/check-doc-impact.py <previous tag> --all
    ```
 
    Everything this release changed is in that diff, so what the tool
    names is the release's documentation surface. Read the list.
+
+   **`--all`, and the reason it exists is this step.** By default the
+   tool hides a citation when the diff also edits the document, which
+   is right for a pull request: a document you already touched is one
+   you have already thought about. Across a whole release the diff
+   edits nearly every document in the library, so the suppression eats
+   the answer — at 0.7.0 it hid **420 of 427** citations and reported
+   seven documents where `--all` reports 98. The step said "the
+   release's documentation surface" and the command was giving a
+   PR-shaped slice of it. The default now also says out loud when it
+   has hidden more than it showed.
+
+   **And the tool used to accept a tag it could not resolve.** `sh()`
+   kept git's stdout and dropped its exit status, so `v0.6.O` — a
+   capital O — printed `ok - nothing changed against v0.6.O` and
+   exited 0. This is the one place the tool is invoked with an
+   argument, typed by hand, once a cycle, and the failure mode said
+   the release had no documentation surface. It now exits 2 and names
+   the ref.
 
    **What has to be true before you tag.** Every page whose `sources:`
    name a file this release touched has been re-read against it. Every

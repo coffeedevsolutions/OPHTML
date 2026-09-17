@@ -96,9 +96,36 @@ PATH = re.compile(r"[A-Za-z0-9_./*-]+\.(?:%s)(?![A-Za-z0-9])"
 IGNORE = re.compile(r"^(.*/__pycache__/|.*\.lock$)")
 
 
-def sh(*args):
-    return subprocess.run(args, cwd=ROOT, capture_output=True,
-                          text=True).stdout.splitlines()
+def sh(*args, required=True):
+    """Run git and return its stdout lines.
+
+    THE FOURTH DOOR INTO THE SILENT-ZERO ROOM, and the one that opens
+    where it costs most. `changed()` below enumerates three: a diff of
+    nothing, a diff entirely of ignored files, and a suppressed result.
+    This function was the fourth, because it kept stdout and threw away
+    the exit status -- so a ref git cannot resolve produced an empty
+    diff, and an empty diff reads as "nothing changed":
+
+        $ check-doc-impact.py v0.6.O        # capital O, not zero
+        ok - nothing changed against v0.6.O
+        rc 0
+
+    That is not a hypothetical spelling. docs/releasing.md step 5b is
+    the one place this tool is invoked with an argument -- a release
+    tag, typed by hand, once a cycle -- and the failure says the
+    release has no documentation surface, which is the one answer that
+    stops the step. Found while running step 5b for 0.7.0.
+    """
+    r = subprocess.run(args, cwd=ROOT, capture_output=True, text=True)
+    if required and r.returncode != 0:
+        raise GitError(" ".join(args), r.stderr.strip())
+    return r.stdout.splitlines()
+
+
+class GitError(Exception):
+    def __init__(self, cmd, err):
+        super().__init__(cmd)
+        self.cmd, self.err = cmd, err
 
 
 def changed(base):
@@ -115,7 +142,10 @@ def changed(base):
     into one room and this was the third, left open because a filter
     that runs before the counting does not look like a result.
     """
-    merge_base = sh("git", "merge-base", base, "HEAD")
+    # merge-base is allowed to fail (a tag with no common ancestor is
+    # still a usable diff base); `git diff` is not, because that is the
+    # call whose empty output means "nothing changed".
+    merge_base = sh("git", "merge-base", base, "HEAD", required=False)
     ref = merge_base[0] if merge_base else base
     all_paths = [p for p in sh("git", "diff", "--name-only", ref, "--") if p]
     kept = [p for p in all_paths if not IGNORE.match(p)]
@@ -182,8 +212,33 @@ def references(path):
 
 
 def main():
-    base = sys.argv[1] if len(sys.argv) > 1 else "origin/main"
-    touched, ignored = changed(base)
+    # --all: DO NOT HIDE A CITATION BECAUSE THE DIFF ALSO EDITS THE
+    # DOCUMENT. That suppression is right for a pull request, where a
+    # document you already touched is one you have already thought
+    # about. It is wrong for a release, and quietly so: run against the
+    # previous tag, the diff edits nearly every document in the
+    # library, so 420 of 427 citations vanish and the tool reports
+    # seven. docs/releasing.md step 5b calls this exact invocation
+    # "the release's documentation surface" and says to read the list
+    # -- so the list has to be the surface. Measured at 0.7.0, which is
+    # when this flag was added.
+    argv = [a for a in sys.argv[1:] if a != "--all"]
+    show_all = "--all" in sys.argv[1:]
+    base = argv[0] if argv else "origin/main"
+    try:
+        touched, ignored = changed(base)
+    except GitError as e:
+        # THE ONE PLACE THIS TOOL EXITS NON-ZERO, and it is not a
+        # finding about the tree. "This tool warns and never fails" is
+        # about DOCUMENTS; a base it cannot resolve is not a warning
+        # about documents, it is the tool being unable to run -- and
+        # returning 0 there is what made a typo'd tag look like a clean
+        # release. See sh().
+        print("not ok - cannot diff against %r: %s" % (base, e.err),
+              file=sys.stderr)
+        print("         %s failed. Check the ref exists: git rev-parse %s"
+              % (e.cmd, base), file=sys.stderr)
+        return 2
     if not touched:
         if ignored:
             print("ok - %d changed file(s) against %s, all of them "
@@ -231,10 +286,12 @@ def main():
     flagged, suppressed = {}, 0
     for path in code:
         for doc in sorted(index.get(path, ())):
-            if doc in docs_changed:
+            if doc in docs_changed and not show_all:
                 suppressed += 1
                 continue
             flagged.setdefault(path, []).append(doc)
+
+    shown_count = sum(len(v) for v in flagged.values())
 
     def note_suppressed():
         if suppressed:
@@ -243,6 +300,15 @@ def main():
                   "#  PR and the wrong one for a branch that adds "
                   "documents wholesale, so it is counted rather than\n"
                   "#  folded into the result above." % suppressed)
+            # AND WHEN THE HIDDEN LIST IS THE LIST, SAY SO LOUDER.
+            # Counting it is enough when it hides a handful. At release
+            # scope it hid 420 of 427 and the reader still saw a
+            # confident seven-line answer.
+            if suppressed > shown_count:
+                print("#  THAT IS MORE THAN THIS RUN REPORTED (%d shown). "
+                      "Re-run with --all to see them;\n"
+                      "#  docs/releasing.md step 5b wants the whole "
+                      "surface." % shown_count)
 
     if not flagged:
         print("ok - no document in the corpus cites any changed file")
