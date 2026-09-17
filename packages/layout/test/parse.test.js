@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { parseHTML } from '../src/html.js';
 import {
   parseStylesheet, computeStyle, INITIAL_STYLE, parseSelector, selectorMatches,
+  applyDeclaration,
 } from '../src/css.js';
 import { parseColor, parseLength } from '../src/values.js';
 
@@ -143,6 +144,135 @@ test('css: unknown properties warn instead of erroring', () => {
   const { style } = computeStyle(el, sheet, null, null, warnings);
   assert.deepEqual(style.color, [255, 255, 255, 255]);
   assert.match(warnings.join('\n'), /box-shadow/);
+});
+
+test('css: every value the keyword table accepts actually compiles', () => {
+  // THE INVERSE BUG, AND THE REASON THIS TEST IS FIRST. A validator is
+  // a list of strings, and a typo in the list rejects valid CSS -- the
+  // failure the eight properties below could not have before, bought
+  // with the one they could. So the table is driven against the parser
+  // rather than eyeballed: every value it claims to take is compiled.
+  const OK = {
+    'flex-direction': ['row', 'row-reverse', 'column', 'column-reverse'],
+    'flex-wrap': ['nowrap', 'wrap', 'wrap-reverse'],
+    'justify-content': ['flex-start', 'flex-end', 'center', 'space-between',
+                        'space-around'],
+    'align-items': ['flex-start', 'flex-end', 'center', 'stretch'],
+    'align-self': ['auto', 'flex-start', 'flex-end', 'center', 'stretch'],
+    'text-align': ['left', 'center', 'right'],
+    'white-space': ['normal', 'nowrap'],
+    'text-overflow': ['clip', 'ellipsis'],
+  };
+  let n = 0;
+  for (const [prop, values] of Object.entries(OK)) {
+    for (const v of values) {
+      const warnings = [];
+      assert.doesNotThrow(
+        () => {
+          const sheet = parseStylesheet(`.a { ${prop}: ${v} }`);
+          computeStyle(parseHTML('<div class="a">x</div>'), sheet, null, null,
+                       warnings);
+        },
+        `${prop}: ${v} is in the accepted set and did not compile`,
+      );
+      // ...and it is APPLIED, not merely tolerated: a property that
+      // stopped reaching the style object would pass the line above.
+      assert.equal(warnings.length, 0, `${prop}: ${v} warned: ${warnings}`);
+      n++;
+    }
+  }
+  assert.equal(n, 28, 'the accepted sets changed size; update this count');
+});
+
+test('css: a misspelled keyword is an error, not a different layout', () => {
+  // EVERY ONE OF THE EIGHT, because this defect was invisible property
+  // by property: each consumer ends in a `default:` meaning "the
+  // initial value", so a typo fell through to a DIFFERENT LAYOUT at
+  // exit 0 rather than to an error. Testing one would say nothing
+  // about the other seven, which is how `flex-wrap` stayed broken
+  // while `flex-direction` was being looked at.
+  const TYPOS = {
+    'flex-direction': 'rows',
+    'flex-wrap': 'wrapp',
+    'justify-content': 'space_between',
+    'align-items': 'centre',
+    'align-self': 'strech',
+    'text-align': 'centre',
+    'white-space': 'no-wrap',
+    'text-overflow': 'elipsis',
+  };
+  for (const [prop, bad] of Object.entries(TYPOS)) {
+    assert.throws(
+      () => {
+        const sheet = parseStylesheet(`.a { ${prop}: ${bad} }`);
+        computeStyle(parseHTML('<div class="a">x</div>'), sheet, null, null, []);
+      },
+      (err) => {
+        assert.match(err.message, new RegExp(`${prop}: unknown value "${bad}"`));
+        // The remedy is in the message: a reader who misspelled a
+        // value needs the spelling, and an error that only says "no"
+        // sends them to the source.
+        assert.match(err.message, new RegExp(`${prop} takes `));
+        return true;
+      },
+      `${prop}: ${bad} did not throw`,
+    );
+  }
+});
+
+test('css: real CSS this target lacks says so, and says what it would have done', () => {
+  // A DIFFERENT FACT FROM A TYPO, and only one of the two is the
+  // author's mistake. `baseline` is not misspelled; it is absent. The
+  // message names the layout the value would silently have produced,
+  // because that is the thing the author was about to not notice.
+  const CASES = [
+    ['justify-content', 'space-evenly', /packed from main-start/],
+    ['align-items', 'baseline', /aligned to cross-start/],
+    ['align-self', 'baseline', /aligned to cross-start/],
+    ['text-align', 'justify', /left-aligned/],
+    ['white-space', 'pre', /wrapped like normal/],
+    ['white-space', 'pre-wrap', /wrapped like normal/],
+    ['white-space', 'pre-line', /wrapped like normal/],
+    ['white-space', 'break-spaces', /wrapped like normal/],
+  ];
+  for (const [prop, value, consequence] of CASES) {
+    assert.throws(
+      () => {
+        const sheet = parseStylesheet(`.a { ${prop}: ${value} }`);
+        computeStyle(parseHTML('<div class="a">x</div>'), sheet, null, null, []);
+      },
+      (err) => {
+        assert.match(err.message, /is real CSS that this target does not implement/);
+        assert.match(err.message, consequence);
+        assert.doesNotMatch(err.message, /unknown value/,
+                            `${prop}: ${value} was reported as a typo`);
+        return true;
+      },
+      `${prop}: ${value} did not throw`,
+    );
+  }
+});
+
+test('css: a bad flex-direction no longer satisfies the must-declare check', () => {
+  // THE FENCE THIS TYPO USED TO DEFEAT. box.js requires every
+  // multi-child container to state flex-direction, and asks whether a
+  // declaration EXISTS, not whether its value parses -- so
+  // `flex-direction: rows` set flexDirectionDeclared, passed the one
+  // check over this family, and laid out as a column. Validating
+  // before the flag is set is what closes it, so the flag must still
+  // be false after the throw.
+  const style = { ...INITIAL_STYLE };
+  assert.throws(() => applyDeclaration(style, 'flex-direction', 'rows', 1, [], null));
+  assert.equal(style.flexDirectionDeclared, false,
+               'a refused value still marked the direction as declared');
+  assert.equal(style.flexDirection, INITIAL_STYLE.flexDirection,
+               'a refused value reached the style object');
+
+  // And the accepted spelling still does set it.
+  const good = { ...INITIAL_STYLE };
+  applyDeclaration(good, 'flex-direction', 'row', 1, [], null);
+  assert.equal(good.flexDirectionDeclared, true);
+  assert.equal(good.flexDirection, 'row');
 });
 
 test('css: inherited vs reset properties', () => {

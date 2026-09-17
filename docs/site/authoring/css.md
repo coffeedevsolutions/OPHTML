@@ -113,7 +113,7 @@ Text:
 | `line-height` | px, a bare number, or `%` | `1.25` | Inherits. A bare number multiplies the font size; `%` is divided by 100 first. |
 | `letter-spacing` | px | `0` | Inherits. Added between glyphs, after kerning. |
 | `text-align` | `left`, `center`, `right` | `left` | Inherits. |
-| `white-space` | `normal`, `nowrap` | `normal` | Inherits. `nowrap` suppresses wrapping. |
+| `white-space` | `normal`, `nowrap` | `normal` | Inherits. `nowrap` suppresses wrapping; `pre` and friends are refused by name. |
 | `text-overflow` | `clip`, `ellipsis` | `clip` | `ellipsis` needs `white-space: nowrap`, see [text and fonts](page:authoring/text-and-fonts#ellipsis). |
 
 ### Units
@@ -202,11 +202,27 @@ Every focus state of the demo screen, drawn from one baked layout:
 
 More on the focus graph is on [focus and navigation](page:authoring/focus-and-navigation#behaviour).
 
-### Unvalidated keywords
+### Checked keywords
 
-Keyword values are stored verbatim. Seven properties accept any string: `flex-direction`, `flex-wrap`, `justify-content`, `align-items`, `align-self`, `text-align` and `white-space`. A misspelling falls through to the default branch of the switch that later reads it. `flex-direction: rows` compiles and lays out as a column. It also satisfies the required-direction check, which tests that a declaration exists and not that its value parses. `text-align: centre` compiles and aligns left. Both cost a screen that looks wrong with no diagnostic anywhere, so spell these values against the table above.
+New in 0.7.0. Every keyword-valued property refuses a value it cannot honour. Eight are checked against the set the solver implements: `flex-direction`, `flex-wrap`, `justify-content`, `align-items`, `align-self`, `text-align`, `white-space` and `text-overflow`, alongside `display`, `overflow` and `border`, which already did.
 
-The checked keyword properties are `display` and `overflow`. Both refuse an unknown value by name.
+The sets come from the solver rather than from CSS, and the difference is the point. `justify-content: space-evenly`, `align-items: baseline`, `text-align: justify` and `white-space: pre` are all real CSS with no branch behind them, so each is an error naming the layout it would otherwise have produced:
+
+```
+css: line 1: align-items: "baseline" is real CSS that this target does not
+implement -- there is no baseline alignment across items -- text sits on its
+own line box -- so it would have aligned to cross-start. align-items takes
+flex-start, flex-end, center, stretch.
+```
+
+A misspelling reads differently, because it is a different problem:
+
+```
+css: line 1: text-align: unknown value "centre". text-align takes left,
+center, right.
+```
+
+Before this, all eight stored their value verbatim and every consumer ended in a default branch meaning "the initial value", so a typo produced a different layout at exit 0. `flex-direction: rows` laid out as a column and also satisfied the required-direction check, which asks whether a declaration exists and not whether its value parses. That was the one check over this family, defeated by the same typo.
 
 ### Scissor and display none
 

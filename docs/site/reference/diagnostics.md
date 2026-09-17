@@ -69,6 +69,8 @@ only one with no line number.
 | `css: line <n>: <prop>: only px supported, got "<value>"` | error | a length in `%`, `em`, `rem`, `vw` or `vh` on a px-only property | convert to px | [CSS](page:authoring/css#units) |
 | `css: line <n>: display: only "flex" and "none" exist on this target (got "<value>")` | error | any other `display` value | use `flex` or `none` | [CSS](page:authoring/css#scissor-and-display-none) |
 | `css: line <n>: overflow: only visible\|hidden (there is no scrolling on a memory card browser)` | error | any other `overflow` value | use `hidden` and a list window | [Lists](page:authoring/lists#runtime-window) |
+| `css: line <n>: <prop>: unknown value "<value>". <prop> takes <set>` | error | a misspelled keyword on one of the eight checked properties | spell it from the set the message lists | [CSS](page:authoring/css#checked-keywords) |
+| `css: line <n>: <prop>: "<value>" is real CSS that this target does not implement -- <what it would have done>. <prop> takes <set>` | error | `space-evenly`, `baseline`, `justify`, `pre`, `pre-wrap`, `pre-line`, `break-spaces` | pick a value the solver has; the message names the layout it would otherwise have produced | [CSS](page:authoring/css#checked-keywords) |
 | `css: line <n>: padding: 1-4 values` | error | five or more values in the shorthand | give one to four | [CSS](page:authoring/css#reference-table) |
 | `css: line <n>: margin: 1-4 values` | error | five or more values in the shorthand | give one to four | [CSS](page:authoring/css#reference-table) |
 | `css: line <n>: border: unsupported token "<token>" (only solid borders exist)` | error | a style keyword other than `solid` or `none` in the shorthand | write `<width> solid <color>` | [CSS](page:authoring/css#reference-table) |

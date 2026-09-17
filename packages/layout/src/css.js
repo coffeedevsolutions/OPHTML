@@ -568,6 +568,104 @@ function pxOrThrow(value, prop, line) {
   return l.value;
 }
 
+/**
+ * The keyword-valued properties, and what this target actually does.
+ *
+ * WHY THESE WERE STORED UNCHECKED FOR SO LONG. `display`, `overflow`
+ * and `border` all refuse a value they cannot honour; these eight did
+ * not, and the difference was invisible because the consumer of each
+ * one ends in a `default:` that means "the initial value". So a
+ * misspelling did not fall through to an error, it fell through to a
+ * DIFFERENT LAYOUT: `flex-direction: rows` laid out as a column,
+ * `text-align: centre` as left, and both exited 0.
+ *
+ * `flex-wrap` was the worst of them and got worse before this landed.
+ * It was compared only against `'wrap'`, so `wrap-reverse` -- a real
+ * value -- wrapped not at all; fixing that (B4's sibling) made both
+ * gates ask `!== 'nowrap'`, which turned every typo into "wrap".
+ * Neither shape is acceptable and only refusing the value fixes both.
+ *
+ * THE SETS ARE WHAT THE SOLVER IMPLEMENTS, NOT WHAT CSS DEFINES, and
+ * that distinction is the point. Accepting a real CSS value with no
+ * branch behind it would recreate exactly the bug this table closes,
+ * one value over -- so `justifyOffsets`, `alignOffset` and the two
+ * `whiteSpace` comparisons were read and the sets copied off them.
+ * `absent` holds the real CSS values that fall in that gap, each with
+ * the layout it would silently have produced, because "you typed
+ * something wrong" and "this target does not have that" are different
+ * facts and only one of them is the author's mistake.
+ */
+const KEYWORDS = {
+  'flex-direction': {
+    ok: ['row', 'row-reverse', 'column', 'column-reverse'],
+    absent: {},
+  },
+  'flex-wrap': {
+    ok: ['nowrap', 'wrap', 'wrap-reverse'],
+    absent: {},
+  },
+  'justify-content': {
+    ok: ['flex-start', 'flex-end', 'center', 'space-between', 'space-around'],
+    absent: {
+      'space-evenly': 'justifyOffsets has no branch for it, so it would '
+                      + 'have packed from main-start',
+    },
+  },
+  'align-items': {
+    ok: ['flex-start', 'flex-end', 'center', 'stretch'],
+    absent: {
+      baseline: 'there is no baseline alignment across items -- text sits '
+                + 'on its own line box -- so it would have aligned to '
+                + 'cross-start',
+    },
+  },
+  'align-self': {
+    ok: ['auto', 'flex-start', 'flex-end', 'center', 'stretch'],
+    absent: {
+      baseline: 'there is no baseline alignment across items, so it would '
+                + 'have aligned to cross-start',
+    },
+  },
+  'text-align': {
+    ok: ['left', 'center', 'right'],
+    absent: {
+      justify: 'inter-word stretching would change measured advances the '
+               + 'baked kern table cannot express, so it would have been '
+               + 'left-aligned',
+    },
+  },
+  'white-space': {
+    ok: ['normal', 'nowrap'],
+    absent: {
+      pre: 'only nowrap suppresses wrapping and no value preserves runs '
+           + 'of whitespace, so it would have wrapped like normal',
+      'pre-wrap': 'no value preserves runs of whitespace, so it would have '
+                  + 'wrapped like normal',
+      'pre-line': 'no value preserves newlines, so it would have wrapped '
+                  + 'like normal',
+      'break-spaces': 'no value preserves runs of whitespace, so it would '
+                      + 'have wrapped like normal',
+    },
+  },
+  'text-overflow': {
+    ok: ['clip', 'ellipsis'],
+    absent: {},
+  },
+};
+
+function keywordOrThrow(prop, value, line) {
+  const spec = KEYWORDS[prop];
+  if (spec.ok.includes(value)) return value;
+  const takes = `${prop} takes ${spec.ok.join(', ')}`;
+  if (Object.prototype.hasOwnProperty.call(spec.absent, value)) {
+    throw new Error(
+      `css: line ${line}: ${prop}: "${value}" is real CSS that this target `
+      + `does not implement -- ${spec.absent[value]}. ${takes}.`);
+  }
+  throw new Error(`css: line ${line}: ${prop}: unknown value "${value}". `
+                  + `${takes}.`);
+}
+
 const SIDE_INDEX = { top: 0, right: 1, bottom: 2, left: 3 };
 
 /**
@@ -583,7 +681,12 @@ export function applyDeclaration(style, prop, value, line, warnings, vars) {
       }
       style.display = value; return true;
     case 'flex-direction':
-      style.flexDirection = value;
+      // Validated BEFORE flexDirectionDeclared is set, which is what
+      // closes the trap box.js sits behind: that check asks whether a
+      // declaration exists, not whether its value parses, so
+      // `flex-direction: rows` used to satisfy the one fence over this
+      // family with the same typo it defeated.
+      style.flexDirection = keywordOrThrow(prop, value, line);
       // Recorded, not inferred from the value: a container that says
       // `column` and one that merely defaults to it produce identical
       // styles, and only one of them is something the author decided.
@@ -591,13 +694,13 @@ export function applyDeclaration(style, prop, value, line, warnings, vars) {
       style.flexDirectionDeclared = true;
       return true;
     case 'flex-wrap':
-      style.flexWrap = value; return true;
+      style.flexWrap = keywordOrThrow(prop, value, line); return true;
     case 'justify-content':
-      style.justifyContent = value; return true;
+      style.justifyContent = keywordOrThrow(prop, value, line); return true;
     case 'align-items':
-      style.alignItems = value; return true;
+      style.alignItems = keywordOrThrow(prop, value, line); return true;
     case 'align-self':
-      style.alignSelf = value; return true;
+      style.alignSelf = keywordOrThrow(prop, value, line); return true;
     case 'flex-grow':
       style.flexGrow = parseFloat(value); return true;
     case 'flex-shrink':
@@ -710,9 +813,12 @@ export function applyDeclaration(style, prop, value, line, warnings, vars) {
       if (l.unit === '%') { style.lineHeight = { unit: 'number', value: l.value / 100 }; return true; }
       style.lineHeight = l; return true;
     }
-    case 'text-align': style.textAlign = value; return true;
-    case 'white-space': style.whiteSpace = value; return true;
-    case 'text-overflow': style.textOverflow = value; return true;
+    case 'text-align':
+      style.textAlign = keywordOrThrow(prop, value, line); return true;
+    case 'white-space':
+      style.whiteSpace = keywordOrThrow(prop, value, line); return true;
+    case 'text-overflow':
+      style.textOverflow = keywordOrThrow(prop, value, line); return true;
     case 'letter-spacing': style.letterSpacing = px(); return true;
     case 'overflow':
       if (value !== 'visible' && value !== 'hidden') {

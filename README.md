@@ -211,17 +211,45 @@ if (pad_pressed & PAD_CROSS) launch(ps2ui_focus_name(&ui));
 
 ## Supported CSS
 
-- Flexbox: direction, wrap, grow/shrink/basis, gap, justify/align. **`flex-direction` has no default** (see below)
-- Box model (border-box): padding, margin, borders, border-radius (baked as nine-patch textures)
-- Flat colors with real translucency
+- Flexbox: `flex-direction`, `flex-wrap`, `flex-grow`/`-shrink`/`-basis` and the `flex` shorthand, `gap`/`row-gap`/`column-gap`, `justify-content`, `align-items`, `align-self`. **`flex-direction` has no default** (see below)
+- Box model (border-box): `padding`, `margin`, borders, `border-radius` (one px length, baked as nine-patch textures)
+- Sizing: `width`, `height`, `min-width`/`min-height`, `max-width`/`max-height` — `px`, `%` or `auto`
+- Flat colors with real translucency, plus `opacity` per box
 - `font-size`, `font-weight`, `line-height`, `letter-spacing`, `text-align`
 - Kerning, on by default from the font's own pairs, see below
 - `white-space: nowrap` with `text-overflow: ellipsis`
 - `overflow: hidden` (GS scissor), `display: none`
+- Custom properties on `:root`, `var()`, and `@theme` for a second palette
 - `<img>`, see below
-- `:focus` as a paint-only state. A `:focus` rule that changes geometry is a compile error.
+- `:focus` as a paint-only state — with four exceptions, below
 
-Unknown properties warn. Unsupported values error with line numbers.
+Unknown properties warn and are ignored. Unsupported *values* error with
+line numbers, and so do misspelled ones: every keyword-valued property
+takes a fixed set and refuses anything else.
+
+**Colors are not open-ended.** Hex (`#rgb`, `#rgba`, `#rrggbb`,
+`#rrggbbaa`), `rgb()`/`rgba()` with numbers or percentages, and exactly
+eight names — `black`, `white`, `red`, `green`, `blue`, `gray`, `grey`,
+`transparent`. `orange` is a compile error, which is worth knowing
+before you write a stylesheet from this list.
+
+**Keyword values are checked against what the solver implements, not
+against CSS.** So `justify-content: space-evenly`, `align-items:
+baseline`, `text-align: justify` and `white-space: pre` are all errors
+here: each is real CSS with no branch behind it, and each message says
+which layout it would otherwise have produced silently. A typo gets a
+different message, because a misspelling and a missing feature are not
+the same problem.
+
+**The `:focus` geometry guard is a fixed list, and four text properties
+are outside it.** A `:focus` rule that changes `width`, `padding`,
+`flex-*`, `font-size`, `line-height` or `overflow` is a compile error —
+both states share one baked layout. But `font-weight`, `letter-spacing`,
+`text-align` and `text-overflow` are accepted there and should not be:
+the first changes the drawn face while the line was measured at the base
+weight, so focused bold can overrun its box, and the other three are
+read from the base style at emission and dropped. Treat all four as
+base-rule properties until that is fixed.
 
 ### `data-keep`
 

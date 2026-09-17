@@ -267,7 +267,7 @@ Further limits:
 | 115 glyphs | Anything else measures as `?` until the charset is extended. |
 | Spaces only | No hyphenation, no CJK breaking, no soft hyphen. |
 | `~` in `metrics` | The baker expands it, the compiler does not. A manifest using `~` for a metrics path loads in `ps2ui-bake` and fails in `ps2ui-layout` with an `ENOENT` naming a literal `~` directory. |
-| Unvalidated keywords | `white-space` and `text-overflow` are stored as written. Any value other than `nowrap` or `ellipsis` behaves as the default. |
+| Checked keywords | New in 0.7.0. `white-space` takes `normal` or `nowrap` and `text-overflow` takes `clip` or `ellipsis`; anything else is an error. `pre` and its relatives are named as real CSS this target does not implement. Before it, any other value behaved as the default. |
 | Raqm | `ps2ui-fontgen` refuses to write metrics from a Pillow without the Raqm layout engine, because kerning cannot be extracted. See [installation](page:getting-started/installation#limits-and-errors). |
 
 ## Related pages
