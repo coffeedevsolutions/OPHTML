@@ -93,12 +93,13 @@ tagged `v0.7.0`, including `ps2ui vendor-runtime`, which writes
 `ps2ui.c` and `ps2ui.h` out of the installed package — so the console
 half needs no clone, and the runtime you compile is the one matching the
 baker that wrote your blob, and `ps2ui_offset_set`, the first call that
-changes *where* the runtime draws rather than what. This tree is that
-release. It still understands the one before it, because the blobs
-baked here are format **v7** and zero moves of
-the `.uib` format have landed since 0.6.0: that is the stability
+changes *where* the runtime draws rather than what. This tree has since
+moved on to `0.8.0.dev0` (`0.8.0-dev.0` on npm), a prerelease that is on
+neither registry and is not meant to be. The two still understand each
+other, because the blobs baked here are format **v7** and zero moves of
+the `.uib` format have landed since 0.7.0: that is the stability
 pledge, made at v7 and enforced by `tools/check-format-frozen.py`
-rather than announced, so a blob this tree writes loads under a 0.6.0
+rather than announced, so a blob this tree writes loads under a 0.7.0
 runtime and the other way round. Every CLI answers `--version`. What is
 left of Phase 4's exit gate in [docs/PLAN.md](docs/PLAN.md) is the half
 that always needed a console; [docs/releasing.md](docs/releasing.md) is
