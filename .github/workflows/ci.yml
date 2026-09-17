@@ -364,6 +364,14 @@ jobs:
       - name: Documentation site pages resolve and cite what they claim
         run: python3 tools/check-site-pages.py
 
+      # And the half a line pin cannot reach. A citation pins the line
+      # it names; a version FLOWS through other files, so a row citing
+      # `cli.py:138` keeps a green pin while `__init__.py` moves under
+      # it. Ten such rows survived the 0.8.0.dev0 bump with every
+      # citation passing, and a reviewer found them by grepping.
+      - name: Every version a document prints is one something prints
+        run: python3 tools/check-doc-versions.py
+
       - name: Test card still tests what its reading table claims
         run: |
           python3 tools/make_testcard.py --self-test

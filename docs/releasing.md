@@ -506,6 +506,22 @@ written twice to avoid.
      Say "format **version 7**" in the words the format-version rule
      reads and leave the `v`-spelling for a paragraph with moves in it.
 
+   **The site's version banners move with it, and a check says which.**
+   `tools/check-doc-versions.py` records every line of `docs/site` that
+   prints a version -- `ps2ui 0.8.0.dev0`, `ophtml-0.8.0.dev0-py3-none-
+   any.whl` -- as meaning either the tree or the last release, and fails
+   when one stops naming what it was pinned to. Run it after the four
+   edits above: the banners pinned as the tree will all be red, and that
+   list is the work. `--pin` records the new state once they are right.
+
+   It exists because the 0.8.0.dev0 bump got this wrong twice. The
+   citation checker passed throughout, because a citation pins the line
+   it names and a version flows through files it does not: rows citing
+   `cli.py:138` and `check.py:713` kept green pins while
+   `__init__.py:39` moved under them. Ten rows still asserted the old
+   version after the obvious ones were fixed, and a reviewer found them
+   by grepping.
+
    **Rule 21 forces this step, and it is the only thing that does.**
    This paragraph used to say the opposite: that no check demanded the
    step, because a tree sitting at a tagged release is internally

@@ -1038,7 +1038,7 @@ cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenRefuse
 cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 examples/channel6	.github/workflows/ci.yml	173	      # clang is preinstalled on ubuntu-24.04; nothing is downloaded.	      # probed -fno-integrated-as, and this arm is what keeps it fixed.	      - name: ...and under clang, which -S used to reject outright
 examples/channel6	.github/workflows/ci.yml	326	      # The example builds refresh the committed screenshots, so if a		      # renderer change lands without rebuilding the examples, the drift
-examples/channel6	.github/workflows/ci.yml	378	          # swizzle.png is the step 3 instrument and its meaning lives	        run: |	          # in exact index values, so a hand-edit or a stale checkout
+examples/channel6	.github/workflows/ci.yml	386	          # swizzle.png is the step 3 instrument and its meaning lives	        run: |	          # in exact index values, so a hand-edit or a stale checkout
 examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)

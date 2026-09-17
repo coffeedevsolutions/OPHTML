@@ -15,12 +15,14 @@ on:
       - docs/site/**
       - website/**
       - tools/check-site-pages.py
+      - tools/check-doc-versions.py
       - .github/workflows/docs.yml
   pull_request:
     paths:
       - docs/site/**
       - website/**
       - tools/check-site-pages.py
+      - tools/check-doc-versions.py
       - .github/workflows/docs.yml
   workflow_dispatch:
 
@@ -53,6 +55,9 @@ jobs:
       # to this commit, so this is what makes those pins true.
       - name: Documentation site pages resolve and cite what they claim
         run: python3 tools/check-site-pages.py
+
+      - name: Every version a document prints is one something prints
+        run: python3 tools/check-doc-versions.py
 
       - name: Build the site
         env:
