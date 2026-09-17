@@ -61,7 +61,7 @@ ps2ui-bake: montage -> build/states.png
 
 ## Reference table
 
-The reaches column names the tool under [ps2ui](page:cli/ps2ui#synopsis) that receives the key. The mapping lives in `compile_screens`, `bake_argv`, `cmd_check` and `cmd_dev` in [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L83). The defaults live in `DEFAULTS` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L39).
+The reaches column names the tool under [ps2ui](page:cli/ps2ui#synopsis) that receives the key. The mapping lives in `compile_screens`, `bake_argv`, `cmd_check` and `cmd_dev` in [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L170). The defaults live in `DEFAULTS` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L39).
 
 | key | type | default | reaches |
 |---|---|---|---|
@@ -153,7 +153,7 @@ PASS: 63 checks, 0 error(s), 0 warning(s)
 
 ### The output path moves the intermediates
 
-`ps2ui build -o NEW` writes the blob at NEW and moves the per-screen IR files with it. The IR files land in NEW's directory. Their stems take a suffix derived from the two blob stems, `set_out_override` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L186):
+`ps2ui build -o NEW` writes the blob at NEW and moves the per-screen IR files with it. The IR files land in NEW's directory. Their stems take a suffix derived from the two blob stems, `set_out_override` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L209):
 
 | override | intermediate for screen `games` | rule |
 |---|---|---|

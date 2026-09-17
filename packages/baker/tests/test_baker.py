@@ -4191,6 +4191,97 @@ class TestNewcomerPath(unittest.TestCase):
             self.assertFalse(os.path.exists(out))
 
 
+class TestFontsAreRequiredBeforeEitherHalfRuns(unittest.TestCase):
+    """The font location is the project's, not the npm package's.
+
+    A stranger who ran `npm install -g @ophtml/layout`, `pip install
+    ophtml` and then `ps2ui build` before `ps2ui fontgen` got:
+
+        no font metrics at /usr/local/lib/node_modules/fonts/
+        default.metrics.json
+
+    -- a directory inside the npm package, named as the place the
+    metrics belong, because `ps2ui build` passed no font flag and
+    ps2ui-layout fell back to a default resolved against its own
+    install. Measured on a clean machine.
+    """
+
+    def _project(self, tmp):
+        os.makedirs(os.path.join(tmp, "ui"))
+        with open(os.path.join(tmp, "ui", "a.html"), "w") as fh:
+            fh.write('<screen name="a"><span class="t">Hi</span></screen>')
+        with open(os.path.join(tmp, "ui", "a.css"), "w") as fh:
+            fh.write(".t { color: #fff; font-size: 20px; }")
+        with open(os.path.join(tmp, "ps2ui.json"), "w") as fh:
+            json.dump({"screens": ["ui/a.html"], "css": "ui/a.css"}, fh)
+        return os.path.join(tmp, "ps2ui.json")
+
+    def test_no_manifest_anywhere_names_ps2ui_fontgen_not_a_package_path(self):
+        """The refusal names the command that actually writes one.
+
+        The old message named `ps2ui-fontgen <ttf> default 400 <out>`
+        and `--font-dir`, neither of which fixes this from `ps2ui
+        build`: `--font-dir` is two fixed filenames with no `ttf`
+        paths, and the baker rasterizes, so a bare directory cannot
+        carry what the baker needs. `ps2ui fontgen` writes the metrics
+        AND the manifest, and is the only thing that works end to end.
+        """
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+        from ps2ui_bake import project as proj_mod
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._project(tmp)
+            proj = proj_mod.load(cfg)
+            with mock.patch.object(front, "project_fonts", return_value=None):
+                with self.assertRaises(proj_mod.ProjectError) as cm:
+                    front.require_fonts(proj)
+            msg = str(cm.exception)
+        self.assertIn("ps2ui fontgen <regular.ttf> <bold.ttf>", msg)
+        self.assertIn("fonts.json", msg)
+        self.assertNotIn("node_modules", msg)
+        self.assertNotIn("--font-dir", msg)
+
+    def test_the_compiler_is_given_the_manifest_the_baker_will_use(self):
+        """One manifest, both halves -- the whole point of `--fonts`.
+
+        The compiler measures and the baker rasterizes, so a project
+        that compiles against one face and bakes with another is wrong
+        on every screen with nothing to say so. Before this, with no
+        project manifest the compiler got no flag at all and fell back
+        to its own install directory while the baker fell back to the
+        checkout's, which is exactly that.
+        """
+        from ps2ui_bake import ps2ui as front
+        from ps2ui_bake import project as proj_mod
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._project(tmp)
+            proj = proj_mod.load(cfg)
+            args = front.font_args(proj)
+            baked = front.bake_argv(proj, ["ir.json"])
+            want = front.project_fonts(proj)
+            if want is None:
+                self.assertEqual(args, [])
+                return
+            self.assertEqual(args[0], "--fonts")
+            self.assertIn("--fonts", baked)
+            self.assertEqual(args[1], baked[baked.index("--fonts") + 1],
+                             "the compiler and the baker were handed "
+                             "different manifests")
+
+    def test_a_project_manifest_wins_over_the_checkout_default(self):
+        from ps2ui_bake import ps2ui as front
+        from ps2ui_bake import project as proj_mod
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._project(tmp)
+            os.makedirs(os.path.join(tmp, "fonts"))
+            own = os.path.join(tmp, "fonts", "fonts.json")
+            with open(own, "w") as fh:
+                fh.write("{}")
+            proj = proj_mod.load(cfg)
+            self.assertEqual(os.path.realpath(front.project_fonts(proj)),
+                             os.path.realpath(own))
+
+
 class TestProjectFile(unittest.TestCase):
     """ps2ui.json: what it accepts, and what it refuses by name.
 
