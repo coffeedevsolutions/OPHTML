@@ -402,7 +402,7 @@ Copy the C runtime out of this install and into a project.
 ### Synopsis
 
 ```sh
-ps2ui vendor-runtime [dest] [--force]
+ps2ui vendor-runtime [dest] [--force] [--starter]
 ```
 
 ### Options
@@ -410,6 +410,7 @@ ps2ui vendor-runtime [dest] [--force]
 | flag | argument | default | effect |
 |---|---|---|---|
 | `--force` | | off | Overwrites a file that differs from the shipped runtime. |
+| `--starter` | | off | Also writes `main.c` and a `Makefile` that build to an ELF as they stand. These two are never overwritten without `--force` and never stop the command, since editing them is the point. |
 
 This subcommand reads no project file. It writes beside the sources that
 compile against it, wherever
@@ -458,10 +459,12 @@ ps2ui: ps2ui.c in src differs from the runtime this toolchain ships, so nothing 
 
 ### Files written
 
-| path |
-|---|
-| `<dest>/ps2ui.c` |
-| `<dest>/ps2ui.h` |
+| path | written |
+|---|---|
+| `<dest>/ps2ui.c` | always |
+| `<dest>/ps2ui.h` | always |
+| `<dest>/main.c` | `--starter` |
+| `<dest>/Makefile` | `--starter` |
 
 ## dev
 
