@@ -118,6 +118,17 @@ Get DejaVu from
 `~/Library/Fonts`. Most Linux distributions already have them under
 `/usr/share/fonts/truetype/dejavu/`.
 
+The quickstart and the tutorial both spell the first command
+`ps2ui fontgen "$TTF_REGULAR" "$TTF_BOLD"` and neither assigns the two
+variables, so set them once for the shell you are working in:
+
+```sh
+export TTF_REGULAR=~/Library/Fonts/DejaVuSans.ttf
+export TTF_BOLD=~/Library/Fonts/DejaVuSans-Bold.ttf
+```
+
+Unset, `fontgen` receives two empty paths and fails on the first.
+
 ### Verify
 
 `ps2ui --version` and `ps2ui-layout --version` are the two checks in the
