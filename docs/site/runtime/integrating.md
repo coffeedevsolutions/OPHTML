@@ -158,8 +158,8 @@ The suite is also the check a contribution runs. See
 
 ## Starting from nothing
 
-The two files above go into a project you already have. If you do not
-have one, `--starter` writes the project too:
+`ps2ui.c` and `ps2ui.h` go into a project you already have. If you do
+not have one, `--starter` writes the project too:
 
 ```sh
 ps2ui vendor-runtime --starter src/
@@ -167,19 +167,23 @@ ps2ui vendor-runtime --starter src/
 
 That is four files rather than two: `ps2ui.c`, `ps2ui.h`, a `main.c`
 that drives the runtime, and a `Makefile` producing `ps2ui_app.elf`.
-Put a baked blob beside them and build:
+Put a baked blob beside them and build, naming it: the Makefile
+defaults `UIB` to `build/ui.uib`, so a blob sitting next to the four
+files has to be said out loud.
 
 ```sh
 cd src
-docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make UIB=build/ui.uib
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make UIB=ui.uib
 ```
 
 **This is the whole console half without a clone**, which is what
 Phase 4's exit gate asks for: a stranger with npm, pip and a TTF
-reaching a console. Everything else on this page and on
-[deploying](page:runtime/deploying) is written against a checkout:
-`runtime/sample/`, `tools/make_testcard.py`, the channel-6 blob, none
-of which a reader who installed from the registries can run.
+reaching a console. [Deploying](page:runtime/deploying) then applies
+unchanged from `src/`. What does not carry over is the reference
+material above and on [first boot](page:runtime/first-boot):
+`runtime/sample/`, `tools/make_testcard.py` and the channel-6 blob are
+checkout-only, and the bring-up steps read them as instruments rather
+than as examples.
 
 `main.c` is yours to edit. Read the comment at the top before deleting
 anything: it says which parts have been proved on hardware and which

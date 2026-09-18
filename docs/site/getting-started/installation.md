@@ -128,8 +128,8 @@ $ which ps2ui
 /usr/local/bin/ps2ui
 ```
 
-Inside a virtual environment that path is `.venv/bin/ps2ui` instead;
-what matters is that it resolves at all.
+Inside a virtual environment it is an absolute path ending in
+`.venv/bin/ps2ui` instead; what matters is that it resolves at all.
 
 A missing `ps2ui-layout` does not fail at install time. `ps2ui build`
 finds it by checking `$PS2UI_LAYOUT`, then `ps2ui-layout` on PATH, then a

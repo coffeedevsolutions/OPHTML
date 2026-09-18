@@ -431,12 +431,16 @@ def _write_starter(dest, shown, force):
 
 
 def _say_build(shown):
+    # UIB HAS TO MATCH WHERE THE BLOB ACTUALLY IS. The Makefile
+    # defaults it to build/ui.uib, so "beside it" and that default
+    # cannot both be followed -- a reader who put the blob next to
+    # these four files met `No rule to make target build/ui.uib`.
     print("\nThat is a buildable project. Put your baked blob beside it "
-          "and run make:\n"
+          "and run make, naming it:\n"
           "\n"
           "    cd %s\n"
           "    docker run --rm -v \"$PWD:/work\" -w /work "
-          "ghcr.io/ps2dev/ps2dev make UIB=build/ui.uib\n"
+          "ghcr.io/ps2dev/ps2dev make UIB=ui.uib\n"
           "\n"
           "The PS2 is a MIPS target, so a cross-toolchain is required "
           "however you get it; the ps2dev image is what this project's "
