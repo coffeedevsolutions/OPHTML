@@ -29,7 +29,6 @@ without moving this line.
   `ci.yml` and `docs.yml`, and `docs/releasing.md` step 9 says to run it
   after the four edits: the red list is the work.
 
-
 - **The CHANGELOG's silence is visible on a prerelease too.**
   `check-versions.py` asks whether a section has any content and fired
   only on a release tree, which is right: `docs/releasing.md` step 9
@@ -46,6 +45,7 @@ without moving this line.
   rather than timid: straight after step 9 the count since the previous
   release is exactly one, the back-to-development commit itself, so it
   cannot fire on the step it was designed around.
+
 ### Fixed
 
 - **`ps2ui build` before `ps2ui fontgen` named a directory inside the
