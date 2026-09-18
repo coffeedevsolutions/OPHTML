@@ -64,8 +64,9 @@ ok - CHANGELOG's open section names format v7
 ok - CHANGELOG's 0.7.0 section records the format it shipped (v7)
 ```
 
-A v7 blob loads under a 0.7.0 runtime and a 0.7.0 blob loads under this
-one. The pledge behind that guarantee is on
+A v7 blob loads under any other v7 product, which is every release from
+0.3.0 on; the drift count above is how far back this section counts, not
+how far compatibility reaches. The pledge behind that guarantee is on
 [Compatibility](page:reference/compatibility#format-compatibility).
 
 ## Earlier releases

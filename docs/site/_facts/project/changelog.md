@@ -1,10 +1,20 @@
 # facts: project/changelog
 
 This page emits no new facts. It restates CHANGELOG.md's Unreleased
-0.6.0 section by category and lists the earlier release headings; every
-row below is a parent fact this page relied on, cited by the parent
-page and facts file that verified it, plus two rows verified directly
-in this session.
+0.8.0.dev0 section by category and lists the earlier release headings;
+every row below is a parent fact this page relied on, cited by the
+parent page and facts file that verified it, plus two rows verified
+directly in this session.
+
+**This file describes a page that is rewritten every cycle, and nothing
+mechanical notices when it stops matching.** It carried the 0.6.0
+restatement for two releases: `check-site-pages` is green because no
+row here is line-pinned (`_citations.tsv` has zero rows for
+`project/changelog`), `check-doc-versions` reads banners and its own
+docstring says it does not read the sentence around one, and
+`check-doc-impact` is file-level, so a document that *should* cite a
+changed file and does not is invisible to it -- its own caveat line
+says so. Re-read this file whenever the page is re-restated.
 
 Session commands run from the repository root:
 
@@ -18,7 +28,7 @@ Session commands run from the repository root:
 
 | id | fact | source | verified by | status |
 |---|---|---|---|---|
-| changelog.mapping | Every 0.6.0 bullet on this page maps to a `### ` entry in CHANGELOG.md's Unreleased section: Added -> CHANGELOG.md:54-91 (`ps2ui_offset_set`); Fixed -> CHANGELOG.md:6-16 (`ps2ui dev` flags), :17-25 (README/CONTRIBUTING test-compat), :26-53 (Raqm remedy), :93-102 (vendor-runtime message), :125-156 (`ps2ui check` settings), :157-213 (impossible VRAM budget). The PyPI-page and Rule-10 bullets at CHANGELOG.md:103-123 are release procedure, out of scope per this page's brief and left to `project/internals`. | CHANGELOG.md | `grep -n '^- \*\*\|^### ' CHANGELOG.md` in this session, output pasted above | verified |
+| changelog.mapping | Every 0.8.0.dev0 bullet on this page maps to an entry in `CHANGELOG.md`'s Unreleased section: Added -> `CHANGELOG.md:19-30` (the version-banner fence); Fixed -> `:34-54` (the font path), `:56-69` (the build line), `:71-88` (`--starter`), `:90-99` (the Installation page). Five bullets under two headings, which is what the page shows. | CHANGELOG.md:17 (`### Added`), :19, :32 (`### Fixed`), :34, :56, :71, :90. **These line numbers are for a reader, not a checker**: `FACTS_CITE` in `tools/check-site-pages.py` requires a `packages|runtime|tools|examples|fonts|docs` prefix, so a repo-root file cannot be pinned and `--fix` cannot move these when `CHANGELOG.md` grows from the top -- which is exactly what left the previous version of this row citing three unrelated entries. 92 such citations exist across the facts library; see F41 | re-derived this session with `awk` over the open section: headings at 17 and 32, bullets at 19, 34, 56, 71, 90, and the page's own rendered bullets counted five under the same two headings | verified |
 | changelog.earlier-releases | The Earlier releases table's three rows read straight from the CHANGELOG headings and their format paragraphs: `## 0.5.0 — 2026-09-06` (format v7, zero moves since 0.4.0); `## 0.4.0 — 2026-09-06` (format v7, zero moves since 0.3.0, the v7 stability pledge and vendored DejaVu fonts added in that section); `## 0.3.0 — 2026-09-04` (format v7, four moves since 0.2.0: v4 display aspect, v5 kerning, v6 texture kinds, v7 tint table; first tagged release). | CHANGELOG.md:215, :265, :355 and their Added/format paragraphs | `grep -n '^## ' CHANGELOG.md` and the headings and format paragraphs read directly in this session | verified |
 | compat.versions | `ophtml` is 0.7.0 and `@ophtml/layout` is 0.7.0, the same version in two spellings. Neither package is tagged. | reference/compatibility (parent) | restated without new verification; this session's own `check-versions.py` run reproduces the same line | verified |
 | compat.format-matrix | Format v7 is unchanged since 0.5.0: CHANGELOG.md counts zero format moves since that release, and a v7 blob loads under a v7 runtime regardless of the two products' package versions. | reference/compatibility (parent) | restated without new verification; this session's own `check-versions.py` run printed the same "zero format moves since 0.5.0" confirmation the parent cites | verified |
