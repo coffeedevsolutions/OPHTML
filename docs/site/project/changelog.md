@@ -1,7 +1,7 @@
 ---
 id: project/changelog
 title: Changelog
-description: The 0.6.0 release notes by category, the format status, and a table of every earlier release.
+description: The open 0.8.0.dev0 notes by category, the format status, and a table of every earlier release.
 section: project
 order: 70
 version: 0.7.0
@@ -10,59 +10,47 @@ sources: [CHANGELOG.md, tools/check-versions.py, docs/site/_facts/reference/comp
 
 # Changelog
 
-The open 0.6.0 section of `CHANGELOG.md`, restated by category. Every
+The open 0.8.0.dev0 section of `CHANGELOG.md`, restated by category. Every
 bullet below has a full entry in the file itself, linked at the bottom
 of this page.
 
-## 0.6.0
+## 0.8.0.dev0
 
-`ophtml` 0.7.0, `@ophtml/layout` 0.7.0.
+`ophtml` 0.8.0.dev0, `@ophtml/layout` 0.8.0-dev.0. A prerelease, on
+neither registry; `pip install ophtml` and `npm install -g
+@ophtml/layout` give you 0.7.0.
 
 ### Added
 
-- `ps2ui_offset_set(ctx, dx, dy)` moves every command and scissor rect
-  the next `ps2ui_render` submits, without reflowing the layout or
-  changing the `.uib` format. Geometry queries stay in UI coordinates.
-  See [Moving and hiding](page:runtime/moving-and-hiding#the-offset).
+- `tools/check-doc-versions.py` holds every version this site prints to
+  the version something actually prints. A citation pins the line it
+  names, so it cannot see a version flowing through a file the row does
+  not cite: ten rows survived the 0.8.0.dev0 bump asserting 0.7.0 with
+  every citation green. 28 banners are pinned as meaning the tree or the
+  last release.
 
 ### Fixed
 
-- `ps2ui dev` accepted `--strict` and `--min-font-size` but stored them
-  where the compiler never read them, so a project relying on either
-  flag built clean under `ps2ui dev` and failed under `ps2ui build`.
-  Both now reach the linter the same way `ps2ui build` does. See
-  [ps2ui-layout and ps2ui-dev](page:cli/ps2ui-layout#strict-and-the-font-floor).
-- README.md and CONTRIBUTING.md told a contributor to run
-  `make -C runtime test test-compat`, a target the Makefile does not
-  declare. Both documents now name `make test` and
-  `make syntax-check CC=clang`, the two runs CI makes. See
-  [Contributing](page:project/contributing#tests).
-- `ps2ui-fontgen`'s Raqm refusal named a wheel-architecture split
-  between platforms that does not exist. Both Pillow 12.3.0 macOS
-  wheels carry Raqm compiled in; what varies is whether the machine has
-  fribidi, which Pillow loads at run time. The message now reports the
-  Pillow version and platform it detected, checks for fribidi
-  separately, and leads with `brew install fribidi` before a rebuild.
-  See [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen).
-- `ps2ui vendor-runtime`'s closing message named
-  `docs/deploying.md` as the path onto a console, a repository path an
-  installed user cannot open. It now states the cross-compile
-  constraint and the `ghcr.io/ps2dev/ps2dev` command directly. See
-  [Integrating the runtime](page:runtime/integrating#minimal-example).
-- `ps2ui check` dropped `vramBudget` and `strict` on the way from the
-  project file, so a build that passed at a declared budget could fail
-  the check at the computed default. Both settings now reach the
-  checker the build was given. See
-  [VRAM budget](page:authoring/vram-budget#overriding-the-budget).
-- Past a canvas width, three framebuffers cannot fit in 4 MiB and the
-  default VRAM budget goes negative; the bake used to blame the
-  textures for it. It now names both sides of the comparison and the
-  narrower framebuffer count that clears it. See
-  [VRAM budget](page:authoring/vram-budget#when-the-default-cannot-exist).
+- `ps2ui build` run before `ps2ui fontgen` named a directory inside the
+  npm package as the place your font metrics belong. The project
+  resolves fonts once now, before either half runs, and names
+  `ps2ui fontgen <regular.ttf> <bold.ttf>`, which writes the metrics and
+  the manifest both halves read. See
+  [Installation](page:getting-started/installation#a-ttf-to-start-with).
+- The build command `ps2ui vendor-runtime --starter` printed could not
+  be followed: it said to put the blob beside the four files and then
+  passed `UIB=build/ui.uib`. One spelling cannot be right for two
+  layouts, so the message names none. See
+  [Integrating](page:runtime/integrating#starting-from-nothing).
+- `--starter` is the console half without a clone and no page here
+  mentioned it. Fixed on four artefacts, including the page every
+  `pip install ophtml` reader lands on.
+- The Installation page did not say that `pip install ophtml` fails on a
+  current macOS or Debian box under PEP 668, nor where to get a TTF.
 
 ### Format
 
-`.uib` format version 7, unchanged since 0.5.0. `python3
+`.uib` format version 7, unchanged since 0.7.0. `python3
 tools/check-versions.py --except-tag` holds the packages, the format
 document and this section to each other:
 
@@ -76,8 +64,9 @@ ok - CHANGELOG's open section names format v7
 ok - CHANGELOG's 0.7.0 section records the format it shipped (v7)
 ```
 
-A v7 blob loads under a 0.5.0 runtime and a 0.5.0 blob loads under this
-one. The pledge behind that guarantee is on
+A v7 blob loads under any other v7 product, which is every release from
+0.3.0 on; the drift count above is how far back this section counts, not
+how far compatibility reaches. The pledge behind that guarantee is on
 [Compatibility](page:reference/compatibility#format-compatibility).
 
 ## Earlier releases
