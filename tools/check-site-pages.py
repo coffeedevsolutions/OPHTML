@@ -99,12 +99,18 @@ REPO_LINK = re.compile(r"\(repo:([^)#\s]+)(?:#L(\d+)(?:-L?(\d+))?)?\)")
 # pull request two before this one, which inserted a set above
 # GEOMETRY_PROPS: css.focus.geometry-props then cited a different set
 # with a similar shape, in the file the row is about.
-# A COMMA LIST IS N CITATIONS, NOT ONE. `runtime/ps2ui.h:653,660,704`
-# used to pin 653 and leave the rest unread, because the pattern stopped
-# at the first number: 59 line numbers across 31 citations in six facts
+# A COMMA LIST IS N CITATIONS, NOT ONE, with or without a space after
+# the comma. `runtime/ps2ui.h:653,660,704` used to pin 653 and leave the
+# rest unread, because the pattern stopped at the first number: measured
+# when this shipped, 122 line numbers across 69 citations in 13 facts
 # files, none of them checked. It cost three corrections to one row in a
 # single pull request -- `--fix` kept relocating the first number and
 # leaving the second behind, each time looking like it had finished.
+#
+# THIS COMMENT'S FIRST VERSION CARRIED NUMBERS FROM A COMMIT MESSAGE
+# WRITTEN THREE PULL REQUESTS EARLIER (59 across 31, six files) and was
+# wrong by a third, in the file that exists because a number nobody
+# re-read went unchecked. Re-measure these if you touch the pattern.
 #
 # Group 4 is the tail. Each number in it becomes its own citation with
 # its own pin, and relocation rewrites that number alone inside the
@@ -112,18 +118,27 @@ REPO_LINK = re.compile(r"\(repo:([^)#\s]+)(?:#L(\d+)(?:-L?(\d+))?)?\)")
 # alongside it rather than the bare integer.
 FACTS_CITE = re.compile(
     r"((?:packages|runtime|tools|examples|fonts|docs)/[\w./-]+?):(\d+)"
-    r"(?:-(\d+))?((?:,\d+)*)")
+    r"(?:-(\d+))?((?:,\s*\d+(?:-\d+)?)*)")
 
 
 def cite_members(m):
-    """[(line, token)] for one FACTS_CITE match, first then the tail.
+    r"""[(line, last, token)] for one match, first then the tail.
 
     `token` is the exact text to rewrite when that member moves, so a
-    relocation touches one number of a list and leaves its siblings.
+    relocation touches one member and leaves its siblings alone.
+
+    `,\s*` because the tree writes both `:1593,1608` and `:1593, 1608`
+    and they are one citation either way. AND A TAIL MEMBER CAN CARRY A
+    RANGE: `main.c:2646-2647, 2762-2764` is real, and a pattern that
+    stopped at `, 2762` left `-2764` dangling outside the match and
+    pinned a single line in the middle of a cited span.
     """
-    out = [(int(m.group(2)), ":%s" % m.group(2))]
-    for n in re.findall(r",(\d+)", m.group(4) or ""):
-        out.append((int(n), ",%s" % n))
+    head_last = int(m.group(3)) if m.group(3) else int(m.group(2))
+    out = [(int(m.group(2)), head_last, ":%s" % m.group(2))]
+    for tok in re.findall(r",\s*\d+(?:-\d+)?", m.group(4) or ""):
+        body = tok.lstrip(", ")
+        a, _, b = body.partition("-")
+        out.append((int(a), int(b) if b else int(a), tok))
     return out
 IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
@@ -374,11 +389,7 @@ def main(argv):
                 continue          # prose naming a path that is not a file
             lines = file_lines(path)
             members = cite_members(m)
-            for first, token in members:
-                # Only the head of a citation carries a range; a comma
-                # member is one line by construction.
-                last = (int(m.group(3)) if m.group(3) and token[0] == ":"
-                        else first)
+            for first, last, token in members:
                 if not (1 <= first <= last <= len(lines)):
                     bad("%s: %s:%d cites past the end of the file (%d lines)"
                         % (fid, path, first, len(lines)))
@@ -480,9 +491,16 @@ def main(argv):
         # ONE MEMBER MOVES, ITS SIBLINGS DO NOT. Rewriting the whole
         # match would drop a comma list's other numbers; rewriting the
         # member's own token inside it keeps them.
-        new_token = "%s%d" % (token[0], new_first)
+        # THE WHOLE SEPARATOR, NOT ITS FIRST CHARACTER. `token[0]` kept
+        # the comma and dropped the space, so relocating `:1593, 1608`
+        # rewrote it as `:1593,1608` -- right numbers, gratuitous diff,
+        # and it falsified this module's own claim to preserve spacing.
+        sep = re.match(r"[^0-9]*", token).group(0)
+        new_token = "%s%d" % (sep, new_first)
         if last != first:
             new_token += "-%d" % (new_first + last - first)
+        # The token already carries its own range, so the rewrite below
+        # must not also append one from a sibling.
         facts_edits.setdefault((full, idx), []).append(
             (ref, token, new_token))
         removed.add((fid, path, first))
@@ -500,12 +518,19 @@ def main(argv):
         for ref, token, new_token in pairs:
             by_ref.setdefault(ref, []).append((token, new_token))
         for ref, edits in by_ref.items():
-            rebuilt = ref
-            for token, new_token in edits:
-                # A range suffix belongs to the head token and moves
-                # with it.
-                rebuilt = re.sub(re.escape(token) + r"(-\d+)?",
-                                 new_token, rebuilt, count=1)
+            # REBUILT IN ONE PASS, NOT ONE re.sub PER MEMBER. A member's
+            # NEW value can equal a sibling's OLD token -- 802 moving to
+            # 806 in a list that already contains 806 -- and sequential
+            # substitution then rewrites the sibling instead, which
+            # reorders the list. Same set of lines, and the pins are
+            # keyed by line rather than position, so it checked out
+            # green; it was still a diff nobody asked for.
+            swap = dict(edits)
+            m2 = FACTS_CITE.match(ref)
+            out = [ref[:m2.start(2) - 1]]          # path, without ':'
+            for _first, _last, token in cite_members(m2):
+                out.append(swap.get(token, token))
+            rebuilt = "".join(out)
             cells[2] = cells[2].replace(ref, rebuilt, 1)
         lines[idx] = " | ".join(cells)
     for full, lines in facts_text.items():
