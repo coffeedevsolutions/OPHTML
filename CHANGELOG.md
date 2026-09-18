@@ -29,6 +29,23 @@ without moving this line.
   `ci.yml` and `docs.yml`, and `docs/releasing.md` step 9 says to run it
   after the four edits: the red list is the work.
 
+
+- **The CHANGELOG's silence is visible on a prerelease too.**
+  `check-versions.py` asks whether a section has any content and fired
+  only on a release tree, which is right: `docs/releasing.md` step 9
+  opens an empty `## Unreleased` on purpose and failing that step is the
+  trap the rule was shaped around. The cost was that nothing asked the
+  same question of a prerelease, so the omission accumulated through a
+  cycle and landed at the cut as N changes to reconstruct from
+  `git log`. The rule's own comment already recorded one occurrence, six
+  pull requests between 0.3.0 and the rule listed nowhere; this cycle
+  was the second, five changes and zero entries with every check green.
+
+  Rule 10c warns and can never fail, because the honest answer to
+  "should this have an entry?" is sometimes no. The threshold is safe
+  rather than timid: straight after step 9 the count since the previous
+  release is exactly one, the back-to-development commit itself, so it
+  cannot fire on the step it was designed around.
 ### Fixed
 
 - **`ps2ui build` before `ps2ui fontgen` named a directory inside the
@@ -96,6 +113,37 @@ without moving this line.
   loads but always yields face 0, so it writes a manifest declaring a
   bold face whose glyph and kerning tables are identical to the
   regular one, and nothing downstream says so.
+
+- **The Changelog page restated a shipped release while calling it the
+  open one.** Its first sentence has always read "The open <version>
+  section of `CHANGELOG.md`, restated by category"; it was restating
+  `## 0.6.0 — 2026-09-12`. It got worse while the row was filed: one
+  release behind when the defect was written, two once the 0.8.0 notes
+  landed, on the document whose whole job is publishing what changed.
+
+  The version fence caught the *semantic* change rather than the text.
+  `project/changelog.md:19` was pinned as meaning the last release and
+  the rewrite makes the same line mean the tree, so re-pinning was a
+  decision rather than a side effect: the split moved 11 release / 17
+  tree to 10 / 18, exactly the one banner whose meaning changed.
+
+- **A comma list was one citation instead of several, so
+  `runtime/ps2ui.h:653,652,660,668,704,802,806` pinned 653 and left six
+  line numbers unread.** 122 members across 69 citations in 13 files
+  were invisible to the documentation drift checker, in three spellings:
+  a bare comma, a comma with a space, and a range on a tail member,
+  where `main.c:2646-2647, 2762-2764` matched only as far as `, 2762`
+  and left `-2764` dangling outside the match.
+
+  **It cost corrections rather than silence, which is the worse
+  failure.** `--fix` relocated the first number, reported success and
+  left the rest behind, so each pass looked finished and the row stayed
+  wrong; one row was corrected three times in a single pull request.
+  Each number is its own citation now, and relocation rewrites that
+  member's token alone so its siblings keep their place and their
+  spacing. One of the newly visible spans was already stale:
+  `stats.readout.peaks` cited three lines of closing braces for a claim
+  about a running max, which is at `main.c:2789-2792`.
 
 ## 0.7.0 — 2026-09-17
 
