@@ -709,7 +709,7 @@ _facts/reference/uib-format	runtime/ps2ui.h	236	typedef struct ps2ui_slot_entry 
 _facts/reference/uib-format	tools/check-format-frozen.py	4	WHY THIS EXISTS. docs/format-uib.md already says "version bumps on any		incompatible change", and the version history shows that rule being
 _facts/reference/uib-format	tools/check-format-frozen.py	80	PLEDGED_VERSION = 7		
 _facts/reference/uib-format	tools/check-format-frozen.py	184	    # 4. Assigned feature bits keep their values. New ones are the		    #    growth path and are allowed -- this loop is over the FROZEN
-_facts/reference/uib-format	tools/check-versions.py	328	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
+_facts/reference/uib-format	tools/check-versions.py	352	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
 _facts/runtime/api-reference	runtime/ps2ui.c	39	uint32_t ps2ui_crc32(const void *data, size_t len)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	238	size_t ps2ui_arena_size(const void *data, size_t size)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	252	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,		               void *arena, size_t arena_size)
@@ -1107,7 +1107,7 @@ reference/uib-format	runtime/ps2ui.h	81	typedef struct ps2ui_header {		    uint3
 reference/uib-format	runtime/ps2ui.h	689	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
 reference/uib-format	runtime/tests/test_runtime.c	170	    /* ---- struct layout matches the on-disk format ---- */		    CHECK(sizeof(ps2ui_header) == 84, "header struct is 84 bytes (v7: tint table)");
 reference/uib-format	tools/check-format-frozen.py	87	FROZEN_STRUCTS = {	# path list four times.	    "_HEADER": ("<IHHHHHHIHHIIIIIIIHHIIHHIIHHHH", 84),
-reference/uib-format	tools/check-versions.py	328	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
+reference/uib-format	tools/check-versions.py	352	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
 runtime/api-reference	runtime/Makefile	5	CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2	CC      ?= cc	UIB     ?= ../examples/memcard/build/ui.uib
 runtime/api-reference	runtime/ps2ui.c	1397	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
 runtime/api-reference	runtime/ps2ui.c	1557	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
@@ -1162,7 +1162,7 @@ runtime/errors-and-constants	runtime/sample/Makefile	58	ifdef LINEAR_CLUT	# side
 runtime/errors-and-constants	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 runtime/errors-and-constants	runtime/tests/test_runtime.c	52	static void recrc(void *blob, size_t len)	 * zeroing it and hashing the whole file reproduces the same value. */	{
 runtime/errors-and-constants	runtime/tests/test_runtime.c	604	        /* A refused blob must not have written to the arena. The		         * caller may reuse that buffer for the next attempt, and a
-runtime/errors-and-constants	tools/check-versions.py	328	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
+runtime/errors-and-constants	tools/check-versions.py	352	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
 runtime/frame-loop	runtime/sample/main.c	1671	    static uint8_t arena[16 * 1024] __attribute__((aligned(PS2UI_ARENA_ALIGN)));	     * quietly hand the GS a dangling CLUT pointer. */	
 runtime/integrating	runtime/sample/Makefile	269	ui_uib.c: $(UIB)		\t$(PS2SDK)/bin/bin2c $(UIB) ui_uib.c ui_uib
 runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES NOT DO. It replays the command list faithfully, so it		cannot catch the console diverging from that list. F-048 -- the GS
