@@ -108,8 +108,12 @@ numbers printed throughout this site is **DejaVu Sans** regular and
 bold, which is also what the repository's own builds use.
 
 A stock macOS carries almost no plain `.ttf`. `/System/Library/Fonts`
-is mostly `.ttc` collections, which `fontgen` does not read. Get DejaVu
-from [dejavu-fonts.github.io](https://dejavu-fonts.github.io/), or
+is mostly `.ttc` collections, and one of those does load: `fontgen`
+hands the path to FreeType, which opens a collection at face 0. The
+catch is that there is no way to reach any other face, so a `.ttc`
+gives you the same weight twice and the `bold` argument buys nothing.
+Get DejaVu from
+[dejavu-fonts.github.io](https://dejavu-fonts.github.io/), or
 `brew install --cask font-dejavu`, which lands them in
 `~/Library/Fonts`. Most Linux distributions already have them under
 `/usr/share/fonts/truetype/dejavu/`.
