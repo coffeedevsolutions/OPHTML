@@ -346,6 +346,16 @@ class StarterTest(unittest.TestCase):
     # that moves whenever the ps2dev image moves gsKit -- so the
     # message reads the Makefile rather than restating it, and this is
     # what holds the extraction to the file.
+    def test_the_printed_wiring_is_the_makefile_s(self):
+        mk = os.path.join(vendor._STARTER, "Makefile")
+        with open(mk) as fh:
+            body = fh.read()
+        self.assertIn("# >>> gskit wiring", body)
+        self.assertIn("# <<< gskit wiring", body)
+        for line in vendor._gskit_wiring().split("\n"):
+            self.assertIn(line.strip(), body)
+        self.assertEqual(len(vendor._gskit_wiring().split("\n")), 3)
+
     def test_the_printed_build_line_matches_the_makefile_default(self):
         """The blob path the message names is the Makefile's own default.
 
@@ -363,7 +373,6 @@ class StarterTest(unittest.TestCase):
         shipped; the build line was the one piece of printed wiring that
         was not.
         """
-        import io, contextlib
         mk = os.path.join(vendor._STARTER, "Makefile")
         with open(mk) as fh:
             body = fh.read()
@@ -391,16 +400,6 @@ class StarterTest(unittest.TestCase):
                          "naming any path here is wrong for one of the "
                          "two layouts")
         self.assertTrue(cmd[0].rstrip().endswith("make"), cmd[0])
-
-    def test_the_printed_wiring_is_the_makefile_s(self):
-        mk = os.path.join(vendor._STARTER, "Makefile")
-        with open(mk) as fh:
-            body = fh.read()
-        self.assertIn("# >>> gskit wiring", body)
-        self.assertIn("# <<< gskit wiring", body)
-        for line in vendor._gskit_wiring().split("\n"):
-            self.assertIn(line.strip(), body)
-        self.assertEqual(len(vendor._gskit_wiring().split("\n")), 3)
 
     def test_a_moved_marker_is_an_error_not_a_shorter_message(self):
         import tempfile as _tf

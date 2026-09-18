@@ -574,8 +574,8 @@ _facts/project/internals	docs/releasing.md	1	# Releasing
 _facts/project/internals	docs/site/authoring/theming.md	15	## What it is		
 _facts/project/internals	docs/site/authoring/theming.md	27	The reasoning behind role keying is in the design document listed on [Internals](page:project/internals).		
 _facts/project/internals	docs/site/reference/uib-format.md	343	### The pledge		
-_facts/project/internals	docs/site/runtime/first-boot.md	43	## Steps 1-10		
-_facts/project/internals	docs/site/runtime/first-boot.md	97	The fixes each fault above produced, and the bench readings that found them, are in [Internals](page:project/internals).		
+_facts/project/internals	docs/site/runtime/first-boot.md	44	## Steps 1-10		
+_facts/project/internals	docs/site/runtime/first-boot.md	98	The fixes each fault above produced, and the bench readings that found them, are in [Internals](page:project/internals).		
 _facts/project/internals	docs/site/runtime/frame-loop.md	76	### Sizing the arena		
 _facts/project/internals	tools/check-findings.py	2	"""Enforce the findings graph in docs/findings.yaml.	#!/usr/bin/env python3	
 _facts/project/security-and-license	fonts/vendor/LICENSE.txt	1	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/		Upstream-Name: DejaVu fonts
@@ -902,6 +902,7 @@ _facts/runtime/frame-loop	runtime/sample/main.c	2769	        /* Age the texture 
 _facts/runtime/frame-loop	runtime/tests/test_runtime.c	796	    {	    /* ---- render: geometry stays on canvas ---- */	        int k, in_bounds = 1;
 _facts/runtime/integrating	packages/baker/ps2ui_bake/vendor.py	59	STARTER_FILES = ("main.c", "Makefile")	# edited one is left exactly where it is and reported, never replaced.	
 _facts/runtime/integrating	packages/baker/ps2ui_bake/vendor.py	188	    # a success status.	    # and is written against its structs. One invocation, a split pair,	    #
+_facts/runtime/integrating	packages/baker/pyproject.toml	58	              "starter/main.c", "starter/Makefile"]	ps2ui_bake = ["serve_page.html", "runtime/ps2ui.c", "runtime/ps2ui.h",	
 _facts/runtime/integrating	packages/baker/setup.py	74	SHIPPED = ("ps2ui.c", "ps2ui.h")	# there next.	
 _facts/runtime/integrating	runtime/Makefile	23	test: syntax-check timing-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test-narrow		\t./build/test_runtime $(UIB) $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) $(HUGE_UIB)
 _facts/runtime/integrating	runtime/Makefile	33	# WHAT THIS TARGET DOES NOT VOUCH FOR. It catches C-language errors.	#	# It does not know whether a PS2SDK API exists, or is permitted --

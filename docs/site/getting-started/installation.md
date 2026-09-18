@@ -123,8 +123,13 @@ The quickstart and the tutorial both spell the first command
 variables, so set them once for the shell you are working in:
 
 ```sh
+# macOS, after `brew install --cask font-dejavu`
 export TTF_REGULAR=~/Library/Fonts/DejaVuSans.ttf
 export TTF_BOLD=~/Library/Fonts/DejaVuSans-Bold.ttf
+
+# most Linux distributions
+export TTF_REGULAR=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+export TTF_BOLD=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 ```
 
 Unset, `fontgen` receives two empty paths and fails on the first.

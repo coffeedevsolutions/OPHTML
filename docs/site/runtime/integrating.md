@@ -88,7 +88,6 @@ sits under [ps2ui](page:cli/ps2ui#vendor-runtime).
 | `--force` | Takes this toolchain's copy of every file that differs. Files already identical are left alone. |
 | `--starter` | Also writes a `main.c` and a `Makefile` that build to an ELF as they stand. |
 
-
 `runtime/sample/` is a worked ps2sdk Makefile for the same two files. Its
 flags select a build arm. `requires` is enforced by a `$(error)`, not by a
 comment.
@@ -167,14 +166,18 @@ ps2ui vendor-runtime --starter src/
 
 That is four files rather than two: `ps2ui.c`, `ps2ui.h`, a `main.c`
 that drives the runtime, and a `Makefile` producing `ps2ui_app.elf`.
-Put a baked blob beside them and build, naming it: the Makefile
-defaults `UIB` to `build/ui.uib`, so a blob sitting next to the four
-files has to be said out loud.
+Bake into `src/`, or copy a blob to `src/build/ui.uib`, and build. The
+Makefile defaults `UIB` to `build/ui.uib`, which is where `ps2ui build`
+writes one, so the default layout needs no flag:
 
 ```sh
 cd src
-docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make UIB=ui.uib
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make
 ```
+
+A blob kept elsewhere under `src/` is `make UIB=<path>`. Somewhere
+outside it needs a second `-v` too, since the command above mounts only
+this directory.
 
 **This is the whole console half without a clone**, which is what
 Phase 4's exit gate asks for: a stranger with npm, pip and a TTF

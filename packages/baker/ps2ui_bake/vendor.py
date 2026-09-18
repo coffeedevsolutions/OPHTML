@@ -449,7 +449,8 @@ def _say_build(shown):
           "    docker run --rm -v \"$PWD:/work\" -w /work "
           "ghcr.io/ps2dev/ps2dev make\n"
           "\n"
-          "A blob anywhere else is `make UIB=<path>`.\n"
+          "A blob elsewhere under %s is `make UIB=<path>`; outside "
+          "it needs a second -v, since this mounts only %s.\n"
           "\n"
           "The PS2 is a MIPS target, so a cross-toolchain is required "
           "however you get it; the ps2dev image is what this project's "
@@ -459,4 +460,4 @@ def _say_build(shown):
           "\n"
           "`ps2ui check` validates the blob. The path onto a console:\n"
           "https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/"
-          "deploying.md" % (shown, shown))
+          "deploying.md" % (shown, shown, shown, shown))

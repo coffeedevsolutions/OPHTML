@@ -32,7 +32,8 @@ bringing up their own UI on their own console can still read a flat
 fill as a status, but **not from the legend below**: that one is
 `runtime/sample/main.c`'s. The starter's `main.c` agrees on dark red
 (the blob failed to load) and olive (the upload ran out of VRAM), and
-differs on the third. It paints **blue** when `SCREEN=` names a screen
+differs on the third. It paints **navy blue** (`#000080`, not the steel blue `#4080c0` of a
+passing step 1) when `SCREEN=` names a screen
 the blob does not have, deliberately, rather than falling back to
 screen 0 and looking like the flag was ignored, and it never paints
 magenta at all. Reading the sample's legend against a starter build
