@@ -22,6 +22,23 @@ Bring-up runs ten steps in order. Each step isolates one subsystem, so a later s
 | A test-card blob from `tools/make_testcard.py` | Steps 6 and 8 read the alignment card, not either example blob |
 | A fresh file name for every copy, sizes checked on the drive after copying | A stale ELF booted under an old name is the most common way to read the wrong build |
 
+**This page needs the checkout and there is no no-clone lane for it.**
+`ps2ui vendor-runtime --starter` gives an installed user a buildable
+project, which is enough for [deploying](page:runtime/deploying), and it
+does not give them these: the channel-6 probe screen and the test card
+are the instruments each step is read against, not example content, and
+nothing in the wheel or the npm tarball produces either. A reader
+bringing up their own UI on their own console can still read a flat
+fill as a status, but **not from the legend below**: that one is
+`runtime/sample/main.c`'s. The starter's `main.c` agrees on dark red
+(the blob failed to load) and olive (the upload ran out of VRAM), and
+differs on the third. It paints **navy blue** (`#000080`, not the steel blue `#4080c0` of a
+passing step 1) when `SCREEN=` names a screen
+the blob does not have, deliberately, rather than falling back to
+screen 0 and looking like the flag was ignored, and it never paints
+magenta at all. Reading the sample's legend against a starter build
+turns that failure into "step 1 passed".
+
 A screen filled edge to edge with one flat colour is never a UI. Blue means step 1 passed. Dark red means the blob failed to load. Olive means step 9's upload ran out of VRAM. Magenta means the boot flag named a screen absent from the blob. Read a flat fill live, not from a photograph: a phone renders saturated magenta as violet and lifts near-black to a visible maroon.
 
 ## Steps 1-10

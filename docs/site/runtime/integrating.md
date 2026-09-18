@@ -79,13 +79,14 @@ from this repository was on the command line.
 
 ## Reference table
 
-`ps2ui vendor-runtime` takes one positional and one flag. The subcommand
+`ps2ui vendor-runtime` takes one positional and two flags. The subcommand
 sits under [ps2ui](page:cli/ps2ui#vendor-runtime).
 
 | option | effect |
 |---|---|
 | `dest` | Directory to write into. Defaults to `.`. Created when absent. |
 | `--force` | Takes this toolchain's copy of every file that differs. Files already identical are left alone. |
+| `--starter` | Also writes a `main.c` and a `Makefile` that build to an ELF as they stand. |
 
 `runtime/sample/` is a worked ps2sdk Makefile for the same two files. Its
 flags select a build arm. `requires` is enforced by a `$(error)`, not by a
@@ -153,6 +154,45 @@ PASS: 410 checks, 0 failure(s)
 
 The suite is also the check a contribution runs. See
 [contributing](page:project/contributing).
+
+## Starting from nothing
+
+`ps2ui.c` and `ps2ui.h` go into a project you already have. If you do
+not have one, `--starter` writes the project too:
+
+```sh
+ps2ui vendor-runtime --starter src/
+```
+
+That is four files rather than two: `ps2ui.c`, `ps2ui.h`, a `main.c`
+that drives the runtime, and a `Makefile` producing `ps2ui_app.elf`.
+Bake into `src/`, or copy a blob to `src/build/ui.uib`, and build. The
+Makefile defaults `UIB` to `build/ui.uib`, which is where `ps2ui build`
+writes one, so the default layout needs no flag:
+
+```sh
+cd src
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/ps2dev/ps2dev make
+```
+
+A blob kept elsewhere under `src/` is `make UIB=<path>`. Somewhere
+outside it needs a second `-v` too, since the command above mounts only
+this directory.
+
+**This is the whole console half without a clone**, which is what
+Phase 4's exit gate asks for: a stranger with npm, pip and a TTF
+reaching a console. [Deploying](page:runtime/deploying) then applies
+unchanged from `src/`. What does not carry over is the reference
+material above and on [first boot](page:runtime/first-boot):
+`runtime/sample/`, `tools/make_testcard.py` and the channel-6 blob are
+checkout-only, and the bring-up steps read them as instruments rather
+than as examples. Nor does the status-colour table on either page: it
+is `runtime/sample/main.c`'s, and the starter paints navy `#000080`
+where that one paints magenta.
+
+`main.c` is yours to edit. Read the comment at the top before deleting
+anything: it says which parts have been proved on hardware and which
+have only been compiled.
 
 ## Behaviour
 
