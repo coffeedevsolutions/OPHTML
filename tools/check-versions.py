@@ -189,6 +189,21 @@ def git_tags():
     return set(out.split())
 
 
+def commits_since(ref):
+    """How many commits have landed since `ref`, or None if git cannot say.
+
+    Shallow checkouts and archives return None rather than 0, because 0
+    is a meaningful answer here and "cannot tell" is not.
+    """
+    try:
+        out = subprocess.run(["git", "rev-list", "--count", "%s..HEAD" % ref],
+                             cwd=ROOT, check=True,
+                             capture_output=True, text=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return int(out) if out.isdigit() else None
+
+
 # The paths that end up inside an artifact. A change to any of these
 # between the tag and HEAD means the tag does not name what a publish
 # from HEAD would upload -- which is rule 21 below.
@@ -297,6 +312,15 @@ def main(argv=None):
         print("%s - %s" % ("ok" if ok else "not ok", ok_msg if ok else bad_msg))
         if not ok:
             fail.append(bad_msg)
+
+    def warn(ok, ok_msg, warn_msg):
+        """Visible, never fatal.
+
+        The one rule here that cannot be a check without being wrong.
+        See 10c.
+        """
+        print("%s - %s" % ("ok" if ok else "ok # WARN",
+                           ok_msg if ok else warn_msg))
 
     # 1. The baker's version has one home.
     bad = pyproject_derives()
@@ -971,6 +995,59 @@ def main(argv=None):
               "still be useless. Write the entries, or if the release "
               "genuinely changes nothing a reader would act on, say that "
               "in a bullet." % (BAKER_VERSION, len(heads), len(bullets)))
+
+    # 10c. AND THE SAME QUESTION ON A PRERELEASE, AS A WARNING.
+    #
+    #      The rule above is right to fire only on a release: step 9
+    #      opens an empty section on purpose, and failing that step is
+    #      the trap it was shaped to avoid. The cost is that its coverage
+    #      is narrower than its purpose. Nothing asks whether a
+    #      prerelease section has said anything, so the omission
+    #      accumulates through a whole cycle and lands at the cut, on
+    #      whoever is holding the release, as N changes to reconstruct
+    #      from `git log`.
+    #
+    #      THE COMMENT ABOVE ALREADY RECORDS ONE OCCURRENCE -- six pull
+    #      requests between 0.3.0 and that rule, listed nowhere, "noticed
+    #      by reading the file, which is the detector this rule exists to
+    #      replace". It happened again in the 0.8.0 cycle: five changes,
+    #      two of them user-visible, zero entries, every check green.
+    #      Twice is a shape, and docs/method.md already names it.
+    #
+    #      A WARNING, NEVER A FAILURE, and the arithmetic is what makes
+    #      that safe rather than timid. Straight after step 9 the count
+    #      since the previous release is exactly 1 -- the
+    #      back-to-development commit itself -- so the threshold cannot
+    #      fire on the step it was designed around. Measured here when
+    #      this was written: 1 at 5b06a56, 6 at main.
+    #
+    #      It cannot fail, because the honest answer to "should this have
+    #      an entry?" is sometimes no, and a rule that guesses wrong in
+    #      that direction gets an exemption bolted onto it within a week.
+    if is_prerelease(baker):
+        ref = "v%s" % prev_ver
+        tags = git_tags()
+        if tags is not None and ref not in tags:
+            ref = prev_ver
+        n = commits_since(ref) if tags is None or ref in tags else None
+        open_bullets = [ln for ln in body.splitlines()
+                        if ln.startswith("- ") or ln.startswith("  - ")]
+        if n is None:
+            print("ok # WARN - cannot count commits since %s, so the open "
+                  "section's silence is unread" % ref)
+        else:
+            warn(not (n > 1 and not open_bullets),
+                 "the open %s section has %d entr%s for the %d commit(s) "
+                 "since %s" % (BAKER_VERSION, len(open_bullets),
+                               "y" if len(open_bullets) == 1 else "ies",
+                               n, ref),
+                 "the open %s section lists nothing and %d commits have "
+                 "landed since %s. Not a failure: an empty prerelease "
+                 "section is legitimate straight after docs/releasing.md "
+                 "step 9, when that count is 1. At %d it usually means "
+                 "the notes are being deferred to the cut, where they "
+                 "cost more and get written from `git log`."
+                 % (BAKER_VERSION, n, ref, n))
 
     if except_tag:
         # SAID OUT LOUD. A green `--except-tag` run is not a pass, and
