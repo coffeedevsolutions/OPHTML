@@ -900,6 +900,7 @@ _facts/runtime/frame-loop	runtime/sample/main.c	2651	        /* Canvas backgroun
 _facts/runtime/frame-loop	runtime/sample/main.c	2753	            ps2ui_screen_set(&ui, "covers");	            }	            ps2ui_render(&ui, gs);
 _facts/runtime/frame-loop	runtime/sample/main.c	2769	        /* Age the texture manager's use counts once per frame, the way	        gsKit_sync_flip(gs);	         * Open-PS2-Loader's frame loop does. With ps2ui's static UI it
 _facts/runtime/frame-loop	runtime/tests/test_runtime.c	796	    {	    /* ---- render: geometry stays on canvas ---- */	        int k, in_bounds = 1;
+_facts/runtime/integrating	packages/baker/ps2ui_bake/vendor.py	59	STARTER_FILES = ("main.c", "Makefile")	# edited one is left exactly where it is and reported, never replaced.	
 _facts/runtime/integrating	packages/baker/ps2ui_bake/vendor.py	188	    # a success status.	    # and is written against its structs. One invocation, a split pair,	    #
 _facts/runtime/integrating	packages/baker/setup.py	74	SHIPPED = ("ps2ui.c", "ps2ui.h")	# there next.	
 _facts/runtime/integrating	runtime/Makefile	23	test: syntax-check timing-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test-narrow		\t./build/test_runtime $(UIB) $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) $(HUGE_UIB)
