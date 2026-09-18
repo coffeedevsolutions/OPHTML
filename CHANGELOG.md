@@ -14,6 +14,89 @@ decays. It becomes one the moment a format move lands, and
 reading it back, so the check fails the change that moves the format
 without moving this line.
 
+### Added
+
+- **A version a document prints is now held to the version something
+  prints.** `check-site-pages.py` pins a citation to the line it names,
+  which is exact and cannot see a version *flowing* through a file the
+  row does not cite: `cli.bake.version` cites `cli.py`, which formats
+  `__version__` and never moves, while the number moves in
+  `__init__.py`. Ten rows survived the 0.8.0.dev0 bump asserting 0.7.0
+  with every citation green, and a reviewer found them by grepping.
+  `tools/check-doc-versions.py` records every version banner in
+  `docs/site` as meaning the tree or the last release and fails when one
+  stops naming what it was pinned to. 28 banners today. It runs in
+  `ci.yml` and `docs.yml`, and `docs/releasing.md` step 9 says to run it
+  after the four edits: the red list is the work.
+
+### Fixed
+
+- **`ps2ui build` before `ps2ui fontgen` named a directory inside the
+  npm package as the place your font metrics belong.** With no project
+  manifest nothing passed a font flag, so `ps2ui-layout` fell back to a
+  default resolved against its own install and printed
+  `no font metrics at .../lib/node_modules/fonts/default.metrics.json`
+  — a path the reader never chose and could not have created. Found by
+  an assessor with no knowledge of this project installing from the
+  registries onto a machine with no checkout.
+
+  **Its advice could not work either**, and not only because nothing
+  passed the flag: `--font-dir` is two fixed filenames with no `ttf`
+  paths, and the baker rasterizes, so a bare directory cannot carry
+  what the baker needs. Wiring it through was tried first and failed
+  worse — the compile succeeded and the bake then refused on a family
+  mismatch. The project resolves fonts once now, before either half
+  runs, and names `ps2ui fontgen <regular.ttf> <bold.ttf>`, which
+  writes the metrics *and* the manifest both halves read.
+
+  Seeing this needed both halves installed, which is why it survived:
+  with only the npm half present the baker's checkout fallback supplies
+  `--fonts` and the build succeeds.
+
+- **The build command `vendor-runtime --starter` printed could not be
+  followed.** It said to put the blob beside the four files and then
+  passed `UIB=build/ui.uib`; the Makefile's rule is `ui_uib.c: $(UIB)`,
+  so doing what the sentence said gave
+  `No rule to make target 'build/ui.uib'`. Correcting it to
+  `UIB=ui.uib` was worse — `UIB ?= build/ui.uib` is where `ps2ui build`
+  writes one, so that spelling breaks the in-place layout instead. One
+  spelling cannot be right for two layouts, so the message now names
+  none: a plain `make` for the default, `UIB=ui.uib` for a blob beside
+  the files, and a note that the printed `docker run` mounts only that
+  directory. `_gskit_lines()` has been held to the Makefile since the
+  starter shipped; this line was the one piece of printed wiring that
+  was not, which is how two opposite defects both passed. It has a test
+  now, falsified four ways.
+
+- **`--starter` was the answer to the console half and no page a
+  stranger reads mentioned it.** Zero occurrences across the
+  documentation site, while `runtime/integrating`'s table said the
+  command took "one positional and one flag" and `--help` had listed
+  two since the flag shipped. Fixed on four artefacts, each found only
+  after the previous one: that page, `cli/ps2ui` which it names as
+  canonical, `runtime/deploying` whose minimal example opens "Build
+  inside a checkout", and `packages/baker/README.md` — the page every
+  `pip install ophtml` reader lands on, which still ended its console
+  section pointing at `runtime/sample/` on GitHub.
+
+  `runtime/first-boot` says the opposite on purpose: it has no no-clone
+  lane, because the channel-6 probe and the test card are the
+  instruments each step is read against and nothing in the wheel
+  produces either. **And its colour legend is not the starter's** —
+  the starter paints navy `#000080` where the sample paints magenta,
+  so reading one against the other turns a failed `ps2ui_screen_set`
+  into "step 1 passed".
+
+- **The Installation page did not mention that `pip install ophtml`
+  fails on a current macOS or Debian box.** PEP 668's
+  `externally-managed-environment` is now quoted with `venv` and
+  `pipx`, and a *A TTF to start with* section names DejaVu, where each
+  platform keeps it, and the two `export` lines the quickstart's first
+  command needs and nothing on the site assigned. A `.ttc` collection
+  loads but always yields face 0, so it writes a manifest declaring a
+  bold face whose glyph and kerning tables are identical to the
+  regular one, and nothing downstream says so.
+
 ## 0.7.0 — 2026-09-17
 
 `.uib` format **version 7**, unchanged from the release below.
