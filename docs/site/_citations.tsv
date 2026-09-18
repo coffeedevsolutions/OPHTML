@@ -14,6 +14,7 @@ _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	52	    case '--s
 _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	56	    case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;	    // rather than have the rule quietly not reach its text.	    case '-h': case '--help': usage(0); break;
 _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	78	  options.lint = { ...(options.lint || {}), minFontSize };	  }	}
 _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	90	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  const ir = compileFiles(positional[0], positional[1], options);	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
+_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	106	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
 _facts/authoring/crt-linter	packages/layout/src/box.js	99	  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',	const KNOWN_DATA_ATTRS = new Set([	  'data-tex-slot', 'data-repeat',
 _facts/authoring/crt-linter	packages/layout/src/box.js	196	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
 _facts/authoring/crt-linter	packages/layout/src/index.js	222	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
@@ -32,11 +33,20 @@ _facts/authoring/crt-linter	packages/layout/src/lint.js	139	  if (opt.safeInsetX
 _facts/authoring/crt-linter	packages/layout/src/lint.js	154	  if (Math.abs(opt.par - 1) > opt.maxShapeDistortion) {	  // on a stretched display.	    const rounded = commands.filter((c) => c.op === 'rect' && c.radius > 0).length;
 _facts/authoring/crt-linter	packages/layout/src/lint.js	160	      warnings.push({	    if (rounded > 0) {	        rule: 'aspect-distortion',
 _facts/authoring/crt-linter	packages/layout/src/lint.js	161	        rule: 'aspect-distortion',	      warnings.push({	        message: `${rounded} rounded corner(s) draw ${pct}% ${dir} than tall `
+_facts/authoring/crt-linter	packages/layout/src/lint.js	168	        rule: 'aspect-distortion',	      warnings.push({	        message: `${images} image(s) draw ${pct}% ${dir} than tall at PAR `
 _facts/authoring/crt-linter	packages/layout/src/lint.js	184	      if (cmd.borderWidth === 1 || (cmd.fill && cmd.h === 1)) {		        warnings.push({
+_facts/authoring/crt-linter	packages/layout/src/lint.js	186	          rule: 'interlace-flicker',	        warnings.push({	          message: `1px line at (${cmd.x},${cmd.y}) will shimmer on an interlaced CRT; use 2px`,
 _facts/authoring/crt-linter	packages/layout/src/lint.js	190	      if (cmd.fill) {	      }	        const [r, g, b] = cmd.fill;
+_facts/authoring/crt-linter	packages/layout/src/lint.js	194	            rule: 'ntsc-red-bleed',	          warnings.push({	            message: `saturated red fill rgb(${r},${g},${b}) at (${cmd.x},${cmd.y}) smears on composite video`,
+_facts/authoring/crt-linter	packages/layout/src/lint.js	206	        rule: 'min-font-size',	      warnings.push({	        message: `"${cmd.text.slice(0, 24)}" is ${cmd.size}px; below ${opt.minFontSize}px is unreadable from a couch`,
+_facts/authoring/crt-linter	packages/layout/src/lint.js	212	        rule: 'overscan',	      warnings.push({	        message: `text "${cmd.text.slice(0, 24)}" at (${cmd.x},${cmd.y}) leaves the title-safe area; a CRT may crop it`,
+_facts/authoring/crt-linter	packages/layout/src/lint.js	220	          rule: 'charset',	        warnings.push({	          message: `codepoint U+${cp.toString(16).toUpperCase()} in "${cmd.text.slice(0, 24)}": non-Latin text wrapping is untested`,
 _facts/authoring/crt-linter	packages/layout/src/lint.js	241	    if (chain.length && cmd.color[3] > 0 && !cmd.nocontrast) {	    // false alarms is a linter people learn to skim past.	      const seeThrough = transmittance(chain) > 0;
+_facts/authoring/crt-linter	packages/layout/src/lint.js	261	          rule: 'contrast',	        warnings.push({	          message: `"${cmd.text.slice(0, 24)}" contrast ${worst.toFixed(2)}:1 < ${opt.minContrast}:1${where} — CRTs crush shadows harder than your monitor`,
 _facts/authoring/crt-linter	packages/layout/src/lint.js	271	    if (w < 24 || h < 24) {	    const [x, y, w, h] = node.rect;	      warnings.push({
+_facts/authoring/crt-linter	packages/layout/src/lint.js	273	        rule: 'focus-target-size',	      warnings.push({	        message: `focusable "${node.name}" is ${w}x${h}px; smaller than 24px is hard to see highlighted from 3 meters`,
 _facts/authoring/crt-linter	packages/layout/src/lint.js	277	    if (x + w > safe.x1 + opt.safeInsetX || y + h > safe.y1 + opt.safeInsetY) {	    }	      warnings.push({
+_facts/authoring/crt-linter	packages/layout/src/lint.js	279	        rule: 'overscan',	      warnings.push({	        message: `focusable "${node.name}" extends past the action-safe area`,
 _facts/authoring/crt-linter	packages/layout/src/paint.js	156	      ...(box.nocontrast ? { nocontrast: true } : {}),	      focusId: box.focusId,	    });
 _facts/authoring/css	packages/layout/src/box.js	171	  if (style.display === 'none') return null;	  );	
 _facts/authoring/css	packages/layout/src/box.js	368	      if (cbox) {	      const cbox = buildBoxTree(child, sheet, style, focusStyle, warnings, scope, env);	        cbox.parent = box;
@@ -360,30 +370,46 @@ _facts/authoring/theming	runtime/sample/main.c	2095	            if (frame && fra
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	138	    ap.add_argument("--version", action="version",	    # else, so it cannot become the next number that disagrees.	                    version="ps2ui-bake %s" % __version__)
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	148	    ap.add_argument("--preview-display", default=None, metavar="PNG",	    ap.add_argument("--montage", default=None, help="write a PNG sheet of every focus state")	                    help="write the preview resampled to the panel's aspect. "
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	172	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	178	            print(f"warning (layout {name}): {w}", file=sys.stderr)	        for w in ir.get("warnings", []):	        named_irs.append((name, ir))
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	336	        if args.preview:	        uib = read_uib(args.out)  # replay what we wrote, not what we meant	            preview_mod.render(uib).save(args.preview)
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	339	        if args.preview_display:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)	            preview_mod.to_display_space(
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/preview.py	95	def display_size(uib: UibFile):		    """Frame size as the panel shows it. Anamorphic stretching is
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/preview.py	111	    target = display_size(uib)	    captures against the 1:1 render."""	    if target == img.size:
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/project.py	47	    "mode": None,	    "previewDisplay": None,	    "canvas": None,
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/project.py	209	    def set_out_override(self, out):		        """Point the build at a different blob, and move its
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/ps2ui.py	148	    """	    what `Project.fonts_path` always claimed to arrange.	    if project_fonts(proj):
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/ps2ui.py	181	        if proj.mode:	        cmd += font_args(proj)	            cmd += ["--mode", proj.mode]
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/ps2ui.py	346		    only thing `ps2ui dev` could do with any of them.	    It also named screens[0], which is not a recommendation -- it is
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/quads.py	523	    def run_screens(self, named_irs) -> None:		        """Flatten several IRs into one blob (backlog F4).
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	66	ASPECTS = ("framebuffer", "authored", "force-4:3", "force-16:9")	OPS = {0: "quad", 1: "texquad", 2: "scissor_push", 3: "scissor_pop"}	
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	119	        self.aspect = "authored"	        self.theme = 0	        # Keyed per screen, for the same reason focus is: two screens
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	203	    def set_aspect(self, mode):		        if mode not in ASPECTS:
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	233	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve_page.html	543	  /* Pixel aspect: how much wider a framebuffer pixel is drawn than it is	  for (const cmd of (st.commands || [])) counts[cmd.op] = (counts[cmd.op] || 0) + 1;	   * stored. The one number the old previewer never showed. */
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/vram.py	203	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
 _facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	43	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
+_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	66	if (mode) {	const options = { fontDir, fontManifest, focusWrap };	  if (!(mode in MODES)) usage(2);
 _facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	67	  if (!(mode in MODES)) usage(2);	if (mode) {	  options.canvasW = MODES[mode].w;
 _facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	72	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
+_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	81	if (canvas) { // explicit --canvas beats --mode		  const m = /^(\\d+)x(\\d+)$/.exec(canvas);
 _facts/authoring/video-modes	packages/layout/src/aspect.js	19	export function parseAspect(text) {	/** Parse "16:9" or "4:3" into [num, den]. Throws on anything else. */	  const m = /^(\\d+):(\\d+)$/.exec(String(text).trim());
 _facts/authoring/video-modes	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
+_facts/authoring/video-modes	packages/layout/src/aspect.js	42	export function displaySize(canvasW, canvasH, [num, den]) {	 */	  return { w: Math.round(canvasH * (num / den)), h: canvasH };
 _facts/authoring/video-modes	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 _facts/authoring/video-modes	packages/layout/src/index.js	137	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
 _facts/authoring/video-modes	packages/layout/src/index.js	141	  const par = pixelAspect(canvasW, canvasH, displayAspect);	  const displayAspect = options.displayAspect ?? [4, 3];	  const fonts = options.fonts
+_facts/authoring/video-modes	packages/layout/src/index.js	241	  return {		    version: IR_VERSION,
 _facts/authoring/video-modes	packages/layout/src/lint.js	12	export const DEFAULT_LINT_OPTIONS = Object.freeze({		  canvasW: 640,
 _facts/authoring/video-modes	packages/layout/src/lint.js	15	  // Title-safe area: 5% inset per side, derived from the canvas so PAL	  canvasH: 448,	  // (640x512) gets its own numbers (SMPTE ST 2046 is stricter; 5%
+_facts/authoring/video-modes	packages/layout/src/lint.js	139	  if (opt.safeInsetX == null) opt.safeInsetX = Math.round(opt.canvasW * 0.05);	  const opt = { ...DEFAULT_LINT_OPTIONS, ...options };	  if (opt.safeInsetY == null) opt.safeInsetY = Math.round(opt.canvasH * 0.05);
+_facts/authoring/video-modes	packages/layout/src/lint.js	154	  if (Math.abs(opt.par - 1) > opt.maxShapeDistortion) {	  // on a stretched display.	    const rounded = commands.filter((c) => c.op === 'rect' && c.radius > 0).length;
 _facts/authoring/video-modes	packages/layout/src/lint.js	155	    const rounded = commands.filter((c) => c.op === 'rect' && c.radius > 0).length;	  if (Math.abs(opt.par - 1) > opt.maxShapeDistortion) {	    const images = commands.filter((c) => c.op === 'image').length;
 _facts/authoring/video-modes	runtime/ps2ui.c	1493	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx)		{
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
+_facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	595	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	600	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
@@ -421,8 +447,10 @@ _facts/cli/ps2ui	packages/baker/ps2ui_bake/ps2ui.py	432	    ap.add_argument("--v
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	332	        proj.set_out_override(os.path.join(proj.build_dir, "serve", "ui.uib"))	        self.proj = proj	        # The server renders its own frames; the build does not need to
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	836	def main(argv=None):		    ap = add_arguments(argparse.ArgumentParser(
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	131	            drifted = _differ(_PACKAGED, _CHECKOUT)	        if packaged:	            if drifted:
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	198	    # disagreeing inside the toolchain exit 1, and two copies	    # It is also the asymmetry find_source() already refuses: two copies	    # disagreeing in somebody's project used to get "already there" and
 _facts/cli/ps2ui	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/caps.py	27	FALLBACK = {		    # The last one. It bounds how deep `overflow: hidden` may nest
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/caps.py	77	def check(textures, cluts, slots, screens, caps: dict = None, records=None):		    """Returns (errors, caps). Each error names the cap, the value, and
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	21	def check_font_agreement(ir, font_paths):		    """The IR names the faces it was MEASURED against. Compare them.
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	64	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	82	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
@@ -430,16 +458,35 @@ _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	131	    ap = argparse.Arg
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	138	    ap.add_argument("--version", action="version",	    # else, so it cannot become the next number that disagrees.	                    version="ps2ui-bake %s" % __version__)
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	169	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",	        if ir.get("version") != 1:	                  file=sys.stderr)
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	172	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	174	            print(f"error: duplicate screen name {name!r} (file stems must be "	        if any(n == name for n, _ in named_irs):	                  "unique)", file=sys.stderr)
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	177	        for w in ir.get("warnings", []):	            return 1	            print(f"warning (layout {name}): {w}", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	178	            print(f"warning (layout {name}): {w}", file=sys.stderr)	        for w in ir.get("warnings", []):	        named_irs.append((name, ir))
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	190	    fonts_path = args.fonts	    # a path the caller never chose.	    if fonts_path is None:
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	194	            print("ps2ui-bake: no font manifest. The built-in default is "	        if not os.path.exists(fonts_path):	                  "the repository's fonts/fonts.json, which only exists "
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	212	        # line they can act on.	        # caller can fix is not a crash, and a traceback buries the one	        print(f"ps2ui-bake: {exc}", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	217	    disagree = check_font_agreement(ir, font_paths)	    # THE COMPILER AND THE BAKER MUST HAVE MEANT THE SAME FONTS.	    if disagree:
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	219	        print("ps2ui-bake: the IR and the font manifest describe "	    if disagree:	              "different fonts:", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	231	    except ValueError as exc:	        flat.run_screens(named_irs)	        # The bake's own diagnostics are written to be read; a traceback
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	245	    print(caps_mod.summary(flat.textures, flat.cluts, flat.slots,	        records=flat.records)	                           flat.screens, caps), file=sys.stderr)
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	247	    if flat.dropped:	                           flat.screens, caps), file=sys.stderr)	        # Silent truncation reads as "covered everything"; say what went.
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	249	        print(f"  trimmed {flat.dropped} draw command(s) that fall outside "	        # Silent truncation reads as "covered everything"; say what went.	              f"their clip and could never draw", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	251	    if cap_errors:	              f"their clip and could never draw", file=sys.stderr)	        for e in cap_errors:
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	262	    for line in vlines:	    )	        print(line, file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	264	    if not vok:	        print(line, file=sys.stderr)	        print("error: texture VRAM footprint exceeds budget "
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	275	    for path in (args.out, args.preview, args.montage,	    # nobody here saw it: every build.sh mkdir -p's first.	                 args.preview_display):
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	281	    write_uib(		        args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	289	    if args.tints:		        names = ir.get("themes") or ["root"]
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	304	    n_tex_bytes = sum(len(t.data) for t in flat.textures)		    # Streamed slots contribute no bytes to the file, so this total is
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	316	    print(	        tex_note += f" + {n_reserved // 1024} KiB reserved by slots"	        f"ps2ui-bake: {len(flat.screens)} screen(s), {len(flat.records)} records, "
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	327	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	    # failure mode of guessing low is PS2UI_ERR_ARENA at boot.	    print(
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	328	    print(	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	        f"ps2ui-bake: arena {ee} bytes "
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	334	    if args.preview or args.montage or args.preview_display:		        uib = read_uib(args.out)  # replay what we wrote, not what we meant
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	338	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)	            preview_mod.render(uib).save(args.preview)	        if args.preview_display:
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	340	            preview_mod.to_display_space(	        if args.preview_display:	                preview_mod.render(uib), uib).save(args.preview_display)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	344	            print(f"ps2ui-bake: display preview {dw}x{dh} at {num}:{den} "	            num, den = uib.display_aspect	                  f"-> {args.preview_display}", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	348	            print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)	            preview_mod.montage(uib).save(args.montage)	    return 0
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	203	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/caps.py	44	def parse_header(path: str = None) -> dict:		    """Caps from ps2ui.h, or FALLBACK when the header is not reachable."""
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	70	    def note(self, label: str) -> None:		        """A measured number with no threshold to fail against.
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	86	    def emit(self, out=sys.stdout) -> None:		        for label in self.notes:
@@ -470,11 +517,14 @@ _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	82	def load_font_manif
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	22	# Latin-1 printable + the punctuation the example UI actually uses.		# chr(32) explicitly: an invisible U+00A0 once impersonated the space
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	26	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	42	NO_SUBSTITUTION = ["-liga", "-clig", "-dlig", "-hlig", "-rlig", "-calt"]	# ligatures, contextual alternates and the rest are substitutions.	
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	51	def build_kerning(font, charset) -> dict:		    """{"cp_prev,cp_cur": units} for every pair the shaper adjusts.
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	57	    feat = _shaping()	    """	    if feat is None:
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	72	            k = font.getlength(a + b, features=feat) - wa - widths[b]	        for b in chars:	            k = int(round(k))
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	80	    em = 1000	def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAULT_CHARSET) -> dict:	    font = ImageFont.truetype(ttf_path, em)
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	81	    font = ImageFont.truetype(ttf_path, em)	    em = 1000	    ascent, descent = font.getmetrics()
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	85	    for ch in sorted(set(charset)):	    advances = {}	        cp = ord(ch)
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	90	    return {	        advances[str(cp)] = int(round(font.getlength(ch, features=feat)))	        "family": family,
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	93	        "unitsPerEm": em,	        "weight": weight,	        "ascent": ascent,
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	98	        "missing": advances.get(str(ord("?")), 500),	        "kerning": build_kerning(font, charset),	        "source": ttf_path.rsplit("/", 1)[-1],
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	99	        "source": ttf_path.rsplit("/", 1)[-1],	        "missing": advances.get(str(ord("?")), 500),	    }
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	103	def _raqm_remedy():		    """What to actually do about it, on the platform you are on.
@@ -489,31 +539,55 @@ _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	310	def cmd_fontgen(
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	319	    out_dir = args.out_dir	    from . import fontgen	    os.makedirs(out_dir, exist_ok=True)
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	323	        rc = fontgen.main([ttf, "default", str(weight),	                              (args.bold, 700, "default-bold.metrics.json")):	                           os.path.join(out_dir, name)])
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	326	            return rc	        if rc != 0:	    manifest = os.path.join(out_dir, "fonts.json")
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	369	    base = layout_command()	def cmd_dev(args):	    dev = [c.replace("ps2ui-layout", "ps2ui-dev") for c in base]
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	457	    f = sub.add_parser("fontgen",		                       help="metrics and a manifest from two TTFs")
 _facts/cli/ps2ui-fontgen	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
+_facts/cli/ps2ui-fontgen	packages/baker/pyproject.toml	24	ps2ui-fontgen = "ps2ui_bake.fontgen:main"	ps2ui-check = "ps2ui_bake.check:main"	
 _facts/cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenRefusesWithoutRaqm(unittest.TestCase):		    """Without Raqm the advances come out identical and the kern table
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	22	function usage(code) {		  console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	51		let once = false;	for (let i = 0; i < args.length; i++) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	54	    case '-o': outDir = args[++i]; break;	  switch (args[i]) {	    case '--mode': mode = args[++i]; break;
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	83	}	  }	if (positional.length !== 2 || !outDir) usage(2);
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	86	const [htmlPath, cssPath] = positional.map((p) => resolve(p));		mkdirSync(outDir, { recursive: true });
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	90	if (minFontSize !== null) {	const options = { fontDir, fontManifest, focusWrap };	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	91	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-dev: --min-font-size takes a positive integer');
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	99	  // floor and exited 0, where `ps2ui build` printed none. Same shape	  // opl-env (minFontSize 11, strict) printed 44 warnings at the 14px	  // as ps2ui-layout.js, which had it right.
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	113	  options.canvasW = parseInt(m[1], 10);	  if (!m) usage(2);	  options.canvasH = parseInt(m[2], 10);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	122	  let ir;	  const started = Date.now();	  try {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	129	  // --strict fails the build the way ps2ui-layout does: warnings are a	  }	  // failed compile, so nothing is baked and --once exits 1. In watch
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	140	  // screen called `ui`, and ps2ui_screen_set(&ui, "saves") against it	  // was watching -- so every blob this tool produced had exactly one	  // failed. The dev blob has to be a drop-in for the built one or the
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	144	  writeFileSync(irPath, JSON.stringify(ir, null, 1));	  const irPath = join(outDir, `${basename(htmlPath, '.html')}.json`);	
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	151	  // Bake against the manifest the layout was MEASURED against. Without	  if (palettize) bakeArgs.push('--palettize-images');	  // this the baker falls back to its own default font directory, which
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	156	  const bake = spawnSync('python3', bakeArgs, {	  if (fontManifest) bakeArgs.push('--fonts', fontManifest);	    stdio: ['ignore', 'inherit', 'inherit'],
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	160	  if (bake.status !== 0) {	  });	    console.error('\\x1b[31mbake failed\\x1b[0m');
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	171		}	const ok = build();
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	17	const VERSION = JSON.parse(	// disagrees.	  readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	40	for (let i = 0; i < args.length; i++) {		  switch (args[i]) {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	43	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	51	    case '--focus-wrap': focusWrap = true; break;	    case '--fonts': fontManifest = args[++i]; break;	    case '--strict': strict = true; break;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	58	    case '-V': case '--version':	    case '-h': case '--help': usage(0); break;	      console.log(`ps2ui-layout ${VERSION}`); process.exit(0); break;
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	63	if (positional.length !== 2 || !out) usage(2);	}	
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	65	const options = { fontDir, fontManifest, focusWrap };		if (mode) {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	66	if (mode) {	const options = { fontDir, fontManifest, focusWrap };	  if (!(mode in MODES)) usage(2);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	67	  if (!(mode in MODES)) usage(2);	if (mode) {	  options.canvasW = MODES[mode].w;
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	72	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	73	if (minFontSize !== null) {	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	74	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-layout: --min-font-size takes a positive integer');
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	81	if (canvas) { // explicit --canvas beats --mode		  const m = /^(\\d+)x(\\d+)$/.exec(canvas);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	83	  if (!m) usage(2);	  const m = /^(\\d+)x(\\d+)$/.exec(canvas);	  options.canvasW = parseInt(m[1], 10);
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	90	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  const ir = compileFiles(positional[0], positional[1], options);	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	97	  mkdirSync(dirname(out), { recursive: true });	  // scripts papered over it and only a newcomer ever saw it.	  writeFileSync(out, JSON.stringify(ir, null, 1));
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	105	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	  const quads = ir.commands.length;	  if (strict && ir.warnings.length > 0) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	106	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	107	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);	  if (strict && ir.warnings.length > 0) {	    process.exit(1);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	111	  console.error(`error: ${err.message}`);	} catch (err) {	  process.exit(1);
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	19	export function parseAspect(text) {	/** Parse "16:9" or "4:3" into [num, den]. Throws on anything else. */	  const m = /^(\\d+):(\\d+)$/.exec(String(text).trim());
+_facts/cli/ps2ui-layout	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	47	const DEFAULT_FONT_DIR = join(HERE, '..', '..', '..', 'fonts');	// with a TTF and no clone actually needs to be told.	
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	64	  static fromDir(dir = DEFAULT_FONT_DIR) {	  }	    // The two filenames are fixed, which was documented nowhere -- not
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	93	  static fromManifest(path) {	   */	    let manifest;
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	117	function missingFonts(dir, missing) {	/** What to tell someone whose font metrics are not where we looked. */	  return `no font metrics at ${missing}.\\n`
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	137	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	185	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	    root, themeNames.length);	  for (const w of checkReachability(focus)) warnings.push(w);
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	222	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
@@ -545,8 +619,11 @@ _facts/examples/opl-env	examples/opl-env/ps2ui.json	1	{		  "screens": [
 _facts/examples/opl-env	examples/opl-env/ui/confirm.html	4	<!-- The overlay screen. It is a SEPARATE screen composited over	<body>	     whichever one is already on the frame, not a variant of each --
 _facts/examples/opl-env	examples/opl-env/ui/library.html	21	        <img class="art" data-tex-slot="row-{i}-art">	      <div class="row" data-repeat="9" id="row-{i}" focusable>	        <div class="meta">
 _facts/examples/opl-env	examples/opl-env/ui/opl.css	30	:root {	 * table's 12 -> 13. */	  --bg-page: #0b0f16;
+_facts/examples/opl-env	examples/opl-env/ui/opl.css	78	@theme light {	 * indistinguishable from the screenshot. */	  --bg-page: #f4f6fa;
 _facts/examples/opl-env	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 _facts/examples/opl-env	tools/check-example-figures.py	1	#!/usr/bin/env python3		"""Diff a shipped example's documented figures against its actual blob.
+_facts/examples/opl-env	tools/check-example-figures.py	46	# 392 KiB footprint that P3b-6 had moved to 336, a Phase 2 record three	# read to decide what to build next. In one day it was found carrying a	# figures out of date, and a slot count of 127 against a blob holding
+_facts/examples/opl-env	tools/check-example-figures.py	111	    act = dict(act)	    text = open(path, encoding="utf-8").read()	    act["vram_kib"] = (
 _facts/getting-started/installation	packages/baker/ps2ui_bake/fontgen.py	103	def _raqm_remedy():		    """What to actually do about it, on the platform you are on.
 _facts/getting-started/installation	packages/baker/ps2ui_bake/fontgen.py	272	    if not features.check("raqm"):	    # no metrics file.	        print("ps2ui-fontgen: this Pillow has no Raqm layout engine, so "
 _facts/getting-started/installation	packages/baker/ps2ui_bake/ps2ui.py	36	def layout_command():		    """How to invoke ps2ui-layout, or a message saying how to get it."""
@@ -564,18 +641,27 @@ _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the
 _facts/project/internals	docs/bench-phase2.md	1	# Bench runbook — Phase 2, the OPL-class environment		
 _facts/project/internals	docs/bench-runbook.md	1	# Bench runbook — Phase 0, steps 3 to 9		
 _facts/project/internals	docs/bringup.md	1	# Hardware bring-up checklist		
+_facts/project/internals	docs/bringup.md	13	## Hardware log		
 _facts/project/internals	docs/design-bringup-3-to-9.md	1	# Bench instrument for bring-up steps 3–9		
 _facts/project/internals	docs/design-p3b-theming.md	1	# Design: theming		
 _facts/project/internals	docs/design-v6-resource-model.md	1	# Design: the v6 resource model		
 _facts/project/internals	docs/findings.md	1	<!-- GENERATED by tools/check-findings.py --render. Do not edit:		     edit docs/findings.yaml, which is what CI checks. -->
 _facts/project/internals	docs/method.md	1	# How this project tests itself, and the ways it has failed to		
 _facts/project/internals	docs/method.md	21	### 1. The guard that skips		
+_facts/project/internals	docs/method.md	110	### 2. The check sourced from what it checks		
+_facts/project/internals	docs/method.md	134	### 3. The instrument blind to its own hypothesis		
+_facts/project/internals	docs/method.md	156	### 4. The fixture where two quantities coincide		
+_facts/project/internals	docs/method.md	183	### 5. The check that never executed		
+_facts/project/internals	docs/method.md	216	### 6. Written down instead of tested		
+_facts/project/internals	docs/method.md	245	### 7. The rule whose coverage is narrower than its purpose		
 _facts/project/internals	docs/releasing.md	1	# Releasing		
 _facts/project/internals	docs/site/authoring/theming.md	15	## What it is		
 _facts/project/internals	docs/site/authoring/theming.md	27	The reasoning behind role keying is in the design document listed on [Internals](page:project/internals).		
+_facts/project/internals	docs/site/authoring/theming.md	244	| [Internals](page:project/internals) | The theming design document |	| [.uib](page:reference/uib-format#tint-entry) | The tint table and the feature bit |	
 _facts/project/internals	docs/site/reference/uib-format.md	343	### The pledge		
 _facts/project/internals	docs/site/runtime/first-boot.md	44	## Steps 1-10		
 _facts/project/internals	docs/site/runtime/first-boot.md	98	The fixes each fault above produced, and the bench readings that found them, are in [Internals](page:project/internals).		
+_facts/project/internals	docs/site/runtime/first-boot.md	107	| [VRAM budget](page:authoring/vram-budget#behaviour) | the preflight step 9 is testing, and the breakdown a rebake needs |	| [Video modes](page:authoring/video-modes#anamorphic-pixels) | why step 10 measures the panel and never the blob |	| [Internals](page:project/internals) | the hardware log, and the reasoning behind each fix it found |
 _facts/project/internals	docs/site/runtime/frame-loop.md	76	### Sizing the arena		
 _facts/project/internals	tools/check-findings.py	2	"""Enforce the findings graph in docs/findings.yaml.	#!/usr/bin/env python3	
 _facts/project/security-and-license	fonts/vendor/LICENSE.txt	1	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/		Upstream-Name: DejaVu fonts
@@ -593,6 +679,7 @@ _facts/reference/compatibility	packages/layout/package.json	22	    "node": ">=18
 _facts/reference/compatibility	packages/layout/src/index.js	49	export const IR_VERSION = 1;		
 _facts/reference/compatibility	runtime/Makefile	4	CC      ?= cc		CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2
 _facts/reference/compatibility	runtime/ps2ui.c	173	    if (h->magic != PS2UI_MAGIC || h->version != PS2UI_VERSION)	        return 0;	        return 0;
+_facts/reference/compatibility	runtime/ps2ui.c	267	    if (ctx->hdr->version != PS2UI_VERSION)	        return PS2UI_ERR_MAGIC;	        return PS2UI_ERR_VERSION;
 _facts/reference/compatibility	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/reference/compatibility	runtime/ps2ui.h	427	#define PS2UI_ERR_VERSION    -3	#define PS2UI_ERR_MAGIC      -2	#define PS2UI_ERR_BOUNDS     -4
 _facts/reference/compatibility	runtime/vendor/README.md	3	`gsKit/` contains verbatim copies of the public headers from		[ps2dev/gsKit](https://github.com/ps2dev/gsKit) at commit
@@ -719,6 +806,8 @@ _facts/runtime/api-reference	runtime/ps2ui.c	516	uint32_t ps2ui_clut_csm1(uint32
 _facts/runtime/api-reference	runtime/ps2ui.c	567	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	597	        return -1;	    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)	    ctx->vram_need = (uint32_t)need;
 _facts/runtime/api-reference	runtime/ps2ui.c	648	         * the first bind instead, when there is something to send. */	         * would hand the GIF a null DMA source. ps2ui_tex_set performs	        if (g->Mem == NULL)
+_facts/runtime/api-reference	runtime/ps2ui.c	653	    ctx->uploaded = 1;	    }	    return 0;
+_facts/runtime/api-reference	runtime/ps2ui.c	654	    return 0;	    ctx->uploaded = 1;	}
 _facts/runtime/api-reference	runtime/ps2ui.c	658	 * and this runs when a cover arrives rather than per frame, so a	/* Find a texture by name. Linear: n_tex is a uint16_t in the header,	 * sorted table would be machinery for nothing. */
 _facts/runtime/api-reference	runtime/ps2ui.c	660	static uint32_t tex_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * sorted table would be machinery for nothing. */	{
 _facts/runtime/api-reference	runtime/ps2ui.c	675	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,		                  const void *texels, size_t len)
@@ -741,6 +830,7 @@ _facts/runtime/api-reference	runtime/ps2ui.c	1608	int ps2ui_visible_get(const ps
 _facts/runtime/api-reference	runtime/ps2ui.c	1619	void ps2ui_visible_reset(ps2ui_ctx *ctx)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	1626	const char *ps2ui_focus_name(const ps2ui_ctx *ctx)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	1633	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1646	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
 _facts/runtime/api-reference	runtime/ps2ui.c	1685	static int list_sync_focus(ps2ui_ctx *ctx, const ps2ui_list *list);		
 _facts/runtime/api-reference	runtime/ps2ui.c	1695	}	    list->sel = 0;	
 _facts/runtime/api-reference	runtime/ps2ui.c	1705	}	    list_sync_focus(ctx, list);	
@@ -749,6 +839,7 @@ _facts/runtime/api-reference	runtime/ps2ui.c	1735	    if (!ctx || row < 0) retur
 _facts/runtime/api-reference	runtime/ps2ui.c	1738	}	    return ps2ui_focus_set(ctx, name);	
 _facts/runtime/api-reference	runtime/ps2ui.c	1750	}	    return (list->sel != old_sel || list->top != old_top) ? 1 : 0;	
 _facts/runtime/api-reference	runtime/ps2ui.c	1760	}	    return ps2ui_list_select(ctx, list, (uint16_t)target);	
+_facts/runtime/api-reference	runtime/ps2ui.c	1768	    for (r = 0; r < list->rows; r++) {	        return;	        list_row_name(list, r, name, sizeof name);
 _facts/runtime/api-reference	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/runtime/api-reference	runtime/ps2ui.h	278	typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_dir;		
 _facts/runtime/api-reference	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * rather than wrapping it. */	/* Longest row focus name a list can build: prefix + index + NUL. Only
@@ -756,6 +847,7 @@ _facts/runtime/api-reference	runtime/ps2ui.h	301	#define PS2UI_LIST_NAME_MAX    
 _facts/runtime/api-reference	runtime/ps2ui.h	310	typedef struct ps2ui_stats {	 * primitive drawn -- proportional to the frame, not to the API. */	    uint32_t cmds;             /* command records walked                */
 _facts/runtime/api-reference	runtime/ps2ui.h	333	typedef struct ps2ui_ctx {		    const uint8_t         *data;     /* the whole .uib, caller-owned      */
 _facts/runtime/api-reference	runtime/ps2ui.h	354	    /* Which row of the tint table is live. Read it freely; write it	    uint16_t  focus;                 /* current focus index or PS2UI_NONE */	     * through ps2ui_theme_set, which is what bounds it against
+_facts/runtime/api-reference	runtime/ps2ui.h	366	     *   examples/opl-env/build/ui.uib   themes=2  flags=0x1f	     *	     *   examples/memcard/build/ui.uib   themes=1  flags=0x03
 _facts/runtime/api-reference	runtime/ps2ui.h	378	    /* Everything below points into the caller's arena, carved by		     * ps2ui_load in descending alignment order (see arena_layout in
 _facts/runtime/api-reference	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
 _facts/runtime/api-reference	runtime/ps2ui.h	446	#define PS2UI_ARENA_ALIGN    16	 * alignment -- the exact fault class bringup.md 3c records. */	
@@ -775,14 +867,20 @@ _facts/runtime/api-reference	runtime/ps2ui.h	612	 * NEVER CLEARS. This is a guar
 _facts/runtime/api-reference	runtime/ps2ui.h	631	 *	 * Two things about that idiom that are easy to get wrong:	 *   - `ctx->stats` describes ONE render, not the frame. It is reset at
 _facts/runtime/api-reference	runtime/ps2ui.h	635	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
 _facts/runtime/api-reference	runtime/ps2ui.h	650	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs);	 * screen rather than the last clip inside the UI. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	652	/* D-pad move. Returns 1 when focus changed. */		int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
 _facts/runtime/api-reference	runtime/ps2ui.h	653	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);	/* D-pad move. Returns 1 when focus changed. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	656	const char *ps2ui_focus_name(const ps2ui_ctx *ctx);	/* Name of the focused node ("tile-okami"), or NULL. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	660	 * name. Scoped to the screen deliberately: names are only unique within	 * Returns 1 on success, 0 if the *current screen* has no node with that	 * one, and data-repeat makes two screens each using row-{i} a natural
+_facts/runtime/api-reference	runtime/ps2ui.h	663	 * after a screen swap or to implement shortcuts. */	 * thing to write rather than an accident. Use this to restore focus	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
 _facts/runtime/api-reference	runtime/ps2ui.h	664	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);	 * after a screen swap or to implement shortcuts. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	668	 * reverts to the baked placeholder; "" blanks the slot.	 * at the slot's baked capacity without splitting a character). NULL	 * Returns 1 on success, 0 if no slot has that name.
+_facts/runtime/api-reference	runtime/ps2ui.h	671	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	 * The runtime lays the glyphs out per frame from the baked glyph	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);
 _facts/runtime/api-reference	runtime/ps2ui.h	672	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	675	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name);	/* Current string of a slot (runtime text, else placeholder), or NULL. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	680	int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name);	 * Returns 1 on success, 0 if no screen has that name. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	683	const char *ps2ui_screen_name(const ps2ui_ctx *ctx);	/* Name of the current screen ("library"), never NULL after load. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	689	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	704	 *	 * the subtree goes with it, slots included.	 * A hidden node is also skipped by ps2ui_move, so the D-pad cannot land
 _facts/runtime/api-reference	runtime/ps2ui.h	716	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible);	 * a blob declares can be hidden. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	726	#define PS2UI_VISIBLE_UNKNOWN (-1)	 * answer, and -1 cannot be confused with a visibility. */	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
 _facts/runtime/api-reference	runtime/ps2ui.h	727	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);	#define PS2UI_VISIBLE_UNKNOWN (-1)	
@@ -793,8 +891,11 @@ _facts/runtime/api-reference	runtime/ps2ui.h	767	/* The current offset, for an a
 _facts/runtime/api-reference	runtime/ps2ui.h	787	 * a UI that does not use it. */	 * already baked, so this needs no format version and costs nothing to	typedef struct {
 _facts/runtime/api-reference	runtime/ps2ui.h	796	/* Bind a list to `rows` baked rows whose focus names are prefix+index		 * ("row-" gives row-0, row-1, ...). Starts empty; call
 _facts/runtime/api-reference	runtime/ps2ui.h	798	 * ps2ui_list_set_count next. */	 * ("row-" gives row-0, row-1, ...). Starts empty; call	void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);
+_facts/runtime/api-reference	runtime/ps2ui.h	802	 * window into range, so shrinking a list under a selection sitting past	/* Tell the list how many items exist. Clamps the selection and the	 * the new end lands somewhere valid rather than off the end — and moves
 _facts/runtime/api-reference	runtime/ps2ui.h	806	 * row the user cannot see selected. Pass NULL to move indices only. */	 * the highlight following is how the accept button ends up firing on a	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);
+_facts/runtime/api-reference	runtime/ps2ui.h	811	 * off the end of a hundred saves and arriving at the top is disorienting	 * page). Clamps at both ends — a list does not wrap, because walking	 * in a way a six-tile grid never is. Scrolls the window to keep the
 _facts/runtime/api-reference	runtime/ps2ui.h	814	 * and returns 1 if anything changed. */	 * selection visible, moves focus to the row the selection now occupies,	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);
+_facts/runtime/api-reference	runtime/ps2ui.h	815	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);	 * and returns 1 if anything changed. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	818	 * anything changed. Out-of-range indices clamp. */	/* Select an absolute item index, scrolling to it. Returns 1 if	int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item);
 _facts/runtime/api-reference	runtime/ps2ui.h	823	 * runs after every move to refill the slots. */	 * the end of the data and should be blanked. This is the loop the app	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row);
 _facts/runtime/api-reference	runtime/ps2ui.h	827	 * for an empty list. */	/* Which baked row the selection currently occupies (0..rows-1), or -1	int ps2ui_list_selected_row(const ps2ui_list *list);
@@ -981,6 +1082,7 @@ _facts/runtime/streaming-art	tools/make_cover_raw.py	1	#!/usr/bin/env python3		"
 _facts/runtime/streaming-art	tools/make_cover_raw.py	11	row-major, no header. Bare on purpose. The ELF reads it straight into a	Output is a bare `.raw`: exactly width * height * 4 bytes of PSMCT32,	16-aligned buffer and hands that buffer to ps2ui_tex_set, so anything
 _facts/runtime/streaming-art	tools/make_cover_raw.py	68	    """A cover with no art behind it, for a bench with no drive.	def synthetic(index: int, w: int, h: int) -> bytes:	
 _facts/runtime/telemetry	runtime/Makefile	40	SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS -DPS2UI_SAMPLE_PROGRESSIVE -DPS2UI_SAMPLE_LADDER -DPS2UI_SAMPLE_LADDER2 -DPS2UI_SAMPLE_OPLENV	# anything touching PS2SDK; see runtime/vendor/README.md.	
+_facts/runtime/telemetry	runtime/Makefile	81	# constraint, and on arm64 a u32 in an "=r" slot is a 32-bit value in a	# It stops clang PARSING `mfc0`; the frontend still reads the operand	# 64-bit register. Apple clang raises -Wasm-operand-widths and suggests
 _facts/runtime/telemetry	runtime/ps2ui.c	988	    memset(&ctx->stats, 0, sizeof ctx->stats);		    ctx->stats.vram_lost = tex_ok ? 0u : 1u;
 _facts/runtime/telemetry	runtime/ps2ui.c	989	    ctx->stats.vram_lost = tex_ok ? 0u : 1u;	    memset(&ctx->stats, 0, sizeof ctx->stats);	
 _facts/runtime/telemetry	runtime/ps2ui.c	1071	        ctx->stats.cmds++;	        const ps2ui_cmd *c = &ctx->cmd[i];	
@@ -991,18 +1093,23 @@ _facts/runtime/telemetry	runtime/ps2ui.c	1138	            ctx->stats.prims++;	  
 _facts/runtime/telemetry	runtime/ps2ui.c	1153	                ctx->stats.tex_unfilled++;	            if (ctx->gs_tex[c->tex].Mem == NULL) {	                continue;
 _facts/runtime/telemetry	runtime/ps2ui.c	1320	            ctx->stats.slots_hidden++;	        if (node_hidden(ctx, s->focus)) {	            continue;
 _facts/runtime/telemetry	runtime/ps2ui.c	1367	                ctx->stats.prims++;	            if (g->w > 0) {	                ctx->stats.slot_glyphs++;
+_facts/runtime/telemetry	runtime/ps2ui.c	1385	                ctx->stats.prims++;	            if (g && g->w > 0) {	                ctx->stats.slot_glyphs++;
 _facts/runtime/telemetry	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * rather than wrapping it. */	/* Longest row focus name a list can build: prefix + index + NUL. Only
 _facts/runtime/telemetry	runtime/ps2ui.h	302		#define PS2UI_LIST_NAME_MAX     64	/* Per-frame render telemetry, reset at the top of every ps2ui_render
 _facts/runtime/telemetry	runtime/ps2ui.h	306	 * have no EE) and no I/O (where a log goes — UDP, USB, screen, PCSX2's	 * timing (the EE cycle counter is the app's to read, and host tests	 * console capture — is the app's decision, same split as slot data).
 _facts/runtime/telemetry	runtime/ps2ui.h	310	typedef struct ps2ui_stats {	 * primitive drawn -- proportional to the frame, not to the API. */	    uint32_t cmds;             /* command records walked                */
+_facts/runtime/telemetry	runtime/sample/Makefile	8	EE_BIN  = ps2ui_sample.elf		EE_OBJS = main.o ps2ui.o ui_uib.o
 _facts/runtime/telemetry	runtime/sample/Makefile	22	# `make TELEMETRY=1` adds the once-a-second stats line on stdout; see	# which primitive paths draw. No .uib is involved.	# main.c. Combines with the cycling default (a static build has nothing
 _facts/runtime/telemetry	runtime/sample/main.c	2646	    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0,	    /* Interval aggregates, not a last-frame sample. */	        a_vramlost = 0;
 _facts/runtime/telemetry	runtime/sample/main.c	2647	        a_vramlost = 0;	    u32 a_prims = 0, a_hidden = 0, a_slotg = 0, a_slothid = 0, a_sciov = 0,	#endif
 _facts/runtime/telemetry	runtime/sample/main.c	2671	            u32 t0 = cop0_count(), dt;	        {	            ps2ui_render(&ui, gs);
+_facts/runtime/telemetry	runtime/sample/main.c	2765	        ps2ui_render(&ui, gs);	#else	#endif
 _facts/runtime/telemetry	runtime/sample/main.c	2786		            sec_frames++;	            /* Peaks for the budgeting numbers, a sum for the alarm:
+_facts/runtime/telemetry	runtime/sample/main.c	2789	            if (ui.stats.prims > a_prims) a_prims = ui.stats.prims;	             * one overflowed frame in the interval must be visible. */	            if (ui.stats.skipped_hidden > a_hidden) a_hidden = ui.stats.skipped_hidden;
 _facts/runtime/telemetry	runtime/sample/main.c	2798	            a_vramlost |= ui.stats.vram_lost;	             * case the log exists for. */	
 _facts/runtime/telemetry	runtime/sample/main.c	2803	            if (elapsed >= EE_HZ) {	             * took. */	                u32 fps10 = (u32)(((u64)sec_frames * 10u * EE_HZ + elapsed / 2u)
 _facts/runtime/telemetry	runtime/sample/main.c	2806	                printf("ps2ui-telemetry frame=%u fps=%u.%u miss=%u "	                                  / elapsed);	                       "ee_us(min/avg/max)=%u/%u/%u "
+_facts/runtime/telemetry	runtime/sample/main.c	2807	                       "ee_us(min/avg/max)=%u/%u/%u "	                printf("ps2ui-telemetry frame=%u fps=%u.%u miss=%u "	                       "prims=%u hidden=%u slotg=%u slothid=%u sciov=%u vramlost=%u\\n",
 authoring/html	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" src="assets/cover-aurora.png" palettize>	      <div class="tile" id="game-aurora" focusable autofocus>	        <p class="tile-title" data-slot="title-1" data-slot-capacity="24">Aurora Drift</p>
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
