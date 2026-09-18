@@ -99,8 +99,32 @@ REPO_LINK = re.compile(r"\(repo:([^)#\s]+)(?:#L(\d+)(?:-L?(\d+))?)?\)")
 # pull request two before this one, which inserted a set above
 # GEOMETRY_PROPS: css.focus.geometry-props then cited a different set
 # with a similar shape, in the file the row is about.
+# A COMMA LIST IS N CITATIONS, NOT ONE. `runtime/ps2ui.h:653,660,704`
+# used to pin 653 and leave the rest unread, because the pattern stopped
+# at the first number: 59 line numbers across 31 citations in six facts
+# files, none of them checked. It cost three corrections to one row in a
+# single pull request -- `--fix` kept relocating the first number and
+# leaving the second behind, each time looking like it had finished.
+#
+# Group 4 is the tail. Each number in it becomes its own citation with
+# its own pin, and relocation rewrites that number alone inside the
+# matched text, which is why the token (`:653` or `,660`) is carried
+# alongside it rather than the bare integer.
 FACTS_CITE = re.compile(
-    r"((?:packages|runtime|tools|examples|fonts|docs)/[\w./-]+?):(\d+)(?:-(\d+))?")
+    r"((?:packages|runtime|tools|examples|fonts|docs)/[\w./-]+?):(\d+)"
+    r"(?:-(\d+))?((?:,\d+)*)")
+
+
+def cite_members(m):
+    """[(line, token)] for one FACTS_CITE match, first then the tail.
+
+    `token` is the exact text to rewrite when that member moves, so a
+    relocation touches one number of a list and leaves its siblings.
+    """
+    out = [(int(m.group(2)), ":%s" % m.group(2))]
+    for n in re.findall(r",(\d+)", m.group(4) or ""):
+        out.append((int(n), ",%s" % n))
+    return out
 IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
 
@@ -349,24 +373,29 @@ def main(argv):
             if not os.path.isfile(os.path.join(ROOT, path)):
                 continue          # prose naming a path that is not a file
             lines = file_lines(path)
-            first = int(m.group(2))
-            last = int(m.group(3)) if m.group(3) else first
-            if not (1 <= first <= last <= len(lines)):
-                bad("%s: %s:%d cites past the end of the file (%d lines)"
-                    % (fid, path, first, len(lines)))
-                continue
-            n_facts += 1
-            key = (fid, path, first)
-            seen.add(key)
-            current = window(lines, first)
-            if mode == "pin":
-                records[key] = current
-            elif key not in records:
-                bad("%s: %s:%d has no record in _citations.tsv; run "
-                    "tools/check-site-pages.py --pin" % (fid, path, first))
-            elif records[key][0] != current[0]:
-                facts_drift.append((fid, full, idx, path, first, last,
-                                    records[key], current, m.group(0)))
+            members = cite_members(m)
+            for first, token in members:
+                # Only the head of a citation carries a range; a comma
+                # member is one line by construction.
+                last = (int(m.group(3)) if m.group(3) and token[0] == ":"
+                        else first)
+                if not (1 <= first <= last <= len(lines)):
+                    bad("%s: %s:%d cites past the end of the file (%d lines)"
+                        % (fid, path, first, len(lines)))
+                    continue
+                n_facts += 1
+                key = (fid, path, first)
+                seen.add(key)
+                current = window(lines, first)
+                if mode == "pin":
+                    records[key] = current
+                elif key not in records:
+                    bad("%s: %s:%d has no record in _citations.tsv; run "
+                        "tools/check-site-pages.py --pin" % (fid, path, first))
+                elif records[key][0] != current[0]:
+                    facts_drift.append((fid, full, idx, path, first, last,
+                                        records[key], current,
+                                        m.group(0), token))
 
     if mode == "pin":
         records = {k: v for k, v in records.items() if k in seen}
@@ -427,7 +456,8 @@ def main(argv):
     # shifts both, and two sequential replaces would move the first
     # twice.
     facts_edits = {}
-    for fid, full, idx, path, first, last, want, got, ref in facts_drift:
+    for (fid, full, idx, path, first, last, want, got, ref,
+         token) in facts_drift:
         if mode != "fix":
             bad("%s: %s:%d cites a line that changed since it was pinned"
                 "\n    pinned: %s\n    now:    %s"
@@ -447,10 +477,14 @@ def main(argv):
                 % (fid, path, first, len(where), want[0].strip()))
             continue
         new_first = where[0]
-        new_ref = "%s:%d" % (path, new_first)
+        # ONE MEMBER MOVES, ITS SIBLINGS DO NOT. Rewriting the whole
+        # match would drop a comma list's other numbers; rewriting the
+        # member's own token inside it keeps them.
+        new_token = "%s%d" % (token[0], new_first)
         if last != first:
-            new_ref += "-%d" % (new_first + last - first)
-        facts_edits.setdefault((full, idx), []).append((ref, new_ref))
+            new_token += "-%d" % (new_first + last - first)
+        facts_edits.setdefault((full, idx), []).append(
+            (ref, token, new_token))
         removed.add((fid, path, first))
         added[(fid, path, new_first)] = window(lines, new_first)
         oks.append("ok - %s: moved %s:%d to :%d" % (fid, path, first, new_first))
@@ -458,8 +492,21 @@ def main(argv):
     for (full, idx), pairs in facts_edits.items():
         lines = facts_text[full]
         cells = lines[idx].split(" | ")
-        for old_ref, new_ref in pairs:
-            cells[2] = cells[2].replace(old_ref, new_ref, 1)
+        # Group by the matched text, so a citation whose head AND tail
+        # both drifted is rewritten once with both members replaced.
+        # Two sequential replaces of the same ref would find the already
+        # rewritten copy and move the first member twice.
+        by_ref = {}
+        for ref, token, new_token in pairs:
+            by_ref.setdefault(ref, []).append((token, new_token))
+        for ref, edits in by_ref.items():
+            rebuilt = ref
+            for token, new_token in edits:
+                # A range suffix belongs to the head token and moves
+                # with it.
+                rebuilt = re.sub(re.escape(token) + r"(-\d+)?",
+                                 new_token, rebuilt, count=1)
+            cells[2] = cells[2].replace(ref, rebuilt, 1)
         lines[idx] = " | ".join(cells)
     for full, lines in facts_text.items():
         if any(k[0] == full for k in facts_edits):
