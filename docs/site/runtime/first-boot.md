@@ -22,6 +22,15 @@ Bring-up runs ten steps in order. Each step isolates one subsystem, so a later s
 | A test-card blob from `tools/make_testcard.py` | Steps 6 and 8 read the alignment card, not either example blob |
 | A fresh file name for every copy, sizes checked on the drive after copying | A stale ELF booted under an old name is the most common way to read the wrong build |
 
+**This page needs the checkout and there is no no-clone lane for it.**
+`ps2ui vendor-runtime --starter` gives an installed user a buildable
+project, which is enough for [deploying](page:runtime/deploying), and it
+does not give them these: the channel-6 probe screen and the test card
+are the instruments each step is read against, not example content, and
+nothing in the wheel or the npm tarball produces either. A reader
+bringing up their own UI on their own console can still use the flat
+colours below, which depend on no instrument.
+
 A screen filled edge to edge with one flat colour is never a UI. Blue means step 1 passed. Dark red means the blob failed to load. Olive means step 9's upload ran out of VRAM. Magenta means the boot flag named a screen absent from the blob. Read a flat fill live, not from a photograph: a phone renders saturated magenta as violet and lifts near-black to a visible maroon.
 
 ## Steps 1-10

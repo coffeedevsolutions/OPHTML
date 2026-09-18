@@ -38,6 +38,14 @@ Build inside a checkout against the toolchain, from a baked blob.
 make -C runtime/sample UIB="$PWD/examples/channel6/build/ui.uib"
 ```
 
+**Without a checkout**, `ps2ui vendor-runtime --starter src/` writes the
+runtime and a buildable project beside it, and the rest of this page
+applies unchanged from `src/`. See
+[Starting from nothing](page:runtime/integrating#starting-from-nothing).
+Everything below that names `runtime/sample/`,
+`examples/channel6/build/ui.uib` or `tools/` is the checkout lane and has
+no equivalent in an installed package.
+
 The PS2 is a MIPS target, so a host compiler cannot produce this ELF.
 [Integrating the runtime](page:runtime/integrating#minimal-example) covers
 `ps2ui vendor-runtime` for a project outside this checkout; either way, the

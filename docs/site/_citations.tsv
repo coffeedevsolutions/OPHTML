@@ -574,8 +574,8 @@ _facts/project/internals	docs/releasing.md	1	# Releasing
 _facts/project/internals	docs/site/authoring/theming.md	15	## What it is		
 _facts/project/internals	docs/site/authoring/theming.md	27	The reasoning behind role keying is in the design document listed on [Internals](page:project/internals).		
 _facts/project/internals	docs/site/reference/uib-format.md	343	### The pledge		
-_facts/project/internals	docs/site/runtime/first-boot.md	27	## Steps 1-10		
-_facts/project/internals	docs/site/runtime/first-boot.md	81	The fixes each fault above produced, and the bench readings that found them, are in [Internals](page:project/internals).		
+_facts/project/internals	docs/site/runtime/first-boot.md	36	## Steps 1-10		
+_facts/project/internals	docs/site/runtime/first-boot.md	90	The fixes each fault above produced, and the bench readings that found them, are in [Internals](page:project/internals).		
 _facts/project/internals	docs/site/runtime/frame-loop.md	76	### Sizing the arena		
 _facts/project/internals	tools/check-findings.py	2	"""Enforce the findings graph in docs/findings.yaml.	#!/usr/bin/env python3	
 _facts/project/security-and-license	fonts/vendor/LICENSE.txt	1	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/		Upstream-Name: DejaVu fonts
