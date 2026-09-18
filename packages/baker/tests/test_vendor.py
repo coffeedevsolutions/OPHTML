@@ -16,6 +16,7 @@ constructs its own directories rather than trusting the tree it runs in.
 import contextlib
 import io
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -354,6 +355,51 @@ class StarterTest(unittest.TestCase):
         for line in vendor._gskit_wiring().split("\n"):
             self.assertIn(line.strip(), body)
         self.assertEqual(len(vendor._gskit_wiring().split("\n")), 3)
+
+    def test_the_printed_build_line_matches_the_makefile_default(self):
+        """The blob path the message names is the Makefile's own default.
+
+        BOTH SPELLINGS OF THIS WERE WRONG BEFORE THIS TEST EXISTED, in
+        opposite directions, and nothing caught either. The message said
+        "put your baked blob beside it" and passed `UIB=build/ui.uib`,
+        which fails for the layout that sentence describes; correcting
+        it to `UIB=ui.uib` then failed for the DEFAULT layout, which is
+        the common one, since `ps2ui build` writes `build/ui.uib` and
+        the Makefile defaults `UIB` to the same path.
+
+        So the message names neither: plain `make` is right whenever the
+        blob is where `ps2ui build` puts it, and that is what this pins.
+        `_gskit_lines()` has been held to the Makefile this way since it
+        shipped; the build line was the one piece of printed wiring that
+        was not.
+        """
+        mk = os.path.join(vendor._STARTER, "Makefile")
+        with open(mk) as fh:
+            body = fh.read()
+        m = re.search(r"^UIB \?= (\S+)$", body, re.M)
+        self.assertIsNotNone(m, "the starter Makefile has no UIB default")
+        default = m.group(1)
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            vendor._say_build("PROJDIR")
+        out = buf.getvalue()
+
+        self.assertIn("PROJDIR/%s" % default, out,
+                      "the message must name the Makefile's own default "
+                      "blob path, not a second spelling of it")
+        # THE COMMAND LINE ITSELF, not the whole message: the trailing
+        # sentence names `make UIB=<path>` on purpose, for a blob kept
+        # somewhere else, so asserting over `out` as a whole passes on
+        # both defects. A first version of this test did exactly that
+        # and caught only one of the two spellings it exists for.
+        cmd = [ln for ln in out.splitlines() if "docker run" in ln]
+        self.assertEqual(len(cmd), 1, out)
+        self.assertNotIn("UIB=", cmd[0],
+                         "the default layout needs no UIB= at all, and "
+                         "naming any path here is wrong for one of the "
+                         "two layouts")
+        self.assertTrue(cmd[0].rstrip().endswith("make"), cmd[0])
 
     def test_a_moved_marker_is_an_error_not_a_shorter_message(self):
         import tempfile as _tf

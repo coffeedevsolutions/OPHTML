@@ -431,12 +431,30 @@ def _write_starter(dest, shown, force):
 
 
 def _say_build(shown):
-    print("\nThat is a buildable project. Put your baked blob beside it "
-          "and run make:\n"
+    # SAY WHERE THE BLOB GOES, DO NOT NAME UIB. The Makefile
+    # defaults UIB to build/ui.uib, which is where `ps2ui build`
+    # writes one, so the default layout needs no flag at all.
+    #
+    # Both spellings were wrong before this. The first said "put
+    # your baked blob beside it" and then passed UIB=build/ui.uib,
+    # which fails for the layout the sentence describes. The fix
+    # for that said UIB=ui.uib, which fails for the DEFAULT layout
+    # and is the more common one -- a reader who bakes in the
+    # starter directory has the blob at build/ui.uib already.
+    # Naming neither is the only spelling that is right twice.
+    print("\nThat is a buildable project. Bake into it, or copy a "
+          "blob to %s/build/ui.uib, and run make:\n"
           "\n"
           "    cd %s\n"
           "    docker run --rm -v \"$PWD:/work\" -w /work "
-          "ghcr.io/ps2dev/ps2dev make UIB=build/ui.uib\n"
+          "ghcr.io/ps2dev/ps2dev make\n"
+          "\n"
+          "A blob kept beside these files instead is "
+          "`make UIB=ui.uib`, which is what docs/deploying.md does "
+          "after copying one in; any other path under this "
+          "directory is `make UIB=<path>`. Somewhere outside it "
+          "needs a second `-v`, because the line above mounts this "
+          "directory and nothing else.\n"
           "\n"
           "The PS2 is a MIPS target, so a cross-toolchain is required "
           "however you get it; the ps2dev image is what this project's "
@@ -446,4 +464,4 @@ def _say_build(shown):
           "\n"
           "`ps2ui check` validates the blob. The path onto a console:\n"
           "https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/"
-          "deploying.md" % shown)
+          "deploying.md" % (shown, shown))
