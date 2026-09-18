@@ -186,7 +186,9 @@ unchanged from `src/`. What does not carry over is the reference
 material above and on [first boot](page:runtime/first-boot):
 `runtime/sample/`, `tools/make_testcard.py` and the channel-6 blob are
 checkout-only, and the bring-up steps read them as instruments rather
-than as examples.
+than as examples. Nor does the status-colour table on either page: it
+is `runtime/sample/main.c`'s, and the starter paints navy `#000080`
+where that one paints magenta.
 
 `main.c` is yours to edit. Read the comment at the top before deleting
 anything: it says which parts have been proved on hardware and which

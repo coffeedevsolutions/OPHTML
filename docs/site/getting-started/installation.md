@@ -112,6 +112,11 @@ is mostly `.ttc` collections, and one of those does load: `fontgen`
 hands the path to FreeType, which opens a collection at face 0. The
 catch is that there is no way to reach any other face, so a `.ttc`
 gives you the same weight twice and the `bold` argument buys nothing.
+**Nothing downstream tells you.** Measured on a macOS collection: the
+two metrics files come back with identical glyph and kerning tables
+while still declaring `weight` 400 and 700, so the manifest says you
+have a bold face, the bake accepts it, and every heading draws in the
+regular one.
 Get DejaVu from
 [dejavu-fonts.github.io](https://dejavu-fonts.github.io/), or
 `brew install --cask font-dejavu`, which lands them in

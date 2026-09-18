@@ -46,7 +46,8 @@ Two things do not carry over. Anything naming `runtime/sample/`,
 `examples/channel6/build/ui.uib` or `tools/` is the checkout lane and has
 no equivalent in an installed package. And the status-colour table below
 is `runtime/sample/main.c`'s: the starter agrees on dark red and olive
-and paints blue where this one says magenta, which
+and paints navy `#000080` where this one says magenta, which is not
+the steel blue `#4080c0` in the table below, which
 [first boot](page:runtime/first-boot) spells out.
 
 The PS2 is a MIPS target, so a host compiler cannot produce this ELF.
