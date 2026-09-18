@@ -68,6 +68,72 @@ prerelease, so it is pinned to `next` and would not take `latest`. Pip excludes 
 stable release exists. A plain install of either command therefore always
 lands on a released version, not a prerelease.
 
+### If pip refuses to install
+
+A current Homebrew, Debian or Ubuntu Python manages its own site
+packages and declines a plain `pip install`:
+
+```text
+error: externally-managed-environment
+
+× This environment is externally managed
+╰─> To install Python packages system-wide, try brew install
+    xyz, where xyz is the package you are trying to install.
+
+    If you wish to install a Python library that isn't in Homebrew,
+    use a virtual environment:
+
+    python3 -m venv path/to/venv
+    source path/to/venv/bin/activate
+```
+
+That is [PEP 668](https://peps.python.org/pep-0668/) and it is not a
+fault in your setup. A virtual environment is the shortest way through:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install ophtml
+```
+
+`pipx install ophtml` works too and keeps the commands on your `PATH`
+without a shell to activate. Either way the Node half is unaffected:
+npm has no equivalent rule.
+
+### A TTF to start with
+
+ps2ui bakes text at build time, so the first command needs a font file
+and does not ship one. Any TTF works; the pair that produces the
+numbers printed throughout this site is **DejaVu Sans** regular and
+bold, which is also what the repository's own builds use.
+
+A stock macOS carries almost no plain `.ttf`. `/System/Library/Fonts`
+is mostly `.ttc` collections, and one of those does load: `fontgen`
+hands the path to FreeType, which opens a collection at face 0. The
+catch is that there is no way to reach any other face, so a `.ttc`
+gives you the same weight twice and the `bold` argument buys nothing.
+Get DejaVu from
+[dejavu-fonts.github.io](https://dejavu-fonts.github.io/), or
+`brew install --cask font-dejavu`, which lands them in
+`~/Library/Fonts`. Most Linux distributions already have them under
+`/usr/share/fonts/truetype/dejavu/`.
+
+The quickstart and the tutorial both spell the first command
+`ps2ui fontgen "$TTF_REGULAR" "$TTF_BOLD"` and neither assigns the two
+variables, so set them once for the shell you are working in:
+
+```sh
+# macOS, after `brew install --cask font-dejavu`
+export TTF_REGULAR=~/Library/Fonts/DejaVuSans.ttf
+export TTF_BOLD=~/Library/Fonts/DejaVuSans-Bold.ttf
+
+# most Linux distributions
+export TTF_REGULAR=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+export TTF_BOLD=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+```
+
+Unset, `fontgen` receives two empty paths and fails on the first.
+
 ### Verify
 
 `ps2ui --version` and `ps2ui-layout --version` are the two checks in the
@@ -77,6 +143,9 @@ minimal example above. Run `which ps2ui` to confirm the resolved path.
 $ which ps2ui
 /usr/local/bin/ps2ui
 ```
+
+Inside a virtual environment it is an absolute path ending in
+`.venv/bin/ps2ui` instead; what matters is that it resolves at all.
 
 A missing `ps2ui-layout` does not fail at install time. `ps2ui build`
 finds it by checking `$PS2UI_LAYOUT`, then `ps2ui-layout` on PATH, then a

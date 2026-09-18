@@ -46,8 +46,15 @@ EE_LIBS     = -lgskit -ldmakit
 EE_LDFLAGS += -L$(PS2DEV)/gsKit/lib -L$(PS2SDK)/ports/lib
 ```
 
+**`ps2ui vendor-runtime --starter src/` writes those three lines for
+you**, along with a `main.c` that drives the runtime and a `Makefile`
+producing an ELF. Bake into `src/`, or copy a blob to
+`src/build/ui.uib`, and the `docker run` above builds it with no
+further wiring. That is the whole console half without a clone.
+
 [`runtime/sample/`](https://github.com/coffeedevsolutions/OPHTML/tree/main/runtime/sample)
-is a complete worked Makefile and a `main.c` that drives this runtime.
+is the same thing inside a checkout, with build arms for each bring-up
+step.
 
 Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. The
 authoring half above needs none of this: `pip install ophtml`, a TTF and
