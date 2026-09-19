@@ -330,7 +330,7 @@ _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	646	def print_tints(
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	289	    if args.tints:		        names = ir.get("themes") or ["root"]
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	337	            preview_mod.render(uib).save(args.preview)	        if args.preview:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)
 _facts/authoring/theming	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
-_facts/authoring/theming	packages/baker/ps2ui_bake/serve.py	733	    parser.add_argument("--theme", type=int, default=0, help="the theme row")	    parser.add_argument("--screen", metavar="NAME", help="the screen to open")	    parser.add_argument("--no-watch", action="store_true",
+_facts/authoring/theming	packages/baker/ps2ui_bake/serve.py	752	    parser.add_argument("--theme", type=int, default=0, help="the theme row")	    parser.add_argument("--screen", metavar="NAME", help="the screen to open")	    parser.add_argument("--no-watch", action="store_true",
 _facts/authoring/theming	packages/baker/ps2ui_bake/serve_page.html	123	    <label for="themeSel">Theme</label><select id="themeSel"></select>	    <label for="screenSel">Screen</label><select id="screenSel"></select>	    <label for="aspectSel">Aspect</label><select id="aspectSel"></select>
 _facts/authoring/theming	packages/baker/ps2ui_bake/uib.py	197	    def _vector(rgba, themes):		        """One tuple per theme, index 0 being this colour's own value.
 _facts/authoring/theming	packages/baker/ps2ui_bake/uib.py	221	    def _tint(rgba, var=None, themes=None):		        # KEYED ON THE NAME WHEN THERE IS ONE. A role is what the author
@@ -443,9 +443,10 @@ _facts/cli/ps2ui	examples/channel6/build.sh	23	# block: everything a second blob
 _facts/cli/ps2ui	examples/memcard/build.sh	18	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.8.0.dev0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	203	    ir_suffix = ""	    # have to guess where the suffix goes.	
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	236	def _not_a_project(path):		    """Why this file is not a ps2ui.json, naming the blob case."""
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/ps2ui.py	432	    ap.add_argument("--version", action="version",	        description="Compile, bake and check a ps2ui project.")	                    version="ps2ui %s" % __version__)
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	332	        proj.set_out_override(os.path.join(proj.build_dir, "serve", "ui.uib"))	        self.proj = proj	        # The server renders its own frames; the build does not need to
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	836	def main(argv=None):		    ap = add_arguments(argparse.ArgumentParser(
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	868	def main(argv=None):		    ap = add_arguments(argparse.ArgumentParser(
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	131	            drifted = _differ(_PACKAGED, _CHECKOUT)	        if packaged:	            if drifted:
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	198	    # disagreeing inside the toolchain exit 1, and two copies	    # It is also the asymmetry find_source() already refuses: two copies	    # disagreeing in somebody's project used to get "already there" and
 _facts/cli/ps2ui	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
@@ -693,12 +694,12 @@ _facts/reference/diagnostics	packages/baker/ps2ui_bake/fontgen.py	57	    feat = 
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/fontgen.py	277	    if len(argv) < 4:	        return 2	        print(
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/preview.py	38	        if raw is None:	        raw = (fills or {}).get(tex.name)	            return None
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/project.py	112	    def _screen(self, spec, index):		        if isinstance(spec, str):
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/ps2ui.py	522	    d.set_defaults(fn=cmd_dev)	                   help="build once and exit, rather than watching")	
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/ps2ui.py	528	    d.set_defaults(fn=cmd_dev)	                   help="build once and exit, rather than watching")	
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	400	        the point of a name. At different sizes they cannot: the	        Two elements naming the same slot share one texture, which is	        reservation is one number and the app is told one number, so
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	575	                    raise ValueError(f"unknown IR command op: {op}")	                else:	            self.dropped += self._trim_dead_geometry(cmd_first, canvas)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/rounding.py	52	    if not 0 <= v255 <= 255:	    """	        raise ValueError(f"channel {v255} outside 0..255")
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	706	        result = srv.rebuild()	        srv = Server(pipeline=BuildPipeline(proj))	        if srv.uib is None:
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	807	    except ProjectError as exc:	        srv = build_server(args)	        print("ps2ui serve: %s" % exc, file=sys.stderr)
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	718	        result = srv.rebuild()	        srv = Server(pipeline=BuildPipeline(proj))	        if srv.uib is None:
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	826	    except ProjectError as exc:	        srv = build_server(args)	        print("ps2ui serve: %s" % exc, file=sys.stderr)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	209	        out = tuple(tuple(int(v) & 0xFF for v in c) for c in themes)	            return (base,) * n_theme	        if len(out) != n_theme:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	489	def read_uib(path) -> UibFile:		    with open(path, "rb") as fh:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/vendor.py	131	            drifted = _differ(_PACKAGED, _CHECKOUT)	        if packaged:	            if drifted:
@@ -766,7 +767,7 @@ _facts/reference/uib-format	docs/PLAN.md	87	Cross-language pen agreement is test
 _facts/reference/uib-format	docs/format-uib.md	466	  because it carried no padding at all. Neither the stride nor the	  existed to reach two qwords. The slot entry **shrank**, 32 → 28,	  meaning of a field survives a v6 reader, so this is a version bump.
 _facts/reference/uib-format	packages/baker/ps2ui_bake/check.py	189	    rep.error(ob % 16 == 0,	    ob = getattr(uib, "off_blob", 0)	              f"blob section starts 16-aligned in the file (off_blob={ob})")
 _facts/reference/uib-format	packages/baker/ps2ui_bake/check.py	375	TINT_RATIO_MIN_PAINTS = 100	# note-instead-of-skip it guards. Every shipped blob is 700+.	
-_facts/reference/uib-format	packages/baker/ps2ui_bake/ps2ui.py	501	    vr = sub.add_parser("vendor-runtime",	    # puts that skew on somebody else's machine.	                        help="write ps2ui.c and ps2ui.h into your project")
+_facts/reference/uib-format	packages/baker/ps2ui_bake/ps2ui.py	507	    vr = sub.add_parser("vendor-runtime",	    # puts that skew on somebody else's machine.	                        help="write ps2ui.c and ps2ui.h into your project")
 _facts/reference/uib-format	packages/baker/ps2ui_bake/uib.py	48	MAGIC = 0x31424955  # "UIB1"		VERSION = 7
 _facts/reference/uib-format	packages/baker/ps2ui_bake/uib.py	51	FEAT_DYNAMIC_TEXT = 1 << 0		FEAT_KERNING = 1 << 1
 _facts/reference/uib-format	packages/baker/ps2ui_bake/uib.py	80	_HEADER = struct.Struct("<IHHHHHHIHHIIIIIIIHHIIHHIIHHHH")  # 84 bytes		_TEX = struct.Struct("<BBHHHIII")              # 20 bytes (v6: kind, name_off)
@@ -1026,7 +1027,7 @@ _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.pa
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES NOT DO. It replays the command list faithfully, so it		cannot catch the console diverging from that list. F-048 -- the GS
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	233	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
-_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	778	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
+_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	797	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
 _facts/runtime/moving-and-hiding	packages/layout/src/box.js	176	  if (style.display === 'none') return null;	  );	
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	866	/* THE OFFSET IS APPLIED HERE, AT THE SINK, AND NOT BY THE CALLERS.	 * defect would come back. */	 *
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	883	    x += ctx->off_x;	{	    y += ctx->off_y;
@@ -1115,7 +1116,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	544	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	587	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
