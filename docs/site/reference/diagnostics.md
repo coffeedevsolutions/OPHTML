@@ -247,6 +247,8 @@ exit 2.
 |---|---|---|---|---|
 | `ps2ui: <path>: no such project file.` plus four lines showing the two required keys | error | the path names no `ps2ui.json` | write the project file | [ps2ui](page:cli/ps2ui#build) |
 | `ps2ui: <path>: not valid JSON -- <parser message>` | error | the project file does not parse | fix the JSON | [The project file](page:authoring/project-file#reference-table) |
+| `` ps2ui: <path>: this is a .uib blob, not a project file. `` plus two lines naming `ps2ui-check` and spelling the command out | error | a baked blob was handed to `ps2ui check`, which takes a project; the first four bytes are `UIB1` | run `ps2ui-check <blob>` instead | [ps2ui-check](page:cli/ps2ui-check#synopsis) |
+| `ps2ui: <path>: not a project file -- it is not UTF-8 text, so it cannot be a ps2ui.json.` plus three lines showing the two required keys | error | the path names a binary file that is not a blob either | point it at a `ps2ui.json` | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: <path>: the top level must be an object` | error | the file holds a list or a scalar | wrap it in an object | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: <path>: unknown key(s) '<k>'.` then `  A project takes: <every key>` | error | a misspelt or invented top-level key | use a key from the list | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: <path>: "screens" is required and must not be empty` | error | `screens` is absent or empty | name at least one screen | [The project file](page:authoring/project-file#reference-table) |
@@ -276,8 +278,8 @@ exit 2.
 
 ## Previewer
 
-`ps2ui serve` refuses before binding and prints one `ps2ui serve: <message>`
-line with exit 1. Once it is running, a bad `/input` body is answered with
+`ps2ui serve` refuses before or at the bind, printing `ps2ui serve: <message>`
+with exit 1 from both `ps2ui serve` and `python -m ps2ui_bake.serve`. Once it is running, a bad `/input` body is answered with
 HTTP 400 and a JSON `{"error": ...}` body, and the server stays up. The
 `ps2ui_bake.preview` module raises `ValueError` to Python callers.
 
@@ -287,6 +289,7 @@ HTTP 400 and a JSON `{"error": ...}` body, and the server stays up. The
 | `ps2ui serve: no theme <n>; the blob has <m>` | error | `--theme` is at or past the tint table's row count | pass a row that exists | [Previewer](page:cli/previewer#options) |
 | `ps2ui serve: the first build failed, so there is nothing to serve:` then the pipeline's summary line | error | the project did not compile on the first pass | fix what the compiler printed to the terminal | [Previewer](page:cli/previewer#watching) |
 | `ps2ui serve: watch mode compiles HTML and CSS, which needs the Node half.` plus three remedy lines | error | no compiler is reachable and no `--uib` was given | install `@ophtml/layout`, or pass `--uib` | [Previewer](page:cli/previewer#synopsis) |
+| `ps2ui serve: port <n> is already in use.` plus two lines saying an explicit port is not moved | error | `--port` named a port something else holds; naming one turns the walking off | drop `--port`, or name a free one | [Previewer](page:cli/previewer#ports) |
 | `ps2ui serve: ports <a>-<b> are all busy` | error | every port from 8080 to 8099 is taken | pass `--port` | [Previewer](page:cli/previewer#ports) |
 | `{"error": "no recognised field in ['<k>', ...]"}` | error, HTTP 400 | a `/input` body with none of `key`, `screen`, `theme`, `aspect`, `slot` | post one recognised field | [Previewer](page:cli/previewer#routes) |
 | `{"error": "'<name>'"}` | error, HTTP 400 | `/input` named a screen the blob lacks; the body is the bare value | post a screen the blob carries | [Previewer](page:cli/previewer#routes) |

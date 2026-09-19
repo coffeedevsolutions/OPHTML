@@ -235,6 +235,17 @@ $ ps2ui check
 ps2ui-check: build/ui.uib: crc mismatch (file 0x4d8c37e4, computed 0x5dc0fb31)
 ```
 
+The argument is a project, not a blob. The two commands are one hyphen apart,
+so a `.uib` handed to this one is named for what it is and pointed at
+[ps2ui-check](page:cli/ps2ui-check#synopsis), which takes blobs.
+
+```console
+$ ps2ui check build/ui.uib
+ps2ui: build/ui.uib: this is a .uib blob, not a project file.
+  `ps2ui check` takes a ps2ui.json; the blob validator is the separate `ps2ui-check`:
+    ps2ui-check build/ui.uib
+```
+
 ### Files written
 
 None.

@@ -424,6 +424,41 @@ class TestRoutes(unittest.TestCase):
         self.addCleanup(httpd.server_close)
         self.assertEqual(httpd.server_address[0], "127.0.0.1")
 
+    def test_a_busy_explicit_port_is_a_message_and_the_default_wanders(self):
+        """B18: the refusal was right; the traceback was not.
+
+        Naming a port means that port, so a busy one has to fail --
+        but it failed as a bare OSError out of ThreadingHTTPServer,
+        "[Errno 98] Address already in use" and a stack, which names
+        neither the port nor the fact that the refusal is deliberate.
+        The second half of this test is the behaviour that must NOT
+        change with the reporting: with no --port, a busy 8080 still
+        moves up.
+        """
+        import socket
+        page = "<!doctype html><title>t</title>"
+        handler = serve.make_handler(serve.Server(uib=blob(OPLENV)), page)
+
+        held = socket.socket()
+        self.addCleanup(held.close)
+        held.bind(("127.0.0.1", 0))
+        held.listen(1)
+        busy = held.getsockname()[1]
+
+        with self.assertRaises(serve.ProjectError) as cm:
+            serve.bind(handler, busy, False)
+        msg = str(cm.exception)
+        self.assertIn("port %d is already in use" % busy, msg)
+        self.assertIn("not moved", msg)
+
+        # And the wandering default steps over the same busy port
+        # rather than refusing -- the deliberate difference between
+        # the two, which the help text now words as the DEFAULT's
+        # property rather than the flag's.
+        httpd = serve.bind(handler, busy, True)
+        self.addCleanup(httpd.server_close)
+        self.assertNotEqual(httpd.server_address[1], busy)
+
     def test_input_reports_a_bad_field_rather_than_crashing(self):
         srv = serve.Server(uib=blob(OPLENV))
         with self.assertRaises(KeyError):
@@ -759,6 +794,89 @@ class TestImportRule(unittest.TestCase):
         self.assertEqual(out.returncode, 0, out.stderr)
         self.assertEqual(out.stdout.strip(), "",
                          "importing the baker pulled in serve.py")
+
+
+class TestHelpAgreement(unittest.TestCase):
+
+    def help_from(self, parser_help):
+        """The part of a --help that is not the program's own name."""
+        return parser_help[parser_help.index("positional arguments:"):]
+
+    def test_both_ways_of_saying_serve_print_the_same_help(self):
+        """ps2ui.py RESTATES this parser instead of importing serve.
+
+        That buys the deferred import TestImportRule fences, and it
+        costs a second copy of every help string. B18's wording fix
+        landed on serve.add_arguments first and `ps2ui serve --help`
+        -- the spelling the documentation teaches, and the one the
+        report came from -- went on printing the old sentence, so the
+        flag still promised what it does not do. The duplication is
+        deliberate; drifting apart is not.
+        """
+        import argparse
+        import contextlib
+        from ps2ui_bake import ps2ui
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            with self.assertRaises(SystemExit):
+                ps2ui.main(["serve", "--help"])
+        umbrella = self.help_from(out.getvalue())
+
+        standalone = self.help_from(serve.add_arguments(
+            argparse.ArgumentParser(prog="ps2ui-serve")).format_help())
+
+        self.assertEqual(umbrella, standalone,
+                         "`ps2ui serve --help` and `ps2ui-serve --help` "
+                         "describe the same command differently")
+
+
+class TestBusyPortIsAMessage(unittest.TestCase):
+
+    def refuse_on(self, module, port):
+        """Run one entry point against a held port and hand back the run.
+
+        `ps2ui_bake.ps2ui` takes the subcommand; `ps2ui_bake.serve` is
+        the command. Everything after that is the same command line.
+        """
+        import subprocess
+        pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        argv = [sys.executable, "-m", module]
+        if module.endswith(".ps2ui"):
+            argv.append("serve")
+        argv += ["--uib", OPLENV, "--port", str(port), "--no-watch"]
+        return subprocess.run(argv,
+                              env=dict(os.environ, PYTHONPATH=pkg_root),
+                              capture_output=True, text=True, timeout=120)
+
+    def test_neither_entry_point_prints_a_traceback_for_a_busy_port(self):
+        """B18, END TO END, because bind() alone was not the whole path.
+
+        run() wrapped build_server in the `ps2ui serve: ` handler and
+        left the bind call outside it, so both of bind's refusals
+        escaped: under `ps2ui serve` the umbrella caught them and
+        printed `ps2ui: `, against a Diagnostics page that has always
+        said `ps2ui serve: ports <a>-<b> are all busy`, and under
+        `python -m ps2ui_bake.serve` there is no handler at all and
+        they reached the terminal as a traceback. A ProjectError
+        raised where nothing catches it is still a traceback, which
+        is what this row was about.
+        """
+        import socket
+        blob(OPLENV)                       # skip like the rest of the file
+
+        held = socket.socket()
+        self.addCleanup(held.close)
+        held.bind(("127.0.0.1", 0))
+        held.listen(1)
+        port = held.getsockname()[1]
+
+        for module in ("ps2ui_bake.ps2ui", "ps2ui_bake.serve"):
+            out = self.refuse_on(module, port)
+            self.assertEqual(out.returncode, 1, out.stderr)
+            self.assertNotIn("Traceback", out.stderr, module)
+            self.assertIn("ps2ui serve: port %d is already in use" % port,
+                          out.stderr, module)
 
 
 class TestBuildFailure(unittest.TestCase):

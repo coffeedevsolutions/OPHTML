@@ -660,9 +660,21 @@ def bind(handler, port, wander):
     for candidate in range(port, port + (20 if wander else 1)):
         try:
             return ThreadingHTTPServer(("127.0.0.1", candidate), handler)
-        except OSError:
+        except OSError as exc:
             if not wander:
-                raise
+                # FAILING HARD IS THE BEHAVIOUR; THE TRACEBACK WAS NOT.
+                # An explicit --port is meant to fail rather than
+                # wander, and it did -- as a bare OSError out of
+                # ThreadingHTTPServer, "[Errno 98] Address already in
+                # use" and a stack, which tells a reader neither which
+                # port nor that the refusal was deliberate. The
+                # decision stands; only the reporting changes (B18).
+                raise ProjectError(
+                    "port %d is already in use.\n"
+                    "  An explicit --port is not moved: naming a port "
+                    "means that port.\n"
+                    "  Drop --port to take 8080 and move up from there, "
+                    "or name a free one." % candidate) from exc
     raise ProjectError("ports %d-%d are all busy" % (port, port + 19))
 
 
@@ -727,8 +739,15 @@ def add_arguments(parser):
     parser.add_argument("project", nargs="?", default="ps2ui.json")
     parser.add_argument("--uib", metavar="BLOB",
                         help="serve a pre-baked blob: no Node, no watching")
+    # "the DEFAULT moves up", not "it moves up". Attached to --port the
+    # old wording read as a promise the flag does not keep: naming a
+    # port is what turns the wandering OFF, deliberately, because a
+    # person who named a port meant that port (see bind). The sentence
+    # described the behaviour of not passing the flag it documented
+    # (B18).
     parser.add_argument("--port", type=int, default=None,
-                        help="default 8080, moving up when it is busy")
+                        help="the default 8080 moves up when busy; a port "
+                             "named here is used or the command fails")
     parser.add_argument("--screen", metavar="NAME", help="the screen to open")
     parser.add_argument("--theme", type=int, default=0, help="the theme row")
     parser.add_argument("--no-watch", action="store_true",
@@ -818,7 +837,20 @@ def run(args):
     srv.warm()
 
     wander = args.port is None
-    httpd = bind(make_handler(srv, page), args.port or 8080, wander)
+    try:
+        httpd = bind(make_handler(srv, page), args.port or 8080, wander)
+    except ProjectError as exc:
+        # THE SAME PREFIX THE REST OF THIS COMMAND USES, AND THE
+        # DOCUMENTED ONE. Only build_server was wrapped, so both of
+        # bind's refusals left this function: under `ps2ui serve` the
+        # umbrella's own handler caught them and printed `ps2ui: ` --
+        # against a Diagnostics page that has said `ps2ui serve: ports
+        # <a>-<b> are all busy` since it was written -- and under
+        # `python -m ps2ui_bake.serve`, which has no handler, they
+        # reached the terminal as a traceback. B18's message would
+        # have inherited both.
+        print("ps2ui serve: %s" % exc, file=sys.stderr)
+        return 1
     url = "http://127.0.0.1:%d/" % httpd.server_address[1]
     print("ps2ui serve: %s -- ctrl-c to stop" % url, file=sys.stderr)
     if watcher is None and srv.pipeline is not None:
