@@ -42,7 +42,7 @@ project file inside it. Paths print relative to that file, as they do for
 |---|---|---|---|
 | (positional) | `project` | `ps2ui.json` | the project to build, serve and watch |
 | `--uib` | `BLOB` | none | serve a pre-baked blob: no project, no Node, no watching |
-| `--port` | `PORT` | 8080, walking up to 8099 | bind this port once and fail if it is busy |
+| `--port` | `PORT` | 8080, walking up to 8099 | bind this port once, and say which port is busy and fail |
 | `--screen` | `NAME` | the blob's first screen | open on this screen |
 | `--theme` | `THEME` | `0` | open on this theme row |
 | `--no-watch` | none | off | serve the first build and never rebuild |
@@ -60,7 +60,8 @@ positional arguments:
 options:
   -h, --help     show this help message and exit
   --uib BLOB     serve a pre-baked blob: no Node, no watching
-  --port PORT    default 8080, moving up when it is busy
+  --port PORT    the default 8080 moves up when busy; a port named here is
+                 used or the command fails
   --screen NAME  the screen to open
   --theme THEME  the theme row
   --no-watch     do not rebuild on edits
@@ -264,8 +265,20 @@ ps2ui serve: http://127.0.0.1:8081/ -- ctrl-c to stop
 ```
 
 An explicit `--port` is tried once and fails hard when it is busy, because a
-person who named a port meant that port. The bind address is `127.0.0.1` and
-never anything else. This is an unauthenticated development tool.
+person who named a port meant that port. It says so rather than printing the
+bind error:
+
+```console
+$ ps2ui serve --uib build/serve/ui.uib --port 8081
+ps2ui serve: port 8081 is already in use.
+  An explicit --port is not moved: naming a port means that port.
+  Drop --port to take 8080 and move up from there, or name a free one.
+$ echo $?
+1
+```
+
+The bind address is `127.0.0.1` and never anything else. This is an
+unauthenticated development tool.
 
 ### The self-test
 

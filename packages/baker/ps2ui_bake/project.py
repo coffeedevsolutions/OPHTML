@@ -233,6 +233,25 @@ def _attr(key):
     return "".join(out)
 
 
+def _not_a_project(path):
+    """Why this file is not a ps2ui.json, naming the blob case."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(4)
+    except OSError:                                     # pragma: no cover
+        head = b""
+    if head == b"UIB1":
+        return ("%s: this is a .uib blob, not a project file.\n"
+                "  `ps2ui check` takes a ps2ui.json; the blob validator is "
+                "the separate `ps2ui-check`:\n"
+                "    ps2ui-check %s" % (path, path))
+    return ("%s: not a project file -- it is not UTF-8 text, so it cannot "
+            "be a ps2ui.json.\n"
+            "  A project file is JSON with two keys:\n"
+            "    { \"screens\": [\"ui/library.html\"], \"css\": \"ui/app.css\" }\n"
+            "  For a baked blob, the validator is `ps2ui-check`." % path)
+
+
 def load(path):
     """Read and validate a ps2ui.json. Raises ProjectError, never a
     traceback: every failure here is a person's typo."""
@@ -248,6 +267,26 @@ def load(path):
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
+    except UnicodeDecodeError:
+        # THE DOCSTRING ABOVE PROMISED THIS AND THE HANDLER DID NOT
+        # KEEP IT. "Raises ProjectError, never a traceback" was true of
+        # JSONDecodeError and false of the error a BINARY file raises:
+        # json.load decodes before it parses, so a .uib never reaches
+        # the parser and UnicodeDecodeError went straight past this
+        # block to the terminal as
+        #
+        #   UnicodeDecodeError: 'utf-8' codec can't decode byte 0x80
+        #   in position 8: invalid start byte
+        #
+        # A promise made in the docstring of the function that breaks
+        # it (B17).
+        #
+        # AND THE LIKELIEST BINARY IS ONE WE CAN NAME. `ps2ui check`
+        # takes a project; the blob validator is `ps2ui-check`, one
+        # hyphen away, and `--help` says only `usage: ps2ui check [-h]
+        # [project]`. So handing a .uib to the wrong one is an ordinary
+        # mistake, and the magic makes it a fact rather than a guess.
+        raise ProjectError(_not_a_project(path))
     except json.JSONDecodeError as exc:
         raise ProjectError("%s: not valid JSON -- %s" % (path, exc))
     if not isinstance(data, dict):

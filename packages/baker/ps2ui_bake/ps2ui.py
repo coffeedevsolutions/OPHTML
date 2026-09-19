@@ -478,8 +478,14 @@ def main(argv=None):
     sv.add_argument("project", nargs="?", default="ps2ui.json")
     sv.add_argument("--uib", metavar="BLOB",
                     help="serve a pre-baked blob: no Node, no watching")
+    # THE WORDING IS serve.add_arguments's, AND IT HAS TO BE. This
+    # parser is restated rather than delegated (see above), so a help
+    # string fixed in one entry point stays broken in the other unless
+    # somebody edits both -- and `ps2ui serve --help` is the one a
+    # reader reaches first. test_serve.py compares the two texts.
     sv.add_argument("--port", type=int, default=None,
-                    help="default 8080, moving up when it is busy")
+                    help="the default 8080 moves up when busy; a port "
+                         "named here is used or the command fails")
     sv.add_argument("--screen", metavar="NAME", help="the screen to open")
     sv.add_argument("--theme", type=int, default=0, help="the theme row")
     sv.add_argument("--no-watch", action="store_true",

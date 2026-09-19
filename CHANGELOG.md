@@ -145,6 +145,49 @@ without moving this line.
   `stats.readout.peaks` cited three lines of closing braces for a claim
   about a running max, which is at `main.c:2789-2792`.
 
+- **`ps2ui check build/ui.uib` ended in a `UnicodeDecodeError` and a
+  Python stack.** `check` takes a project file; the blob validator is
+  the separate `ps2ui-check`, one hyphen away, and `--help` says only
+  `usage: ps2ui check [-h] [project]`, so handing it a blob is an
+  ordinary mistake. `project.load`'s docstring has always promised
+  "Raises ProjectError, never a traceback", and the handler under it
+  caught `json.JSONDecodeError` only — but `json.load` decodes before
+  it parses, so a binary file never reaches the parser and went past
+  the handler untouched.
+
+  A file that is not UTF-8 text is now refused by name. When the first
+  four bytes are `UIB1` the message says so and spells out the command
+  that does take a blob, which was then run to confirm it works:
+  `ps2ui-check build/ui.uib` prints `PASS: 63 checks`. Any other
+  binary gets the two-key shape of a `ps2ui.json` and the same pointer.
+
+- **`ps2ui serve --port <busy>` printed a bind traceback, and `--help`
+  promised the opposite.** Refusing is the intended behaviour — a
+  person who names a port means that port, which is why the default
+  wanders and an explicit port does not — but it surfaced as
+  `OSError: [Errno 98] Address already in use` out of
+  `ThreadingHTTPServer`, which names neither the port nor the fact that
+  the refusal was deliberate. It now says which port is busy and that
+  a named one is not moved. The behaviour is unchanged: with 8080 held
+  and no `--port`, the server still takes 8081.
+
+  **The help text said the wandering was the flag's.** `default 8080,
+  moving up when it is busy`, attached to `--port`, described what
+  happens when you do not pass it. The sentence is the default's
+  property now, and it was fixed in both parsers: `ps2ui.py` restates
+  `serve`'s arguments rather than importing them, deliberately, so
+  that `ps2ui build` loads no server code — and the copy a reader
+  reaches through `ps2ui serve --help` was the one still promising the
+  old sentence. A test compares the two help texts.
+
+  **Both of `bind`'s refusals also escaped `serve.run`'s own
+  handler**, which wrapped `build_server` alone. Under `ps2ui serve`
+  the umbrella caught them and printed `ps2ui: `, against a
+  Diagnostics page that has said `ps2ui serve: ports <a>-<b> are all
+  busy` since it was written; under `python -m ps2ui_bake.serve`
+  nothing caught them at all. Both now print `ps2ui serve: ` and exit
+  1.
+
 ## 0.7.0 — 2026-09-17
 
 `.uib` format **version 7**, unchanged from the release below.

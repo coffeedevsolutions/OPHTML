@@ -4511,6 +4511,56 @@ class TestProjectFile(unittest.TestCase):
                 project.load(path)
             self.assertIn("not valid JSON", str(cm.exception))
 
+    def test_a_blob_handed_to_check_names_the_command_that_takes_one(self):
+        """B17: `ps2ui check build/ui.uib` used to end in a traceback.
+
+        json.load DECODES before it parses, so a binary file never
+        reaches the parser and UnicodeDecodeError sailed past the
+        JSONDecodeError handler that was supposed to make this
+        function traceback-free. The two commands are one hyphen
+        apart -- `ps2ui check` takes a project, `ps2ui-check` takes a
+        blob -- so this is an ordinary mistake, and `UIB1` in the
+        first four bytes makes naming the other command a fact
+        rather than a guess.
+        """
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "ui.uib")
+            with open(path, "wb") as fh:
+                fh.write(b"UIB1" + b"\x07\x00\x00\x00" + b"\x80" * 32)
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            msg = str(cm.exception)
+            self.assertIn(".uib blob", msg)
+            # The remedy is the other command, spelled so it can be
+            # pasted: the hyphen is the whole difference.
+            self.assertIn("ps2ui-check %s" % path, msg)
+
+    def test_a_binary_that_is_not_a_blob_still_is_not_a_traceback(self):
+        """The other half of B17: the magic is a bonus, not the guard.
+
+        Guarding only on `UIB1` would leave every other binary --
+        a PNG dropped in by mistake, a truncated blob whose header
+        never got written -- raising the same UnicodeDecodeError
+        this row is about. The handler catches the DECODE failure;
+        the magic only picks which sentence to print.
+        """
+        from ps2ui_bake import project
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "ps2ui.json")
+            with open(path, "wb") as fh:
+                fh.write(b"\x89PNG\r\n\x1a\n" + b"\xff" * 32)
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            msg = str(cm.exception)
+            self.assertIn("not UTF-8 text", msg)
+            self.assertNotIn(".uib blob", msg)
+            # It still says what a project file IS, since a person who
+            # got here was reaching for one.
+            self.assertIn("screens", msg)
+
     def test_the_examples_are_the_acceptance_test(self):
         # The design test: if a project file cannot express the shipped
         # examples it is the wrong design, and it was written by
