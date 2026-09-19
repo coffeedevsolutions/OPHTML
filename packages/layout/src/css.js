@@ -140,7 +140,7 @@ export function cloneStyle(style) {
 
 // ---------------------------------------------------------------- selectors
 
-function parseCompound(src) {
+function parseCompound(src, line) {
   // e.g. "div.tile#first:focus"
   const compound = { tag: null, id: null, classes: [], focus: false };
   const re = /([a-zA-Z][a-zA-Z0-9-]*|\*)|\.([a-zA-Z_-][a-zA-Z0-9_-]*)|#([a-zA-Z_-][a-zA-Z0-9_-]*)|:(focus)|(.)/g;
@@ -150,13 +150,32 @@ function parseCompound(src) {
     else if (m[2]) compound.classes.push(m[2]);
     else if (m[3]) compound.id = m[3];
     else if (m[4]) compound.focus = true;
-    else throw new Error(`css: unsupported selector syntax near "${m[5]}" in "${src}"`);
+    // A PSEUDO-CLASS IS THE ONLY ONE OF THESE A PERSON TYPES ON PURPOSE.
+    //
+    // `:hover` reported "unsupported selector syntax near ":"", which
+    // is true of the character and says nothing about the mistake: the
+    // reader wrote a state this target does not have, and the fix is
+    // not a different punctuation mark. There is one pseudo-class here
+    // and the message can simply name it (F37c).
+    else if (m[5] === ':') {
+      const name = /^:([a-zA-Z-]*)/.exec(src.slice(m.index))?.[1] ?? '';
+      throw new Error(`css: ${at(line)}"${src}": :${name} does not exist on `
+        + 'this target. :focus is the only pseudo-class -- a pad-driven UI '
+        + 'has no pointer, so there is no hover, active or visited state.');
+    }
+    else throw new Error(`css: ${at(line)}unsupported selector syntax near `
+      + `"${m[5]}" in "${src}"`);
   }
   return compound;
 }
 
-export function parseSelector(src) {
-  const parts = src.trim().split(/\s+/).map(parseCompound);
+/** `line N: ` when the caller knows the line, and nothing when it does
+ * not. parseSelector is exported and called from tests with a bare
+ * selector, where there is no line to name. */
+function at(line) { return line === undefined ? '' : `line ${line}: `; }
+
+export function parseSelector(src, line) {
+  const parts = src.trim().split(/\s+/).map((one) => parseCompound(one, line));
   let a = 0, b = 0, c = 0;
   for (const p of parts) {
     if (p.id) a++;
@@ -230,6 +249,13 @@ class SheetReader {
     }
   }
   readUntil(chars) {
+    // `lineOf[i]` is the source line character `i` of the returned text
+    // came from, recorded because the text alone cannot answer it: a
+    // comment inside a rule body is SKIPPED rather than kept, so
+    // counting newlines in the result puts every declaration under it
+    // one line too high for each line the comment spanned. Read it
+    // straight after the call; the next one overwrites it.
+    this.lineOf = [];
     let out = '';
     while (!this.eof() && !chars.includes(this.peek())) {
       if (this.src.startsWith('/*', this.pos)) {
@@ -238,6 +264,7 @@ class SheetReader {
         this.advance(end + 2 - this.pos);
         continue;
       }
+      this.lineOf.push(this.line);
       out += this.peek();
       this.advance();
     }
@@ -250,23 +277,46 @@ class SheetReader {
  *   { selector, declarations: [{prop, value, line}], line }
  * Each comma-separated selector becomes its own rule sharing declarations.
  */
-function splitDeclarations(body, line) {
+function splitDeclarations(body, line, lineOf) {
   const out = [];
+  // THE LINE OF THE DECLARATION, NOT OF THE RULE THAT HOLDS IT.
+  //
+  // Every declaration used to be stamped with `line`, the line the
+  // selector opens on, so `background: linear-gradient(...)` physically
+  // on line 4 reported line 1. In a rule of two declarations that is a
+  // near miss; in a rule of fifteen it sends the reader to the wrong
+  // end of it, and the longer the rule the worse the misdirection
+  // (F37b). `lineOf` comes from the reader that produced `body` and
+  // survives comments, which the text does not.
+  let pos = 0;
   for (const decl of body.split(';')) {
+    const start = pos;
+    pos += decl.length + 1;            // + the ';' that split consumed
     const d = decl.trim();
     if (!d) continue;
+    const lead = decl.length - decl.trimStart().length;
+    const declLine = lineOf ? (lineOf[start + lead] ?? line) : line;
     const colon = d.indexOf(':');
-    if (colon === -1) throw new Error(`css: line ${line}: malformed declaration "${d}"`);
+    if (colon === -1) throw new Error(`css: line ${declLine}: malformed declaration "${d}"`);
     out.push({
       prop: d.slice(0, colon).trim().toLowerCase(),
       value: d.slice(colon + 1).trim(),
-      line,
+      line: declLine,
     });
   }
   return out;
 }
 
-export function parseStylesheet(src) {
+export function parseStylesheet(src, errors = null) {
+  // `errors` is computeStyle's sink, and it is passed here for the one
+  // parse failure that is RECOVERABLE: a selector this dialect does
+  // not accept. The rule it heads cannot apply to anything, so
+  // skipping it and reading on costs nothing and lets the pass reach
+  // the declaration errors below it (F37a). Every other failure in
+  // here is structural -- an unterminated block or comment means the
+  // reader no longer knows where it is in the file, and the errors it
+  // would report after that are fiction -- so those still throw on the
+  // spot, sink or no sink.
   const r = new SheetReader(src);
   const rules = [];
   const warnings = [];
@@ -311,9 +361,10 @@ export function parseStylesheet(src) {
     if (r.eof()) throw new Error(`css: line ${line}: selector without a block`);
     r.advance(); // {
     const body = r.readUntil('}');
+    const bodyLines = r.lineOf;
     if (r.eof()) throw new Error(`css: line ${line}: unterminated block`);
     r.advance(); // }
-    const declarations = splitDeclarations(body, line);
+    const declarations = splitDeclarations(body, line, bodyLines);
     // :root IS NOT A SELECTOR HERE, IT IS A DECLARATION SITE.
     //
     // Intercepted before parseSelector, which does not accept it --
@@ -344,7 +395,15 @@ export function parseStylesheet(src) {
     }
     for (const one of selText.split(',')) {
       if (!one.trim()) continue;
-      rules.push({ selector: parseSelector(one), declarations, line });
+      let selector;
+      try {
+        selector = parseSelector(one, line);
+      } catch (e) {
+        if (!errors || !String(e.message).startsWith('css: ')) throw e;
+        if (!errors.includes(e.message)) errors.push(e.message);
+        continue;
+      }
+      rules.push({ selector, declarations, line });
       for (const d of declarations) {
         if (d.prop.startsWith('--')) {
           warnings.push(`css: line ${d.line}: custom property "${d.prop}" `
@@ -875,8 +934,33 @@ export function applyDeclaration(style, prop, value, line, warnings, vars) {
  * are computed independently and a geometry-property difference is a
  * compile error (see docs/architecture.md, ":focus is a paint-only delta").
  */
-export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warnings) {
+export function computeStyle(el, sheet, parentStyle, parentFocusInherit,
+                             warnings, errors = null) {
   const vars = sheet && sheet.vars;
+  // ONE BAD DECLARATION IS NOT THE END OF THE SHEET (F37a).
+  //
+  // With an `errors` sink the compile records the failure and carries
+  // on, so a stylesheet with three mistakes reports three rather than
+  // costing three builds. With no sink it throws on the first, which
+  // is what this function's own callers and tests expect, and what
+  // every caller outside the compiler still gets.
+  //
+  // ONLY `css: ` MESSAGES ARE COLLECTED. A TypeError from inside the
+  // property code is a defect in this file, not a diagnosis of the
+  // author's sheet; swallowing it would turn a crash here into a
+  // confident and wrong statement about their CSS.
+  //
+  // Deduplicated on the message, like the :focus warning below: one
+  // rule over twenty elements is one mistake, not twenty.
+  const guard = (fn) => {
+    if (!errors) { fn(); return; }
+    try {
+      fn();
+    } catch (e) {
+      if (!String(e.message).startsWith('css: ')) throw e;
+      if (!errors.includes(e.message)) errors.push(e.message);
+    }
+  };
   const matched = [];
   for (let i = 0; i < sheet.rules.length; i++) {
     const rule = sheet.rules[i];
@@ -931,7 +1015,9 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
       for (const d of rule.declarations) focusDeclProps.push(d);
       continue;
     }
-    for (const d of rule.declarations) applyDeclaration(style, d.prop, d.value, d.line, warnings, vars);
+    for (const d of rule.declarations) {
+      guard(() => applyDeclaration(style, d.prop, d.value, d.line, warnings, vars));
+    }
   }
 
   const focusDeclared = focusDeclProps.length > 0;
@@ -945,9 +1031,11 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
   const focusStyle = makeBase(parentFocusInherit ?? parentStyle);
   for (const { rule } of matched) {
     if (rule.selector.focus) continue;
-    for (const d of rule.declarations) applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars);
+    for (const d of rule.declarations) {
+      guard(() => applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars));
+    }
   }
-  for (const d of focusDeclProps) {
+  for (const d of focusDeclProps) guard(() => {
     if (GEOMETRY_PROPS.has(d.prop)) {
       throw new Error(
         `css: line ${d.line}: :focus may not change "${d.prop}" — focus is a paint-only delta. `
@@ -962,6 +1050,6 @@ export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warning
       );
     }
     applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars);
-  }
+  });
   return { style, focusStyle, focusDeclared };
 }

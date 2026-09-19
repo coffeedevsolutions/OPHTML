@@ -145,6 +145,43 @@ without moving this line.
   `stats.readout.peaks` cited three lines of closing braces for a claim
   about a running max, which is at `main.c:2789-2792`.
 
+- **A stylesheet with three mistakes cost three builds.** Each pass
+  reported one CSS error and stopped, so clearing a normal sheet was a
+  build-fix-build loop: a gradient, a `:hover` and a `display: grid`
+  took three runs, each naming one of them. A compile now reports every
+  CSS error it finds, one `error: ` line each, sorted by line.
+
+  The same argument the flex-direction refusal already made about its
+  own list, applied one stage earlier: reporting the first of N turns a
+  migration into a queue of single-line fixes.
+
+  **What is collected and what still stops the parse.** A bad
+  declaration is recorded and the compile carries on; a bad SELECTOR
+  skips the rule it heads, which could not have applied to anything, so
+  the declarations below it are still reached in the same pass. An
+  unterminated block or comment still stops on the spot, because after
+  one the reader no longer knows where it is in the file and everything
+  it would report next is fiction. Only `css: ` messages are collected:
+  a crash inside the property code stays a crash rather than becoming a
+  confident and wrong statement about somebody's CSS.
+
+- **A declaration was reported at the line its rule opens on.** A
+  `background` physically on line 5 said line 1. In a two-line rule
+  that is a near miss; in a fifteen-line rule it sends the reader to
+  the wrong end of it. Every declaration now carries its own line,
+  recorded per character as the rule body is read, which is what makes
+  it survive a comment: the reader SKIPS comments, so counting newlines
+  in the body would put every declaration under a three-line comment
+  three lines too high.
+
+- **`:hover` was answered with `unsupported selector syntax near ":"`.**
+  True of the character and silent about the mistake: the reader wrote
+  a state this target does not have, and no punctuation fixes that.
+  The message names the one pseudo-class that exists, and says why
+  there are no others — a pad-driven UI has no pointer. Both selector
+  errors also carry a line number now; they were the only messages in
+  the compiler without one.
+
 ## 0.7.0 — 2026-09-17
 
 `.uib` format **version 7**, unchanged from the release below.

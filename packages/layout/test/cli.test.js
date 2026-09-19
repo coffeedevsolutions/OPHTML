@@ -90,3 +90,46 @@ test('ps2ui-dev --strict fails on warnings and --min-font-size moves the floor',
   assert.equal(bad.status, 2, bad.err);
   assert.match(bad.err, /positive integer/);
 });
+
+test('the bins print every CSS error, one `error: ` line each', () => {
+  // THE LAST STEP OF THE ONE-PASS CHANGE IS THE ONE A READER SEES.
+  // compile() carries the whole list on `err.cssErrors`; a bin that
+  // printed `err.message` alone would still show all of it, and a bin
+  // that printed its first line would silently put the loop back. Both
+  // are spawned for real, because the printing is the bin's and a
+  // library-level test cannot see it.
+  const dir = mkdtempSync(join(tmpdir(), 'ps2ui-css-errors-'));
+  const html = join(dir, 'page.html');
+  const css = join(dir, 'page.css');
+  writeFileSync(html, '<screen><div class="card">'
+    + '<span class="label">x</span></div></screen>\n');
+  writeFileSync(css, [
+    'screen { background: #000000; }',        // 1
+    '.card {',                                // 2
+    '  background: linear-gradient(#fff,#000);',  // 3
+    '}',                                      // 4
+    '.card:hover {',                          // 5
+    '  color: #f00;',                         // 6
+    '}',                                      // 7
+    '.label {',                               // 8
+    '  display: grid;',                       // 9
+    '}',                                      // 10
+  ].join('\n'));
+  const fontDir = fileURLToPath(new URL('../../../fonts', import.meta.url));
+
+  for (const [name, prefix] of [['ps2ui-layout.js', 'error: '],
+                                ['ps2ui-dev.js', 'layout error: ']]) {
+    const out = join(dir, name === 'ps2ui-dev.js' ? 'out' : 'out.json');
+    const r = spawnSync(process.execPath,
+      [bin(name), html, css, '-o', out, '--font-dir', fontDir,
+       ...(name === 'ps2ui-dev.js' ? ['--once'] : [])],
+      { encoding: 'utf8' });
+    const err = r.stderr.replace(/\x1b\[[0-9;]*m/g, '');
+    assert.equal(r.status, 1, err);
+    const lines = err.split('\n').filter((l) => l.startsWith(prefix));
+    assert.equal(lines.length, 3, err);
+    assert.match(lines[0], /line 3: background: bad color/);
+    assert.match(lines[1], /line 5: .*:focus is the only pseudo-class/);
+    assert.match(lines[2], /line 9: display: only "flex" and "none"/);
+  }
+});

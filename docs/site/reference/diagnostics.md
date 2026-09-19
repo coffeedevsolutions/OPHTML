@@ -52,14 +52,20 @@ and exits 1. The parser emits no warnings.
 
 ## CSS
 
-[css.js](repo:packages/layout/src/css.js) raises 29 errors and pushes 6
+[css.js](repo:packages/layout/src/css.js) raises 30 errors and pushes 6
 warnings. An error prints as `error: <message>` and exits 1. A warning prints
-as `warning: <message>` and the compile continues. The selector error is the
-only one with no line number.
+as `warning: <message>` and the compile continues. Every message here carries
+a line number, and it is the line of the DECLARATION rather than of the rule
+that holds it.
+
+A compile reports every CSS error it finds, one `error: ` line each, sorted by
+line. A stylesheet with three mistakes took three builds to clear when each
+pass stopped at the first.
 
 | message | severity | cause | fix | page |
 |---|---|---|---|---|
-| `css: unsupported selector syntax near "<c>" in "<s>"` | error | a combinator or pseudo-class outside type, `.class`, `#id`, `*`, descendant and `:focus` | rewrite as a descendant selector | [CSS](page:authoring/css#selectors-and-the-cascade) |
+| `css: line <n>: unsupported selector syntax near "<c>" in "<s>"` | error | a combinator outside type, `.class`, `#id`, `*`, descendant and `:focus` | rewrite as a descendant selector | [CSS](page:authoring/css#selectors-and-the-cascade) |
+| `` css: line <n>: "<s>": :<name> does not exist on this target. `` plus the sentence naming `:focus` | error | a pseudo-class other than `:focus`; there is no pointer, so no hover, active or visited state exists | drop it, or use `:focus` | [CSS](page:authoring/css#selectors-and-the-cascade) |
 | `css: line <n>: unterminated comment` | error | `/*` has no `*/` | close the comment | [CSS](page:authoring/css#limits-and-errors) |
 | `css: line <n>: malformed declaration "<d>"` | error | a declaration with no `:` | add the colon | [CSS](page:authoring/css#limits-and-errors) |
 | `css: line <n>: selector without a block` | error | the file ends after a selector | add the block | [CSS](page:authoring/css#limits-and-errors) |

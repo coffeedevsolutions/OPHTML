@@ -148,7 +148,15 @@ The grammar is the type selector, `.class`, `#id`, `*` and a compound of those. 
 
 ```
 $ ps2ui-layout one.html child.css --fonts fonts/fonts.json -o x.json
-error: css: unsupported selector syntax near ">" in ">"
+error: css: line 1: unsupported selector syntax near ">" in ">"
+```
+
+A pseudo-class is answered by name, because there is one and the fix is never a
+different punctuation mark:
+
+```
+$ ps2ui-layout one.html hover.css --fonts fonts/fonts.json -o x.json
+error: css: line 1: ".a:hover": :hover does not exist on this target. :focus is the only pseudo-class -- a pad-driven UI has no pointer, so there is no hover, active or visited state.
 ```
 
 Specificity is the usual `(id, class, type)` triple summed over every compound, with source order as the tiebreak. `*` contributes nothing. `:focus` counts as a class, so `.card:focus` is `(0, 2, 0)` and beats `div:focus` at `(0, 1, 1)` whatever order they are written in.
@@ -234,7 +242,8 @@ Before this, all eight stored their value verbatim and every consumer ended in a
 
 | message | cause |
 |---|---|
-| `css: unsupported selector syntax near "<c>" in "<s>"` | A combinator or pseudo-class outside the grammar, such as `>`, `+` or `:hover`. |
+| `css: line <n>: unsupported selector syntax near "<c>" in "<s>"` | A combinator outside the grammar, such as `>` or `+`. |
+| `css: line <n>: "<s>": :<name> does not exist on this target. :focus is the only pseudo-class ...` | A pseudo-class other than `:focus`, such as `:hover`. |
 | `css: line <n>: malformed declaration "<d>"` | A declaration with no colon. |
 | `css: line <n>: selector without a block` | The sheet ends after a selector. |
 | `css: line <n>: unterminated block` | A `{` with no matching `}`. |

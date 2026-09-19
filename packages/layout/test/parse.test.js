@@ -9,6 +9,16 @@ import {
   applyDeclaration,
 } from '../src/css.js';
 import { parseColor, parseLength } from '../src/values.js';
+import { compile, FontContext } from '../src/index.js';
+
+const fonts = FontContext.fromDir();
+
+/** The error a call threw. `assert.throws` returns nothing, and these
+ * tests are about the error's contents rather than its message alone. */
+function thrown(fn) {
+  try { fn(); } catch (e) { return e; }
+  return assert.fail('expected a throw, got none');
+}
 
 // ------------------------------------------------------------------ html
 
@@ -629,4 +639,148 @@ test('@theme: the border shorthand finds a colour with spaces inside its parens'
     assert.equal(lit.length, 1, `border: 2px solid ${c} should warn`);
     assert.ok(lit[0].includes(c), `the warning should name ${c}`);
   }
+});
+
+// ------------------------------------------------- every error in one pass
+
+test('css: a sheet with three mistakes reports three, in line order', () => {
+  // THE ROW THIS CLOSES, IN ITS OWN FIXTURE. A stylesheet carrying a
+  // gradient, a `:hover` and a `display: grid` took THREE builds to
+  // clear: each reported one error and stopped, so a normal sheet was
+  // a build-fix-build loop (F37a). The compiler reaches all three in
+  // one pass now -- the gradient and the grid through computeStyle's
+  // sink, the selector by skipping the rule it heads, which could not
+  // have applied to anything anyway.
+  const css = [
+    '.card {',                                  // 1
+    '  width: 200px;',                          // 2
+    '  background: linear-gradient(#fff,#000);',  // 3
+    '}',                                        // 4
+    '.card:hover {',                            // 5
+    '  color: #f00;',                           // 6
+    '}',                                        // 7
+    '.label {',                                 // 8
+    '  display: grid;',                         // 9
+    '}',                                        // 10
+  ].join('\n');
+  const err = thrown(() => compile(
+    '<div class="card"><span class="label">x</span></div>', css, { fonts }));
+  assert.equal(err.cssErrors.length, 3, err.message);
+  assert.deepEqual(err.cssErrors.map((m) => /^css: line (\d+):/.exec(m)[1]),
+                   ['3', '5', '9']);
+  assert.match(err.cssErrors[0], /background: bad color/);
+  assert.match(err.cssErrors[1], /:focus is the only pseudo-class/);
+  assert.match(err.cssErrors[2], /display: only "flex" and "none"/);
+  // And `message` carries all of it, for a caller that knows nothing
+  // about the `cssErrors` property.
+  assert.equal(err.message, err.cssErrors.join('\n'));
+});
+
+test('css: the same mistake on twenty elements is reported once', () => {
+  const html = `<div>${'<span class="t">x</span>'.repeat(20)}</div>`;
+  const err = thrown(() => compile(html, '.t { display: grid }', { fonts }));
+  assert.equal(err.cssErrors.length, 1);
+});
+
+test('css: a layout refusal with a clean sink is not dressed as a CSS error', () => {
+  // WHAT THIS DOES AND DOES NOT FENCE. The compile wraps a crash in
+  // the collected CSS errors only when there ARE some, because a tree
+  // built from declarations that were recorded and not applied can
+  // fail in its own right and the CSS is then the cause. With a clean
+  // sink the failure is its own, and this is that half.
+  //
+  // The other half -- that the sink takes `css: ` messages only -- is
+  // the test below it.
+  const err = thrown(() => compile(
+    '<div style="x"></div>', 'div { display: none }', { fonts }));
+  assert.equal(err.cssErrors, undefined);
+  assert.match(err.message, /^layout: root element is display: none/);
+});
+
+test('css: a crash inside the property code is not reported as bad CSS', () => {
+  // THE SINK TAKES `css: ` MESSAGES AND NOTHING ELSE. Everything
+  // applyDeclaration raises about a stylesheet begins that way, so a
+  // TypeError out of it is a defect in the compiler -- and collecting
+  // it would print a crash as `error: css: ...`, telling the author
+  // their sheet is wrong when it is not, with no stack to debug from.
+  //
+  // Nothing a stylesheet can SAY reaches that branch: every value the
+  // parser produces is a string, and the property code stringifies
+  // whatever it does not recognise. So the declaration is built by
+  // hand, which is the shape only a bug in the parser could hand it.
+  const sheet = parseStylesheet('.b { color: #fff }');
+  sheet.rules[0].declarations = [
+    { prop: 'width', value: Object.create(null), line: 1 },
+  ];
+  const el = parseHTML('<div class="b">x</div>');
+  const errs = [];
+  const err = thrown(() => computeStyle(el, sheet, null, null, [], errs));
+  assert.equal(err.constructor.name, 'TypeError');
+  assert.deepEqual(errs, []);
+});
+
+test('css: computeStyle with no sink still throws on the first', () => {
+  // Every caller outside the compiler keeps the old contract, which is
+  // what makes the sink an addition rather than a rewrite: the sink is
+  // opt-in and `parse.test.js` above calls computeStyle without one.
+  const sheet = parseStylesheet('.b { display: grid; color: nonsense }');
+  const el = parseHTML('<div class="b">x</div>');
+  assert.throws(() => computeStyle(el, sheet, null, null, []),
+                /display: only "flex" and "none"/);
+});
+
+// ------------------------------------------------ the line of a declaration
+
+test('css: a declaration is reported at its own line, not the rule\'s', () => {
+  // `background` is physically on line 5 and reported line 1, the line
+  // `.card {` opens on, because every declaration was stamped with the
+  // RULE's line. In a two-line rule that is a near miss; in a fifteen-
+  // line rule it sends the reader to the wrong end of it (F37b).
+  const css = '.card {\n  width: 200px;\n  height: 100px;\n'
+            + '  padding: 4px;\n  background: linear-gradient(#fff,#000);\n}';
+  const err = thrown(() => compile('<div class="card">x</div>', css, { fonts }));
+  assert.match(err.cssErrors[0], /^css: line 5: background: bad color/);
+});
+
+test('css: a comment inside a rule does not shift the lines under it', () => {
+  // THE CASE THAT RULES OUT COUNTING NEWLINES IN THE BODY. The reader
+  // SKIPS a comment rather than keeping it, so the body string is
+  // three lines shorter than the file and every declaration under the
+  // comment would be reported three lines high. The line is recorded
+  // per character as the body is read instead.
+  const css = '.card {\n  width: 200px;\n  /* one\n     two\n     three */\n'
+            + '  display: grid;\n}';
+  const err = thrown(() => compile('<div class="card">x</div>', css, { fonts }));
+  assert.match(err.cssErrors[0], /^css: line 6: display:/);
+});
+
+// ------------------------------------------------------- the pseudo-class
+
+test('css: an unsupported pseudo-class names the one that exists', () => {
+  // The old message was `unsupported selector syntax near ":"`, which
+  // is true of the character and silent about the mistake: the reader
+  // wrote a state this target does not have, and no punctuation fixes
+  // that. It also carried no line, alone among the CSS errors (F37c).
+  const err = thrown(() => compile(
+    '<div class="card">x</div>', '.a { color: #fff }\n.card:hover { color: #f00 }',
+    { fonts }));
+  const msg = err.cssErrors[0];
+  assert.match(msg, /^css: line 2: /);
+  assert.match(msg, /:hover does not exist on this target/);
+  assert.match(msg, /:focus is the only pseudo-class/);
+  // The selector it was written in, so a long sheet says which one.
+  assert.match(msg, /"\.card:hover"/);
+});
+
+test('css: a bad selector drops its rule and the pass continues', () => {
+  // The rule could not have applied to anything, so skipping it loses
+  // nothing -- and it is what lets the declarations BELOW it be
+  // reached in the same pass. Structural failures are not recoverable
+  // this way and still stop the parse.
+  assert.throws(() => parseStylesheet('.a { color: #fff'), /unterminated block/);
+  const errs = [];
+  const sheet = parseStylesheet('.a:hover { color: #fff }\n.b { color: #000 }', errs);
+  assert.equal(errs.length, 1);
+  assert.equal(sheet.rules.length, 1);
+  assert.equal(sheet.rules[0].selector.source, '.b');
 });

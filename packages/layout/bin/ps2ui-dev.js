@@ -123,7 +123,9 @@ function build() {
   try {
     ir = compileFiles(htmlPath, cssPath, options);
   } catch (err) {
-    console.error(`\x1b[31mlayout error:\x1b[0m ${err.message}`);
+    for (const m of err.cssErrors ?? [err.message]) {
+      console.error(`\x1b[31mlayout error:\x1b[0m ${m}`);
+    }
     return false;
   }
   // --strict fails the build the way ps2ui-layout does: warnings are a
