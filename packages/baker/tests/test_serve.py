@@ -434,10 +434,19 @@ class TestRoutes(unittest.TestCase):
         The second half of this test is the behaviour that must NOT
         change with the reporting: with no --port, a busy 8080 still
         moves up.
+
+        NO BLOB, DELIBERATELY. Every other test in this file takes one
+        of the shipped examples and SKIPS when it has not been built,
+        which is right for them and wrong for this one: `bind` takes a
+        handler class and never asks what it serves, so requiring a
+        blob here would make B18's only unit fence disappear in a
+        fresh clone -- silently, inside an `OK`. Review of #157 found
+        it that way round, reading a skipped fence as a sabotage that
+        got through.
         """
         import socket
-        page = "<!doctype html><title>t</title>"
-        handler = serve.make_handler(serve.Server(uib=blob(OPLENV)), page)
+        from http.server import BaseHTTPRequestHandler
+        handler = BaseHTTPRequestHandler
 
         held = socket.socket()
         self.addCleanup(held.close)
