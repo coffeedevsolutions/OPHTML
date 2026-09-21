@@ -85,7 +85,7 @@ so a warning here is a CI failure:
 
 CI builds and checks this blob in the step named "Example builds end to end
 (includes runtime tests)", which is `./examples/memcard/build.sh` and nothing
-else ([ci.yml](repo:.github/workflows/ci.yml#L153)).
+else ([ci.yml](repo:.github/workflows/ci.yml#L156-L157)).
 
 ## Numbers from the blob
 

@@ -65,7 +65,9 @@ OUTPUT is TAP-shaped like the other tools/check-*.py: one `ok -` or
 
 import os
 import re
+import shutil
 import sys
+import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = os.path.join(ROOT, "docs", "site")
@@ -116,8 +118,30 @@ REPO_LINK = re.compile(r"\(repo:([^)#\s]+)(?:#L(\d+)(?:-L?(\d+))?)?\)")
 # its own pin, and relocation rewrites that number alone inside the
 # matched text, which is why the token (`:653` or `,660`) is carried
 # alongside it rather than the bare integer.
+#
+# NO PREFIX LIST. This used to require one of
+# `packages|runtime|tools|examples|fonts|docs`, which made a citation
+# invisible for the accident of where its file sits: `README.md:364`,
+# `CHANGELOG.md:44`, `.github/workflows/ci.yml:173`. Measured when the
+# list came out: 51 line numbers over 41 citations in 22 facts files,
+# 14 of the numbers to README.md and 22 across three workflows (F41a).
+# The guard that replaces it is `os.path.isfile` below -- a token is a
+# citation when it names a file, and prose naming something else never
+# was one.
+#
+# THOSE TWO UNITS ARE NOT INTERCHANGEABLE and the first version of this
+# comment said "50 over 50", restating the member count as a citation
+# count. A citation is one `path:N` match; a line number is one member
+# of it, and `README.md:120,129,241` is one of the former and three of
+# the latter. Review of #160 caught it.
+#
+# THE SHAPE REQUIREMENT IS WHAT KEEPS PROSE OUT, and it has two arms
+# because repo-root files have no slash and `runtime/Makefile` has no
+# extension: a path with a slash takes any final segment, a bare
+# basename must carry one. Dropping the second arm silently unpinned
+# 21 Makefile citations that the prefix list had been checking.
 FACTS_CITE = re.compile(
-    r"((?:packages|runtime|tools|examples|fonts|docs)/[\w./-]+?):(\d+)"
+    r"((?:\.?[\w-]+/)+[\w.-]+|[\w-]+\.[A-Za-z0-9]+):(\d+)"
     r"(?:-(\d+))?((?:,\s*\d+(?:-\d+)?)*)")
 
 
@@ -244,9 +268,21 @@ def facts_rows():
 
 
 def file_lines(path):
+    # DROP THE TRAILING EMPTY ELEMENT. `split("\n")` on a file that ends
+    # in a newline yields one more element than the file has lines, and
+    # every caller here treats `len(lines)` as the last line number. The
+    # cost was two-sided: the range guard admitted a citation to the
+    # line after the last one, which pins as empty text and can never
+    # drift, and its complaint said "448 lines" of a 447-line ci.yml.
+    # Nothing was citing that line once those two were corrected,
+    # which is why check 0 in main() asserts the count directly:
+    # with no reader left, lengthening this back has no witness.
     with open(os.path.join(ROOT, path), encoding="utf-8",
               errors="replace") as fh:
-        return fh.read().split("\n")
+        lines = fh.read().split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return lines
 
 
 def escape(text):
@@ -309,6 +345,30 @@ def main(argv):
 
     def bad(msg):
         fails.append("not ok - " + msg)
+
+    # 0. file_lines counts lines, not split results.
+    #
+    # WHY THIS IS A CHECK AND NOT A COMMENT. Every line number in this
+    # tool is bounded by `len(lines)`, and `split("\n")` on a file that
+    # ends in a newline returns one element more than the file has
+    # lines. That let `text.js:183-188` sit green over a 187-line file,
+    # pinned on an empty string that can never drift. Shortening
+    # `file_lines` by one is caught by the citations that run to the end
+    # of their file; LENGTHENING IT BY ONE IS CAUGHT BY NOTHING, because
+    # correcting those two citations removed the only readers the
+    # phantom line had. So the invariant is asserted here, on bytes this
+    # tool writes itself, where both directions fail.
+    probe_dir = tempfile.mkdtemp()
+    probe = os.path.join(probe_dir, "probe.txt")
+    for body, want in (("a\nb\nc\n", 3), ("a\nb\nc", 3), ("", 0),
+                       ("\n", 1), ("a\n\n", 2)):
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        got = len(file_lines(probe))
+        if got != want:
+            bad("file_lines(%r) counted %d lines, not %d" % (body, got, want))
+    shutil.rmtree(probe_dir)
+    oks.append("ok - file_lines counts lines, not split results")
 
     # 1. frontmatter, facts file
     for pid, text in texts.items():
@@ -391,8 +451,18 @@ def main(argv):
             members = cite_members(m)
             for first, last, token in members:
                 if not (1 <= first <= last <= len(lines)):
-                    bad("%s: %s:%d cites past the end of the file (%d lines)"
-                        % (fid, path, first, len(lines)))
+                    # SAY WHICH OF THE THREE WAYS IT IS WRONG. The
+                    # condition folds three of them together and the
+                    # message named only the last, so a range written
+                    # backwards read as an overrun. F41(a) hit exactly
+                    # that: re-pointing `153-154` at a step that had
+                    # moved left `156-154`, and the guard caught it and
+                    # then called it an overrun of a 447-line file by
+                    # line 156, which is true of neither number.
+                    why = ("starts before line 1" if first < 1 else
+                           "is backwards" if last < first else
+                           "is past the end of the file (%d lines)" % len(lines))
+                    bad("%s: %s:%d-%d %s" % (fid, path, first, last, why))
                     continue
                 n_facts += 1
                 key = (fid, path, first)
