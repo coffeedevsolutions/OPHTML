@@ -48,6 +48,46 @@ without moving this line.
 
 ### Fixed
 
+- **Twenty-eight citations named the line before the thing they meant,
+  and the ranges prove it was drift rather than sloppiness.** 55 of the
+  1681 pinned records started on a line with no content: 25 blank, 30
+  nothing but punctuation. Every one of the 24 blank-start ranges was
+  the exact length of the construct it described and displaced by
+  exactly one -- `ps2ui.h:800-806` for a comment and declaration that
+  run 801 to 807, seven times over in the list block alone. A range
+  that is correctly sized and uniformly displaced was right when it was
+  written; the file moved under it. The `.c` side is the same story two
+  lines wide, where seven citations each named the brace closing the
+  *previous* function.
+
+  A citation that starts on a blank line now fails, with the line the
+  content actually begins on in the message. **Blank only, not
+  punctuation**: `{` opens a JSON file at line 1 and `/**` opens a doc
+  comment, and both are the honest first line of what they cite, so the
+  wider rule would have been wrong about seven citations to buy the
+  same twenty-four.
+
+  The rule turned out to fence the historical fault and not just the
+  shape. Inserting one line above the list block makes it fire on five
+  citations at once, because what it guards is exactly the population
+  that sits after a blank line and moves.
+
+- **A stronger drift test was measured and rejected, which is the
+  entry.** Each record carries the two lines around the one it pins,
+  and only relocation reads them; comparing the whole window would
+  catch a citation that comes to name a different line while the text
+  at that number stays the same. Simulating 1, 2 and 3-line insertions
+  at 25 points in every cited file -- 69810 pairs -- the text test
+  misses 110 of them, 0.16%, and the window test catches all 110.
+
+  It also fires on 144 of 1643 in-place edits of the line *above* a
+  citation, 8.8%, where the citation is still correct. That false
+  report cannot be relocated away, because the text repeats by
+  construction, so it costs a contributor a hand fix. 110 rare catches
+  against 144 certain false alarms is a bad trade. The measurement and
+  the verdict live in `drifted_from` so the next reader does not have
+  to re-derive them to turn the idea down.
+
 - **424 line numbers in the facts library named no file, and one of
   them cited three lines past the end of one.** A run of citations was
   written as `css.js:639-653, :605, :625-630`, where every member after

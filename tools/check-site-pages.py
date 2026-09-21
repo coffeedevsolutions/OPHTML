@@ -379,6 +379,39 @@ def window(lines, n):
             lines[n] if n < len(lines) else "")
 
 
+def drifted_from(path, lines, recorded, current):
+    """True when the cited line no longer holds the text it was pinned to.
+
+    THE TEXT ALONE, AND THE NEIGHBOURS DELIBERATELY NOT. The record
+    carries the two neighbouring lines and only relocation reads them,
+    which looks like an oversight: a citation pinned on `}` or on a
+    blank line could in principle come to name a different line while
+    the text at that number stays the same, and comparing the whole
+    window would catch it.
+
+    IT WAS MEASURED BEFORE IT WAS BELIEVED, AND IT DOES NOT PAY.
+    Simulating 1, 2 and 3-line insertions at 25 points in every cited
+    file, 69810 (citation, insertion) pairs: the text test misses 110
+    of them, 0.16%, all of them citations pinned on a blank line where
+    the shift happens to land another blank line on the same number.
+    Comparing the window catches all 110. It also fires on 144 of 1643
+    in-place edits of the line ABOVE a citation, 8.8%, where the
+    citation is still perfectly correct -- and a false drift report
+    here is not free, because the text repeats by construction, so
+    relocation cannot resolve it and a contributor has to fix it by
+    hand. 110 rare catches against 144 certain false alarms is a bad
+    trade, so the window stays where it earns its keep, in relocation.
+
+    WHAT THE 55 CITATIONS STARTING ON A BLANK OR PUNCTUATION-ONLY LINE
+    ACTUALLY WERE is a separate thing, and it was not this: they were
+    written that way. `authoring/lists` cited the brace closing the
+    PREVIOUS function seven times over, and `ps2ui.h`'s list block sat
+    one line above every declaration it meant. F43 corrected them and
+    `no_blank_start` below stops the blank-line half coming back.
+    """
+    return recorded[0] != current[0]
+
+
 def main(argv):
     mode = "check"
     for a in argv:
@@ -481,7 +514,7 @@ def main(argv):
             elif key not in records:
                 bad("%s: repo:%s#L%d has no record in _citations.tsv; run "
                     "tools/check-site-pages.py --pin" % (pid, path, first))
-            elif records[key][0] != current[0]:
+            elif drifted_from(path, lines, records[key], current):
                 drifted.append((pid, path, first, last, records[key], current,
                                 m.group(0)[1:-1]))
     # 4b. THE SAME TREATMENT FOR A FACTS ROW'S `source` CELL.
@@ -542,6 +575,28 @@ def main(argv):
                            "is past the end of the file (%d lines)" % len(lines))
                     bad("%s: %s:%d-%d %s" % (fid, path, first, last, why))
                     continue
+                if not lines[first - 1].strip():
+                    # A BLANK LINE SUPPORTS NOTHING, so a citation that
+                    # starts on one names one line less than it meant.
+                    # 24 did, and every one of the 24 was the exact
+                    # length of the thing it described, displaced by
+                    # exactly one -- `ps2ui.h:800-806` for a comment and
+                    # declaration that run 801 to 807, seven times over
+                    # in the list block alone. A range that is correctly
+                    # sized and uniformly displaced was right when it
+                    # was written and the file moved under it.
+                    #
+                    # BLANK ONLY, NOT PUNCTUATION. `{` opens a JSON file
+                    # at line 1 and `/**` opens a doc comment, and both
+                    # are the honest first line of what they cite, so
+                    # the wider rule would be wrong about seven
+                    # citations to buy the same twenty-four.
+                    bad("%s: %s:%d starts on a blank line; the content "
+                        "it names begins at %d" %
+                        (fid, path, first,
+                         next((k + 1 for k in range(first - 1, len(lines))
+                               if lines[k].strip()), first)))
+                    continue
                 n_facts += 1
                 key = (fid, path, first)
                 seen.add(key)
@@ -551,7 +606,7 @@ def main(argv):
                 elif key not in records:
                     bad("%s: %s:%d has no record in _citations.tsv; run "
                         "tools/check-site-pages.py --pin" % (fid, path, first))
-                elif records[key][0] != current[0]:
+                elif drifted_from(path, lines, records[key], current):
                     facts_drift.append((fid, full, idx, path, first, last,
                                         records[key], current,
                                         m.group(0), token))
