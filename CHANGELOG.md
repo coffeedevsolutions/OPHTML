@@ -49,10 +49,12 @@ without moving this line.
 ### Fixed
 
 - **Three of the seven most-cited rows named the wrong lines, and the
-  displacement gives each one away.** F42 made 517 line numbers
-  readable that no checker had ever read; F43 corrected the ones a
-  screen could find and left the rest pinned. Reading the seven rows
-  that carry the most of them found 12 wrong members out of 59.
+  displacement gives each one away.** F42 made 424 citations readable
+  that no checker had ever read -- 435 line numbers once the `/` hole
+  below is closed; F43 corrected the ones a screen could find and left
+  the rest pinned. Reading the seven rows that carry the most of them
+  found 12 wrong members out of 59, and review found an eighth row with
+  seven more.
 
   `html.attributes` claims the compiler reads exactly thirteen
   attributes and cited eleven places in `box.js`. Nine of them were
@@ -66,10 +68,17 @@ without moving this line.
   `ps2ui_overlay_push`, and gave neither `ps2ui_focus_name` nor
   `ps2ui_focus_set` a header citation at all.
 
+  `deploy.status-fills` is the eighth, found in review: seven of its
+  eight members **uniformly 28 low**, each landing on a call or a
+  comment while the `gsKit_clear` it meant sat 28 lines further down,
+  and 1519 right because the 28 inserted lines sit between it and the
+  rest.
+
   The other four are exact: `integrate.make.pairing`'s thirteen
-  `$(error)` guards, `html.errors`'s ten `r.error` call sites and two
-  throws, `css.syntax.errors` and `tex.contract`, where every member
-  lands on precisely what its annotation names.
+  `$(error)` guards, `html.errors`'s ten `r.error` call sites plus the
+  helper they go through and the one unclosed-element throw,
+  `css.syntax.errors` and `tex.contract`, where every member lands on
+  precisely what its annotation names.
 
 - **The annotation rule is widened as far as it goes, which is not
   far.** Every bare identifier in an annotation made only of backticked
@@ -78,18 +87,34 @@ without moving this line.
   each name to the right range. 60 citations checked before, 73 after,
   **no new faults** — the widening is for correctness, not yield.
 
-  **The literal half was measured and left alone.** 14 annotations are
-  a backticked token that is not an identifier. Requiring those to
-  appear inside the cited lines flags 8 of the 14, and all 8 are the
-  rule's fault: a literal annotation is a normalised quotation, with
-  alignment collapsed (`CC ?= cc` against `CC      ?= cc`), a wrapper
-  elided, or a trailing comma closed into a paren. A check wrong about
-  more than half of what it reports is the failure this file exists to
-  prevent.
+  **The literal half is a trade, and the first count of it was wrong.**
+  14 annotations are a backticked token that is not an identifier.
+  Requiring those to appear inside the cited lines flags 8 of the 14.
+  Six are the rule's fault: a literal annotation is a normalised
+  quotation, with alignment collapsed (`CC ?= cc` against
+  `CC      ?= cc`), a wrapper elided, a trailing comma closed into a
+  paren, or the whole thing paraphrased.
+
+  **The other two were real.** `main.c:1650` and `:2606` matched at no
+  line under any normalisation because both were 28 low, and this entry
+  first counted them as the rule's own noise -- a measurement that
+  decided a design by miscounting the evidence against it. Six false
+  reports against two genuine finds is still a bad trade and the
+  literal half still stays unchecked, but it is a trade, and the two
+  finds would have been free.
 
   The ceiling is not the rule. 1484 citations carry 161 parentheticals
   between them, so more coverage means writing annotations, which is
   authoring rather than checking.
+
+- **One screen had a hole, and it hid four of the seven.**
+  `main.c:1542/:1581/:1611/:1658/:1839` separates its members with
+  slashes. `FACTS_CITE`'s tail wants commas, so it read 1542 alone, and
+  the bare-member rule's lookbehind excluded a preceding `/` -- so four
+  members tripped neither reader, in the row that most needed reading.
+  Corpus-wide the hole was exactly those four. A `/` before a bare
+  member is never part of a path, because a path's own last character
+  before the colon is a word character. Four characters closed it.
 
 - **Fifty-eight citations named the line before the thing they meant,
   and the ranges prove it was drift rather than sloppiness.** 55 of the

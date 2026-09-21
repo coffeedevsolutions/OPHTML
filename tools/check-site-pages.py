@@ -183,7 +183,18 @@ def cite_members(m):
 # that bound `:NN` to the last path seen would pin a sentence's example
 # and then let `--fix` quietly rewrite the sentence. One spelling and a
 # rule against the other is the only reading that cannot guess wrong.
-BARE_CONT = re.compile(r"(?<![\w/.-]):(\d+)(?:-\d+)?")
+#
+# THE LOOKBEHIND DOES NOT EXCLUDE `/`, AND EXCLUDING IT COST FOUR.
+# `main.c:1542/:1581/:1611/:1658/:1839` separates its members with
+# slashes. `FACTS_CITE`'s tail wants commas so it reads only 1542, and
+# a `/` in this lookbehind made the other four invisible to this rule
+# as well -- the shape F42 exists to abolish, surviving behind one
+# character in `deploy.status-fills`, where all four were 28 lines
+# low. Corpus-wide the hole was exactly those four. A `/` before a
+# bare member is never part of a path, because a path's own last
+# character before the colon is a word character; review of #163 found
+# it by reading the row this rule had skipped.
+BARE_CONT = re.compile(r"(?<![\w.-]):(\d+)(?:-\d+)?")
 
 # AN ANNOTATION IS A CLAIM, SO CHECK IT.
 #
@@ -221,20 +232,30 @@ BARE_CONT = re.compile(r"(?<![\w/.-]):(\d+)(?:-\d+)?")
 # one construct per member and the narrow form read neither. When the
 # identifiers and the members come in equal numbers they pair off in
 # order; otherwise each is held to the last member's end. 60 citations
-# checked before, 65 after, and no new findings -- the widening is for
-# correctness, not for yield.
+# checked before and 68 after, 73 name-and-member pairs across them,
+# and no new findings -- the widening is for correctness, not yield.
+# `n_annot` counts pairs, so the ok line's number is not a count of
+# citations and the two must not be compared.
 #
-# AND LITERAL TOKENS ARE LEFT ALONE, MEASURED. 14 annotations are a
-# backticked token that is not an identifier -- `CC ?= cc`,
-# `0x40,0x80,0xc0`, `sub.add_parser("fontgen")`. Requiring those to
-# appear inside the cited lines flags 8 of the 14, AND ALL EIGHT ARE
-# THE RULE'S FAULT: the corpus writes a literal annotation as a
-# normalised quotation, with alignment collapsed (`CC      ?= cc`), a
-# wrapper elided (`_HEADER = struct.Struct("<I...")`) or a trailing
-# comma closed into a paren. Collapsing whitespace rescues three and
-# leaves five. A check that is wrong about more than half of what it
-# reports is the failure mode this file exists to prevent, so the
-# literal half stays unchecked and this says why.
+# AND LITERAL TOKENS ARE LEFT ALONE, WHICH IS A TRADE AND NOT A FREE
+# ONE. 14 annotations are a backticked token that is not an identifier
+# -- `CC ?= cc`, `0x40,0x80,0xc0`, `sub.add_parser("fontgen")`.
+# Requiring those inside the cited lines flags 8 of the 14. SIX ARE THE
+# RULE'S FAULT: the corpus writes a literal annotation as a normalised
+# quotation, with alignment collapsed (`CC      ?= cc`), a wrapper
+# elided (`_HEADER = struct.Struct("<I...")`), a trailing comma closed
+# into a paren, or the whole thing paraphrased. Collapsing whitespace
+# rescues three.
+#
+# THE OTHER TWO WERE REAL, AND THIS COMMENT SAID OTHERWISE FOR A
+# ROUND. `main.c:1650 (`0x80,0x00,0x00`)` and `:2606 (`0xff,0x00,0xff`)`
+# in `deploy.status-fills` matched at no line under any normalisation
+# because both were 28 low, and the first version of this paragraph
+# counted them as the rule's own noise -- a measurement that decided a
+# design by miscounting the evidence against it. Review of #163 read
+# the row. Six false reports against two genuine finds is still a bad
+# trade and the literal half still stays unchecked, but it is a trade,
+# and the two finds would have been free.
 CITE_ANNOT = re.compile(r"\s*\(((?:`[^`]+`(?:\s*(?:,|and|/|\+)\s*)?)+)\)")
 IDENTIFIER = re.compile(r"^[A-Za-z_][\w.]*$")
 IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
@@ -618,7 +639,17 @@ def main(argv):
             if a:
                 names = [t for t in re.findall(r"`([^`]+)`", a.group(1))
                          if IDENTIFIER.match(t)]
-                ends = [b for _a, b, _t in members if b <= len(lines)]
+                # EVERY MEMBER, NOT THE VALID ONES. Filtering here
+                # let one out-of-range sibling silently turn
+                # positional pairing into "hold every name to the last
+                # member", so what an annotation was checked against
+                # depended on whether a neighbour happened to be in
+                # range. Nothing in the corpus triggers it; review of
+                # #163 was right that it is a surprising coupling in a
+                # file that exists to say what it checked.
+                ends = [b for _a, b, _t in members]
+                if any(b > len(lines) for b in ends):
+                    ends = []          # the range guard reports those
                 if names and ends:
                     pairs = (list(zip(names, ends)) if len(names) == len(ends)
                              else [(t, ends[-1]) for t in names])
@@ -824,8 +855,8 @@ def main(argv):
         # Review of #161 found the sentence describing the discarded
         # rule while the code ran the narrower one.
         oks.append("ok - no source-cell member is written as a bare `:NN`; "
-                   "%d annotation(s) name something the file introduces "
-                   "at or before the lines they cite" % n_annot)
+                   "%d annotated name(s) appear at or before the member "
+                   "each is paired with" % n_annot)
 
     # 5. voice, 6. images, 7. word budget
     for pid, text in texts.items():
