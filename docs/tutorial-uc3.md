@@ -232,7 +232,7 @@ ps2ui serve --selftest
 
 ```text
 ok - an unknown route is 404
-ok - the frame is byte-identical to --preview
+ok - the framebuffer frame is byte-identical to --preview
 PASS: 6 route(s)
 ```
 

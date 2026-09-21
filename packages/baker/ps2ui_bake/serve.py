@@ -793,6 +793,14 @@ def selftest(srv, page):
         # the server serves must be the frame `--preview` writes. If
         # they ever differ, every judgement made at the browser is about
         # something the console will not draw.
+        #
+        # AND THE LINE BELOW NAMES WHICH FRAME, because this comparison
+        # forces `framebuffer` and the page's default is `authored`:
+        # 640x448 here, 597x448 on screen for a 4:3 blob. Saying only
+        # "the frame" made a true sentence read as a false one -- a
+        # reader who diffs what the browser shows against
+        # build/preview.png gets two different sizes and a line
+        # claiming they are identical (F39).
         with srv.lock:
             uib, st = srv.uib, srv.state
         was = st.aspect
@@ -810,7 +818,8 @@ def selftest(srv, page):
         assert served == buf.getvalue(), (
             "the served frame is NOT what --preview writes; the server "
             "has diverged from the baker")
-        print("ok - the frame is byte-identical to --preview", file=sys.stderr)
+        print("ok - the framebuffer frame is byte-identical to --preview",
+              file=sys.stderr)
         ok += 1
     finally:
         conn.close()

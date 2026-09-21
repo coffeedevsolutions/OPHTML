@@ -48,6 +48,7 @@ _facts/authoring/crt-linter	packages/layout/src/lint.js	273	        rule: 'focus
 _facts/authoring/crt-linter	packages/layout/src/lint.js	277	    if (x + w > safe.x1 + opt.safeInsetX || y + h > safe.y1 + opt.safeInsetY) {	    }	      warnings.push({
 _facts/authoring/crt-linter	packages/layout/src/lint.js	279	        rule: 'overscan',	      warnings.push({	        message: `focusable "${node.name}" extends past the action-safe area`,
 _facts/authoring/crt-linter	packages/layout/src/paint.js	156	      ...(box.nocontrast ? { nocontrast: true } : {}),	      focusId: box.focusId,	    });
+_facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	72	def patch_key(radius: int, border_w: int, part: int):		    """A coverage patch is identified by its GEOMETRY and nothing else.
 _facts/authoring/css	packages/layout/src/box.js	176	  if (style.display === 'none') return null;	  );	
 _facts/authoring/css	packages/layout/src/box.js	373	      if (cbox) {	      const cbox = buildBoxTree(child, sheet, style, focusStyle, warnings, scope, env);	        cbox.parent = box;
 _facts/authoring/css	packages/layout/src/box.js	393	  if (box.children.length >= 2 && !style.flexDirectionDeclared) {	  // wrapper is never asked.	    // Collected, not thrown. Migrating a document written against the
@@ -301,7 +302,7 @@ _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/quads.py	459	        #
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/quads.py	643	            if key not in font_index:	            key = ("bold" if sl["weight"] >= 600 else "regular", sl["size"])	                # Full charset: every codepoint the metrics know.
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/rounding.py	12	def round_half_up(x: float) -> int:		    """floor(x + 0.5) — identical to Math.round for non-negative x and
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/rounding.py	25	def kern_px(units: int, size: int) -> int:		    """Pixel kern between an ordered glyph pair.
-_facts/authoring/text-and-fonts	packages/baker/tests/test_baker.py	2758	class TestCrossLanguagePen(unittest.TestCase):		    """Node and Python must place every glyph on the same pixel.
+_facts/authoring/text-and-fonts	packages/baker/tests/test_baker.py	2802	class TestCrossLanguagePen(unittest.TestCase):		    """Node and Python must place every glyph on the same pixel.
 _facts/authoring/text-and-fonts	packages/layout/src/css.js	120	  lineHeight: { unit: 'number', value: 1.25 },	  fontWeight: 400,	  textAlign: 'left',
 _facts/authoring/text-and-fonts	packages/layout/src/flex.js	73	}	  return axis === ROW ? style.margin[3] + style.margin[1] : style.margin[0] + style.margin[2];	function marginCross(axis, style) {
 _facts/authoring/text-and-fonts	packages/layout/src/flex.js	100	    if (s.whiteSpace === 'nowrap') {	  const wrapAt = (f) => {	      return [{ text: box.text, width: f.measure(box.text, s.fontSize, s.letterSpacing) }];
@@ -446,7 +447,7 @@ _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	203	    ir_suffix = ""	   
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	236	def _not_a_project(path):		    """Why this file is not a ps2ui.json, naming the blob case."""
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/ps2ui.py	432	    ap.add_argument("--version", action="version",	        description="Compile, bake and check a ps2ui project.")	                    version="ps2ui %s" % __version__)
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	332	        proj.set_out_override(os.path.join(proj.build_dir, "serve", "ui.uib"))	        self.proj = proj	        # The server renders its own frames; the build does not need to
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	868	def main(argv=None):		    ap = add_arguments(argparse.ArgumentParser(
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	877	def main(argv=None):		    ap = add_arguments(argparse.ArgumentParser(
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	131	            drifted = _differ(_PACKAGED, _CHECKOUT)	        if packaged:	            if drifted:
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	198	    # disagreeing inside the toolchain exit 1, and two copies	    # It is also the asymmetry find_source() already refuses: two copies	    # disagreeing in somebody's project used to get "already there" and
 _facts/cli/ps2ui	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
@@ -507,7 +508,7 @@ _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/cli.py	327	    ee = arena.arena
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/ps2ui.py	262	def cmd_check(args):		    proj = load(args.project)
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/uib.py	493	        raise ValueError(f"{path}: truncated header")	    if len(data) < _HEADER.size:	    (magic, version, feature_flags, cw, ch, n_tex, n_clut, n_cmd, n_focus,
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
-_facts/cli/ps2ui-check	packages/baker/tests/test_baker.py	3399	class TestCheck(unittest.TestCase):		    """ps2ui-check (backlog F22).
+_facts/cli/ps2ui-check	packages/baker/tests/test_baker.py	3443	class TestCheck(unittest.TestCase):		    """ps2ui-check (backlog F22).
 _facts/cli/ps2ui-check	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * rather than wrapping it. */	/* Longest row focus name a list can build: prefix + index + NUL. Only
 _facts/cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
@@ -699,7 +700,7 @@ _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	400	        the 
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	575	                    raise ValueError(f"unknown IR command op: {op}")	                else:	            self.dropped += self._trim_dead_geometry(cmd_first, canvas)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/rounding.py	52	    if not 0 <= v255 <= 255:	    """	        raise ValueError(f"channel {v255} outside 0..255")
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	718	        result = srv.rebuild()	        srv = Server(pipeline=BuildPipeline(proj))	        if srv.uib is None:
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	826	    except ProjectError as exc:	        srv = build_server(args)	        print("ps2ui serve: %s" % exc, file=sys.stderr)
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	835	    except ProjectError as exc:	        srv = build_server(args)	        print("ps2ui serve: %s" % exc, file=sys.stderr)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	209	        out = tuple(tuple(int(v) & 0xFF for v in c) for c in themes)	            return (base,) * n_theme	        if len(out) != n_theme:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	489	def read_uib(path) -> UibFile:		    with open(path, "rb") as fh:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/vendor.py	131	            drifted = _differ(_PACKAGED, _CHECKOUT)	        if packaged:	            if drifted:
@@ -1027,7 +1028,7 @@ _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.pa
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES NOT DO. It replays the command list faithfully, so it		cannot catch the console diverging from that list. F-048 -- the GS
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	233	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
-_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	797	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
+_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	805	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
 _facts/runtime/moving-and-hiding	packages/layout/src/box.js	176	  if (style.display === 'none') return null;	  );	
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	866	/* THE OFFSET IS APPLIED HERE, AT THE SINK, AND NOT BY THE CALLERS.	 * defect would come back. */	 *
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	883	    x += ctx->off_x;	{	    y += ctx->off_y;
@@ -1116,7 +1117,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	587	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	623	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -1130,9 +1131,9 @@ authoring/video-modes	packages/layout/src/aspect.js	33	export function pixelAspe
 authoring/video-modes	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 authoring/video-modes	runtime/ps2ui.h	110	    uint16_t display_aspect_num, display_aspect_den;	     * so a mismatch is detectable rather than merely ugly. */	} ps2ui_header;
 cli/ps2ui-bake	packages/baker/ps2ui_bake/caps.py	77	def check(textures, cluts, slots, screens, caps: dict = None, records=None):		    """Returns (errors, caps). Each error names the cap, the value, and
-cli/ps2ui-bake	packages/baker/tests/test_baker.py	786	    def test_the_formats_own_uint16_count_still_bounds_the_tables(self):		        """What replaced them is not "nothing".
-cli/ps2ui-bake	packages/baker/tests/test_baker.py	2028	    def test_indexed_png_refuses_to_be_resized(self):		        # A quiet fall-back to quantizing is the failure this feature
-cli/ps2ui-bake	packages/baker/tests/test_baker.py	4089	    def test_bake_creates_its_output_directories(self):		        require_ttf()
+cli/ps2ui-bake	packages/baker/tests/test_baker.py	830	    def test_the_formats_own_uint16_count_still_bounds_the_tables(self):		        """What replaced them is not "nothing".
+cli/ps2ui-bake	packages/baker/tests/test_baker.py	2072	    def test_indexed_png_refuses_to_be_resized(self):		        # A quiet fall-back to quantizing is the failure this feature
+cli/ps2ui-bake	packages/baker/tests/test_baker.py	4133	    def test_bake_creates_its_output_directories(self):		        require_ttf()
 cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	629	def check_blob(uib, budget=None, allow_dead: int = 0,		               allow_hairline: int = 0) -> Report:
 cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 cli/ps2ui-check	tools/check-blobs.sh	83	    PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.check \\	    # shellcheck disable=SC2086	        "$repo/$blob" $flags

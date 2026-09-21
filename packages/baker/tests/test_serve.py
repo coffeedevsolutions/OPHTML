@@ -249,6 +249,36 @@ class TestFrames(unittest.TestCase):
         self.assertEqual(srv.frame(), buf.getvalue(),
                          "the server has diverged from --preview")
 
+    def test_the_frame_on_screen_is_not_the_frame_that_was_compared(self):
+        """THE PARITY TEST ABOVE FORCES `framebuffer`, AND SO DOES THE
+        SELF-TEST. The page does not: its default is `authored`, which
+        applies the blob's display aspect, so for a 4:3 blob the file
+        is 640x448 and the browser shows 597x448.
+
+        Both are right and the difference is the pixel aspect a
+        television applies -- but `ok - the frame is byte-identical to
+        --preview` said neither which frame nor that there were two,
+        so a reader who diffed the browser against build/preview.png
+        got two pictures and a line claiming they were one (F39). The
+        line names the framebuffer now; this is the fact behind it,
+        which nothing in this file recorded.
+        """
+        from PIL import Image
+        u = blob(OPLENV)
+        srv = serve.Server(uib=u)
+        self.assertEqual(srv.state.aspect, "authored",
+                         "the page's default is what makes the sizes differ")
+
+        on_screen = Image.open(io.BytesIO(srv.frame())).size
+        srv.apply({"aspect": "framebuffer"})
+        compared = Image.open(io.BytesIO(srv.frame())).size
+
+        self.assertEqual(compared, (640, 448))
+        self.assertEqual(on_screen[1], compared[1], "only the width is resampled")
+        self.assertNotEqual(on_screen[0], compared[0],
+                            "if these ever match, the sentence the quickstart "
+                            "and the previewer page now carry is wrong")
+
     def test_a_cached_frame_is_the_frame(self):
         """A cache that changes the answer is not a cache."""
         u = blob(OPLENV)

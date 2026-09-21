@@ -225,6 +225,42 @@ without moving this line.
   errors also carry a line number now; they were the only messages in
   the compiler without one.
 
+- **`border-radius` costs a flat +8 records a box and nothing said so.**
+  A square box is one record; a rounded one is a nine-cell patch. That
+  is the number `ps2ui check` budgets against and the one a data-heavy
+  screen runs out of, so a reader authoring forty rows should be able
+  to find the price before paying it. Measured on a scratch project: a
+  screen background, a box and a text child are 3 records square and
+  11 rounded, and eight of those boxes are 17 and 81.
+
+  **Two things do not scale with the box count**, and neither was
+  written down either. A radius at half the shorter side is a pill,
+  the middle row of cells has nowhere to go, and the cost is 5 rather
+  than 8. And the corner mask is one texture per distinct *radius*,
+  shared across boxes and independent of colour, because the patch key
+  is geometry alone: a `(2r+3)` square in PSMT8, 19x19 for `8px`,
+  charged 8 KiB of VRAM whatever the radius, that being the smallest
+  page allocation.
+
+  The CSS reference carries it beside the property. This is not an
+  argument against rounded corners: it is the ordinary thing a console
+  UI wants, and the price is knowable.
+
+- **The previewer and `build/preview.png` are different sizes, and the
+  self-test's line read as a denial of it.** `ps2ui serve` applies the
+  blob's display aspect by default, so a 4:3 blob is 640x448 in the
+  file and 597x448 on the page. Both are right and the difference is
+  the pixel aspect a television applies — but the self-test forces
+  `framebuffer` before comparing, and printed `ok - the frame is
+  byte-identical to --preview`, which a reader diffing the browser
+  against the file reads as a claim about the picture in front of
+  them.
+
+  The line names the frame now: `ok - the framebuffer frame is
+  byte-identical to --preview`. The quickstart and the previewer page
+  each gain a short paragraph naming both sizes and pointing at video
+  modes, where the stretch is explained.
+
 ## 0.7.0 — 2026-09-17
 
 `.uib` format **version 7**, unchanged from the release below.

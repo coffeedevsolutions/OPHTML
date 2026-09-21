@@ -656,6 +656,50 @@ class TestFlattener(unittest.TestCase):
             by_tint[r.rgba] += 1
         self.assertEqual(by_tint, {(1, 1, 1, 0x80): 9, (4, 4, 4, 0x80): 8})
 
+    def test_what_a_rounded_corner_costs(self):
+        """THE NUMBER THE CSS REFERENCE NOW QUOTES (F38).
+
+        A rounded box is a nine-cell patch, so `border-radius` turns
+        one record into nine and the cost is a flat +8 whatever the
+        radius. The page says that because a reader budgeting a
+        data-heavy screen against `ps2ui check` needs to know the
+        price before authoring forty rows, and nothing said it.
+
+        The exceptions are the other half of the sentence: a cell
+        whose width or height comes out at zero is skipped, so a
+        radius at half the shorter side drops the middle row and costs
+        +5; and the patch is keyed on geometry alone, so two radii are
+        two textures and two colours at one radius are one.
+        """
+        def rect(**kw):
+            base = {"op": "rect", "x": 0, "y": 0, "w": 60, "h": 40,
+                    "fill": [1, 1, 1, 255], "borderWidth": 0,
+                    "borderColor": None, "radius": 0,
+                    "state": "always", "focusId": None}
+            base.update(kw)
+            return base
+
+        def flatten(*rects):
+            f = Flattener(tiny_ir(list(rects)), font_paths())
+            f.run()
+            return f
+
+        self.assertEqual(len(flatten(rect()).records), 1, "square is one quad")
+        for radius in (2, 4, 8, 16):
+            f = flatten(rect(radius=radius))
+            self.assertEqual(len(f.records), 9, "radius %d" % radius)
+            self.assertEqual(len(f.textures), 1)
+
+        # h // 2 == radius: the middle row of cells has zero height.
+        self.assertEqual(len(flatten(rect(h=40, radius=20)).records), 6)
+
+        # Geometry keys the patch; colour does not.
+        two_colours = flatten(rect(radius=8),
+                              rect(y=60, radius=8, fill=[9, 9, 9, 255]))
+        self.assertEqual(len(two_colours.textures), 1)
+        two_radii = flatten(rect(radius=8), rect(y=60, radius=16))
+        self.assertEqual(len(two_radii.textures), 2)
+
     def test_the_ring_carries_the_border_role_not_the_fill_role(self):
         """One element, two roles. `background: var(--panel); border:
         2px solid var(--edge)` is a chip whose interior and outline a
