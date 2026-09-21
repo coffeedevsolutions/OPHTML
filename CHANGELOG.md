@@ -48,6 +48,49 @@ without moving this line.
 
 ### Fixed
 
+- **Three of the seven most-cited rows named the wrong lines, and the
+  displacement gives each one away.** F42 made 517 line numbers
+  readable that no checker had ever read; F43 corrected the ones a
+  screen could find and left the rest pinned. Reading the seven rows
+  that carry the most of them found 12 wrong members out of 59.
+
+  `html.attributes` claims the compiler reads exactly thirteen
+  attributes and cited eleven places in `box.js`. Nine of them were
+  **uniformly 8 lines low**, landing on comments and on `if
+  (!onlyText) {`, with `data-keep` at 185 correct because the eight
+  inserted lines sit between it and the rest. It also missed
+  `palettize` at 254 outright. `constants.table` had two members
+  **uniformly 12 low**, one of them pointing at `PS2UI_ERR_FEATURES`
+  while claiming to name `PS2UI_ARENA_ALIGN`. `focus.runtime` cited a
+  mid-sentence line from `ps2ui_render`'s comment about there being no
+  `ps2ui_overlay_push`, and gave neither `ps2ui_focus_name` nor
+  `ps2ui_focus_set` a header citation at all.
+
+  The other four are exact: `integrate.make.pairing`'s thirteen
+  `$(error)` guards, `html.errors`'s ten `r.error` call sites and two
+  throws, `css.syntax.errors` and `tex.contract`, where every member
+  lands on precisely what its annotation names.
+
+- **The annotation rule is widened as far as it goes, which is not
+  far.** Every bare identifier in an annotation made only of backticked
+  tokens is checked now, paired with its member when the counts match,
+  so `fontgen.py:42,51-76 (`NO_SUBSTITUTION`, `build_kerning`)` holds
+  each name to the right range. 60 citations checked before, 73 after,
+  **no new faults** — the widening is for correctness, not yield.
+
+  **The literal half was measured and left alone.** 14 annotations are
+  a backticked token that is not an identifier. Requiring those to
+  appear inside the cited lines flags 8 of the 14, and all 8 are the
+  rule's fault: a literal annotation is a normalised quotation, with
+  alignment collapsed (`CC ?= cc` against `CC      ?= cc`), a wrapper
+  elided, or a trailing comma closed into a paren. A check wrong about
+  more than half of what it reports is the failure this file exists to
+  prevent.
+
+  The ceiling is not the rule. 1484 citations carry 161 parentheticals
+  between them, so more coverage means writing annotations, which is
+  authoring rather than checking.
+
 - **Fifty-eight citations named the line before the thing they meant,
   and the ranges prove it was drift rather than sloppiness.** 55 of the
   1681 pinned records started on a line with no content: 25 blank, 30

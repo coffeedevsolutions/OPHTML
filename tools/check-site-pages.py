@@ -215,7 +215,28 @@ BARE_CONT = re.compile(r"(?<![\w/.-]):(\d+)(?:-\d+)?")
 # false. It is a weaker net on purpose -- `flex.js:515 (`whiteSpace`)`
 # pointed into `justifyOffsets` while `whiteSpace` sat 390 lines back
 # at 125, and only a hand reading caught that one.
-CITE_ANNOT = re.compile(r"\s*\(`([A-Za-z_][\w.]*)`\)")
+#
+# EVERY BARE IDENTIFIER IN A TOKENS-ONLY ANNOTATION, NOT JUST A LONE
+# ONE. `fontgen.py:42,51-76 (`NO_SUBSTITUTION`, `build_kerning`)` names
+# one construct per member and the narrow form read neither. When the
+# identifiers and the members come in equal numbers they pair off in
+# order; otherwise each is held to the last member's end. 60 citations
+# checked before, 65 after, and no new findings -- the widening is for
+# correctness, not for yield.
+#
+# AND LITERAL TOKENS ARE LEFT ALONE, MEASURED. 14 annotations are a
+# backticked token that is not an identifier -- `CC ?= cc`,
+# `0x40,0x80,0xc0`, `sub.add_parser("fontgen")`. Requiring those to
+# appear inside the cited lines flags 8 of the 14, AND ALL EIGHT ARE
+# THE RULE'S FAULT: the corpus writes a literal annotation as a
+# normalised quotation, with alignment collapsed (`CC      ?= cc`), a
+# wrapper elided (`_HEADER = struct.Struct("<I...")`) or a trailing
+# comma closed into a paren. Collapsing whitespace rescues three and
+# leaves five. A check that is wrong about more than half of what it
+# reports is the failure mode this file exists to prevent, so the
+# literal half stays unchecked and this says why.
+CITE_ANNOT = re.compile(r"\s*\(((?:`[^`]+`(?:\s*(?:,|and|/|\+)\s*)?)+)\)")
+IDENTIFIER = re.compile(r"^[A-Za-z_][\w.]*$")
 IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
 
@@ -595,22 +616,27 @@ def main(argv):
             members = cite_members(m)
             a = CITE_ANNOT.match(cells[2], m.end())
             if a:
-                first = int(m.group(2))
-                last = int(m.group(3)) if m.group(3) else first
-                if 1 <= first <= last <= len(lines):
-                    n_annot += 1
-                    want = a.group(1).rsplit(".", 1)[-1]
-                    if not any(want in x for x in lines[:last]):
+                names = [t for t in re.findall(r"`([^`]+)`", a.group(1))
+                         if IDENTIFIER.match(t)]
+                ends = [b for _a, b, _t in members if b <= len(lines)]
+                if names and ends:
+                    pairs = (list(zip(names, ends)) if len(names) == len(ends)
+                             else [(t, ends[-1]) for t in names])
+                    for name, end in pairs:
+                        n_annot += 1
+                        want = name.rsplit(".", 1)[-1]
+                        if any(want in x for x in lines[:end]):
+                            continue
                         # SAY WHETHER IT IS LATE OR ABSENT. An
                         # annotation naming something the file does not
                         # contain at all is a different fault from one
                         # naming something further down, and `next()`
                         # over an empty match raises rather than says so.
                         at = [k + 1 for k, x in enumerate(lines) if want in x]
-                        bad("%s: %s:%d-%d is annotated `%s`, which %s" %
-                            (fid, path, first, last, a.group(1),
-                             "does not appear until line %d" % at[0] if at
-                             else "is nowhere in the file"))
+                        bad("%s: %s cited through line %d is annotated `%s`, "
+                            "which %s" % (fid, path, end, name,
+                                          "does not appear until line %d" % at[0]
+                                          if at else "is nowhere in the file"))
             for first, last, token in members:
                 if not (1 <= first <= last <= len(lines)):
                     # SAY WHICH OF THE THREE WAYS IT IS WRONG. The
