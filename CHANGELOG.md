@@ -48,7 +48,7 @@ without moving this line.
 
 ### Fixed
 
-- **Twenty-eight citations named the line before the thing they meant,
+- **Fifty-eight citations named the line before the thing they meant,
   and the ranges prove it was drift rather than sloppiness.** 55 of the
   1681 pinned records started on a line with no content: 25 blank, 30
   nothing but punctuation. Every one of the 24 blank-start ranges was
@@ -61,11 +61,21 @@ without moving this line.
   *previous* function.
 
   A citation that starts on a blank line now fails, with the line the
-  content actually begins on in the message. **Blank only, not
-  punctuation**: `{` opens a JSON file at line 1 and `/**` opens a doc
-  comment, and both are the honest first line of what they cite, so the
-  wider rule would have been wrong about seven citations to buy the
-  same twenty-four.
+  content actually begins on in the message, **in both places a
+  citation lives**: the guard shipped on facts rows alone at first, and
+  a `repo:` link could still pin a record with an empty text cell
+  through the other door. **Blank only, not punctuation**: `{` opens a
+  JSON file at line 1 and `/**` opens a doc comment, and both are the
+  honest first line of what they cite, so the wider rule would have
+  been wrong about seven citations to buy the same twenty-four.
+
+  **A mechanical `+1` is not a reading, and two of these needed one.**
+  Where the range carries its own length the correction proves itself;
+  two single-line members had no length to be right about, and moving
+  them to the next line landed them on nothing. `cli.dev.output-lines`
+  listed six printed lines and cited six places that were not print
+  sites; they are at 127, 163, 167, 170, 194 and 183. `aspect.flags.project`
+  cited prose in an unrelated docstring. Both are read now.
 
   The rule turned out to fence the historical fault and not just the
   shape. Inserting one line above the list block makes it fire on five
@@ -78,15 +88,21 @@ without moving this line.
   catch a citation that comes to name a different line while the text
   at that number stays the same. Simulating 1, 2 and 3-line insertions
   at 25 points in every cited file -- 69810 pairs -- the text test
-  misses 110 of them, 0.16%, and the window test catches all 110.
+  misses 110 of them, 0.16%, and the window test catches all 110. The
+  misses are 57 blank-line pins and 53 punctuation ones, so it is not a
+  blank-line problem with a blank-line fix.
 
-  It also fires on 144 of 1643 in-place edits of the line *above* a
-  citation, 8.8%, where the citation is still correct. That false
-  report cannot be relocated away, because the text repeats by
-  construction, so it costs a contributor a hand fix. 110 rare catches
-  against 144 certain false alarms is a bad trade. The measurement and
-  the verdict live in `drifted_from` so the next reader does not have
-  to re-derive them to turn the idea down.
+  **The same run on the tree that ships misses nothing: 0 of 69714.**
+  The corrections above emptied the population, so the window test is
+  being offered in exchange for a benefit that no longer exists. And
+  the cost was mislabelled the first time: comparing the window fires
+  on 1641 of 1641 in-place edits of the line *above* a citation, 100%,
+  as it must, since that line is in the comparison. Gating it on a
+  pinned text that repeats brings that to 97 of 1641, and those are the
+  ones relocation cannot quietly resolve. Nothing to gain against
+  either number. The measurement and the verdict live in `drifted_from`
+  so the next reader does not have to re-derive them to turn the idea
+  down.
 
 - **424 line numbers in the facts library named no file, and one of
   them cited three lines past the end of one.** A run of citations was

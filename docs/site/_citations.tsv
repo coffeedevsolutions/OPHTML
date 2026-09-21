@@ -396,7 +396,7 @@ _facts/authoring/lists	runtime/ps2ui.h	821	/* The item index displayed in row `r
 _facts/authoring/lists	runtime/ps2ui.h	822	 * the end of the data and should be blanked. This is the loop the app	/* The item index displayed in row `row`, or -1 when that row is past	 * runs after every move to refill the slots. */
 _facts/authoring/lists	runtime/ps2ui.h	826	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
 _facts/authoring/lists	runtime/ps2ui.h	830	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
-_facts/authoring/project-file	CHANGELOG.md	807	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/project-file	CHANGELOG.md	823	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/project-file	README.md	136	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
 _facts/authoring/project-file	README.md	657	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
@@ -554,9 +554,8 @@ _facts/authoring/video-modes	packages/baker/ps2ui_bake/preview.py	126	def render
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/project.py	47	    "mode": None,	    "previewDisplay": None,	    "canvas": None,
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/project.py	209	    def set_out_override(self, out):		        """Point the build at a different blob, and move its
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/ps2ui.py	148	    """	    what `Project.fonts_path` always claimed to arrange.	    if project_fonts(proj):
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/ps2ui.py	181	        if proj.mode:	        cmd += font_args(proj)	            cmd += ["--mode", proj.mode]
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/ps2ui.py	347	    It also named screens[0], which is not a recommendation -- it is		    whichever screen the project happens to list first, offered as if it
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/ps2ui.py	438	    b.add_argument("--mode", help="override the project's video mode")	    b.add_argument("project", nargs="?", default="ps2ui.json")	    b.add_argument("-o", "--out", help="override the project's output blob; "
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/quads.py	523	    def run_screens(self, named_irs) -> None:		        """Flatten several IRs into one blob (backlog F4).
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	66	ASPECTS = ("framebuffer", "authored", "force-4:3", "force-16:9")	OPS = {0: "quad", 1: "texquad", 2: "scissor_push", 3: "scissor_pop"}	
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	119	        self.aspect = "authored"	        self.theme = 0	        # Keyed per screen, for the same reason focus is: two screens
@@ -586,7 +585,7 @@ _facts/authoring/video-modes	runtime/ps2ui.c	1493	uint32_t ps2ui_pixel_aspect_x1
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
-_facts/authoring/vram-budget	CHANGELOG.md	807	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/vram-budget	CHANGELOG.md	823	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	595	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	600	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	624	    if note and not ok:	    # look better tested than it is.	        for line in note:
@@ -757,15 +756,16 @@ _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	86	const [htmlPath, css
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	90	if (minFontSize !== null) {	const options = { fontDir, fontManifest, focusWrap };	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	91	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-dev: --min-font-size takes a positive integer');
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	99	  // floor and exited 0, where `ps2ui build` printed none. Same shape	  // opl-env (minFontSize 11, strict) printed 44 warnings at the 14px	  // as ps2ui-layout.js, which had it right.
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	113	  options.canvasW = parseInt(m[1], 10);	  if (!m) usage(2);	  options.canvasH = parseInt(m[2], 10);
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	122	  let ir;	  const started = Date.now();	  try {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	127	      console.error(`\\x1b[31mlayout error:\\x1b[0m ${m}`);	    for (const m of err.cssErrors ?? [err.message]) {	    }
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	131	  // --strict fails the build the way ps2ui-layout does: warnings are a	  }	  // failed compile, so nothing is baked and --once exits 1. In watch
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	142	  // screen called `ui`, and ps2ui_screen_set(&ui, "saves") against it	  // was watching -- so every blob this tool produced had exactly one	  // failed. The dev blob has to be a drop-in for the built one or the
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	146	  writeFileSync(irPath, JSON.stringify(ir, null, 1));	  const irPath = join(outDir, `${basename(htmlPath, '.html')}.json`);	
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	153	  // Bake against the manifest the layout was MEASURED against. Without	  if (palettize) bakeArgs.push('--palettize-images');	  // this the baker falls back to its own default font directory, which
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	158	  const bake = spawnSync('python3', bakeArgs, {	  if (fontManifest) bakeArgs.push('--fonts', fontManifest);	    stdio: ['ignore', 'inherit', 'inherit'],
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	162	  if (bake.status !== 0) {	  });	    console.error('\\x1b[31mbake failed\\x1b[0m');
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	174	const ok = build();		if (once) process.exit(ok ? 0 : 1);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	163	    console.error('\\x1b[31mbake failed\\x1b[0m');	  if (bake.status !== 0) {	    return false;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	167	  console.error(`\\x1b[32mbuilt\\x1b[0m in ${Date.now() - started}ms — `	  const nWarn = ir.warnings.length;	    + `${ir.commands.length} commands, ${ir.focus.nodes.length} focusables, `
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	170	  for (const w of ir.warnings) console.error(`  warning: ${w}`);	    + `${nWarn} warning${nWarn === 1 ? '' : 's'} -> ${outDir}/preview.png`);	  return true;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	183	    console.error(`\\x1b[2m${what} changed\\x1b[0m`);	  timer = setTimeout(() => {	    build();
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	194	console.error(`watching ${dirname(htmlPath)} — ctrl-c to stop`);	}	
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	17	const VERSION = JSON.parse(	// disagrees.	  readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	40	for (let i = 0; i < args.length; i++) {		  switch (args[i]) {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	43	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
@@ -850,13 +850,13 @@ _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        
 _facts/project/changelog	CHANGELOG.md	17	### Added		
 _facts/project/changelog	CHANGELOG.md	19	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
 _facts/project/changelog	CHANGELOG.md	49	### Fixed		
-_facts/project/changelog	CHANGELOG.md	221	- **`ps2ui build` before `ps2ui fontgen` named a directory inside the		  npm package as the place your font metrics belong.** With no project
-_facts/project/changelog	CHANGELOG.md	243	- **The build command `vendor-runtime --starter` printed could not be		  followed.** It said to put the blob beside the four files and then
-_facts/project/changelog	CHANGELOG.md	258	- **`--starter` was the answer to the console half and no page a		  stranger reads mentioned it.** Zero occurrences across the
-_facts/project/changelog	CHANGELOG.md	277	- **The Installation page did not mention that `pip install ophtml`		  fails on a current macOS or Debian box.** PEP 668's
-_facts/project/changelog	CHANGELOG.md	434	## 0.7.0 — 2026-09-17		
-_facts/project/changelog	CHANGELOG.md	644	  It read as correct because three of the five justifications are		  symmetric: `center`, `space-between` and `space-around` distribute
-_facts/project/changelog	CHANGELOG.md	836	  is the fourth hand-maintained settings-to-argv list in the tree and	  somebody remembers to test it — which is how `strict` was found. This	  three of the four already carried a comment about a bug of this
+_facts/project/changelog	CHANGELOG.md	237	- **`ps2ui build` before `ps2ui fontgen` named a directory inside the		  npm package as the place your font metrics belong.** With no project
+_facts/project/changelog	CHANGELOG.md	259	- **The build command `vendor-runtime --starter` printed could not be		  followed.** It said to put the blob beside the four files and then
+_facts/project/changelog	CHANGELOG.md	274	- **`--starter` was the answer to the console half and no page a		  stranger reads mentioned it.** Zero occurrences across the
+_facts/project/changelog	CHANGELOG.md	293	- **The Installation page did not mention that `pip install ophtml`		  fails on a current macOS or Debian box.** PEP 668's
+_facts/project/changelog	CHANGELOG.md	450	## 0.7.0 — 2026-09-17		
+_facts/project/changelog	CHANGELOG.md	660	  It read as correct because three of the five justifications are		  symmetric: `center`, `space-between` and `space-around` distribute
+_facts/project/changelog	CHANGELOG.md	852	  is the fourth hand-maintained settings-to-argv list in the tree and	  somebody remembers to test it — which is how `strict` was found. This	  three of the four already carried a comment about a bug of this
 _facts/project/internals	docs/PLAN.md	1	# ps2ui Foundation Plan		
 _facts/project/internals	docs/architecture.md	1	# ps2ui — architecture and decisions		
 _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the streaming sitting		
@@ -1377,8 +1377,8 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/moving-and-hiding	CHANGELOG.md	709	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1243	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
+_facts/runtime/moving-and-hiding	CHANGELOG.md	725	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1259	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
 _facts/runtime/moving-and-hiding	README.md	435	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
@@ -1506,7 +1506,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	793	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	809	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
