@@ -98,9 +98,24 @@ without moving this line.
 
   It is a weaker net on purpose. `flex.js:515 (`whiteSpace`)` pointed
   into `justifyOffsets` while `whiteSpace` sat 390 lines back, it
-  passes this rule, and only a hand reading caught it. 367 of the newly
-  readable members are pinned and have not been read by anyone; that is
-  a filed row, not a claim of verification.
+  passes this rule, and only a hand reading caught it. Two more like it
+  turned up in review: `css.white-space` and `text.white-space.values`
+  both cited `flex.js:73-80` and `:408`, the margin helpers and a font
+  resolve, for a fact about `white-space`, with `flex.js:73` pinned
+  green on a closing brace.
+
+  367 of the newly readable members are pinned and have not been read
+  by anyone. **The mechanical screens over them were reported clean and
+  were not.** They had been run over a global set of `(path, line)`
+  pairs, so a member two rows also cited was counted once and dropped
+  from the population, which hid `ps2ui.c:1705` starting on a closing
+  brace two lines before the function it names. Read off the records
+  instead, 25 first lines are blank and 30 are punctuation only, and 20
+  of those 30 are one cluster of list-API citations each naming the
+  brace that closes the previous function. Those pins hold the text
+  `}`, which is not unique in its file, so `--fix` can never move them:
+  the drift is invisible and unrepairable at once. All of that is a
+  filed row, not a claim of verification.
 
 - **27 line numbers in the facts library were pointing at the wrong
   line, and nothing could see them.** `check-site-pages.py` pins a

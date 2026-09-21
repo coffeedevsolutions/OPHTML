@@ -490,7 +490,6 @@ def main(argv):
     # citation is written differs. Keyed on the first line of a range
     # exactly as a repo: link is, so a range moves as a unit.
     n_facts = 0
-    n_bare = 0
     n_annot = 0
     facts_drift = []
     facts_text = {}
@@ -501,7 +500,6 @@ def main(argv):
         # the source cell is a member that named no path.
         rest = FACTS_CITE.sub(lambda m: " " * len(m.group(0)), cells[2])
         for m in BARE_CONT.finditer(rest):
-            n_bare += 1
             bad("%s: %s names no path -- write it as `<path>%s`, because "
                 "a member the checker cannot read is a member nobody has "
                 "read" % (fid, m.group(0), m.group(0)))
@@ -698,8 +696,21 @@ def main(argv):
                    % (n_repo, n_pinned))
         oks.append("ok - %d facts-row source citations checked against "
                    "_citations.tsv" % n_facts)
-        oks.append("ok - every source-cell member names its path; %d "
-                   "annotation(s) found in the lines they name" % n_annot)
+        # SAY WHAT RAN, NOT WHAT WOULD HAVE BEEN NICER TO RUN.
+        # This line used to read "every source-cell member names its
+        # path; N annotation(s) found in the lines they name", and both
+        # halves overclaimed. A comma tail names no path -- 205 members
+        # on this tree are written `css.js:763, 768, 781` -- and they
+        # are read, so the rule is that no member is written as a bare
+        # `:NN`. And *found in the lines they name* is the `CITE_ANNOT`
+        # rule that was REJECTED above for being half wrong about its
+        # own findings; five annotations here, `cmd_check` among them,
+        # are not in the lines they name and are correctly left alone.
+        # Review of #161 found the sentence describing the discarded
+        # rule while the code ran the narrower one.
+        oks.append("ok - no source-cell member is written as a bare `:NN`; "
+                   "%d annotation(s) name something the file introduces "
+                   "at or before the lines they cite" % n_annot)
 
     # 5. voice, 6. images, 7. word budget
     for pid, text in texts.items():
