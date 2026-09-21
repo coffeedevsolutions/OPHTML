@@ -396,6 +396,36 @@ without moving this line.
   decision rather than a side effect: the split moved 11 release / 17
   tree to 10 / 18, exactly the one banner whose meaning changed.
 
+- **And then it restated five of the open section's twenty-four
+  entries.** Fixing the version the page named did not fix the coverage
+  behind it. The page's own sentence promised only that every bullet on
+  it had an entry in the file, so it was true with five bullets and
+  would have stayed true with one: the claim was written about the
+  direction nothing could get wrong. F41(a) found the gap, F42 widened
+  it, and both filed it rather than fixing it because those changes were
+  about the checker.
+
+  The section is restated in full now, twenty-five bullets for
+  twenty-five entries including this one, and the promise is rewritten
+  to say "one bullet here for each entry there" so the count is the
+  claim. The twenty-three Fixed entries split on the page by who is
+  affected rather than by kind, because ten of them changed only the
+  checker that reads these pages and no compiler, runtime or format
+  behaviour, and a reader deciding whether to upgrade should not have to
+  work that out entry by entry.
+
+  Adding the entry you are reading moved every line below it, and the
+  relocation turned up a second fault in the same facts file. The row
+  behind the Earlier releases table cited the 0.7.0, 0.6.0 and 0.5.0
+  headings for a table whose three rows are 0.5.0, 0.4.0 and 0.3.0, and
+  two of its three numbers had come to rest on prose in the middle of a
+  release. It was green the whole time: a `--pin` run had recorded the
+  text those lines held by then, and the drift test kept them on it
+  faithfully ever after. **A pin proves a line has not moved. It does
+  not prove the line was the right one.** The row now cites the three
+  headings, the three format paragraphs and the four entries its
+  headlines restate, and each was read before it was written down.
+
 - **A comma list was one citation instead of several, so
   `runtime/ps2ui.h:653,652,660,668,704,802,806` pinned 653 and left six
   line numbers unread.** 122 members across 69 citations in 13 files
