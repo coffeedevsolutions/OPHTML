@@ -1,6 +1,6 @@
 # page	repo path	line	text of that line when pinned	line before	line after
 # Written by tools/check-site-pages.py --pin. Do not edit by hand.
-_facts/README	packages/layout/src/box.js	215	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
+_facts/README	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
 _facts/README	runtime/ps2ui.c	1398	{	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)	    uint32_t i;
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	520	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	553	def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,		              allow_hairline: int = 0) -> None:
@@ -16,11 +16,11 @@ _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	78	  options.lin
 _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	90	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  const ir = compileFiles(positional[0], positional[1], options);	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
 _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	106	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
 _facts/authoring/crt-linter	packages/layout/src/box.js	99	  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',	const KNOWN_DATA_ATTRS = new Set([	  'data-tex-slot', 'data-repeat',
-_facts/authoring/crt-linter	packages/layout/src/box.js	196	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
-_facts/authoring/crt-linter	packages/layout/src/index.js	222	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
-_facts/authoring/crt-linter	packages/layout/src/index.js	224	  // in at the index it would have painted at. A data-slot draws no	  // forLint, not commands: it is the same list with slot text spliced	  // static command, so linting `commands` checked every colour in the
-_facts/authoring/crt-linter	packages/layout/src/index.js	227	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
-_facts/authoring/crt-linter	packages/layout/src/index.js	233	      if (!COLOUR_LINTS.has(l.rule)) {	      const line = `${l.rule}: ${l.message}`;	        if (seen.has(line)) continue;
+_facts/authoring/crt-linter	packages/layout/src/box.js	201	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
+_facts/authoring/crt-linter	packages/layout/src/index.js	260	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/authoring/crt-linter	packages/layout/src/index.js	262	  // in at the index it would have painted at. A data-slot draws no	  // forLint, not commands: it is the same list with slot text spliced	  // static command, so linting `commands` checked every colour in the
+_facts/authoring/crt-linter	packages/layout/src/index.js	265	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
+_facts/authoring/crt-linter	packages/layout/src/index.js	271	      if (!COLOUR_LINTS.has(l.rule)) {	      const line = `${l.rule}: ${l.message}`;	        if (seen.has(line)) continue;
 _facts/authoring/crt-linter	packages/layout/src/lint.js	7	// statically. Lints are warnings, not errors — a homebrew author with an	// visible in a desktop browser preview, so the compiler checks for them	// LCD and component cables may ignore all of them deliberately.
 _facts/authoring/crt-linter	packages/layout/src/lint.js	12	export const DEFAULT_LINT_OPTIONS = Object.freeze({		  canvasW: 640,
 _facts/authoring/crt-linter	packages/layout/src/lint.js	29	function luminance([r, g, b]) {		  const lin = (v) => {
@@ -48,45 +48,45 @@ _facts/authoring/crt-linter	packages/layout/src/lint.js	273	        rule: 'focus
 _facts/authoring/crt-linter	packages/layout/src/lint.js	277	    if (x + w > safe.x1 + opt.safeInsetX || y + h > safe.y1 + opt.safeInsetY) {	    }	      warnings.push({
 _facts/authoring/crt-linter	packages/layout/src/lint.js	279	        rule: 'overscan',	      warnings.push({	        message: `focusable "${node.name}" extends past the action-safe area`,
 _facts/authoring/crt-linter	packages/layout/src/paint.js	156	      ...(box.nocontrast ? { nocontrast: true } : {}),	      focusId: box.focusId,	    });
-_facts/authoring/css	packages/layout/src/box.js	171	  if (style.display === 'none') return null;	  );	
-_facts/authoring/css	packages/layout/src/box.js	368	      if (cbox) {	      const cbox = buildBoxTree(child, sheet, style, focusStyle, warnings, scope, env);	        cbox.parent = box;
-_facts/authoring/css	packages/layout/src/box.js	388	  if (box.children.length >= 2 && !style.flexDirectionDeclared) {	  // wrapper is never asked.	    // Collected, not thrown. Migrating a document written against the
+_facts/authoring/css	packages/layout/src/box.js	176	  if (style.display === 'none') return null;	  );	
+_facts/authoring/css	packages/layout/src/box.js	373	      if (cbox) {	      const cbox = buildBoxTree(child, sheet, style, focusStyle, warnings, scope, env);	        cbox.parent = box;
+_facts/authoring/css	packages/layout/src/box.js	393	  if (box.children.length >= 2 && !style.flexDirectionDeclared) {	  // wrapper is never asked.	    // Collected, not thrown. Migrating a document written against the
 _facts/authoring/css	packages/layout/src/css.js	41	export const GEOMETRY_PROPS = new Set([		  'display', 'flex-direction', 'flex-wrap', 'justify-content', 'align-items',
 _facts/authoring/css	packages/layout/src/css.js	48	  'overflow', 'position',	  'margin-left', 'border-width', 'font-size', 'line-height', 'white-space',	]);
 _facts/authoring/css	packages/layout/src/css.js	51	const INHERITED_PROPS = new Set([		  'color', 'fontSize', 'fontWeight', 'lineHeight', 'textAlign', 'whiteSpace',
 _facts/authoring/css	packages/layout/src/css.js	72	export const INITIAL_STYLE = Object.freeze({	// bug throw in strict mode instead of corrupting the build.	  display: 'flex',
-_facts/authoring/css	packages/layout/src/css.js	143	function parseCompound(src) {		  // e.g. "div.tile#first:focus"
-_facts/authoring/css	packages/layout/src/css.js	153	    else throw new Error(`css: unsupported selector syntax near "${m[5]}" in "${src}"`);	    else if (m[4]) compound.focus = true;	  }
-_facts/authoring/css	packages/layout/src/css.js	154	  }	    else throw new Error(`css: unsupported selector syntax near "${m[5]}" in "${src}"`);	  return compound;
-_facts/authoring/css	packages/layout/src/css.js	158	export function parseSelector(src) {		  const parts = src.trim().split(/\\s+/).map(parseCompound);
-_facts/authoring/css	packages/layout/src/css.js	163	    b += p.classes.length + (p.focus ? 1 : 0);	    if (p.id) a++;	    if (p.tag) c++;
-_facts/authoring/css	packages/layout/src/css.js	278	    if (r.peek() === '@') {	    if (r.eof()) break;	      // One at-rule, @theme. The rest are skipped with a warning: no
-_facts/authoring/css	packages/layout/src/css.js	580	function lengthOrThrow(value, prop, line) {		  const l = parseLength(value);
-_facts/authoring/css	packages/layout/src/css.js	585		}	function pxOrThrow(value, prop, line) {
-_facts/authoring/css	packages/layout/src/css.js	586	function pxOrThrow(value, prop, line) {		  const l = lengthOrThrow(value, prop, line);
-_facts/authoring/css	packages/layout/src/css.js	611	 * gates ask `!== 'nowrap'`, which turned every typo into "wrap".	 * value -- wrapped not at all; fixing that (B4's sibling) made both	 * Neither shape is acceptable and only refusing the value fixes both.
-_facts/authoring/css	packages/layout/src/css.js	624	const KEYWORDS = {	 */	  'flex-direction': {
-_facts/authoring/css	packages/layout/src/css.js	625	  'flex-direction': {	const KEYWORDS = {	    ok: ['row', 'row-reverse', 'column', 'column-reverse'],
-_facts/authoring/css	packages/layout/src/css.js	704	    case 'display':	  switch (prop) {	      if (value !== 'flex' && value !== 'none') {
-_facts/authoring/css	packages/layout/src/css.js	736	    case 'flex': {	      style.flexBasis = lengthOrThrow(value, prop, line); return true;	      // flex: <grow> [<shrink>] [<basis>] — the common shorthands.
-_facts/authoring/css	packages/layout/src/css.js	746	    case 'gap': {	    }	      const parts = splitSpaces(value).map((v) => pxOrThrow(v, prop, line));
-_facts/authoring/css	packages/layout/src/css.js	760	    case 'padding': {	    case 'max-height': style.maxHeight = lengthOrThrow(value, prop, line); return true;	      const parts = expandBox(splitSpaces(value).map((v) => pxOrThrow(v, prop, line)));
-_facts/authoring/css	packages/layout/src/css.js	782	    case 'border': {	    }	      // border: <width> solid <color>
-_facts/authoring/css	packages/layout/src/css.js	815	    case 'border-radius': style.borderRadius = px(); return true;	    }	    case 'background': case 'background-color': {
-_facts/authoring/css	packages/layout/src/css.js	816	    case 'background': case 'background-color': {	    case 'border-radius': style.borderRadius = px(); return true;	      if (value === 'none' || value === 'transparent') {
-_facts/authoring/css	packages/layout/src/css.js	833	    case 'font-weight':	    case 'font-size': style.fontSize = px(); return true;	      style.fontWeight = value === 'bold' ? 700 : value === 'normal' ? 400 : parseInt(value, 10);
-_facts/authoring/css	packages/layout/src/css.js	849	    case 'overflow':	    case 'letter-spacing': style.letterSpacing = px(); return true;	      if (value !== 'visible' && value !== 'hidden') {
-_facts/authoring/css	packages/layout/src/css.js	854	    case 'opacity': {	      style.overflow = value; return true;	      const v = parseFloat(value);
-_facts/authoring/css	packages/layout/src/css.js	858	      return true;	      style.opacity = Math.min(Math.max(v, 0), 1);	    }
-_facts/authoring/css	packages/layout/src/css.js	943	  // may change color; its text children must see the focused color), then	  // Focus pass: inherit from the parent's *focus* style (a focused tile	  // replay base declarations, then the :focus declarations on top.
-_facts/authoring/css	packages/layout/src/css.js	964	    applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars);	    }	  }
+_facts/authoring/css	packages/layout/src/css.js	143	function parseCompound(src, line) {		  // e.g. "div.tile#first:focus"
+_facts/authoring/css	packages/layout/src/css.js	146	  const re = /([a-zA-Z][a-zA-Z0-9-]*|\\*)|\\.([a-zA-Z_-][a-zA-Z0-9_-]*)|#([a-zA-Z_-][a-zA-Z0-9_-]*)|:(focus)|(.)/g;	  const compound = { tag: null, id: null, classes: [], focus: false };	  let m;
+_facts/authoring/css	packages/layout/src/css.js	160	    else if (m[5] === ':') {	    // and the message can simply name it (F37c).	      const name = /^:([a-zA-Z-]*)/.exec(src.slice(m.index))?.[1] ?? '';
+_facts/authoring/css	packages/layout/src/css.js	177	export function parseSelector(src, line) {		  const parts = src.trim().split(/\\s+/).map((one) => parseCompound(one, line));
+_facts/authoring/css	packages/layout/src/css.js	182	    b += p.classes.length + (p.focus ? 1 : 0);	    if (p.id) a++;	    if (p.tag) c++;
+_facts/authoring/css	packages/layout/src/css.js	328	    if (r.peek() === '@') {	    if (r.eof()) break;	      // One at-rule, @theme. The rest are skipped with a warning: no
+_facts/authoring/css	packages/layout/src/css.js	639	function lengthOrThrow(value, prop, line) {		  const l = parseLength(value);
+_facts/authoring/css	packages/layout/src/css.js	644		}	function pxOrThrow(value, prop, line) {
+_facts/authoring/css	packages/layout/src/css.js	645	function pxOrThrow(value, prop, line) {		  const l = lengthOrThrow(value, prop, line);
+_facts/authoring/css	packages/layout/src/css.js	670	 * gates ask `!== 'nowrap'`, which turned every typo into "wrap".	 * value -- wrapped not at all; fixing that (B4's sibling) made both	 * Neither shape is acceptable and only refusing the value fixes both.
+_facts/authoring/css	packages/layout/src/css.js	683	const KEYWORDS = {	 */	  'flex-direction': {
+_facts/authoring/css	packages/layout/src/css.js	684	  'flex-direction': {	const KEYWORDS = {	    ok: ['row', 'row-reverse', 'column', 'column-reverse'],
+_facts/authoring/css	packages/layout/src/css.js	763	    case 'display':	  switch (prop) {	      if (value !== 'flex' && value !== 'none') {
+_facts/authoring/css	packages/layout/src/css.js	795	    case 'flex': {	      style.flexBasis = lengthOrThrow(value, prop, line); return true;	      // flex: <grow> [<shrink>] [<basis>] — the common shorthands.
+_facts/authoring/css	packages/layout/src/css.js	805	    case 'gap': {	    }	      const parts = splitSpaces(value).map((v) => pxOrThrow(v, prop, line));
+_facts/authoring/css	packages/layout/src/css.js	819	    case 'padding': {	    case 'max-height': style.maxHeight = lengthOrThrow(value, prop, line); return true;	      const parts = expandBox(splitSpaces(value).map((v) => pxOrThrow(v, prop, line)));
+_facts/authoring/css	packages/layout/src/css.js	841	    case 'border': {	    }	      // border: <width> solid <color>
+_facts/authoring/css	packages/layout/src/css.js	874	    case 'border-radius': style.borderRadius = px(); return true;	    }	    case 'background': case 'background-color': {
+_facts/authoring/css	packages/layout/src/css.js	875	    case 'background': case 'background-color': {	    case 'border-radius': style.borderRadius = px(); return true;	      if (value === 'none' || value === 'transparent') {
+_facts/authoring/css	packages/layout/src/css.js	892	    case 'font-weight':	    case 'font-size': style.fontSize = px(); return true;	      style.fontWeight = value === 'bold' ? 700 : value === 'normal' ? 400 : parseInt(value, 10);
+_facts/authoring/css	packages/layout/src/css.js	908	    case 'overflow':	    case 'letter-spacing': style.letterSpacing = px(); return true;	      if (value !== 'visible' && value !== 'hidden') {
+_facts/authoring/css	packages/layout/src/css.js	913	    case 'opacity': {	      style.overflow = value; return true;	      const v = parseFloat(value);
+_facts/authoring/css	packages/layout/src/css.js	917	      return true;	      style.opacity = Math.min(Math.max(v, 0), 1);	    }
+_facts/authoring/css	packages/layout/src/css.js	1029	  // may change color; its text children must see the focused color), then	  // Focus pass: inherit from the parent's *focus* style (a focused tile	  // replay base declarations, then the :focus declarations on top.
+_facts/authoring/css	packages/layout/src/css.js	1052	    applyDeclaration(focusStyle, d.prop, d.value, d.line, warnings, vars);	    }	  });
 _facts/authoring/css	packages/layout/src/flex.js	73	}	  return axis === ROW ? style.margin[3] + style.margin[1] : style.margin[0] + style.margin[2];	function marginCross(axis, style) {
 _facts/authoring/css	packages/layout/src/flex.js	511	function justifyOffsets(justify, free, count, gapMain) {		  // Returns [leading, betweenExtra]; gaps always apply on top.
 _facts/authoring/css	packages/layout/src/flex.js	551	    // Ellipsize overflowing nowrap lines when asked to.	    const t = measureText(box, innerW, ctx);	    if (s.whiteSpace === 'nowrap' && s.textOverflow === 'ellipsis') {
 _facts/authoring/css	packages/layout/src/flex.js	613	      // keeps its intrinsic aspect unless the cross size is explicit.	      // flex containers (distorting them); here a replaced element	      // Pixel art on a CRT beats spec fidelity on this one.
 _facts/authoring/css	packages/layout/src/index.js	61	  resolve(weight) {	  }	    return weight >= 600 ? this.bold : this.regular;
-_facts/authoring/css	packages/layout/src/index.js	158	  if (!root) throw new Error('layout: root element is display: none');	  const root = buildBoxTree(dom, sheet, null, null, warnings, null, boxEnv);	  if (boxEnv.undirected) {
-_facts/authoring/css	packages/layout/src/index.js	159	  if (boxEnv.undirected) {	  if (!root) throw new Error('layout: root element is display: none');	    // All of them at once: a document written against the old implicit
+_facts/authoring/css	packages/layout/src/index.js	196	  if (!root) throw new Error('layout: root element is display: none');	  if (cssErrors.length) throw cssError(cssErrors);	  if (boxEnv.undirected) {
+_facts/authoring/css	packages/layout/src/index.js	197	  if (boxEnv.undirected) {	  if (!root) throw new Error('layout: root element is display: none');	    // All of them at once: a document written against the old implicit
 _facts/authoring/css	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/authoring/css	packages/layout/src/paint.js	71	  const fillVec = foldAlpha(	  // dead decision is theme 0's, and every row follows it.	    vectorOf(style.backgroundThemes, style.background, style.backgroundVar,
 _facts/authoring/css	packages/layout/src/paint.js	100	function textPaint(style, nThemes) {		  const vec = foldAlpha(
@@ -112,10 +112,10 @@ _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/quads.py	700		          
 _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/serve.py	209	    def set_slots(self, mapping):		        per = self.slot_text.setdefault(self.screen_name, {})
 _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/serve.py	517	            "slots": [	                for i, r in enumerate(recs)],	                {"name": s["name"],
 _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/serve_page.html	610	      if (s.capacity) inp.maxLength = s.capacity;	      inp.dataset.slot = s.name;	      inp.title = 'capacity ' + s.capacity;
-_facts/authoring/dynamic-text	packages/layout/src/box.js	197	  if ('data-slot' in el.attrs) {	  box.nocontrast = 'data-nocontrast' in el.attrs;	    // Dynamic text (backlog F2): the element's text is a build-time
-_facts/authoring/dynamic-text	packages/layout/src/box.js	202	    const name = el.attrs['data-slot'];	    // are still all compile-time.	    if (!name) {
-_facts/authoring/dynamic-text	packages/layout/src/box.js	206	    const onlyText = el.children.length === 1 && el.children[0].type === 'text';	    }	    if (!onlyText) {
-_facts/authoring/dynamic-text	packages/layout/src/box.js	215	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
+_facts/authoring/dynamic-text	packages/layout/src/box.js	202	  if ('data-slot' in el.attrs) {	  box.nocontrast = 'data-nocontrast' in el.attrs;	    // Dynamic text (backlog F2): the element's text is a build-time
+_facts/authoring/dynamic-text	packages/layout/src/box.js	207	    const name = el.attrs['data-slot'];	    // are still all compile-time.	    if (!name) {
+_facts/authoring/dynamic-text	packages/layout/src/box.js	211	    const onlyText = el.children.length === 1 && el.children[0].type === 'text';	    }	    if (!onlyText) {
+_facts/authoring/dynamic-text	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
 _facts/authoring/dynamic-text	packages/layout/src/paint.js	195	      // static text commands. One line, enforced here.	      // Placeholder text of a data-slot: becomes a slot descriptor, not	      if (box.lines.length !== 1) {
 _facts/authoring/dynamic-text	packages/layout/src/paint.js	208	      slots.push({	      const foc = textPaint(box.focusStyle, nThemes);	        name: parent.slot.name,
 _facts/authoring/dynamic-text	packages/layout/src/paint.js	329	  const seen = new Set();	  visit(root);	  for (const s of slots) {
@@ -140,8 +140,8 @@ _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/quads.py	541	   
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/serve_page.html	134	    <button id="btnGraph" title="D-pad navigation edges between focusables">Focus graph</button>	    <button id="btnFocus" title="Focus rectangles from /state (magenta, not part of the UI)">Focus boxes</button>	    <button id="btnGrid" title="8px grid">Grid</button>
 _facts/authoring/focus-and-navigation	packages/layout/bin/ps2ui-layout.js	51	    case '--focus-wrap': focusWrap = true; break;	    case '--fonts': fontManifest = args[++i]; break;	    case '--strict': strict = true; break;
 _facts/authoring/focus-and-navigation	packages/layout/bin/ps2ui-layout.js	105	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	  const quads = ir.commands.length;	  if (strict && ir.warnings.length > 0) {
-_facts/authoring/focus-and-navigation	packages/layout/src/box.js	289	  const focusable = 'focusable' in el.attrs;	  }	  if (focusable && focusScope !== null) {
-_facts/authoring/focus-and-navigation	packages/layout/src/css.js	173	function compoundMatches(compound, el, ignoreFocus = false) {		  if (el.type !== 'element') return false;
+_facts/authoring/focus-and-navigation	packages/layout/src/box.js	294	  const focusable = 'focusable' in el.attrs;	  }	  if (focusable && focusScope !== null) {
+_facts/authoring/focus-and-navigation	packages/layout/src/css.js	192	function compoundMatches(compound, el, ignoreFocus = false) {		  if (el.type !== 'element') return false;
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	41	      case 'right': progress = dx > 0; perp = Math.abs(dy); inBeam = overlap1D(from.y, from.y + from.height, cand.y, cand.y + cand.height); break;	    switch (dir) {	      case 'left': progress = dx < 0; perp = Math.abs(dy); inBeam = overlap1D(from.y, from.y + from.height, cand.y, cand.y + cand.height); break;
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	73	function findWrapTarget(from, candidates, dir) {	 */	  let best = null;
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	84	    const delta = dir === 'left' || dir === 'right' ? cc.x - fc.x : cc.y - fc.y;	    const cc = center(cand);	    // Wrapping right seeks the farthest candidate to the LEFT, etc.
@@ -151,7 +151,7 @@ _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	120	      nod
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	125	  let initial = null;		  for (const box of list) {
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	126	  for (const box of list) {	  let initial = null;	    if ('autofocus' in box.el.attrs) { initial = box.id; break; }
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	139	export function checkReachability(graph) {	 */	  const warnings = [];
-_facts/authoring/focus-and-navigation	packages/layout/src/index.js	186	  for (const w of checkReachability(focus)) warnings.push(w);	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	
+_facts/authoring/focus-and-navigation	packages/layout/src/index.js	224	  for (const w of checkReachability(focus)) warnings.push(w);	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1506	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)		{
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1522	     * cycle of hidden nodes must terminate, not spin. */	     * on something invisible. Bounded by the node count: a graph with a	    {
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1563	    scr = &ctx->screen_table[ctx->screen];	        return PS2UI_NONE;	    lo = scr->focus_first;
@@ -163,14 +163,14 @@ _facts/authoring/html	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/l
 _facts/authoring/html	packages/layout/src/box.js	98	const KNOWN_DATA_ATTRS = new Set([	// overrunning it on a console. Neither said a word.	  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',
 _facts/authoring/html	packages/layout/src/box.js	128	    if (!name.startsWith('data-') || KNOWN_DATA_ATTRS.has(name)) continue;	  for (const name of Object.keys(el.attrs)) {	    let best = null, bestD = Infinity;
 _facts/authoring/html	packages/layout/src/box.js	160	export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings, focusScope = null, env = {}) {		  // focusDeclared is still returned by computeStyle and still used by
-_facts/authoring/html	packages/layout/src/box.js	180	  box.keep = 'data-keep' in el.attrs;	  // not being applied.	
-_facts/authoring/html	packages/layout/src/box.js	196	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
-_facts/authoring/html	packages/layout/src/box.js	202	    const name = el.attrs['data-slot'];	    // are still all compile-time.	    if (!name) {
-_facts/authoring/html	packages/layout/src/box.js	206	    const onlyText = el.children.length === 1 && el.children[0].type === 'text';	    }	    if (!onlyText) {
-_facts/authoring/html	packages/layout/src/box.js	215	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
-_facts/authoring/html	packages/layout/src/box.js	218	  if (el.tag === 'img') {	  }	    // A streamed slot: the app supplies the texels at runtime, so
-_facts/authoring/html	packages/layout/src/css.js	153	    else throw new Error(`css: unsupported selector syntax near "${m[5]}" in "${src}"`);	    else if (m[4]) compound.focus = true;	  }
-_facts/authoring/html	packages/layout/src/css.js	714	      // family with the same typo it defeated.	      // `flex-direction: rows` used to satisfy the one fence over this	      style.flexDirection = keywordOrThrow(prop, value, line);
+_facts/authoring/html	packages/layout/src/box.js	185	  box.keep = 'data-keep' in el.attrs;	  // not being applied.	
+_facts/authoring/html	packages/layout/src/box.js	201	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
+_facts/authoring/html	packages/layout/src/box.js	207	    const name = el.attrs['data-slot'];	    // are still all compile-time.	    if (!name) {
+_facts/authoring/html	packages/layout/src/box.js	211	    const onlyText = el.children.length === 1 && el.children[0].type === 'text';	    }	    if (!onlyText) {
+_facts/authoring/html	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
+_facts/authoring/html	packages/layout/src/box.js	223	  if (el.tag === 'img') {	  }	    // A streamed slot: the app supplies the texels at runtime, so
+_facts/authoring/html	packages/layout/src/css.js	143	function parseCompound(src, line) {		  // e.g. "div.tile#first:focus"
+_facts/authoring/html	packages/layout/src/css.js	773	      // family with the same typo it defeated.	      // `flex-direction: rows` used to satisfy the one fence over this	      style.flexDirection = keywordOrThrow(prop, value, line);
 _facts/authoring/html	packages/layout/src/flex.js	100	    if (s.whiteSpace === 'nowrap') {	  const wrapAt = (f) => {	      return [{ text: box.text, width: f.measure(box.text, s.fontSize, s.letterSpacing) }];
 _facts/authoring/html	packages/layout/src/focus.js	114	      name: box.el.id ?? box.el.attrs.name ?? `box${box.id}`,	      id: box.id,	      rect: [box.x, box.y, box.width, box.height],
 _facts/authoring/html	packages/layout/src/focus.js	127	    if ('autofocus' in box.el.attrs) { initial = box.id; break; }	  for (const box of list) {	  }
@@ -214,19 +214,19 @@ _facts/authoring/images	packages/baker/ps2ui_bake/quads.py	390	    def _streamed
 _facts/authoring/images	packages/baker/ps2ui_bake/quads.py	421	    def _flatten_image(self, cmd):		        state = _STATE_NAMES[cmd["state"]]
 _facts/authoring/images	packages/baker/ps2ui_bake/quads.py	437	        attr = bool(cmd.get("palettize"))	        # refuses to requantize one.	        tex = self._image_texture(
 _facts/authoring/images	packages/baker/ps2ui_bake/vram.py	44			def page_rounded_size(width: int, height: int, fmt: int) -> int:
-_facts/authoring/images	packages/layout/src/box.js	218	  if (el.tag === 'img') {	  }	    // A streamed slot: the app supplies the texels at runtime, so
-_facts/authoring/images	packages/layout/src/box.js	221	    // geometry, a name and a reservation (uib format v6).	    // there is no file to read and nothing to bake. The blob carries	    const texSlot = el.attrs['data-tex-slot'];
-_facts/authoring/images	packages/layout/src/box.js	260	    const src = el.attrs.src;	    } else {	    if (!src) {
-_facts/authoring/images	packages/layout/src/box.js	261	    if (!src) {	    const src = el.attrs.src;	      throw new Error(
-_facts/authoring/images	packages/layout/src/box.js	282	    // per texel instead of 32, for art that fits in 256 colors.	    // palettize: opt-in PSMT8+CLUT quantization at bake time — 8 bits	    box.image = {
+_facts/authoring/images	packages/layout/src/box.js	223	  if (el.tag === 'img') {	  }	    // A streamed slot: the app supplies the texels at runtime, so
+_facts/authoring/images	packages/layout/src/box.js	226	    // geometry, a name and a reservation (uib format v6).	    // there is no file to read and nothing to bake. The blob carries	    const texSlot = el.attrs['data-tex-slot'];
+_facts/authoring/images	packages/layout/src/box.js	265	    const src = el.attrs.src;	    } else {	    if (!src) {
+_facts/authoring/images	packages/layout/src/box.js	266	    if (!src) {	    const src = el.attrs.src;	      throw new Error(
+_facts/authoring/images	packages/layout/src/box.js	287	    // per texel instead of 32, for art that fits in 256 colors.	    // palettize: opt-in PSMT8+CLUT quantization at bake time — 8 bits	    box.image = {
 _facts/authoring/images	packages/layout/src/flex.js	236	  if (box.image) {		    // Replaced element: CSS size wins; a single specified axis keeps
 _facts/authoring/images	packages/layout/src/flex.js	247	    if (box.image.streamed && (w == null || h == null)) {	    // what happens to any image whose width or height computes to 0.	      throw new Error(
 _facts/authoring/images	packages/layout/src/flex.js	613	      // keeps its intrinsic aspect unless the cross size is explicit.	      // flex containers (distorting them); here a replaced element	      // Pixel art on a CRT beats spec fidelity on this one.
 _facts/authoring/images	packages/layout/src/image.js	14	const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);		
 _facts/authoring/images	packages/layout/src/image.js	24	  } catch (err) {	    buf = readFileSync(path);	    throw new Error(`image: cannot read "${path}": ${err.code ?? err.message}`);
-_facts/authoring/images	packages/layout/src/index.js	294		}	export function compileFiles(htmlPath, cssPath, options = {}) {
+_facts/authoring/images	packages/layout/src/index.js	332		}	export function compileFiles(htmlPath, cssPath, options = {}) {
 _facts/authoring/lists	docs/tutorial-uc3.md	383	for (;;) {		    if (pad_down)  ps2ui_list_move(&ui, &list, +1);
-_facts/authoring/lists	packages/layout/src/index.js	149	  // Stamp out data-repeat templates before anything computes styles, so	  const dom = parseHTML(htmlSrc);	  // a repeated row is indistinguishable from one that was typed out.
+_facts/authoring/lists	packages/layout/src/index.js	167	  // Stamp out data-repeat templates before anything computes styles, so	  const dom = parseHTML(htmlSrc);	  // a repeated row is indistinguishable from one that was typed out.
 _facts/authoring/lists	packages/layout/src/repeat.js	16	// 1-based, in any attribute value and in text. Nothing is renamed behind	// Substitution is explicit. `{i}` is the 0-based index and `{n}` is	// your back: a `data-slot` without `{i}` produces N identical slot names,
 _facts/authoring/lists	packages/layout/src/repeat.js	21	const MAX_REPEAT = 256;		
 _facts/authoring/lists	packages/layout/src/repeat.js	24	export function substituteIndex(s, i) {	/** Substitute {i} / {n} in a string. */	  return s.replace(/\\{(i|n)\\}/g, (_, k) => String(k === 'i' ? i : i + 1));
@@ -263,7 +263,7 @@ _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything 
 _facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	64	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
 _facts/authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/authoring/project-file	packages/baker/ps2ui_bake/ps2ui.py	290	    argv = [rel(proj, proj.out_path)]	    # written; nothing passed it.	    if proj.vram_budget is not None:
-_facts/authoring/project-file	packages/layout/src/index.js	222	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/authoring/project-file	packages/layout/src/index.js	260	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
 _facts/authoring/screens-and-overlays	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
 _facts/authoring/screens-and-overlays	examples/opl-env/ps2ui.json	2	  "screens": [	{	    "ui/landing.html", "ui/library.html", "ui/detail.html",
 _facts/authoring/screens-and-overlays	examples/opl-env/ui/confirm.html	24	    <!-- The readout. On EVERY screen, not only on library: slots are	    </div>	         per-screen (render_slots walks the current screen's slot range),
@@ -274,7 +274,7 @@ _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/ps2ui.py	82			de
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/quads.py	523	    def run_screens(self, named_irs) -> None:		        """Flatten several IRs into one blob (backlog F4).
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/quads.py	526	        named_irs: [(screen_name, ir), ...]. Textures, CLUTs, patches,		        atlases and font tables are shared/deduped across screens (one
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/quads.py	532	        canvas = named_irs[0][1]["canvas"]	        inside its own range."""	        for name, ir in named_irs:
-_facts/authoring/screens-and-overlays	packages/layout/src/css.js	865	      warnings.push(`css: line ${line}: property "${prop}" not supported on this target; ignored`);	      if (prop.startsWith('--')) return false;	      return false;
+_facts/authoring/screens-and-overlays	packages/layout/src/css.js	924	      warnings.push(`css: line ${line}: property "${prop}" not supported on this target; ignored`);	      if (prop.startsWith('--')) return false;	      return false;
 _facts/authoring/screens-and-overlays	runtime/ps2ui.c	470	    ctx->focus = ctx->screen_table[0].initial_focus;	    ctx->screen = 0;	    if (ctx->focus != PS2UI_NONE && ctx->focus >= ctx->hdr->n_focus)
 _facts/authoring/screens-and-overlays	runtime/ps2ui.c	940	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
 _facts/authoring/screens-and-overlays	runtime/ps2ui.c	1164	    /* The baker guarantees balance; restore full-canvas scissor anyway	    }	     * so a malformed blob cannot poison the next frame. */
@@ -338,25 +338,25 @@ _facts/authoring/theming	packages/baker/ps2ui_bake/uib.py	262	            # n_ti
 _facts/authoring/theming	packages/baker/ps2ui_bake/uib.py	279	    # SLOTS TOO, and this seam has been the gap three times -- the design	            cmd_tints.append((0, 0))	    # missed it, the v7 fence missed it, and ps2ui_theme_set's first
 _facts/authoring/theming	packages/baker/ps2ui_bake/uib.py	372	    # rather than from "this writer keys on names", even though both are	    # THE BIT AND THE ROW THAT NEEDS IT, TOGETHER. Set from n_theme	    # now true, because the runtime consults it only to decide whether
 _facts/authoring/theming	packages/baker/ps2ui_bake/uib.py	377	    if n_theme > 1:	    # clear and stays byte-identical to what v7 wrote.	        feature_flags |= FEAT_ROLE_TINTS
-_facts/authoring/theming	packages/layout/src/css.js	285	      const m = /^@theme\\s+([A-Za-z][A-Za-z0-9_-]*)\\s*$/.exec(head.trim());	      if (r.peek() === ';') { r.advance(); warnings.push(`css: line ${line}: at-rule "${head.trim()}" ignored`); continue; }	      if (m) {
-_facts/authoring/theming	packages/layout/src/css.js	326	    if (selText.trim() === ':root') {	    // refusal beats a rule nobody can implement.	      for (const d of declarations) {
-_facts/authoring/theming	packages/layout/src/css.js	328	        if (!d.prop.startsWith('--')) {	      for (const d of declarations) {	          warnings.push(`css: line ${d.line}: ":root { ${d.prop}: ... }" is `
-_facts/authoring/theming	packages/layout/src/css.js	334	        const col = parseColor(d.value);	        }	        if (!col) {
-_facts/authoring/theming	packages/layout/src/css.js	348	      for (const d of declarations) {	      rules.push({ selector: parseSelector(one), declarations, line });	        if (d.prop.startsWith('--')) {
-_facts/authoring/theming	packages/layout/src/css.js	359	  return { rules, warnings, vars, themeNames: ['root', ...themeBlocks.map((b) => b.name)] };	  if (themeBlocks.length) warnUnthemedLiterals(rules, warnings);	}
-_facts/authoring/theming	packages/layout/src/css.js	363	const COLOUR_PROPS = new Set(['color', 'background', 'background-color',	// Properties whose value is a colour a theme could move.	                              'border-color', 'border']);
-_facts/authoring/theming	packages/layout/src/css.js	447	    if (seen.has(b.name)) {	  for (const b of blocks) {	      throw new Error(`css: line ${b.line}: @theme ${b.name} is declared twice`
-_facts/authoring/theming	packages/layout/src/css.js	462	      if (!d.prop.startsWith('--')) {	    for (const d of b.declarations) {	        throw new Error(`css: line ${d.line}: @theme ${b.name} { ${d.prop}: ... } `
-_facts/authoring/theming	packages/layout/src/css.js	468	      if (!vars.has(d.prop)) {	      }	        throw new Error(`css: line ${d.line}: @theme ${b.name} defines ${d.prop}, `
-_facts/authoring/theming	packages/layout/src/css.js	485	      if (!col) {	      const col = given.get(name);	        // Inherits :root's value, and says so. A silently half-
-_facts/authoring/theming	packages/layout/src/css.js	520	const VAR_USE = /^var\\(\\s*(--[A-Za-z0-9_-]+)\\s*(,)?([^)]*)\\)$/;		
-_facts/authoring/theming	packages/layout/src/css.js	527	export function resolveColorValue(value, vars, prop, line) {	 * therefore outside any theme -- see docs/design-p3b-theming.md 9.2. */	  const m = VAR_USE.exec(value.trim());
-_facts/authoring/theming	packages/layout/src/css.js	542	  const [, name, comma, rest] = m;	  }	  if (comma) {
-_facts/authoring/theming	packages/layout/src/css.js	552	  const def = vars && vars.get(name);	  }	  if (!def) {
-_facts/authoring/theming	packages/layout/src/css.js	572	export function themeCount(vars) {	/** How many themes this sheet declares, root included. Always >= 1. */	  if (!vars) return 1;
-_facts/authoring/theming	packages/layout/src/css.js	794	        if (p.startsWith('var(')) {	        // arrive here in two pieces.	          const { rgba, varName, rgbaThemes } = resolveColorValue(p, vars, prop, line);
-_facts/authoring/theming	packages/layout/src/index.js	182	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
-_facts/authoring/theming	packages/layout/src/index.js	227	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
+_facts/authoring/theming	packages/layout/src/css.js	335	      const m = /^@theme\\s+([A-Za-z][A-Za-z0-9_-]*)\\s*$/.exec(head.trim());	      if (r.peek() === ';') { r.advance(); warnings.push(`css: line ${line}: at-rule "${head.trim()}" ignored`); continue; }	      if (m) {
+_facts/authoring/theming	packages/layout/src/css.js	377	    if (selText.trim() === ':root') {	    // refusal beats a rule nobody can implement.	      for (const d of declarations) {
+_facts/authoring/theming	packages/layout/src/css.js	379	        if (!d.prop.startsWith('--')) {	      for (const d of declarations) {	          warnings.push(`css: line ${d.line}: ":root { ${d.prop}: ... }" is `
+_facts/authoring/theming	packages/layout/src/css.js	385	        const col = parseColor(d.value);	        }	        if (!col) {
+_facts/authoring/theming	packages/layout/src/css.js	407	      for (const d of declarations) {	      rules.push({ selector, declarations, line });	        if (d.prop.startsWith('--')) {
+_facts/authoring/theming	packages/layout/src/css.js	418	  return { rules, warnings, vars, themeNames: ['root', ...themeBlocks.map((b) => b.name)] };	  if (themeBlocks.length) warnUnthemedLiterals(rules, warnings);	}
+_facts/authoring/theming	packages/layout/src/css.js	422	const COLOUR_PROPS = new Set(['color', 'background', 'background-color',	// Properties whose value is a colour a theme could move.	                              'border-color', 'border']);
+_facts/authoring/theming	packages/layout/src/css.js	506	    if (seen.has(b.name)) {	  for (const b of blocks) {	      throw new Error(`css: line ${b.line}: @theme ${b.name} is declared twice`
+_facts/authoring/theming	packages/layout/src/css.js	521	      if (!d.prop.startsWith('--')) {	    for (const d of b.declarations) {	        throw new Error(`css: line ${d.line}: @theme ${b.name} { ${d.prop}: ... } `
+_facts/authoring/theming	packages/layout/src/css.js	527	      if (!vars.has(d.prop)) {	      }	        throw new Error(`css: line ${d.line}: @theme ${b.name} defines ${d.prop}, `
+_facts/authoring/theming	packages/layout/src/css.js	544	      if (!col) {	      const col = given.get(name);	        // Inherits :root's value, and says so. A silently half-
+_facts/authoring/theming	packages/layout/src/css.js	579	const VAR_USE = /^var\\(\\s*(--[A-Za-z0-9_-]+)\\s*(,)?([^)]*)\\)$/;		
+_facts/authoring/theming	packages/layout/src/css.js	586	export function resolveColorValue(value, vars, prop, line) {	 * therefore outside any theme -- see docs/design-p3b-theming.md 9.2. */	  const m = VAR_USE.exec(value.trim());
+_facts/authoring/theming	packages/layout/src/css.js	601	  const [, name, comma, rest] = m;	  }	  if (comma) {
+_facts/authoring/theming	packages/layout/src/css.js	611	  const def = vars && vars.get(name);	  }	  if (!def) {
+_facts/authoring/theming	packages/layout/src/css.js	631	export function themeCount(vars) {	/** How many themes this sheet declares, root included. Always >= 1. */	  if (!vars) return 1;
+_facts/authoring/theming	packages/layout/src/css.js	853	        if (p.startsWith('var(')) {	        // arrive here in two pieces.	          const { rgba, varName, rgbaThemes } = resolveColorValue(p, vars, prop, line);
+_facts/authoring/theming	packages/layout/src/index.js	220	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
+_facts/authoring/theming	packages/layout/src/index.js	265	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
 _facts/authoring/theming	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/authoring/theming	packages/layout/src/paint.js	41	function vectorOf(themes, rgba, varName, nThemes, what) {	// previewer all agree, and only the second theme row is wrong.	  if (themes) {
 _facts/authoring/theming	packages/layout/src/paint.js	58		}	function paintOfBox(box, style, nThemes) {
@@ -399,9 +399,9 @@ _facts/authoring/video-modes	packages/layout/src/aspect.js	19	export function pa
 _facts/authoring/video-modes	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
 _facts/authoring/video-modes	packages/layout/src/aspect.js	42	export function displaySize(canvasW, canvasH, [num, den]) {	 */	  return { w: Math.round(canvasH * (num / den)), h: canvasH };
 _facts/authoring/video-modes	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
-_facts/authoring/video-modes	packages/layout/src/index.js	137	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
-_facts/authoring/video-modes	packages/layout/src/index.js	141	  const par = pixelAspect(canvasW, canvasH, displayAspect);	  const displayAspect = options.displayAspect ?? [4, 3];	  const fonts = options.fonts
-_facts/authoring/video-modes	packages/layout/src/index.js	241	  return {		    version: IR_VERSION,
+_facts/authoring/video-modes	packages/layout/src/index.js	155	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
+_facts/authoring/video-modes	packages/layout/src/index.js	159	  const par = pixelAspect(canvasW, canvasH, displayAspect);	  const displayAspect = options.displayAspect ?? [4, 3];	  const fonts = options.fonts
+_facts/authoring/video-modes	packages/layout/src/index.js	279	  return {		    version: IR_VERSION,
 _facts/authoring/video-modes	packages/layout/src/lint.js	12	export const DEFAULT_LINT_OPTIONS = Object.freeze({		  canvasW: 640,
 _facts/authoring/video-modes	packages/layout/src/lint.js	15	  // Title-safe area: 5% inset per side, derived from the canvas so PAL	  canvasH: 448,	  // (640x512) gets its own numbers (SMPTE ST 2046 is stricter; 5%
 _facts/authoring/video-modes	packages/layout/src/lint.js	139	  if (opt.safeInsetX == null) opt.safeInsetX = Math.round(opt.canvasW * 0.05);	  const opt = { ...DEFAULT_LINT_OPTIONS, ...options };	  if (opt.safeInsetY == null) opt.safeInsetY = Math.round(opt.canvasH * 0.05);
@@ -555,13 +555,13 @@ _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	91	  if (!Number.isFini
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	99	  // floor and exited 0, where `ps2ui build` printed none. Same shape	  // opl-env (minFontSize 11, strict) printed 44 warnings at the 14px	  // as ps2ui-layout.js, which had it right.
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	113	  options.canvasW = parseInt(m[1], 10);	  if (!m) usage(2);	  options.canvasH = parseInt(m[2], 10);
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	122	  let ir;	  const started = Date.now();	  try {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	129	  // --strict fails the build the way ps2ui-layout does: warnings are a	  }	  // failed compile, so nothing is baked and --once exits 1. In watch
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	140	  // screen called `ui`, and ps2ui_screen_set(&ui, "saves") against it	  // was watching -- so every blob this tool produced had exactly one	  // failed. The dev blob has to be a drop-in for the built one or the
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	144	  writeFileSync(irPath, JSON.stringify(ir, null, 1));	  const irPath = join(outDir, `${basename(htmlPath, '.html')}.json`);	
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	151	  // Bake against the manifest the layout was MEASURED against. Without	  if (palettize) bakeArgs.push('--palettize-images');	  // this the baker falls back to its own default font directory, which
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	156	  const bake = spawnSync('python3', bakeArgs, {	  if (fontManifest) bakeArgs.push('--fonts', fontManifest);	    stdio: ['ignore', 'inherit', 'inherit'],
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	160	  if (bake.status !== 0) {	  });	    console.error('\\x1b[31mbake failed\\x1b[0m');
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	171		}	const ok = build();
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	131	  // --strict fails the build the way ps2ui-layout does: warnings are a	  }	  // failed compile, so nothing is baked and --once exits 1. In watch
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	142	  // screen called `ui`, and ps2ui_screen_set(&ui, "saves") against it	  // was watching -- so every blob this tool produced had exactly one	  // failed. The dev blob has to be a drop-in for the built one or the
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	146	  writeFileSync(irPath, JSON.stringify(ir, null, 1));	  const irPath = join(outDir, `${basename(htmlPath, '.html')}.json`);	
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	153	  // Bake against the manifest the layout was MEASURED against. Without	  if (palettize) bakeArgs.push('--palettize-images');	  // this the baker falls back to its own default font directory, which
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	158	  const bake = spawnSync('python3', bakeArgs, {	  if (fontManifest) bakeArgs.push('--fonts', fontManifest);	    stdio: ['ignore', 'inherit', 'inherit'],
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	162	  if (bake.status !== 0) {	  });	    console.error('\\x1b[31mbake failed\\x1b[0m');
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	173		}	const ok = build();
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	17	const VERSION = JSON.parse(	// disagrees.	  readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	40	for (let i = 0; i < args.length; i++) {		  switch (args[i]) {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	43	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
@@ -581,7 +581,7 @@ _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	97	  mkdirSync(dirna
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	105	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	  const quads = ir.commands.length;	  if (strict && ir.warnings.length > 0) {
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	106	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
 _facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	107	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);	  if (strict && ir.warnings.length > 0) {	    process.exit(1);
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	111	  console.error(`error: ${err.message}`);	} catch (err) {	  process.exit(1);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	114	  for (const m of err.cssErrors ?? [err.message]) console.error(`error: ${m}`);	  // exactly as it always did.	  process.exit(1);
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	19	export function parseAspect(text) {	/** Parse "16:9" or "4:3" into [num, den]. Throws on anything else. */	  const m = /^(\\d+):(\\d+)$/.exec(String(text).trim());
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
@@ -589,9 +589,9 @@ _facts/cli/ps2ui-layout	packages/layout/src/index.js	47	const DEFAULT_FONT_DIR =
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	64	  static fromDir(dir = DEFAULT_FONT_DIR) {	  }	    // The two filenames are fixed, which was documented nowhere -- not
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	93	  static fromManifest(path) {	   */	    let manifest;
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	117	function missingFonts(dir, missing) {	/** What to tell someone whose font metrics are not where we looked. */	  return `no font metrics at ${missing}.\\n`
-_facts/cli/ps2ui-layout	packages/layout/src/index.js	137	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
-_facts/cli/ps2ui-layout	packages/layout/src/index.js	185	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	    root, themeNames.length);	  for (const w of checkReachability(focus)) warnings.push(w);
-_facts/cli/ps2ui-layout	packages/layout/src/index.js	222	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	155	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	223	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	    root, themeNames.length);	  for (const w of checkReachability(focus)) warnings.push(w);
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	260	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
 _facts/cli/ps2ui-layout	packages/layout/src/lint.js	21	  minFontSize: 14,	  safeInsetY: null,	  minContrast: 3.0,
 _facts/examples/channel6	examples/channel6/README.md	106	its contract in TAP. 47 checks, and a red one names what broke. (The	Then it runs [check.py](check.py), which re-reads the blob and asserts	number was 24 and is derived from nothing — `check.py` prints its own
 _facts/examples/channel6	examples/channel6/README.md	143	```		runtime tables: 25 textures, 9 CLUTs, 15 slots, 2 screens
@@ -710,12 +710,12 @@ _facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	72	if (aspectAr
 _facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	91	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  // build/ failed with a bare ENOENT naming the OUTPUT path, which
 _facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	106	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
 _facts/reference/diagnostics	packages/layout/src/aspect.js	19	export function parseAspect(text) {	/** Parse "16:9" or "4:3" into [num, den]. Throws on anything else. */	  const m = /^(\\d+):(\\d+)$/.exec(String(text).trim());
-_facts/reference/diagnostics	packages/layout/src/box.js	233	      if (texSlot.trim() !== texSlot || !texSlot) {	      // of ambiguity every other check on this element rejects.	        throw new Error(
-_facts/reference/diagnostics	packages/layout/src/css.js	475	      }	        throw new Error(`css: line ${d.line}: @theme ${b.name} sets ${d.prop} twice`);	      const col = parseColor(d.value);
-_facts/reference/diagnostics	packages/layout/src/css.js	580	function lengthOrThrow(value, prop, line) {		  const l = parseLength(value);
-_facts/reference/diagnostics	packages/layout/src/css.js	772	    case 'margin': {	    }	      const parts = expandBox(splitSpaces(value).map((v) => pxOrThrow(v, prop, line)));
-_facts/reference/diagnostics	packages/layout/src/css.js	808	    case 'border-width': style.borderWidth = px(); return true;	    }	    case 'border-color': {
-_facts/reference/diagnostics	packages/layout/src/css.js	854	    case 'opacity': {	      style.overflow = value; return true;	      const v = parseFloat(value);
+_facts/reference/diagnostics	packages/layout/src/box.js	238	      if (texSlot.trim() !== texSlot || !texSlot) {	      // of ambiguity every other check on this element rejects.	        throw new Error(
+_facts/reference/diagnostics	packages/layout/src/css.js	534	      }	        throw new Error(`css: line ${d.line}: @theme ${b.name} sets ${d.prop} twice`);	      const col = parseColor(d.value);
+_facts/reference/diagnostics	packages/layout/src/css.js	639	function lengthOrThrow(value, prop, line) {		  const l = parseLength(value);
+_facts/reference/diagnostics	packages/layout/src/css.js	831	    case 'margin': {	    }	      const parts = expandBox(splitSpaces(value).map((v) => pxOrThrow(v, prop, line)));
+_facts/reference/diagnostics	packages/layout/src/css.js	867	    case 'border-width': style.borderWidth = px(); return true;	    }	    case 'border-color': {
+_facts/reference/diagnostics	packages/layout/src/css.js	913	    case 'opacity': {	      style.overflow = value; return true;	      const v = parseFloat(value);
 _facts/reference/diagnostics	packages/layout/src/focus.js	41	      case 'right': progress = dx > 0; perp = Math.abs(dy); inBeam = overlap1D(from.y, from.y + from.height, cand.y, cand.y + cand.height); break;	    switch (dir) {	      case 'left': progress = dx < 0; perp = Math.abs(dy); inBeam = overlap1D(from.y, from.y + from.height, cand.y, cand.y + cand.height); break;
 _facts/reference/diagnostics	packages/layout/src/index.js	96	      manifest = JSON.parse(readFileSync(path, 'utf8'));	    try {	    } catch (e) {
 _facts/reference/diagnostics	packages/layout/src/paint.js	43	    if (themes.length !== nThemes) {	  if (themes) {	      throw new Error(`layout: internal: ${what} has ${themes.length} theme `
@@ -734,19 +734,19 @@ _facts/reference/ir-format	packages/baker/ps2ui_bake/quads.py	601	        seen =
 _facts/reference/ir-format	packages/baker/ps2ui_bake/quads.py	661	            self.slots.append({	                font_index[key] = len(self.fonts) - 1	                "name": sl["name"],
 _facts/reference/ir-format	packages/baker/ps2ui_bake/quads.py	669	                # Not clamped. This was min(capacity, 95) -- 95 being	                "ellipsis": bool(sl["ellipsis"]),	                # PS2UI_SLOT_BUFSZ - 1, the runtime's old fixed per-slot
 _facts/reference/ir-format	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
-_facts/reference/ir-format	packages/layout/src/box.js	180	  box.keep = 'data-keep' in el.attrs;	  // not being applied.	
-_facts/reference/ir-format	packages/layout/src/box.js	196	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
-_facts/reference/ir-format	packages/layout/src/box.js	215	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
-_facts/reference/ir-format	packages/layout/src/css.js	878	export function computeStyle(el, sheet, parentStyle, parentFocusInherit, warnings) {	 */	  const vars = sheet && sheet.vars;
+_facts/reference/ir-format	packages/layout/src/box.js	185	  box.keep = 'data-keep' in el.attrs;	  // not being applied.	
+_facts/reference/ir-format	packages/layout/src/box.js	201	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
+_facts/reference/ir-format	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
+_facts/reference/ir-format	packages/layout/src/css.js	937	export function computeStyle(el, sheet, parentStyle, parentFocusInherit,	 */	                             warnings, errors = null) {
 _facts/reference/ir-format	packages/layout/src/focus.js	109	export function solveFocusGraph(focusables, options = {}) {	 */	  const list = [...focusables.values()];
 _facts/reference/ir-format	packages/layout/src/focus.js	110	  const list = [...focusables.values()];	export function solveFocusGraph(focusables, options = {}) {	  const nodes = list.map((box) => {
 _facts/reference/ir-format	packages/layout/src/index.js	49	export const IR_VERSION = 1;		
-_facts/reference/ir-format	packages/layout/src/index.js	137	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
-_facts/reference/ir-format	packages/layout/src/index.js	146	  const warnings = [];	        : FontContext.fromDir(options.fontDir));	
-_facts/reference/ir-format	packages/layout/src/index.js	182	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
-_facts/reference/ir-format	packages/layout/src/index.js	241	  return {		    version: IR_VERSION,
-_facts/reference/ir-format	packages/layout/src/index.js	243	    canvas: {	    version: IR_VERSION,	      w: canvasW,
-_facts/reference/ir-format	packages/layout/src/index.js	252	    fonts: {	    },	      regular: { family: fonts.regular.family, weight: fonts.regular.weight },
+_facts/reference/ir-format	packages/layout/src/index.js	155	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
+_facts/reference/ir-format	packages/layout/src/index.js	164	  const warnings = [];	        : FontContext.fromDir(options.fontDir));	
+_facts/reference/ir-format	packages/layout/src/index.js	220	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
+_facts/reference/ir-format	packages/layout/src/index.js	279	  return {		    version: IR_VERSION,
+_facts/reference/ir-format	packages/layout/src/index.js	281	    canvas: {	    version: IR_VERSION,	      w: canvasW,
+_facts/reference/ir-format	packages/layout/src/index.js	290	    fonts: {	    },	      regular: { family: fonts.regular.family, weight: fonts.regular.weight },
 _facts/reference/ir-format	packages/layout/src/paint.js	7	//   state:   'always' | 'unfocused' | 'focused'	//	//   focusId: the focus scope it belongs to (null outside scopes)
 _facts/reference/ir-format	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/reference/ir-format	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
@@ -1028,7 +1028,7 @@ _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def re
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES NOT DO. It replays the command list faithfully, so it		cannot catch the console diverging from that list. F-048 -- the GS
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	233	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	797	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
-_facts/runtime/moving-and-hiding	packages/layout/src/box.js	171	  if (style.display === 'none') return null;	  );	
+_facts/runtime/moving-and-hiding	packages/layout/src/box.js	176	  if (style.display === 'none') return null;	  );	
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	866	/* THE OFFSET IS APPLIED HERE, AT THE SINK, AND NOT BY THE CALLERS.	 * defect would come back. */	 *
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	883	    x += ctx->off_x;	{	    y += ctx->off_y;
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	897	static int node_hidden(const ps2ui_ctx *ctx, uint16_t idx)	 * unfocused variant". */	{
@@ -1058,8 +1058,8 @@ _facts/runtime/streaming-art	packages/baker/ps2ui_bake/quads.py	400	        the 
 _facts/runtime/streaming-art	packages/baker/ps2ui_bake/quads.py	404	        if prev is not None:	        prev = self._streamed.get(name)	            t = self.textures[prev]
 _facts/runtime/streaming-art	packages/baker/ps2ui_bake/quads.py	415	            gs.PSMCT32, w, h, None, b"",	        self.textures.append(BakedTexture(	            kind=TEXKIND_STREAMED, name=name, reservation=w * h * 4,
 _facts/runtime/streaming-art	packages/baker/ps2ui_bake/vram.py	213	    payload_total = 0	    total = 0	    for i, t in enumerate(textures):
-_facts/runtime/streaming-art	packages/layout/src/box.js	222	    const texSlot = el.attrs['data-tex-slot'];	    // geometry, a name and a reservation (uib format v6).	    if (texSlot !== undefined) {
-_facts/runtime/streaming-art	packages/layout/src/box.js	249	      if ('palettize' in el.attrs) {	      }	        throw new Error(
+_facts/runtime/streaming-art	packages/layout/src/box.js	227	    const texSlot = el.attrs['data-tex-slot'];	    // geometry, a name and a reservation (uib format v6).	    if (texSlot !== undefined) {
+_facts/runtime/streaming-art	packages/layout/src/box.js	254	      if ('palettize' in el.attrs) {	      }	        throw new Error(
 _facts/runtime/streaming-art	runtime/ps2ui.c	543	static void permute_clut(const uint8_t *linear, uint16_t ncolors, uint8_t *out)	 * wants CSM1 storage order on upload. Permute into `out` (256*4 bytes). */	{
 _facts/runtime/streaming-art	runtime/ps2ui.c	589	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * state than a refused one. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
 _facts/runtime/streaming-art	runtime/ps2ui.c	644	        /* A streamed slot the app has not filled yet has no source to	         * it, which is where review said it should end up. */	         * transfer from. Its VRAM is already counted in the preflight
@@ -1116,7 +1116,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	550	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	587	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],

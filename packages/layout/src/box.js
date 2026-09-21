@@ -167,6 +167,11 @@ export function buildBoxTree(el, sheet, parentStyle, parentFocusStyle, warnings,
     // so e.g. a focused tile's color reaches its text.
     focusScope !== null && parentFocusStyle !== parentStyle ? parentFocusStyle : null,
     warnings,
+    // The compiler's sink, when it is compiling. Rides on env so that
+    // every recursive call carries it without a seventh parameter,
+    // and is absent for every other caller of buildBoxTree, which
+    // keeps throwing on the first bad declaration (F37a).
+    env.cssErrors ?? null,
   );
   if (style.display === 'none') return null;
 

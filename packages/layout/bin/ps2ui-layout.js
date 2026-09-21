@@ -108,6 +108,9 @@ try {
     process.exit(1);
   }
 } catch (err) {
-  console.error(`error: ${err.message}`);
+  // One `error: ` line per failure: `err.cssErrors` is the whole list
+  // when a CSS pass collected several (F37a), and a single error prints
+  // exactly as it always did.
+  for (const m of err.cssErrors ?? [err.message]) console.error(`error: ${m}`);
   process.exit(1);
 }

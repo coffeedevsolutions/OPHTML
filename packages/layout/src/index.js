@@ -133,6 +133,24 @@ function missingFonts(dir, missing) {
  *   fonts           — FontContext (default: repo fonts/)
  *   lint            — lint option overrides
  */
+/**
+ * One Error carrying every CSS failure of a pass, sorted by line so the
+ * author fixes the file top to bottom rather than in the order the
+ * compiler happened to reach them. `cssErrors` is the list; `message`
+ * is the same list joined, so a caller that only knows `err.message`
+ * still prints all of it.
+ */
+function cssError(list) {
+  const lineOf = (m) => {
+    const hit = /^css: line (\d+):/.exec(m);
+    return hit ? Number(hit[1]) : Number.MAX_SAFE_INTEGER;
+  };
+  const sorted = [...list].sort((a, b) => lineOf(a) - lineOf(b));
+  const err = new Error(sorted.join('\n'));
+  err.cssErrors = sorted;
+  return err;
+}
+
 export function compile(htmlSrc, cssSrc, options = {}) {
   const canvasW = options.canvasW ?? 640;
   const canvasH = options.canvasH ?? 448;
@@ -149,12 +167,32 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   // Stamp out data-repeat templates before anything computes styles, so
   // a repeated row is indistinguishable from one that was typed out.
   expandRepeats(dom, { Element, TextNode }, warnings);
-  const sheet = parseStylesheet(cssSrc);
+  // EVERY CSS ERROR IN ONE PASS, for the reason the flex-direction
+  // refusal below gives about its own: reporting the first turns a
+  // normal stylesheet into a queue of single-line fixes. A sheet
+  // carrying a gradient, a `:hover` and a `display: grid` cost three
+  // builds, each naming one of them (F37a).
+  const cssErrors = [];
+  const sheet = parseStylesheet(cssSrc, cssErrors);
   warnings.push(...sheet.warnings);
 
   resetBoxIds();
-  const boxEnv = { assetDir: options.assetDir ?? null };
-  const root = buildBoxTree(dom, sheet, null, null, warnings, null, boxEnv);
+  const boxEnv = { assetDir: options.assetDir ?? null, cssErrors };
+  // A DECLARATION THAT WAS RECORDED WAS ALSO NOT APPLIED, so the tree
+  // built from here down is the one the author did not ask for, and it
+  // can fail in its own right -- a container with no children, a
+  // percentage against nothing. When it does, the CSS errors are the
+  // cause and the crash is the symptom, so they are what gets
+  // reported. Anything raised with a clean sink is a real failure and
+  // goes up untouched.
+  let root;
+  try {
+    root = buildBoxTree(dom, sheet, null, null, warnings, null, boxEnv);
+  } catch (e) {
+    if (!cssErrors.length) throw e;
+    throw cssError(cssErrors);
+  }
+  if (cssErrors.length) throw cssError(cssErrors);
   if (!root) throw new Error('layout: root element is display: none');
   if (boxEnv.undirected) {
     // All of them at once: a document written against the old implicit
