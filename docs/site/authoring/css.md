@@ -240,7 +240,7 @@ Before this, all eight stored their value verbatim and every consumer ended in a
 
 ### What a rounded corner costs
 
-A square box is one record. A rounded one is nine (four corners, four edges and a centre), so `border-radius` adds **8 records to every box that carries it**, flat, whatever the radius. That is the number `ps2ui check` budgets against and the one a data-heavy screen runs out of, so it is worth knowing before a list of forty rows is authored: a box, a text child and a screen background measured 3 records square and 11 rounded, and eight of those boxes measured 17 and 81.
+A square box is one record. A rounded one is nine (four corners, four edges and a centre), so `border-radius` adds **8 records to every box that carries it**, flat, whatever the radius. That is the number `ps2ui check` budgets against and the one a data-heavy screen runs out of, so it is worth knowing before a list of forty rows is authored. Count it per box rather than per screen: **text costs one record per glyph**, so a row labelled `Final Fantasy X` is 13 of them before its background is drawn, and a whole-screen total says nothing about what the corners cost.
 
 Two things do not scale with the box count. A radius that reaches half the shorter side is a pill: the middle row of cells has nowhere to go, those three are not emitted, and the cost falls to 5. And the corner mask is **one texture per distinct radius**, shared by every box that uses it and independent of colour: it is a `(2r+3)` square in PSMT8, 19x19 for `8px`, charged 8 KiB of VRAM whatever the radius, because that is the smallest page allocation. Two radii in one blob cost two of them.
 

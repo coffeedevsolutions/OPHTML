@@ -700,6 +700,34 @@ class TestFlattener(unittest.TestCase):
         two_radii = flatten(rect(radius=8), rect(y=60, radius=16))
         self.assertEqual(len(two_radii.textures), 2)
 
+    def test_text_is_one_record_per_glyph_and_a_space_is_none(self):
+        """WHY A WHOLE-SCREEN RECORD COUNT SAYS NOTHING ABOUT CORNERS.
+
+        Review of #159 found the CSS page quoting worked totals -- 3
+        square and 11 rounded for "a box, a text child and a screen
+        background" -- that hold only for a ONE-character label. They
+        are not wrong, they are a fixture: F38's own row measured 3 a
+        box where this measured 2, and the whole difference is that
+        its label was two characters and this one was one.
+
+        So the page now says the per-glyph cost instead, and this is
+        the fence on that sentence. A space emits nothing, which is
+        why fifteen characters are thirteen records.
+        """
+        def records(text):
+            cmd = {"op": "text", "x": 0, "y": 0, "text": text, "size": 14,
+                   "weight": 400, "letterSpacing": 0,
+                   "color": [255, 255, 255, 255],
+                   "state": "always", "focusId": None}
+            f = Flattener(tiny_ir([cmd]), font_paths())
+            f.run()
+            return len(f.records)
+
+        for text in ("x", "hi", "hello"):
+            self.assertEqual(records(text), len(text), repr(text))
+        self.assertEqual(records("Final Fantasy X"), 13,
+                         "fifteen characters, two of them spaces")
+
     def test_the_ring_carries_the_border_role_not_the_fill_role(self):
         """One element, two roles. `background: var(--panel); border:
         2px solid var(--edge)` is a chip whose interior and outline a

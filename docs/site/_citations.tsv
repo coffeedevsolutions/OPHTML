@@ -302,7 +302,7 @@ _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/quads.py	459	        #
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/quads.py	643	            if key not in font_index:	            key = ("bold" if sl["weight"] >= 600 else "regular", sl["size"])	                # Full charset: every codepoint the metrics know.
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/rounding.py	12	def round_half_up(x: float) -> int:		    """floor(x + 0.5) — identical to Math.round for non-negative x and
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/rounding.py	25	def kern_px(units: int, size: int) -> int:		    """Pixel kern between an ordered glyph pair.
-_facts/authoring/text-and-fonts	packages/baker/tests/test_baker.py	2802	class TestCrossLanguagePen(unittest.TestCase):		    """Node and Python must place every glyph on the same pixel.
+_facts/authoring/text-and-fonts	packages/baker/tests/test_baker.py	2830	class TestCrossLanguagePen(unittest.TestCase):		    """Node and Python must place every glyph on the same pixel.
 _facts/authoring/text-and-fonts	packages/layout/src/css.js	120	  lineHeight: { unit: 'number', value: 1.25 },	  fontWeight: 400,	  textAlign: 'left',
 _facts/authoring/text-and-fonts	packages/layout/src/flex.js	73	}	  return axis === ROW ? style.margin[3] + style.margin[1] : style.margin[0] + style.margin[2];	function marginCross(axis, style) {
 _facts/authoring/text-and-fonts	packages/layout/src/flex.js	100	    if (s.whiteSpace === 'nowrap') {	  const wrapAt = (f) => {	      return [{ text: box.text, width: f.measure(box.text, s.fontSize, s.letterSpacing) }];
@@ -508,7 +508,7 @@ _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/cli.py	327	    ee = arena.arena
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/ps2ui.py	262	def cmd_check(args):		    proj = load(args.project)
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/uib.py	493	        raise ValueError(f"{path}: truncated header")	    if len(data) < _HEADER.size:	    (magic, version, feature_flags, cw, ch, n_tex, n_clut, n_cmd, n_focus,
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
-_facts/cli/ps2ui-check	packages/baker/tests/test_baker.py	3443	class TestCheck(unittest.TestCase):		    """ps2ui-check (backlog F22).
+_facts/cli/ps2ui-check	packages/baker/tests/test_baker.py	3471	class TestCheck(unittest.TestCase):		    """ps2ui-check (backlog F22).
 _facts/cli/ps2ui-check	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * rather than wrapping it. */	/* Longest row focus name a list can build: prefix + index + NUL. Only
 _facts/cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
@@ -1131,9 +1131,9 @@ authoring/video-modes	packages/layout/src/aspect.js	33	export function pixelAspe
 authoring/video-modes	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 authoring/video-modes	runtime/ps2ui.h	110	    uint16_t display_aspect_num, display_aspect_den;	     * so a mismatch is detectable rather than merely ugly. */	} ps2ui_header;
 cli/ps2ui-bake	packages/baker/ps2ui_bake/caps.py	77	def check(textures, cluts, slots, screens, caps: dict = None, records=None):		    """Returns (errors, caps). Each error names the cap, the value, and
-cli/ps2ui-bake	packages/baker/tests/test_baker.py	830	    def test_the_formats_own_uint16_count_still_bounds_the_tables(self):		        """What replaced them is not "nothing".
-cli/ps2ui-bake	packages/baker/tests/test_baker.py	2072	    def test_indexed_png_refuses_to_be_resized(self):		        # A quiet fall-back to quantizing is the failure this feature
-cli/ps2ui-bake	packages/baker/tests/test_baker.py	4133	    def test_bake_creates_its_output_directories(self):		        require_ttf()
+cli/ps2ui-bake	packages/baker/tests/test_baker.py	858	    def test_the_formats_own_uint16_count_still_bounds_the_tables(self):		        """What replaced them is not "nothing".
+cli/ps2ui-bake	packages/baker/tests/test_baker.py	2100	    def test_indexed_png_refuses_to_be_resized(self):		        # A quiet fall-back to quantizing is the failure this feature
+cli/ps2ui-bake	packages/baker/tests/test_baker.py	4161	    def test_bake_creates_its_output_directories(self):		        require_ttf()
 cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	629	def check_blob(uib, budget=None, allow_dead: int = 0,		               allow_hairline: int = 0) -> Report:
 cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 cli/ps2ui-check	tools/check-blobs.sh	83	    PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.check \\	    # shellcheck disable=SC2086	        "$repo/$blob" $flags
