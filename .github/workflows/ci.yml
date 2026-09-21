@@ -199,6 +199,15 @@ jobs:
           python3 tools/check-vram-model.py
 
           git diff --exit-code docs/findings.md
+          # And the board itself. The audit that exists to catch stale
+          # ticks missed rows three times, and none of the three was a
+          # judgement call: one row carried a marker no legend defines,
+          # one was ticked on a status line while its row stayed open,
+          # and seven followed a blank line that split their table so
+          # they stopped being rows at all. F29 is what a fence can
+          # assert about that; it found a row 97% cut off the rendered
+          # board on its first run.
+          python3 tools/check-backlog.py
 
       # Phase 2's environment, and the blob its baseline numbers are
       # taken from. Built here rather than only by hand: the README's

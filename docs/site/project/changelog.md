@@ -82,6 +82,10 @@ neither registry; `pip install ophtml` and `npm install -g
   of earlier releases below cited three releases it does not list, on
   lines that had drifted onto prose. It was never red. A pin proves a
   line has not moved, not that it was the right line.
+- The audit that catches stale ticks on the backlog had missed rows
+  three times. `tools/check-backlog.py` holds every row ID, every
+  tick-claim and every open row to each other now, and CI runs it. It
+  found a row showing 178 of its 6129 characters on its first run.
 
 ### Fixed in the documentation checker
 

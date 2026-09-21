@@ -426,6 +426,43 @@ without moving this line.
   headings, the three format paragraphs and the four entries its
   headlines restate, and each was read before it was written down.
 
+- **The audit that catches stale ticks on `BACKLOG.md` had missed rows
+  three times, and none of the three was a judgement call.** One row's
+  ID cell read `B8*`, a marker no legend defines, so no ID-keyed
+  pattern could match it. One shipped, was well formed, and was
+  findable only by reading the code. One was audited and *recorded as
+  unsettled*, which is worse than either, because a reader consulting
+  the board learned something false from a row somebody had checked.
+  `tools/check-backlog.py` holds the board to three rules now, and
+  `ci.yml` runs it: every row ID in the three ID tables is well formed
+  and renders whole, every tick-claim on a status line resolves to one
+  row or a declared-consumed ID, and no status line claims an ID
+  shipped while its row is open.
+
+  One corpus rule serves the last two and is the whole design: a table
+  row contributes only its ID cell, and every tick-claim is read from
+  the status lines. A bare prose mention is a reference, not a claim.
+  Widened over table rows, check 3 fires on every ticked row that cites
+  an open one in its prose, which these rows do routinely.
+
+  **The backlog row specified the checks and recorded what they should
+  return on a named past commit, and that recorded output failed the
+  implementation once.** The first draft scoped a status line to the
+  sprint-status paragraph and returned seven of the ten rows expected;
+  three are announced in a continuation paragraph that a paragraph-
+  scoped rule cannot see. Nothing else would have caught it, because
+  the check was green on the current board either way. A spec that
+  writes down its expected output is a spec that can fail its
+  implementer, and this one did.
+
+  Check 1 found a live defect on its first run, six days younger than
+  the row warning about it: a backlog row carried an unescaped `|`
+  inside a code span three times, so it split into 17 cells in a
+  two-column table and the rendered board showed **178 of its 6129
+  characters**. Escaped now. Six sabotages through `tools/falsify.sh`
+  are all caught, including the marker, the non-adjacent `B9 + B8`
+  claim, and the blank line that once stopped seven rows being rows.
+
 - **A comma list was one citation instead of several, so
   `runtime/ps2ui.h:653,652,660,668,704,802,806` pinned 653 and left six
   line numbers unread.** 122 members across 69 citations in 13 files
