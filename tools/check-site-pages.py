@@ -494,8 +494,10 @@ def drifted_from(recorded, current):
     F43, and those are the ones relocation cannot quietly resolve,
     because the text repeats by construction. Nothing to gain against
     either number, so the window stays where it earns its keep, in
-    relocation. `no blank start` in section 4b and the same guard in
-    section 4 are what replaced it.
+    relocation. `blank_start`, called from section 4 and section 4b,
+    is what replaced it -- the name is worth spelling right here,
+    because review of #163 grepped this sentence's version of it,
+    got nothing, and briefly had the whole rule down as dead code.
     """
     return recorded[0] != current[0]
 

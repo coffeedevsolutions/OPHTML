@@ -49,10 +49,12 @@ without moving this line.
 ### Fixed
 
 - **Three of the seven most-cited rows named the wrong lines, and the
-  displacement gives each one away.** F42 made 424 citations readable
-  that no checker had ever read -- 435 line numbers once the `/` hole
+  displacement gives each one away.** F42 made **428 citations over 435
+  members** readable that no checker had ever read, once the `/` hole
   below is closed; F43 corrected the ones a screen could find and left
-  the rest pinned. Reading the seven rows that carry the most of them
+  the rest pinned. Those are the two units that matter, and *line
+  numbers* is a third: 207 of the 435 are ranges, so counting both ends
+  gives 642. Reading the seven rows that carry the most of them
   found 12 wrong members out of 59, and review found an eighth row with
   seven more.
 
@@ -84,8 +86,11 @@ without moving this line.
   far.** Every bare identifier in an annotation made only of backticked
   tokens is checked now, paired with its member when the counts match,
   so `fontgen.py:42,51-76 (`NO_SUBSTITUTION`, `build_kerning`)` holds
-  each name to the right range. 60 citations checked before, 73 after,
-  **no new faults** — the widening is for correctness, not yield.
+  each name to the right range. **60 citations checked before and 68
+  after, 73 name-and-member pairs across them**, and **no new faults**
+  — the widening is for correctness, not yield. The ok line counts
+  pairs, so its number is not a citation count and the two must not be
+  compared.
 
   **The literal half is a trade, and the first count of it was wrong.**
   14 annotations are a backticked token that is not an identifier.
@@ -103,9 +108,12 @@ without moving this line.
   literal half still stays unchecked, but it is a trade, and the two
   finds would have been free.
 
-  The ceiling is not the rule. 1484 citations carry 161 parentheticals
-  between them, so more coverage means writing annotations, which is
-  authoring rather than checking.
+  The ceiling is not the rule. Of 1472 citations naming a real file,
+  166 carry a parenthetical at all by this reading and 68 are in a form
+  a rule can check without guessing. (That middle figure moves with the
+  matcher — review counts 171 — which is itself the subject.) More
+  coverage means writing annotations, which is authoring rather than
+  checking.
 
 - **One screen had a hole, and it hid four of the seven.**
   `main.c:1542/:1581/:1611/:1658/:1839` separates its members with
@@ -145,10 +153,17 @@ without moving this line.
   sites; they are at 127, 163, 167, 170, 194 and 183. `aspect.flags.project`
   cited prose in an unrelated docstring. Both are read now.
 
-  The rule turned out to fence the historical fault and not just the
-  shape. Inserting one line above the list block makes it fire on five
-  citations at once, because what it guards is exactly the population
-  that sits after a blank line and moves.
+  **This entry claimed the rule fences the historical fault**, on the
+  evidence that inserting one line above the list block made it fire on
+  five citations at once. That was measured before the same release
+  moved `blank_start` to run *after* the drift test, and on the tree
+  that ships the insertion fires it on **none**: 34 findings, all
+  drift, because a citation that moves onto a blank line is now
+  relocated rather than reported. The reorder is the better design and
+  its own docstring says so three functions above this paragraph. The
+  guard covers the settled case -- a citation that has not moved and
+  still starts on a blank line -- and that is all it covers. The
+  five was also an undercount of the state it described: eleven.
 
 - **A stronger drift test was measured and rejected, which is the
   entry.** Each record carries the two lines around the one it pins,
