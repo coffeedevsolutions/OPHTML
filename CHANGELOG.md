@@ -48,6 +48,61 @@ without moving this line.
 
 ### Fixed
 
+- **21 citations in the facts library were pointing at the wrong line,
+  and nothing could see them.** `check-site-pages.py` pins a citation
+  to the text at the line it names, but only recognised a citation
+  whose path began with `packages/`, `runtime/`, `tools/`, `examples/`,
+  `fonts/` or `docs/`. A file at the repository root matched none of
+  them, so `README.md:428`, `CHANGELOG.md:44` and
+  `.github/workflows/ci.yml:173` were prose as far as the checker was
+  concerned: 50 line numbers over 50 citations in 22 facts files, 14 to
+  `README.md` and 21 across three workflows, unread since each was
+  written. The prefix list is gone. `os.path.isfile` is the guard now,
+  which is the honest one: a token is a citation when it names a file.
+  The shape requirement that keeps ordinary prose out has two arms,
+  because a repo-root file has no slash and `runtime/Makefile` has no
+  extension, and requiring an extension of both silently unpinned 21
+  `Makefile` citations the prefix list *had* been checking.
+
+  **Nothing had drifted, which is not the same as nothing being
+  wrong.** Every one of the 50 still names its original file at its
+  original length, so the checker would have had nothing to report even
+  if it had been reading them. What it found on first sight is that 21
+  were wrong when they were taken: seven land on a blank line and the
+  rest on unrelated text. `CHANGELOG.md:44` for "the offset needs no
+  format change" was the file's own note about when an entry is
+  warranted; `:105` for `vramBudget` forwarding was the middle of an
+  unrelated entry, cited from two different pages; `ci.yml:378` for the
+  `check-blobs.sh` wrapper was the testcard self-test. All 21 are
+  re-pointed and pinned.
+
+  **Four more were page-level `repo:` links, pinned and green while
+  naming the wrong CI step** — the same shape one layer up, and the
+  reason a green pin is worth less than it looks: the pin protects a
+  line from moving, not a citation from having been wrong when it was
+  taken. **And one row's claim was stale rather than its number.**
+  `theme.readme.absent` said README.md's "Supported CSS" list names no
+  custom properties, no `var()` and no `@theme`; it names all three,
+  and has since 0.7.0.
+
+- **The checker counted one line more than every file had, and its
+  range guard called a backwards range an overrun.** `file_lines` split
+  on `\n` and kept the empty element a trailing newline leaves behind,
+  so the bound every line number is checked against sat one past the
+  last line. Two citations lived there: `text.js:183-188` over a
+  187-line file and `docs/format-uib.md:466-479` over a 478-line one,
+  both green, both pinned to an empty string that can never drift, both
+  running to the end of their file and overshooting by one. Correcting
+  them is what removed the only witnesses the phantom line had, so the
+  count is now asserted directly against bytes the tool writes itself.
+
+  The guard's complaint was wrong twice over. It said "448 lines" of a
+  447-line `ci.yml`, and it said *past the end of the file* about
+  `156-154`, a range re-pointed at a step that had moved and written
+  backwards, which is true of neither number. One condition had folded
+  three faults together and the message named only the last. It now
+  says which of the three it is.
+
 - **`ps2ui build` before `ps2ui fontgen` named a directory inside the
   npm package as the place your font metrics belong.** With no project
   manifest nothing passed a font flag, so `ps2ui-layout` fell back to a
