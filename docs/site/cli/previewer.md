@@ -93,7 +93,7 @@ ok - /frame.png 51449 bytes
 ok - /state 88379 bytes
 ok - /rev 15 bytes
 ok - an unknown route is 404
-ok - the frame is byte-identical to --preview
+ok - the framebuffer frame is byte-identical to --preview
 PASS: 6 route(s)
 ```
 
@@ -154,6 +154,12 @@ raw JSON.
 Four modes resample one framebuffer. `authored` is the default and runs the
 frame through the blob's own display aspect. `framebuffer` is the 1:1 render,
 byte-identical to what `--preview` writes.
+
+**So the page and `build/preview.png` are different sizes on purpose**: a
+4:3 blob is 640x448 in the file and 597x448 on screen, and the difference is
+the pixel aspect the television applies rather than anything the toolchain
+disagrees with itself about. The self-test compares the `framebuffer` frame
+and its line says so.
 
 ![The memcard library screen, root theme, forced to 16:9: the same 640x448 framebuffer resampled narrower, with the text and the covers squeezed](../assets/cli/previewer/aspect-16x9.png)
 
@@ -295,7 +301,7 @@ ok - /frame.png 51449 bytes
 ok - /state 93517 bytes
 ok - /rev 15 bytes
 ok - an unknown route is 404
-ok - the frame is byte-identical to --preview
+ok - the framebuffer frame is byte-identical to --preview
 PASS: 6 route(s)
 ```
 

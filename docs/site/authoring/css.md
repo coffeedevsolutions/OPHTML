@@ -92,7 +92,7 @@ Border:
 | `border` | `<width> solid <color>`, or `none` | | `solid` is the only style. A `var()` token is accepted here. |
 | `border-width` | px | `0` | Grows inward, border-box. |
 | `border-color` | a colour, or `var(--name)` | unset | A zero-width or transparent border emits no border. |
-| `border-radius` | one px length | `0` | One value only. Clamped to half the shorter side at emission. |
+| `border-radius` | one px length | `0` | One value only. Clamped to half the shorter side at emission. Costs 8 extra records per box; see [what a rounded corner costs](#what-a-rounded-corner-costs). |
 
 Colour:
 
@@ -237,6 +237,14 @@ Before this, all eight stored their value verbatim and every consumer ended in a
 `overflow: hidden` on a non-text box wraps its children in a `scissor_push`/`scissor_pop` pair, which becomes a GS scissor rectangle. There is no scrolling, so `scroll` and `auto` are errors.
 
 `display: none` removes the element and its subtree before layout runs. The element occupies no space and emits no commands. On the root element it is `layout: root element is display: none`.
+
+### What a rounded corner costs
+
+A square box is one record. A rounded one is nine (four corners, four edges and a centre), so `border-radius` adds **8 records to every box that carries it**, flat, whatever the radius. That is the number `ps2ui check` budgets against and the one a data-heavy screen runs out of, so it is worth knowing before a list of forty rows is authored. Count it per box rather than per screen: **text costs one record per glyph**, so a row labelled `Final Fantasy X` is 13 of them before its background is drawn, and a whole-screen total says nothing about what the corners cost.
+
+Two things do not scale with the box count. A radius that reaches half the shorter side is a pill: the middle row of cells has nowhere to go, those three are not emitted, and the cost falls to 5. And the corner mask is **one texture per distinct radius**, shared by every box that uses it and independent of colour: it is a `(2r+3)` square in PSMT8, 19x19 for `8px`, charged 8 KiB of VRAM whatever the radius, because that is the smallest page allocation. Two radii in one blob cost two of them.
+
+This is not an argument against rounded corners. It is the ordinary thing a console UI wants, and the price is knowable before it is paid.
 
 ## Limits and errors
 

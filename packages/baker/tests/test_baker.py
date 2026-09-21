@@ -656,6 +656,78 @@ class TestFlattener(unittest.TestCase):
             by_tint[r.rgba] += 1
         self.assertEqual(by_tint, {(1, 1, 1, 0x80): 9, (4, 4, 4, 0x80): 8})
 
+    def test_what_a_rounded_corner_costs(self):
+        """THE NUMBER THE CSS REFERENCE NOW QUOTES (F38).
+
+        A rounded box is a nine-cell patch, so `border-radius` turns
+        one record into nine and the cost is a flat +8 whatever the
+        radius. The page says that because a reader budgeting a
+        data-heavy screen against `ps2ui check` needs to know the
+        price before authoring forty rows, and nothing said it.
+
+        The exceptions are the other half of the sentence: a cell
+        whose width or height comes out at zero is skipped, so a
+        radius at half the shorter side drops the middle row and costs
+        +5; and the patch is keyed on geometry alone, so two radii are
+        two textures and two colours at one radius are one.
+        """
+        def rect(**kw):
+            base = {"op": "rect", "x": 0, "y": 0, "w": 60, "h": 40,
+                    "fill": [1, 1, 1, 255], "borderWidth": 0,
+                    "borderColor": None, "radius": 0,
+                    "state": "always", "focusId": None}
+            base.update(kw)
+            return base
+
+        def flatten(*rects):
+            f = Flattener(tiny_ir(list(rects)), font_paths())
+            f.run()
+            return f
+
+        self.assertEqual(len(flatten(rect()).records), 1, "square is one quad")
+        for radius in (2, 4, 8, 16):
+            f = flatten(rect(radius=radius))
+            self.assertEqual(len(f.records), 9, "radius %d" % radius)
+            self.assertEqual(len(f.textures), 1)
+
+        # h // 2 == radius: the middle row of cells has zero height.
+        self.assertEqual(len(flatten(rect(h=40, radius=20)).records), 6)
+
+        # Geometry keys the patch; colour does not.
+        two_colours = flatten(rect(radius=8),
+                              rect(y=60, radius=8, fill=[9, 9, 9, 255]))
+        self.assertEqual(len(two_colours.textures), 1)
+        two_radii = flatten(rect(radius=8), rect(y=60, radius=16))
+        self.assertEqual(len(two_radii.textures), 2)
+
+    def test_text_is_one_record_per_glyph_and_a_space_is_none(self):
+        """WHY A WHOLE-SCREEN RECORD COUNT SAYS NOTHING ABOUT CORNERS.
+
+        Review of #159 found the CSS page quoting worked totals -- 3
+        square and 11 rounded for "a box, a text child and a screen
+        background" -- that hold only for a ONE-character label. They
+        are not wrong, they are a fixture: F38's own row measured 3 a
+        box where this measured 2, and the whole difference is that
+        its label was two characters and this one was one.
+
+        So the page now says the per-glyph cost instead, and this is
+        the fence on that sentence. A space emits nothing, which is
+        why fifteen characters are thirteen records.
+        """
+        def records(text):
+            cmd = {"op": "text", "x": 0, "y": 0, "text": text, "size": 14,
+                   "weight": 400, "letterSpacing": 0,
+                   "color": [255, 255, 255, 255],
+                   "state": "always", "focusId": None}
+            f = Flattener(tiny_ir([cmd]), font_paths())
+            f.run()
+            return len(f.records)
+
+        for text in ("x", "hi", "hello"):
+            self.assertEqual(records(text), len(text), repr(text))
+        self.assertEqual(records("Final Fantasy X"), 13,
+                         "fifteen characters, two of them spaces")
+
     def test_the_ring_carries_the_border_role_not_the_fill_role(self):
         """One element, two roles. `background: var(--panel); border:
         2px solid var(--edge)` is a chip whose interior and outline a

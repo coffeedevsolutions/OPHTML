@@ -142,7 +142,7 @@ ps2ui serve --selftest
 
 ```text
 ok - an unknown route is 404
-ok - the frame is byte-identical to --preview
+ok - the framebuffer frame is byte-identical to --preview
 PASS: 6 route(s)
 ```
 
@@ -150,6 +150,16 @@ This builds the project, binds an ephemeral port and fetches every route
 once. It asserts the served frame equals what `--preview` wrote. If those
 ever differ, everything judged in a browser is judged against a picture
 the console will not draw.
+
+**Two sizes, and they are both right.** `build/preview.png` is the
+framebuffer, 640x448. The previewer shows 597x448 by default, because it
+applies the pixel aspect a 4:3 television applies to that framebuffer, and
+the self-test compares the framebuffer frame rather than the one on screen
+-- which is what its line says. Diffing the browser against
+`build/preview.png` therefore gives two different pictures and neither is
+broken. [Video modes](page:authoring/video-modes#previewing-at-the-panels-aspect)
+is where the stretch comes from, and the previewer's Aspect menu switches
+between them.
 
 ## 8. Serve it
 

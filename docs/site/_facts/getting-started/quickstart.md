@@ -66,7 +66,7 @@ ok - /frame.png 8755 bytes
 ok - /state 4859 bytes
 ok - /rev 15 bytes
 ok - an unknown route is 404
-ok - the frame is byte-identical to --preview
+ok - the framebuffer frame is byte-identical to --preview
 PASS: 6 route(s)
 ```
 
