@@ -123,10 +123,17 @@ REPO_LINK = re.compile(r"\(repo:([^)#\s]+)(?:#L(\d+)(?:-L?(\d+))?)?\)")
 # `packages|runtime|tools|examples|fonts|docs`, which made a citation
 # invisible for the accident of where its file sits: `README.md:364`,
 # `CHANGELOG.md:44`, `.github/workflows/ci.yml:173`. Measured when the
-# list came out: 50 line numbers over 50 citations in 22 facts files,
-# 14 of them to README.md and 21 to a workflow (F41a). The guard that
-# replaces it is `os.path.isfile` below -- a token is a citation when
-# it names a file, and prose naming something else never was one.
+# list came out: 51 line numbers over 41 citations in 22 facts files,
+# 14 of the numbers to README.md and 22 across three workflows (F41a).
+# The guard that replaces it is `os.path.isfile` below -- a token is a
+# citation when it names a file, and prose naming something else never
+# was one.
+#
+# THOSE TWO UNITS ARE NOT INTERCHANGEABLE and the first version of this
+# comment said "50 over 50", restating the member count as a citation
+# count. A citation is one `path:N` match; a line number is one member
+# of it, and `README.md:120,129,241` is one of the former and three of
+# the latter. Review of #160 caught it.
 #
 # THE SHAPE REQUIREMENT IS WHAT KEEPS PROSE OUT, and it has two arms
 # because repo-root files have no slash and `runtime/Makefile` has no

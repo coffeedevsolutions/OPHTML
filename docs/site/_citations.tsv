@@ -264,7 +264,7 @@ _facts/authoring/lists	runtime/ps2ui.h	816		int ps2ui_list_move(ps2ui_ctx *ctx, 
 _facts/authoring/lists	runtime/ps2ui.h	820		int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item);	/* The item index displayed in row `row`, or -1 when that row is past
 _facts/authoring/lists	runtime/ps2ui.h	825		int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row);	/* Which baked row the selection currently occupies (0..rows-1), or -1
 _facts/authoring/lists	runtime/ps2ui.h	829		int ps2ui_list_selected_row(const ps2ui_list *list);	/* Hide the rows past the end of the data and show the rest.
-_facts/authoring/project-file	CHANGELOG.md	692	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/project-file	CHANGELOG.md	698	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/project-file	README.md	136	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
 _facts/authoring/project-file	README.md	657	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
@@ -423,7 +423,7 @@ _facts/authoring/video-modes	runtime/ps2ui.c	1493	uint32_t ps2ui_pixel_aspect_x1
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
-_facts/authoring/vram-budget	CHANGELOG.md	692	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/vram-budget	CHANGELOG.md	698	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	595	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	600	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	159	    ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",	                         "each entry -- the half of it only the baker knows")	                    help="texture VRAM budget (default: 4 MiB minus a "
@@ -662,11 +662,11 @@ _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        
 _facts/project/changelog	CHANGELOG.md	17	### Added		
 _facts/project/changelog	CHANGELOG.md	19	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
 _facts/project/changelog	CHANGELOG.md	49	### Fixed		
-_facts/project/changelog	CHANGELOG.md	106	- **`ps2ui build` before `ps2ui fontgen` named a directory inside the		  npm package as the place your font metrics belong.** With no project
-_facts/project/changelog	CHANGELOG.md	128	- **The build command `vendor-runtime --starter` printed could not be		  followed.** It said to put the blob beside the four files and then
-_facts/project/changelog	CHANGELOG.md	143	- **`--starter` was the answer to the console half and no page a		  stranger reads mentioned it.** Zero occurrences across the
-_facts/project/changelog	CHANGELOG.md	162	- **The Installation page did not mention that `pip install ophtml`		  fails on a current macOS or Debian box.** PEP 668's
-_facts/project/changelog	CHANGELOG.md	319	## 0.7.0 — 2026-09-17		
+_facts/project/changelog	CHANGELOG.md	112	- **`ps2ui build` before `ps2ui fontgen` named a directory inside the		  npm package as the place your font metrics belong.** With no project
+_facts/project/changelog	CHANGELOG.md	134	- **The build command `vendor-runtime --starter` printed could not be		  followed.** It said to put the blob beside the four files and then
+_facts/project/changelog	CHANGELOG.md	149	- **`--starter` was the answer to the console half and no page a		  stranger reads mentioned it.** Zero occurrences across the
+_facts/project/changelog	CHANGELOG.md	168	- **The Installation page did not mention that `pip install ophtml`		  fails on a current macOS or Debian box.** PEP 668's
+_facts/project/changelog	CHANGELOG.md	325	## 0.7.0 — 2026-09-17		
 _facts/project/internals	docs/PLAN.md	1	# ps2ui Foundation Plan		
 _facts/project/internals	docs/architecture.md	1	# ps2ui — architecture and decisions		
 _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the streaming sitting		
@@ -1074,8 +1074,8 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/moving-and-hiding	CHANGELOG.md	594	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1128	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
+_facts/runtime/moving-and-hiding	CHANGELOG.md	600	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1134	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
 _facts/runtime/moving-and-hiding	README.md	435	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES NOT DO. It replays the command list faithfully, so it		cannot catch the console diverging from that list. F-048 -- the GS
@@ -1171,7 +1171,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	678	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	684	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],

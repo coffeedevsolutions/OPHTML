@@ -48,32 +48,38 @@ without moving this line.
 
 ### Fixed
 
-- **21 citations in the facts library were pointing at the wrong line,
-  and nothing could see them.** `check-site-pages.py` pins a citation
-  to the text at the line it names, but only recognised a citation
+- **27 line numbers in the facts library were pointing at the wrong
+  line, and nothing could see them.** `check-site-pages.py` pins a
+  citation to the text at the line it names, but only recognised one
   whose path began with `packages/`, `runtime/`, `tools/`, `examples/`,
   `fonts/` or `docs/`. A file at the repository root matched none of
   them, so `README.md:428`, `CHANGELOG.md:44` and
   `.github/workflows/ci.yml:173` were prose as far as the checker was
-  concerned: 50 line numbers over 50 citations in 22 facts files, 14 to
-  `README.md` and 21 across three workflows, unread since each was
-  written. The prefix list is gone. `os.path.isfile` is the guard now,
-  which is the honest one: a token is a citation when it names a file.
-  The shape requirement that keeps ordinary prose out has two arms,
+  concerned: **51 line numbers over 41 citations in 22 facts files**,
+  14 of the numbers to `README.md` and 22 across three workflows,
+  unread since each was written. The two units are not
+  interchangeable: a citation is one `path:N` match, a line number is
+  one member of it, and `README.md:120,129,241` is one of the former
+  and three of the latter.
+
+  The prefix list is gone. `os.path.isfile` is the guard now, which is
+  the honest one: a token is a citation when it names a file. The
+  shape requirement that keeps ordinary prose out has two arms,
   because a repo-root file has no slash and `runtime/Makefile` has no
   extension, and requiring an extension of both silently unpinned 21
   `Makefile` citations the prefix list *had* been checking.
 
   **Nothing had drifted, which is not the same as nothing being
-  wrong.** Every one of the 50 still names its original file at its
+  wrong.** Every one of the 51 still names its original file at its
   original length, so the checker would have had nothing to report even
-  if it had been reading them. What it found on first sight is that 21
-  were wrong when they were taken: seven land on a blank line and the
-  rest on unrelated text. `CHANGELOG.md:44` for "the offset needs no
+  if it had been reading them. What it found on first sight is that
+  **27 of the 51, over 23 of the 41 citations, were wrong when they
+  were taken**: seven land on a blank line and the rest on unrelated
+  text. More than half. `CHANGELOG.md:44` for "the offset needs no
   format change" was the file's own note about when an entry is
   warranted; `:105` for `vramBudget` forwarding was the middle of an
   unrelated entry, cited from two different pages; `ci.yml:378` for the
-  `check-blobs.sh` wrapper was the testcard self-test. All 21 are
+  `check-blobs.sh` wrapper was the testcard self-test. All 27 are
   re-pointed and pinned.
 
   **Four more were page-level `repo:` links, pinned and green while
