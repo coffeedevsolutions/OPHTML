@@ -164,6 +164,58 @@ def cite_members(m):
         a, _, b = body.partition("-")
         out.append((int(a), int(b) if b else int(a), tok))
     return out
+
+
+# A CITATION NAMES ITS PATH, EVERY TIME.
+#
+# The tree used to write a run of members as `css.js:639-653, :605,
+# :625-630`, where every member after the first is a colon and a number
+# and nothing else. `FACTS_CITE` cannot read those -- it needs a path --
+# so 424 line numbers across 208 rows sat unread for the life of the
+# library, and one of them, `ninepatch.py:156-179`, cited three lines
+# past the end of a 176-line file.
+#
+# THE FIX IS NOT TO TEACH THE CHECKER THE SHAPE, and the reason is in
+# this repository. `:692` in `ps2ui.c:675-733 (`:692` kind, ...)` is a
+# citation. `:32` in "it came to cite `:32` for `### Fixed`" is prose
+# ABOUT a citation, in the row that documents this very rule. The two
+# tokens are identical and only intent separates them, so a checker
+# that bound `:NN` to the last path seen would pin a sentence's example
+# and then let `--fix` quietly rewrite the sentence. One spelling and a
+# rule against the other is the only reading that cannot guess wrong.
+BARE_CONT = re.compile(r"(?<![\w/.-]):(\d+)(?:-\d+)?")
+
+# AN ANNOTATION IS A CLAIM, SO CHECK IT.
+#
+# `ps2ui.py:290-305 (`cmd_check`)` says two things: that those lines
+# have not moved, which the pin checks, and that they are `cmd_check`,
+# which nothing did. `cmd_check` is at 262. That citation was pinned
+# and green from the day it was written, and three more like it were --
+# the pin protects a line from moving, not a citation from naming the
+# wrong thing, which is F41(a)'s finding one layer down.
+#
+# ONLY THE UNAMBIGUOUS FORM. A lone backticked identifier is a claim
+# about the lines. `(no `width`/`height` read)` is a claim that they do
+# NOT contain it, `(the check sits above the first `write_uib`)` is
+# about a neighbour, and `(restates parent `integrate.make.blob`)`
+# names a row. Reading those needs a guess, and a check that guesses is
+# the thing this file exists to stop, so they are left alone.
+#
+# AND THE RULE IS *APPEARS AT OR BEFORE*, NOT *APPEARS INSIDE*. The
+# obvious rule -- the name must be in the cited lines -- was written
+# first and found eight failures, and FOUR OF THE EIGHT WERE ITS OWN
+# FAULT: `ps2ui.py:290-305 (`cmd_check`)` is inside `cmd_check`, which
+# spans 262-309, and an annotation names the construct a citation sits
+# in rather than repeating itself on every line of it. A check that is
+# half wrong about its own findings is the failure mode this file
+# exists to prevent, so the claim was narrowed to one that holds
+# without a parser and without a threshold: a construct is introduced
+# before its body, so a name that first appears AFTER the lines it
+# annotates cannot be describing them. Three findings, none of them
+# false. It is a weaker net on purpose -- `flex.js:515 (`whiteSpace`)`
+# pointed into `justifyOffsets` while `whiteSpace` sat 390 lines back
+# at 125, and only a hand reading caught that one.
+CITE_ANNOT = re.compile(r"\s*\(`([A-Za-z_][\w.]*)`\)")
 IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
 
@@ -438,17 +490,45 @@ def main(argv):
     # citation is written differs. Keyed on the first line of a range
     # exactly as a repo: link is, so a range moves as a unit.
     n_facts = 0
+    n_bare = 0
+    n_annot = 0
     facts_drift = []
     facts_text = {}
     for fid, full, idx, cells in facts_rows():
         facts_text.setdefault(full, open(full, encoding="utf-8").read()
                               .split("\n"))
+        # Blank out the citations, and any bare `:NN` still standing in
+        # the source cell is a member that named no path.
+        rest = FACTS_CITE.sub(lambda m: " " * len(m.group(0)), cells[2])
+        for m in BARE_CONT.finditer(rest):
+            n_bare += 1
+            bad("%s: %s names no path -- write it as `<path>%s`, because "
+                "a member the checker cannot read is a member nobody has "
+                "read" % (fid, m.group(0), m.group(0)))
         for m in FACTS_CITE.finditer(cells[2]):
             path = m.group(1)
             if not os.path.isfile(os.path.join(ROOT, path)):
                 continue          # prose naming a path that is not a file
             lines = file_lines(path)
             members = cite_members(m)
+            a = CITE_ANNOT.match(cells[2], m.end())
+            if a:
+                first = int(m.group(2))
+                last = int(m.group(3)) if m.group(3) else first
+                if 1 <= first <= last <= len(lines):
+                    n_annot += 1
+                    want = a.group(1).rsplit(".", 1)[-1]
+                    if not any(want in x for x in lines[:last]):
+                        # SAY WHETHER IT IS LATE OR ABSENT. An
+                        # annotation naming something the file does not
+                        # contain at all is a different fault from one
+                        # naming something further down, and `next()`
+                        # over an empty match raises rather than says so.
+                        at = [k + 1 for k, x in enumerate(lines) if want in x]
+                        bad("%s: %s:%d-%d is annotated `%s`, which %s" %
+                            (fid, path, first, last, a.group(1),
+                             "does not appear until line %d" % at[0] if at
+                             else "is nowhere in the file"))
             for first, last, token in members:
                 if not (1 <= first <= last <= len(lines)):
                     # SAY WHICH OF THE THREE WAYS IT IS WRONG. The
@@ -618,6 +698,8 @@ def main(argv):
                    % (n_repo, n_pinned))
         oks.append("ok - %d facts-row source citations checked against "
                    "_citations.tsv" % n_facts)
+        oks.append("ok - every source-cell member names its path; %d "
+                   "annotation(s) found in the lines they name" % n_annot)
 
     # 5. voice, 6. images, 7. word budget
     for pid, text in texts.items():

@@ -48,6 +48,60 @@ without moving this line.
 
 ### Fixed
 
+- **424 line numbers in the facts library named no file, and one of
+  them cited three lines past the end of one.** A run of citations was
+  written as `css.js:639-653, :605, :625-630`, where every member after
+  the first is a colon and a number. `FACTS_CITE` needs a path, so it
+  read the first and walked past the rest: 431 such tokens across 227
+  cells, 64 in `authoring/css` alone. Every member now names its path,
+  and writing one that does not is a failure with the fix in the
+  message.
+
+  **The checker was not taught to read the shape, and the reason is in
+  the corpus.** Seven of the 431 are prose. `changelog.mapping`
+  explains how it once cited 32 for a heading that sat at 49, and it
+  explained that by writing the token. In
+  `ps2ui.c:675-733 (`:692` kind)` the same characters are a citation.
+  Nothing but intent separates them, so a checker that bound a bare
+  member to the last path it saw would have pinned a sentence's example
+  and then let `--fix` quietly rewrite the sentence. One spelling and a
+  rule against the other is the only reading that cannot guess wrong.
+
+  **57 of the 424 were wrong, and 48 of the 57 are in four rows.** The
+  damage is not an even scatter, it is whole lists that went stale
+  together, because a list nobody reads is a list nobody re-derives.
+  `css.properties` was 178 to 191 lines low on every one of its 32
+  numbers -- an ordered snapshot of a `css.js` that had since grown by
+  about 180 lines -- while its own verified-by cell said a `grep` had
+  returned exactly those cases. It is now 38 numbers derived from
+  `applyDeclaration`'s span, carrying the 45 properties the fact names.
+  `loop.order` had eight of its nine lifecycle steps landing in
+  comments and closing braces.
+
+- **An annotation beside a citation is a claim, and nothing checked
+  it.** `ps2ui.py:290-305 (`cmd_check`)` says two things: that those
+  lines have not moved, which the pin checks, and that they are
+  `cmd_check`, which nothing did. Two of the four faults this found had
+  been pinned and green since the day they were written, which is the
+  previous entry's finding one layer down: the pin protects a line from
+  moving, not a citation from naming the wrong thing.
+
+  **The obvious rule was half wrong about its own findings.** Requiring
+  the name inside the cited lines reported eight failures, and four
+  were its own fault -- `cmd_check` spans 262-309, so a citation to
+  290-305 is inside it, and an annotation names the construct a
+  citation sits in rather than repeating itself on every line of it.
+  The rule that shipped is *appears at or before*: a construct is
+  introduced before its body, so a name that first appears after the
+  lines it annotates cannot be describing them. No parser, no
+  threshold, three findings and none of them false.
+
+  It is a weaker net on purpose. `flex.js:515 (`whiteSpace`)` pointed
+  into `justifyOffsets` while `whiteSpace` sat 390 lines back, it
+  passes this rule, and only a hand reading caught it. 367 of the newly
+  readable members are pinned and have not been read by anyone; that is
+  a filed row, not a claim of verification.
+
 - **27 line numbers in the facts library were pointing at the wrong
   line, and nothing could see them.** `check-site-pages.py` pins a
   citation to the text at the line it names, but only recognised one
