@@ -9,6 +9,7 @@ import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { compileFiles } from '../src/index.js';
 import { MODES, parseAspect } from '../src/aspect.js';
+import { parseLimitSpec } from '../src/limits.js';
 
 // THE VERSION HAS TO REACH A PERSON, and it comes from the manifest
 // rather than a second literal here. package.json is this package's one
@@ -60,20 +61,12 @@ for (let i = 0; i < args.length; i++) {
     // --limit nodes=40000 --limit depth=128. `ps2ui build` forwards
     // whatever the project file's "limits" object says.
     case '--limit': {
-      const spec = args[++i] || '';
-      const eq = spec.indexOf('=');
-      if (eq < 1) {
-        console.error('ps2ui-layout: --limit takes name=value, '
-                      + `got ${JSON.stringify(spec)}`);
+      const got = parseLimitSpec(args[++i]);
+      if (got.error) {
+        console.error(`ps2ui-layout: ${got.error}`);
         process.exit(2);
       }
-      const n = Number(spec.slice(eq + 1));
-      if (!Number.isInteger(n) || n < 1) {
-        console.error(`ps2ui-layout: --limit ${spec.slice(0, eq)} takes a `
-                      + `positive integer, got ${JSON.stringify(spec.slice(eq + 1))}`);
-        process.exit(2);
-      }
-      limits[spec.slice(0, eq)] = n;
+      limits[got.name] = got.value;
       break;
     }
     case '-h': case '--help': usage(0); break;

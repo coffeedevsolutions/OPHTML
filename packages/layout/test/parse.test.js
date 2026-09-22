@@ -899,8 +899,8 @@ test('limits: the derivation in limits.js still describes the corpus', () => {
   assert.equal(maxDepth, 5, 'limits.js says the deepest shipped screen is 5; '
     + 'update the derivation there and the depth error message');
   // And the caps stay above the corpus by the margin the file claims.
-  assert.ok(LIMITS.nodes > maxNodes * 50, 'the nodes cap is no longer an order '
-    + 'of magnitude above the largest real screen');
+  assert.ok(LIMITS.nodes > maxNodes * 50, 'the nodes cap is no longer at least '
+    + '50x the largest real screen; limits.js puts the ratio at ~108x');
   assert.ok(LIMITS.depth > maxDepth * 5, 'the depth cap is no longer well '
     + 'above the deepest real screen');
 

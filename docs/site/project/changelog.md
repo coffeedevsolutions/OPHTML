@@ -67,9 +67,10 @@ neither registry; `pip install ophtml` and `npm install -g
 - A 439 KiB image could cost 432 MB and eleven seconds of bake time, or
   end the bake in a Pillow traceback. The size is read from the header
   now, before any decode.
-- Nesting past about 1500 reported `Maximum call stack size exceeded`,
-  which is the interpreter's stack rather than a decision. The refusal
-  is the compiler's now, and names the line.
+- Nesting deep enough reported `Maximum call stack size exceeded`,
+  which is the interpreter's stack rather than a decision: it gives out
+  at 1842 here and at 889 or 7781 with the stack sized down or up. The
+  refusal is the compiler's now, at 64, and names the line.
 
 - Nothing read the documentation library backwards, so a citation to a
   deleted file pointed at nothing indefinitely. `check-doc-impact.py`

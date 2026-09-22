@@ -13,11 +13,11 @@ _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve.py	375	        warni
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	136	    <button id="btnSafe" title="Title-safe area — 10% inset, the CRT overscan budget">Safe area</button>	    <button id="btnGrid" title="8px grid">Grid</button>	    <button id="btnFull" title="Screen only (F, Esc to leave)">Full screen</button>
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	320	  if (S.safe) {	  }	    const ix = Math.round(w * 0.1), iy = Math.round(h * 0.1);
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	517	function buildWarnings() {		  const d = $('diags'), ws = S.st.warnings || [];
-_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	54	    case '--strict': strict = true; break;	    case '--focus-wrap': focusWrap = true; break;	    // A DELIBERATE FLOOR, WRITTEN DOWN. The default 14px is the couch
-_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	58	    case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;	    // rather than have the rule quietly not reach its text.	    // A CAP, RAISED ON PURPOSE AND IN THE OPEN (S3). Repeatable:
-_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	101	  options.lint = { ...(options.lint || {}), minFontSize };	  }	}
-_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	113	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  const ir = compileFiles(positional[0], positional[1], options);	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
-_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	129	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
+_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	55	    case '--strict': strict = true; break;	    case '--focus-wrap': focusWrap = true; break;	    // A DELIBERATE FLOOR, WRITTEN DOWN. The default 14px is the couch
+_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	59	    case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;	    // rather than have the rule quietly not reach its text.	    // A CAP, RAISED ON PURPOSE AND IN THE OPEN (S3). Repeatable:
+_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	94	  options.lint = { ...(options.lint || {}), minFontSize };	  }	}
+_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	106	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  const ir = compileFiles(positional[0], positional[1], options);	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
+_facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	122	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
 _facts/authoring/crt-linter	packages/layout/src/box.js	99	  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',	const KNOWN_DATA_ATTRS = new Set([	  'data-tex-slot', 'data-repeat',
 _facts/authoring/crt-linter	packages/layout/src/box.js	201	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
 _facts/authoring/crt-linter	packages/layout/src/box.js	310	  // a rounded card that does not clip draws correctly, and a square	  // fires on the box that does both, because either alone is fine:	  // one that clips clips correctly.
@@ -218,8 +218,8 @@ _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/serve_page.html	
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/serve_page.html	327	  if (S.graph) {	  const byName = new Map(nodes.map((n) => [n.name, n]));	    for (const n of nodes) {
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/serve_page.html	638	toggle('btnGraph', 'graph', drawOverlay);	toggle('btnFocus', 'focusBox', drawOverlay);	toggle('btnGrid', 'grid', drawOverlay);
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/serve_page.html	698	  else if (e.key === 'n') $('btnGraph').click();	  else if (e.key === 'b') $('btnFocus').click();	  else if (e.key === '[' || e.key === ']') {
-_facts/authoring/focus-and-navigation	packages/layout/bin/ps2ui-layout.js	53	    case '--focus-wrap': focusWrap = true; break;	    case '--fonts': fontManifest = args[++i]; break;	    case '--strict': strict = true; break;
-_facts/authoring/focus-and-navigation	packages/layout/bin/ps2ui-layout.js	128	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	  const quads = ir.commands.length;	  if (strict && ir.warnings.length > 0) {
+_facts/authoring/focus-and-navigation	packages/layout/bin/ps2ui-layout.js	54	    case '--focus-wrap': focusWrap = true; break;	    case '--fonts': fontManifest = args[++i]; break;	    case '--strict': strict = true; break;
+_facts/authoring/focus-and-navigation	packages/layout/bin/ps2ui-layout.js	121	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	  const quads = ir.commands.length;	  if (strict && ir.warnings.length > 0) {
 _facts/authoring/focus-and-navigation	packages/layout/src/box.js	294	  const focusable = 'focusable' in el.attrs;	  }	  if (focusable && focusScope !== null) {
 _facts/authoring/focus-and-navigation	packages/layout/src/css.js	192	function compoundMatches(compound, el, ignoreFocus = false) {		  if (el.type !== 'element') return false;
 _facts/authoring/focus-and-navigation	packages/layout/src/css.js	203	  if (!ignoreFocus && compound.focus && !('focusable' in el.attrs)) return false;	  // missing attribute?" so it can say so. Everything else passes false.	  const cls = el.classes;
@@ -323,8 +323,8 @@ _facts/authoring/html	packages/layout/src/repeat.js	48	  if ('data-repeat' in el
 _facts/authoring/html	packages/layout/src/repeat.js	59	export function expandRepeats(root, { Element, TextNode }, warnings = []) {	 */	  if (root.type === 'element' && 'data-repeat' in root.attrs) {
 _facts/authoring/html	packages/layout/src/repeat.js	76	      const raw = child.attrs['data-repeat'];	      }	      if (!/^\\d+$/.test(raw)) {
 _facts/authoring/html	packages/layout/src/repeat.js	110	      for (let i = 0; i < count; i++) {	      }	        const copy = cloneWithIndex(child, i, TextNode, Element);
-_facts/authoring/images	packages/baker/ps2ui_bake/cli.py	152	    ap.add_argument("--palettize-images", action="store_true",	                         "one matches a photograph of the television.")	                    help="quantize every image to 8-bit indexed PSMT8+CLUT "
-_facts/authoring/images	packages/baker/ps2ui_bake/cli.py	243	    flat = Flattener(ir, font_paths, palettize_all=args.palettize_images,		                     max_image_pixels=limits.get("imagePixels"))
+_facts/authoring/images	packages/baker/ps2ui_bake/cli.py	153	    ap.add_argument("--palettize-images", action="store_true",	                         "one matches a photograph of the television.")	                    help="quantize every image to 8-bit indexed PSMT8+CLUT "
+_facts/authoring/images	packages/baker/ps2ui_bake/cli.py	271	    flat = Flattener(ir, font_paths, palettize_all=args.palettize_images,		                     max_image_pixels=limits.get("imagePixels"))
 _facts/authoring/images	packages/baker/ps2ui_bake/quads.py	315	    def _clut_from_palette(pal) -> bytes:	    @staticmethod	        """RGBA palette bytes -> a full 256-entry GS CLUT.
 _facts/authoring/images	packages/baker/ps2ui_bake/quads.py	328	    def _image_texture(self, src: str, w: int, h: int, palettize: bool,		                       strict: bool = False) -> int:
 _facts/authoring/images	packages/baker/ps2ui_bake/quads.py	344	            try:	        if key not in self._images:	                # Pillow warns between 1x and 2x its own guard. Our
@@ -397,21 +397,21 @@ _facts/authoring/lists	runtime/ps2ui.h	821	/* The item index displayed in row `r
 _facts/authoring/lists	runtime/ps2ui.h	822	 * the end of the data and should be blanked. This is the loop the app	/* The item index displayed in row `row`, or -1 when that row is past	 * runs after every move to refill the slots. */
 _facts/authoring/lists	runtime/ps2ui.h	826	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
 _facts/authoring/lists	runtime/ps2ui.h	830	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
-_facts/authoring/project-file	CHANGELOG.md	1242	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/project-file	CHANGELOG.md	1264	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/project-file	README.md	136	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
 _facts/authoring/project-file	README.md	657	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
-_facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	64	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
+_facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	65	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
 _facts/authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/authoring/project-file	packages/baker/ps2ui_bake/ps2ui.py	301	    argv = [rel(proj, proj.out_path)]	    # written; nothing passed it.	    if proj.vram_budget is not None:
 _facts/authoring/project-file	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
-_facts/authoring/screens-and-overlays	BACKLOG.md	568	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
-_facts/authoring/screens-and-overlays	BACKLOG.md	591	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
+_facts/authoring/screens-and-overlays	BACKLOG.md	569	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
+_facts/authoring/screens-and-overlays	BACKLOG.md	592	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
 _facts/authoring/screens-and-overlays	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
 _facts/authoring/screens-and-overlays	examples/opl-env/ps2ui.json	2	  "screens": [	{	    "ui/landing.html", "ui/library.html", "ui/detail.html",
 _facts/authoring/screens-and-overlays	examples/opl-env/ui/confirm.html	24	    <!-- The readout. On EVERY screen, not only on library: slots are	    </div>	         per-screen (render_slots walks the current screen's slot range),
 _facts/authoring/screens-and-overlays	examples/opl-env/ui/opl.css	47	  --scrim: rgba(6, 9, 16, 0.62);	  --score: #63b98a;	  --bg-dialog: #141c2c;
-_facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/cli.py	187	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
+_facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/cli.py	215	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/ps2ui.py	83	def font_args(proj):		    """Where the compiler looks for fonts. Always the manifest.
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/quads.py	576	    def run_screens(self, named_irs) -> None:		        """Flatten several IRs into one blob (backlog F4).
@@ -437,8 +437,8 @@ _facts/authoring/screens-and-overlays	runtime/tests/test_runtime.c	1921	        
 _facts/authoring/text-and-fonts	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/atlas.py	103	        adv_units = self.metrics["advances"].get(str(cp), self.metrics["missing"])		        advance = glyph_advance_px(adv_units, self.size)
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/atlas.py	111	        ImageDraw.Draw(tile).text((pad, pad), ch, font=self.font, fill=255)	        tile = Image.new("L", (tile_w, tile_h), 0)	        bbox = tile.getbbox()
-_facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/cli.py	82	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
-_facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/cli.py	122	        metrics = os.path.expanduser(spec["metrics"])	            )	        out[face] = {
+_facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/cli.py	83	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
+_facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/cli.py	123	        metrics = os.path.expanduser(spec["metrics"])	            )	        out[face] = {
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/fontgen.py	26	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/fontgen.py	79	def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAULT_CHARSET) -> dict:		    em = 1000
 _facts/authoring/text-and-fonts	packages/baker/ps2ui_bake/pen.py	46	def slot_width(text, glyphs, kerns, letter_spacing=0):		    """Width in pixels of `text` under a baked font's tables.
@@ -486,8 +486,8 @@ _facts/authoring/theming	README.md	25	One blob, two themes, swapped on the conso
 _facts/authoring/theming	README.md	222	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	646	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	736	    if args.tints:		        print_tints(uib, args.uib)
-_facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	317	    if args.tints:		        names = ir.get("themes") or ["root"]
-_facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	365	            preview_mod.render(uib).save(args.preview)	        if args.preview:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)
+_facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	345	    if args.tints:		        names = ir.get("themes") or ["root"]
+_facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	393	            preview_mod.render(uib).save(args.preview)	        if args.preview:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)
 _facts/authoring/theming	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/authoring/theming	packages/baker/ps2ui_bake/serve.py	752	    parser.add_argument("--theme", type=int, default=0, help="the theme row")	    parser.add_argument("--screen", metavar="NAME", help="the screen to open")	    parser.add_argument("--no-watch", action="store_true",
 _facts/authoring/theming	packages/baker/ps2ui_bake/serve_page.html	123	    <label for="themeSel">Theme</label><select id="themeSel"></select>	    <label for="screenSel">Screen</label><select id="screenSel"></select>	    <label for="aspectSel">Aspect</label><select id="aspectSel"></select>
@@ -543,12 +543,12 @@ _facts/authoring/theming	runtime/ps2ui.h	429	/* The blob's counts are legal but 
 _facts/authoring/theming	runtime/ps2ui.h	564	 * caller handing a 16-entry palette to a 256-entry CLUT gets an erased	 * previous values. Consistent with ps2ui_upload, and worth stating: a	 * atlas, not a partial recolour.
 _facts/authoring/theming	runtime/ps2ui.h	576	/* Select which row of the tint table commands and slots index into.		 *
 _facts/authoring/theming	runtime/sample/main.c	2095	            if (frame && frame % 241 == 0) {	             * unmeasurable and the frame is free now. */	                unsigned n = ui.hdr->n_theme;
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	138	    ap.add_argument("--version", action="version",	    # else, so it cannot become the next number that disagrees.	                    version="ps2ui-bake %s" % __version__)
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	148	    ap.add_argument("--preview-display", default=None, metavar="PNG",	    ap.add_argument("--montage", default=None, help="write a PNG sheet of every focus state")	                    help="write the preview resampled to the panel's aspect. "
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	187	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	193	            print(f"warning (layout {name}): {w}", file=sys.stderr)	        for w in ir.get("warnings", []):	        named_irs.append((name, ir))
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	364	        if args.preview:	        uib = read_uib(args.out)  # replay what we wrote, not what we meant	            preview_mod.render(uib).save(args.preview)
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	367	        if args.preview_display:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)	            preview_mod.to_display_space(
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	139	    ap.add_argument("--version", action="version",	    # else, so it cannot become the next number that disagrees.	                    version="ps2ui-bake %s" % __version__)
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	149	    ap.add_argument("--preview-display", default=None, metavar="PNG",	    ap.add_argument("--montage", default=None, help="write a PNG sheet of every focus state")	                    help="write the preview resampled to the panel's aspect. "
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	215	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	221	            print(f"warning (layout {name}): {w}", file=sys.stderr)	        for w in ir.get("warnings", []):	        named_irs.append((name, ir))
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	392	        if args.preview:	        uib = read_uib(args.out)  # replay what we wrote, not what we meant	            preview_mod.render(uib).save(args.preview)
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	395	        if args.preview_display:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)	            preview_mod.to_display_space(
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/preview.py	95	def display_size(uib: UibFile):		    """Frame size as the panel shows it. Anamorphic stretching is
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/preview.py	111	    target = display_size(uib)	    captures against the 1:1 render."""	    if target == img.size:
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
@@ -565,11 +565,11 @@ _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	233	def render_p
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve_page.html	543	  /* Pixel aspect: how much wider a framebuffer pixel is drawn than it is	  for (const cmd of (st.commands || [])) counts[cmd.op] = (counts[cmd.op] || 0) + 1;	   * stored. The one number the old previewer never showed. */
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/vram.py	231	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
-_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	45	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
-_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	89	if (mode) {	if (Object.keys(limits).length) options.limits = limits;	  if (!(mode in MODES)) usage(2);
-_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	90	  if (!(mode in MODES)) usage(2);	if (mode) {	  options.canvasW = MODES[mode].w;
-_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	95	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
-_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	104	if (canvas) { // explicit --canvas beats --mode		  const m = /^(\\d+)x(\\d+)$/.exec(canvas);
+_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	46	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
+_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	82	if (mode) {	if (Object.keys(limits).length) options.limits = limits;	  if (!(mode in MODES)) usage(2);
+_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	83	  if (!(mode in MODES)) usage(2);	if (mode) {	  options.canvasW = MODES[mode].w;
+_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	88	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
+_facts/authoring/video-modes	packages/layout/bin/ps2ui-layout.js	97	if (canvas) { // explicit --canvas beats --mode		  const m = /^(\\d+)x(\\d+)$/.exec(canvas);
 _facts/authoring/video-modes	packages/layout/src/aspect.js	19	export function parseAspect(text) {	/** Parse "16:9" or "4:3" into [num, den]. Throws on anything else. */	  const m = /^(\\d+):(\\d+)$/.exec(String(text).trim());
 _facts/authoring/video-modes	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
 _facts/authoring/video-modes	packages/layout/src/aspect.js	42	export function displaySize(canvasW, canvasH, [num, den]) {	 */	  return { w: Math.round(canvasH * (num / den)), h: canvasH };
@@ -586,15 +586,15 @@ _facts/authoring/video-modes	runtime/ps2ui.c	1493	uint32_t ps2ui_pixel_aspect_x1
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
-_facts/authoring/vram-budget	CHANGELOG.md	1242	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/vram-budget	CHANGELOG.md	1264	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	595	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	600	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	624	    if note and not ok:	    # look better tested than it is.	        for line in note:
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	712	    ap.add_argument("--version", action="version",	        description="Validate a baked .uib against what the C runtime assumes.")	                    version="ps2ui-check %s" % __version__)
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	159	    ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",	                         "each entry -- the half of it only the baker knows")	                    help="texture VRAM budget (default: 4 MiB minus a "
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	284	    # VRAM accounting before writing anything: an over-budget UI should		    # die here with a breakdown, not on the console with an alloc error.
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	286	    vlines, _vtotal, _vbudget, vok = vram.report(	    # die here with a breakdown, not on the console with an alloc error.	        flat.textures, flat.cluts, ir["canvas"]["w"], ir["canvas"]["h"],
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	351	    # The arena an integrator has to declare. Printed unconditionally		    # because ps2ui_load now takes it as an argument: without this
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	160	    ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",	                         "each entry -- the half of it only the baker knows")	                    help="texture VRAM budget (default: 4 MiB minus a "
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	312	    # VRAM accounting before writing anything: an over-budget UI should		    # die here with a breakdown, not on the console with an alloc error.
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	314	    vlines, _vtotal, _vbudget, vok = vram.report(	    # die here with a breakdown, not on the console with an alloc error.	        flat.textures, flat.cluts, ir["canvas"]["w"], ir["canvas"]["h"],
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	379	    # The arena an integrator has to declare. Printed unconditionally		    # because ps2ui_load now takes it as an argument: without this
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/ps2ui.py	240	    if proj.vram_budget is not None:	        argv += ["--palettize-images"]	        argv += ["--vram-budget", str(proj.vram_budget)]
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/ps2ui.py	302	    if proj.vram_budget is not None:	    argv = [rel(proj, proj.out_path)]	        argv += ["--vram-budget", str(proj.vram_budget)]
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/vram.py	1	"""VRAM accounting (backlog B8).		
@@ -643,40 +643,40 @@ _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	198	    # disagreeing insid
 _facts/cli/ps2ui	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/caps.py	27	FALLBACK = {		    # The last one. It bounds how deep `overflow: hidden` may nest
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/caps.py	77	def check(textures, cluts, slots, screens, caps: dict = None, records=None):		    """Returns (errors, caps). Each error names the cap, the value, and
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	21	def check_font_agreement(ir, font_paths):		    """The IR names the faces it was MEASURED against. Compare them.
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	64	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	82	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	131	    ap = argparse.ArgumentParser(prog="ps2ui-bake")	def main(argv=None) -> int:	    # THE VERSION HAS TO REACH A PERSON. Every claim in the repository
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	138	    ap.add_argument("--version", action="version",	    # else, so it cannot become the next number that disagrees.	                    version="ps2ui-bake %s" % __version__)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	184	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",	        if ir.get("version") != 1:	                  file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	187	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	189	            print(f"error: duplicate screen name {name!r} (file stems must be "	        if any(n == name for n, _ in named_irs):	                  "unique)", file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	192	        for w in ir.get("warnings", []):	            return 1	            print(f"warning (layout {name}): {w}", file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	193	            print(f"warning (layout {name}): {w}", file=sys.stderr)	        for w in ir.get("warnings", []):	        named_irs.append((name, ir))
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	205	    fonts_path = args.fonts	    # a path the caller never chose.	    if fonts_path is None:
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	209	            print("ps2ui-bake: no font manifest. The built-in default is "	        if not os.path.exists(fonts_path):	                  "the repository's fonts/fonts.json, which only exists "
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	227	        # line they can act on.	        # caller can fix is not a crash, and a traceback buries the one	        print(f"ps2ui-bake: {exc}", file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	232	    disagree = check_font_agreement(ir, font_paths)	    # THE COMPILER AND THE BAKER MUST HAVE MEANT THE SAME FONTS.	    if disagree:
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	234	        print("ps2ui-bake: the IR and the font manifest describe "	    if disagree:	              "different fonts:", file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	247	    except ValueError as exc:	        flat.run_screens(named_irs)	        # The bake's own diagnostics are written to be read; a traceback
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	261	    print(caps_mod.summary(flat.textures, flat.cluts, flat.slots,	        records=flat.records)	                           flat.screens, caps), file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	263	    if flat.dropped:	                           flat.screens, caps), file=sys.stderr)	        # Silent truncation reads as "covered everything"; say what went.
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	265	        print(f"  trimmed {flat.dropped} draw command(s) that fall outside "	        # Silent truncation reads as "covered everything"; say what went.	              f"their clip and could never draw", file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	267	    if cap_errors:	              f"their clip and could never draw", file=sys.stderr)	        for e in cap_errors:
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	290	    for line in vlines:	    )	        print(line, file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	292	    if not vok:	        print(line, file=sys.stderr)	        print("error: texture VRAM footprint exceeds budget "
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	303	    for path in (args.out, args.preview, args.montage,	    # nobody here saw it: every build.sh mkdir -p's first.	                 args.preview_display):
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	309	    write_uib(		        args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	317	    if args.tints:		        names = ir.get("themes") or ["root"]
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	332	    n_tex_bytes = sum(len(t.data) for t in flat.textures)		    # Streamed slots contribute no bytes to the file, so this total is
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	344	    print(	        tex_note += f" + {n_reserved // 1024} KiB reserved by slots"	        f"ps2ui-bake: {len(flat.screens)} screen(s), {len(flat.records)} records, "
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	355	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	    # failure mode of guessing low is PS2UI_ERR_ARENA at boot.	    print(
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	356	    print(	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	        f"ps2ui-bake: arena {ee} bytes "
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	362	    if args.preview or args.montage or args.preview_display:		        uib = read_uib(args.out)  # replay what we wrote, not what we meant
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	366	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)	            preview_mod.render(uib).save(args.preview)	        if args.preview_display:
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	368	            preview_mod.to_display_space(	        if args.preview_display:	                preview_mod.render(uib), uib).save(args.preview_display)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	372	            print(f"ps2ui-bake: display preview {dw}x{dh} at {num}:{den} "	            num, den = uib.display_aspect	                  f"-> {args.preview_display}", file=sys.stderr)
-_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	376	            print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)	            preview_mod.montage(uib).save(args.montage)	    return 0
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	22	def check_font_agreement(ir, font_paths):		    """The IR names the faces it was MEASURED against. Compare them.
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	65	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	83	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	132	    ap = argparse.ArgumentParser(prog="ps2ui-bake")	def main(argv=None) -> int:	    # THE VERSION HAS TO REACH A PERSON. Every claim in the repository
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	139	    ap.add_argument("--version", action="version",	    # else, so it cannot become the next number that disagrees.	                    version="ps2ui-bake %s" % __version__)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	212	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",	        if ir.get("version") != 1:	                  file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	215	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	217	            print(f"error: duplicate screen name {name!r} (file stems must be "	        if any(n == name for n, _ in named_irs):	                  "unique)", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	220	        for w in ir.get("warnings", []):	            return 1	            print(f"warning (layout {name}): {w}", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	221	            print(f"warning (layout {name}): {w}", file=sys.stderr)	        for w in ir.get("warnings", []):	        named_irs.append((name, ir))
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	233	    fonts_path = args.fonts	    # a path the caller never chose.	    if fonts_path is None:
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	237	            print("ps2ui-bake: no font manifest. The built-in default is "	        if not os.path.exists(fonts_path):	                  "the repository's fonts/fonts.json, which only exists "
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	255	        # line they can act on.	        # caller can fix is not a crash, and a traceback buries the one	        print(f"ps2ui-bake: {exc}", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	260	    disagree = check_font_agreement(ir, font_paths)	    # THE COMPILER AND THE BAKER MUST HAVE MEANT THE SAME FONTS.	    if disagree:
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	262	        print("ps2ui-bake: the IR and the font manifest describe "	    if disagree:	              "different fonts:", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	275	    except ValueError as exc:	        flat.run_screens(named_irs)	        # The bake's own diagnostics are written to be read; a traceback
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	289	    print(caps_mod.summary(flat.textures, flat.cluts, flat.slots,	        records=flat.records)	                           flat.screens, caps), file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	291	    if flat.dropped:	                           flat.screens, caps), file=sys.stderr)	        # Silent truncation reads as "covered everything"; say what went.
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	293	        print(f"  trimmed {flat.dropped} draw command(s) that fall outside "	        # Silent truncation reads as "covered everything"; say what went.	              f"their clip and could never draw", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	295	    if cap_errors:	              f"their clip and could never draw", file=sys.stderr)	        for e in cap_errors:
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	318	    for line in vlines:	    )	        print(line, file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	320	    if not vok:	        print(line, file=sys.stderr)	        print("error: texture VRAM footprint exceeds budget "
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	331	    for path in (args.out, args.preview, args.montage,	    # nobody here saw it: every build.sh mkdir -p's first.	                 args.preview_display):
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	337	    write_uib(		        args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	345	    if args.tints:		        names = ir.get("themes") or ["root"]
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	360	    n_tex_bytes = sum(len(t.data) for t in flat.textures)		    # Streamed slots contribute no bytes to the file, so this total is
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	372	    print(	        tex_note += f" + {n_reserved // 1024} KiB reserved by slots"	        f"ps2ui-bake: {len(flat.screens)} screen(s), {len(flat.records)} records, "
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	383	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	    # failure mode of guessing low is PS2UI_ERR_ARENA at boot.	    print(
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	384	    print(	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	        f"ps2ui-bake: arena {ee} bytes "
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	390	    if args.preview or args.montage or args.preview_display:		        uib = read_uib(args.out)  # replay what we wrote, not what we meant
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	394	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)	            preview_mod.render(uib).save(args.preview)	        if args.preview_display:
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	396	            preview_mod.to_display_space(	        if args.preview_display:	                preview_mod.render(uib), uib).save(args.preview_display)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	400	            print(f"ps2ui-bake: display preview {dw}x{dh} at {num}:{den} "	            num, den = uib.display_aspect	                  f"-> {args.preview_display}", file=sys.stderr)
+_facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	404	            print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)	            preview_mod.montage(uib).save(args.montage)	    return 0
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	231	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
 _facts/cli/ps2ui-check	.github/workflows/ci.yml	418	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
@@ -701,7 +701,7 @@ _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	730	    try:		        
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	736	    if args.tints:		        print_tints(uib, args.uib)
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	744	    aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"		    print(f"# {args.uib}: {uib.canvas_w}x{uib.canvas_h} at {aspect}, "
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	749	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/cli.py	355	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	    # failure mode of guessing low is PS2UI_ERR_ARENA at boot.	    print(
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/cli.py	383	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	    # failure mode of guessing low is PS2UI_ERR_ARENA at boot.	    print(
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/ps2ui.py	273	def cmd_check(args):		    proj = load(args.project)
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/uib.py	493	        raise ValueError(f"{path}: truncated header")	    if len(data) < _HEADER.size:	    (magic, version, feature_flags, cw, ch, n_tex, n_clut, n_cmd, n_focus,
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
@@ -718,7 +718,7 @@ _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys,
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	40	from ps2ui_bake.cli import load_font_manifest	import sys, os	from ps2ui_bake import fontgen
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	49	    rc = fontgen.main([ttf, "DejaVu Sans", str(weight),	    print("regen: %s = %s" % (face, ttf))	                       os.path.join(here, out)])
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.8.0.dev0"	# until the first real release was on PyPI.	
-_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	82	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	83	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	22	# Latin-1 printable + the punctuation the example UI actually uses.		# chr(32) explicitly: an invisible U+00A0 once impersonated the space
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	26	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	42	NO_SUBSTITUTION = ["-liga", "-clig", "-dlig", "-hlig", "-rlig", "-calt"]	# ligatures, contextual alternates and the rest are substitutions.	
@@ -750,44 +750,44 @@ _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	490	    f = sub.add_
 _facts/cli/ps2ui-fontgen	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 _facts/cli/ps2ui-fontgen	packages/baker/pyproject.toml	24	ps2ui-fontgen = "ps2ui_bake.fontgen:main"	ps2ui-check = "ps2ui_bake.check:main"	
 _facts/cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenRefusesWithoutRaqm(unittest.TestCase):		    """Without Raqm the advances come out identical and the kern table
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	22	function usage(code) {		  console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	52	for (let i = 0; i < args.length; i++) {		  switch (args[i]) {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	54	    case '-o': outDir = args[++i]; break;	  switch (args[i]) {	    case '--mode': mode = args[++i]; break;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	84	if (positional.length !== 2 || !outDir) usage(2);	}	
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	86	const [htmlPath, cssPath] = positional.map((p) => resolve(p));		mkdirSync(outDir, { recursive: true });
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	90	if (minFontSize !== null) {	const options = { fontDir, fontManifest, focusWrap };	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	91	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-dev: --min-font-size takes a positive integer');
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	99	  // floor and exited 0, where `ps2ui build` printed none. Same shape	  // opl-env (minFontSize 11, strict) printed 44 warnings at the 14px	  // as ps2ui-layout.js, which had it right.
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	122	  let ir;	  const started = Date.now();	  try {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	127	      console.error(`\\x1b[31mlayout error:\\x1b[0m ${m}`);	    for (const m of err.cssErrors ?? [err.message]) {	    }
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	131	  // --strict fails the build the way ps2ui-layout does: warnings are a	  }	  // failed compile, so nothing is baked and --once exits 1. In watch
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	153	  // Bake against the manifest the layout was MEASURED against. Without	  if (palettize) bakeArgs.push('--palettize-images');	  // this the baker falls back to its own default font directory, which
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	158	  const bake = spawnSync('python3', bakeArgs, {	  if (fontManifest) bakeArgs.push('--fonts', fontManifest);	    stdio: ['ignore', 'inherit', 'inherit'],
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	163	    console.error('\\x1b[31mbake failed\\x1b[0m');	  if (bake.status !== 0) {	    return false;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	167	  console.error(`\\x1b[32mbuilt\\x1b[0m in ${Date.now() - started}ms — `	  const nWarn = ir.warnings.length;	    + `${ir.commands.length} commands, ${ir.focus.nodes.length} focusables, `
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	170	  for (const w of ir.warnings) console.error(`  warning: ${w}`);	    + `${nWarn} warning${nWarn === 1 ? '' : 's'} -> ${outDir}/preview.png`);	  return true;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	183	    console.error(`\\x1b[2m${what} changed\\x1b[0m`);	  timer = setTimeout(() => {	    build();
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	194	console.error(`watching ${dirname(htmlPath)} — ctrl-c to stop`);	}	
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	18	const VERSION = JSON.parse(	// disagrees.	  readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	42	for (let i = 0; i < args.length; i++) {		  switch (args[i]) {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	45	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	53	    case '--focus-wrap': focusWrap = true; break;	    case '--fonts': fontManifest = args[++i]; break;	    case '--strict': strict = true; break;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	80	    case '-V': case '--version':	    case '-h': case '--help': usage(0); break;	      console.log(`ps2ui-layout ${VERSION}`); process.exit(0); break;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	85	if (positional.length !== 2 || !out) usage(2);	}	
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	87	const options = { fontDir, fontManifest, focusWrap };		if (Object.keys(limits).length) options.limits = limits;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	89	if (mode) {	if (Object.keys(limits).length) options.limits = limits;	  if (!(mode in MODES)) usage(2);
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	90	  if (!(mode in MODES)) usage(2);	if (mode) {	  options.canvasW = MODES[mode].w;
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	95	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	96	if (minFontSize !== null) {	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	97	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-layout: --min-font-size takes a positive integer');
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	104	if (canvas) { // explicit --canvas beats --mode		  const m = /^(\\d+)x(\\d+)$/.exec(canvas);
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	106	  if (!m) usage(2);	  const m = /^(\\d+)x(\\d+)$/.exec(canvas);	  options.canvasW = parseInt(m[1], 10);
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	113	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  const ir = compileFiles(positional[0], positional[1], options);	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	120	  mkdirSync(dirname(out), { recursive: true });	  // scripts papered over it and only a newcomer ever saw it.	  writeFileSync(out, JSON.stringify(ir, null, 1));
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	128	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	  const quads = ir.commands.length;	  if (strict && ir.warnings.length > 0) {
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	129	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	130	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);	  if (strict && ir.warnings.length > 0) {	    process.exit(1);
-_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	137	  for (const m of err.cssErrors ?? [err.message]) console.error(`error: ${m}`);	  // exactly as it always did.	  process.exit(1);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	24	function usage(code) {		  console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	55	for (let i = 0; i < args.length; i++) {		  switch (args[i]) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	57	    case '-o': outDir = args[++i]; break;	  switch (args[i]) {	    case '--mode': mode = args[++i]; break;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	102	if (positional.length !== 2 || !outDir) usage(2);	}	
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	104	const [htmlPath, cssPath] = positional.map((p) => resolve(p));		mkdirSync(outDir, { recursive: true });
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	109	if (minFontSize !== null) {	if (Object.keys(limits).length) options.limits = limits;	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	110	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-dev: --min-font-size takes a positive integer');
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	118	  // floor and exited 0, where `ps2ui build` printed none. Same shape	  // opl-env (minFontSize 11, strict) printed 44 warnings at the 14px	  // as ps2ui-layout.js, which had it right.
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	141	  let ir;	  const started = Date.now();	  try {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	146	      console.error(`\\x1b[31mlayout error:\\x1b[0m ${m}`);	    for (const m of err.cssErrors ?? [err.message]) {	    }
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	150	  // --strict fails the build the way ps2ui-layout does: warnings are a	  }	  // failed compile, so nothing is baked and --once exits 1. In watch
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	172	  // Bake against the manifest the layout was MEASURED against. Without	  if (palettize) bakeArgs.push('--palettize-images');	  // this the baker falls back to its own default font directory, which
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	177	  const bake = spawnSync('python3', bakeArgs, {	  if (fontManifest) bakeArgs.push('--fonts', fontManifest);	    stdio: ['ignore', 'inherit', 'inherit'],
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	182	    console.error('\\x1b[31mbake failed\\x1b[0m');	  if (bake.status !== 0) {	    return false;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	186	  console.error(`\\x1b[32mbuilt\\x1b[0m in ${Date.now() - started}ms — `	  const nWarn = ir.warnings.length;	    + `${ir.commands.length} commands, ${ir.focus.nodes.length} focusables, `
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	189	  for (const w of ir.warnings) console.error(`  warning: ${w}`);	    + `${nWarn} warning${nWarn === 1 ? '' : 's'} -> ${outDir}/preview.png`);	  return true;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	202	    console.error(`\\x1b[2m${what} changed\\x1b[0m`);	  timer = setTimeout(() => {	    build();
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-dev.js	213	console.error(`watching ${dirname(htmlPath)} — ctrl-c to stop`);	}	
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	19	const VERSION = JSON.parse(	// disagrees.	  readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	43	for (let i = 0; i < args.length; i++) {		  switch (args[i]) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	46	    case '--canvas': canvas = args[++i]; break;	    case '-o': out = args[++i]; break;	    case '--mode': mode = args[++i]; break;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	54	    case '--focus-wrap': focusWrap = true; break;	    case '--fonts': fontManifest = args[++i]; break;	    case '--strict': strict = true; break;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	73	    case '-V': case '--version':	    case '-h': case '--help': usage(0); break;	      console.log(`ps2ui-layout ${VERSION}`); process.exit(0); break;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	78	if (positional.length !== 2 || !out) usage(2);	}	
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	80	const options = { fontDir, fontManifest, focusWrap };		if (Object.keys(limits).length) options.limits = limits;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	82	if (mode) {	if (Object.keys(limits).length) options.limits = limits;	  if (!(mode in MODES)) usage(2);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	83	  if (!(mode in MODES)) usage(2);	if (mode) {	  options.canvasW = MODES[mode].w;
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	88	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	89	if (minFontSize !== null) {	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	90	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-layout: --min-font-size takes a positive integer');
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	97	if (canvas) { // explicit --canvas beats --mode		  const m = /^(\\d+)x(\\d+)$/.exec(canvas);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	99	  if (!m) usage(2);	  const m = /^(\\d+)x(\\d+)$/.exec(canvas);	  options.canvasW = parseInt(m[1], 10);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	106	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  const ir = compileFiles(positional[0], positional[1], options);	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	113	  mkdirSync(dirname(out), { recursive: true });	  // scripts papered over it and only a newcomer ever saw it.	  writeFileSync(out, JSON.stringify(ir, null, 1));
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	121	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	  const quads = ir.commands.length;	  if (strict && ir.warnings.length > 0) {
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	122	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	123	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);	  if (strict && ir.warnings.length > 0) {	    process.exit(1);
+_facts/cli/ps2ui-layout	packages/layout/bin/ps2ui-layout.js	130	  for (const m of err.cssErrors ?? [err.message]) console.error(`error: ${m}`);	  // exactly as it always did.	  process.exit(1);
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	19	export function parseAspect(text) {	/** Parse "16:9" or "4:3" into [num, den]. Throws on anything else. */	  const m = /^(\\d+):(\\d+)$/.exec(String(text).trim());
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
 _facts/cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
@@ -850,19 +850,19 @@ _facts/getting-started/quickstart	packages/baker/ps2ui_bake/project.py	39	DEFAUL
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        ps2ui_render(&ui, gs);	#else	#endif
 _facts/project/changelog	CHANGELOG.md	17	### Added		
-_facts/project/changelog	CHANGELOG.md	40	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
-_facts/project/changelog	CHANGELOG.md	121	### Fixed		
-_facts/project/changelog	CHANGELOG.md	123	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
-_facts/project/changelog	CHANGELOG.md	1332	## 0.5.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1335	- **`ps2ui vendor-runtime`, and the C runtime inside the wheel.**	### Added	  `pip install ophtml` gave you the whole authoring path and then the
-_facts/project/changelog	CHANGELOG.md	1370	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.4.0, which is what a section
-_facts/project/changelog	CHANGELOG.md	1382	## 0.4.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1384	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.3.0, which is what a section
-_facts/project/changelog	CHANGELOG.md	1397	- **The `.uib` format stability pledge, made at v7.** v7 is the last	### Added	  incompatible layout: additions go in feature bits rather than strides,
-_facts/project/changelog	CHANGELOG.md	1408	- `fonts/vendor/` carries the default DejaVu faces under their own	  because a break landed inside the phase meant to end them.	  licence, so a checkout builds without a system font. They sit **last**
-_facts/project/changelog	CHANGELOG.md	1472	## 0.3.0 — 2026-09-04		
-_facts/project/changelog	CHANGELOG.md	1474	`.uib` format **version 7**. v3 through v6 files are rejected; re-bake.		Four format moves have landed since 0.2.0 — v4 display aspect, v5
-_facts/project/changelog	CHANGELOG.md	1486	**This is the first tagged release this repository has ever had.**		There is no 0.2.0 tag and there never was one — 0.2.0 was a number in
+_facts/project/changelog	CHANGELOG.md	19	- **Hard caps on what an untrusted theme may ask the compilers for.** A		  theme is a file somebody else wrote, and the compilers accepted
+_facts/project/changelog	CHANGELOG.md	138	### Fixed		
+_facts/project/changelog	CHANGELOG.md	140	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/project/changelog	CHANGELOG.md	1354	## 0.5.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1357	- **`ps2ui vendor-runtime`, and the C runtime inside the wheel.**	### Added	  `pip install ophtml` gave you the whole authoring path and then the
+_facts/project/changelog	CHANGELOG.md	1392	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.4.0, which is what a section
+_facts/project/changelog	CHANGELOG.md	1404	## 0.4.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1406	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.3.0, which is what a section
+_facts/project/changelog	CHANGELOG.md	1419	- **The `.uib` format stability pledge, made at v7.** v7 is the last	### Added	  incompatible layout: additions go in feature bits rather than strides,
+_facts/project/changelog	CHANGELOG.md	1430	- `fonts/vendor/` carries the default DejaVu faces under their own	  because a break landed inside the phase meant to end them.	  licence, so a checkout builds without a system font. They sit **last**
+_facts/project/changelog	CHANGELOG.md	1494	## 0.3.0 — 2026-09-04		
+_facts/project/changelog	CHANGELOG.md	1496	`.uib` format **version 7**. v3 through v6 files are rejected; re-bake.		Four format moves have landed since 0.2.0 — v4 display aspect, v5
+_facts/project/changelog	CHANGELOG.md	1508	**This is the first tagged release this repository has ever had.**		There is no 0.2.0 tag and there never was one — 0.2.0 was a number in
 _facts/project/internals	docs/PLAN.md	1	# ps2ui Foundation Plan		
 _facts/project/internals	docs/architecture.md	1	# ps2ui — architecture and decisions		
 _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the streaming sitting		
@@ -931,9 +931,9 @@ _facts/reference/diagnostics	packages/baker/ps2ui_bake/caps.py	83	    if records
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	730	    try:		        uib = read_uib(args.uib)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	734	        return 2	        print(f"ps2ui-check: {exc}", file=sys.stderr)	
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	749	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	184	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",	        if ir.get("version") != 1:	                  file=sys.stderr)
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	228	        print(f"ps2ui-bake: {exc}", file=sys.stderr)	        # line they can act on.	        return 1
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	267	    if cap_errors:	              f"their clip and could never draw", file=sys.stderr)	        for e in cap_errors:
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	212	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",	        if ir.get("version") != 1:	                  file=sys.stderr)
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	256	        print(f"ps2ui-bake: {exc}", file=sys.stderr)	        # line they can act on.	        return 1
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	295	    if cap_errors:	              f"their clip and could never draw", file=sys.stderr)	        for e in cap_errors:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/fontgen.py	57	    feat = _shaping()	    """	    if feat is None:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/fontgen.py	382	    if not features.check("raqm"):	    # no metrics file.	        print("ps2ui-fontgen: this Pillow has no Raqm layout engine, so "
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/fontgen.py	387	    if len(argv) < 4:	        return 2	        print(
@@ -954,15 +954,15 @@ _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	209	        out = 
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	262	            # n_tint is a u16, so 65535 entries is the ceiling and the	            i = len(tint_entries)	            # highest reachable index is 65534. A UI with more distinct
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	489	def read_uib(path) -> UibFile:		    with open(path, "rb") as fh:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/vendor.py	131	            drifted = _differ(_PACKAGED, _CHECKOUT)	        if packaged:	            if drifted:
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-dev.js	22	function usage(code) {		  console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-dev.js	96	  // options.minFontSize and options.strict, which compile() never	  // THE LINTER READS options.lint AND NOTHING ELSE. This used to set	  // reads, so both flags were accepted and inert: `ps2ui dev` on
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	22	function usage(code) {		  console.error('usage: ps2ui-layout <page.html> <page.css> -o <ui.json> '
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	95	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	97	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-layout: --min-font-size takes a positive integer');
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	111	try {		  const ir = compileFiles(positional[0], positional[1], options);
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	114	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  // build/ failed with a bare ENOENT naming the OUTPUT path, which
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	129	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
-_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	134	  // One `error: ` line per failure: `err.cssErrors` is the whole list	} catch (err) {	  // when a CSS pass collected several (F37a), and a single error prints
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-dev.js	24	function usage(code) {		  console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-dev.js	115	  // options.minFontSize and options.strict, which compile() never	  // THE LINTER READS options.lint AND NOTHING ELSE. This used to set	  // reads, so both flags were accepted and inert: `ps2ui dev` on
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	23	function usage(code) {		  console.error('usage: ps2ui-layout <page.html> <page.css> -o <ui.json> '
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	88	if (aspectArg) options.displayAspect = parseAspect(aspectArg); // beats --mode	}	if (minFontSize !== null) {
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	90	  if (!Number.isFinite(minFontSize) || minFontSize <= 0) {	if (minFontSize !== null) {	    console.error('ps2ui-layout: --min-font-size takes a positive integer');
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	104	try {		  const ir = compileFiles(positional[0], positional[1], options);
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	107	  // MAKE THE OUTPUT DIRECTORY. `-o build/ui.json` into a tree with no	  for (const w of ir.warnings) console.warn(`warning: ${w}`);	  // build/ failed with a bare ENOENT naming the OUTPUT path, which
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	122	  if (strict && ir.warnings.length > 0) {	  console.error(`ps2ui-layout: ${quads} paint commands, ${ir.focus.nodes.length} focusables -> ${out}`);	    console.error(`ps2ui-layout: --strict: ${ir.warnings.length} warning(s)`);
+_facts/reference/diagnostics	packages/layout/bin/ps2ui-layout.js	127	  // One `error: ` line per failure: `err.cssErrors` is the whole list	} catch (err) {	  // when a CSS pass collected several (F37a), and a single error prints
 _facts/reference/diagnostics	packages/layout/src/aspect.js	19	export function parseAspect(text) {	/** Parse "16:9" or "4:3" into [num, den]. Throws on anything else. */	  const m = /^(\\d+):(\\d+)$/.exec(String(text).trim());
 _facts/reference/diagnostics	packages/layout/src/box.js	238	      if (texSlot.trim() !== texSlot || !texSlot) {	      // of ambiguity every other check on this element rejects.	        throw new Error(
 _facts/reference/diagnostics	packages/layout/src/css.js	535	      const col = parseColor(d.value);	      }	      if (!col) {
@@ -976,10 +976,10 @@ _facts/reference/diagnostics	packages/layout/src/index.js	97	      manifest = JS
 _facts/reference/diagnostics	packages/layout/src/paint.js	43	    if (themes.length !== nThemes) {	  if (themes) {	      throw new Error(`layout: internal: ${what} has ${themes.length} theme `
 _facts/reference/diagnostics	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
 _facts/reference/ir-format	docs/format-ir.md	9	All colors are `[r, g, b, a]` with every channel **0–255** — the CSS	All coordinates are CSS pixels on the fixed canvas, origin top-left.	domain. The GS 0–128 alpha domain is the baker's business, never the
-_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	183	        if ir.get("version") != 1:	            ir = json.load(fh)	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",
-_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	187	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
-_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	192	        for w in ir.get("warnings", []):	            return 1	            print(f"warning (layout {name}): {w}", file=sys.stderr)
-_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	310	        args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,	    write_uib(	        flat.focus_nodes, initial, flat.fonts, flat.slots, flat.screens,
+_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	211	        if ir.get("version") != 1:	            ir = json.load(fh)	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",
+_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	215	        name = os.path.splitext(os.path.basename(path))[0]	            return 1	        if any(n == name for n, _ in named_irs):
+_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	220	        for w in ir.get("warnings", []):	            return 1	            print(f"warning (layout {name}): {w}", file=sys.stderr)
+_facts/reference/ir-format	packages/baker/ps2ui_bake/cli.py	338	        args.out, ir["canvas"], flat.records, flat.textures, flat.cluts,	    write_uib(	        flat.focus_nodes, initial, flat.fonts, flat.slots, flat.screens,
 _facts/reference/ir-format	packages/baker/ps2ui_bake/quads.py	40	_STATE_NAMES = {"always": STATE_ALWAYS, "unfocused": STATE_UNFOCUSED, "focused": STATE_FOCUSED}	STATE_FOCUSED = 2	
 _facts/reference/ir-format	packages/baker/ps2ui_bake/quads.py	61	    # The var() name behind this record's colour, or None when the	    v1: int = 0	    # author wrote a literal. It is what the tint table keys on: a role
 _facts/reference/ir-format	packages/baker/ps2ui_bake/quads.py	147	    def _focus_of(self, cmd) -> int:		        fid = cmd.get("focusId")
@@ -1291,7 +1291,7 @@ _facts/runtime/first-boot	tools/make_testcard.py	180	def self_test() -> int:		  
 _facts/runtime/first-boot	tools/make_testcard.py	297	def main(argv=None) -> int:		    argv = argv if argv is not None else sys.argv[1:]
 _facts/runtime/first-boot	tools/read_testcard.py	169	def self_test():		    import tempfile
 _facts/runtime/frame-loop	packages/baker/ps2ui_bake/check.py	151	    ee = arena.arena_size(uib, arena.EE_PTR)	    # this file exists to remove.	    rep.note(f"arena: {ee} bytes on the EE "
-_facts/runtime/frame-loop	packages/baker/ps2ui_bake/cli.py	351	    # The arena an integrator has to declare. Printed unconditionally		    # because ps2ui_load now takes it as an argument: without this
+_facts/runtime/frame-loop	packages/baker/ps2ui_bake/cli.py	379	    # The arena an integrator has to declare. Printed unconditionally		    # because ps2ui_load now takes it as an argument: without this
 _facts/runtime/frame-loop	runtime/ps2ui.c	163	static int arena_compute(const uint8_t *data, size_t size, arena_layout *L)	 * this machine cannot address. */	{
 _facts/runtime/frame-loop	runtime/ps2ui.c	238	size_t ps2ui_arena_size(const void *data, size_t size)		{
 _facts/runtime/frame-loop	runtime/ps2ui.c	267	    if (ctx->hdr->version != PS2UI_VERSION)	        return PS2UI_ERR_MAGIC;	        return PS2UI_ERR_VERSION;
@@ -1390,8 +1390,8 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1144	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1678	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1166	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1700	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
 _facts/runtime/moving-and-hiding	README.md	435	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
@@ -1519,7 +1519,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	1228	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	1250	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -1528,7 +1528,7 @@ authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ig
 authoring/project-file	packages/baker/ps2ui_bake/project.py	223	    def set_out_override(self, out):		        """Point the build at a different blob, and move its
 authoring/project-file	packages/baker/ps2ui_bake/ps2ui.py	170	def compile_screens(proj, argv_extra):		    """Run the layout compiler over every screen. Returns IR paths."""
 authoring/text-and-fonts	packages/baker/ps2ui_bake/fontgen.py	79	def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAULT_CHARSET) -> dict:		    em = 1000
-authoring/video-modes	packages/layout/bin/ps2ui-layout.js	89	if (mode) {	if (Object.keys(limits).length) options.limits = limits;	  if (!(mode in MODES)) usage(2);
+authoring/video-modes	packages/layout/bin/ps2ui-layout.js	82	if (mode) {	if (Object.keys(limits).length) options.limits = limits;	  if (!(mode in MODES)) usage(2);
 authoring/video-modes	packages/layout/src/aspect.js	33	export function pixelAspect(canvasW, canvasH, [num, den]) {	/** Pixel aspect ratio: >1 means pixels draw wider than they are tall. */	  return (num / den) / (canvasW / canvasH);
 authoring/video-modes	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 authoring/video-modes	runtime/ps2ui.h	110	    uint16_t display_aspect_num, display_aspect_den;	     * so a mismatch is detectable rather than merely ugly. */	} ps2ui_header;
@@ -1539,7 +1539,7 @@ cli/ps2ui-bake	packages/baker/tests/test_baker.py	4265	    def test_bake_creates
 cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	629	def check_blob(uib, budget=None, allow_dead: int = 0,		               allow_hairline: int = 0) -> Report:
 cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 cli/ps2ui-check	tools/check-blobs.sh	83	    PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.check \\	    # shellcheck disable=SC2086	        "$repo/$blob" $flags
-cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	82	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
+cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	83	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
 cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	26	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
 cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	42	NO_SUBSTITUTION = ["-liga", "-clig", "-dlig", "-hlig", "-rlig", "-calt"]	# ligatures, contextual alternates and the rest are substitutions.	
 cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	51	def build_kerning(font, charset) -> dict:		    """{"cp_prev,cp_cur": units} for every pair the shaper adjusts.

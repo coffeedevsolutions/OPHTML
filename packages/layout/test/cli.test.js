@@ -133,3 +133,84 @@ test('the bins print every CSS error, one `error: ` line each', () => {
     assert.match(lines[2], /line 9: display: only "flex" and "none"/);
   }
 });
+
+
+test('both bins screen --limit the same way, and answer with exit 2', () => {
+  // TWO FINDINGS FROM REVIEW OF #166, AND THEY ARE THE SAME FINDING.
+  //
+  // `ps2ui-layout --limit noodles=5` printed
+  // `error: limits: unknown limit "noodles"` and exited 1: the name
+  // was never screened here, so it fell through to resolveLimits and
+  // reached the terminal through the generic handler, while
+  // `--limit depth=0` one line away exited 2. diagnostics.cli.usage
+  // says this family answers a malformed command line with exit 2 and
+  // no `error:` prefix, and a misspelt cap was the one argument in
+  // either bin that did neither.
+  //
+  // `ps2ui-dev` did not take `--limit` at all, so the flag `ps2ui dev`
+  // forwards from a project's "limits" object landed in positional and
+  // every such project got a bare usage dump. That is the defect that
+  // broke `ps2ui check` in this same change, one command over.
+  //
+  // Both bins now read one parser, and this asserts them TOGETHER
+  // rather than once each, so a fix that reaches one of them fails.
+  const dir = mkdtempSync(join(tmpdir(), 'ps2ui-limit-'));
+  const html = join(dir, 'page.html');
+  const css = join(dir, 'page.css');
+  writeFileSync(html, '<screen><div class="b">x</div></screen>\n');
+  writeFileSync(css,
+    'screen { background: #000000; }\n'
+    + '.b { width: 200px; height: 60px; color: #ffffff; }\n');
+  const fontDir = fileURLToPath(new URL('../../../fonts', import.meta.url));
+
+  for (const [name, prog] of [['ps2ui-layout.js', 'ps2ui-layout'],
+                              ['ps2ui-dev.js', 'ps2ui-dev']]) {
+    const dev = name === 'ps2ui-dev.js';
+    const run = (...extra) => {
+      const r = spawnSync(process.execPath,
+        [bin(name), html, css, '-o', join(dir, dev ? 'out' : 'out.json'),
+         '--font-dir', fontDir, ...(dev ? ['--once'] : []), ...extra],
+        { encoding: 'utf8' });
+      return { status: r.status, err: r.stderr.replace(/\x1b\[[0-9;]*m/g, '') };
+    };
+
+    // A cap this compiler does not have. The name, not the value.
+    const unknown = run('--limit', 'noodles=5');
+    assert.equal(unknown.status, 2,
+      `${prog} --limit noodles=5 exited ${unknown.status}: ${unknown.err}`);
+    assert.match(unknown.err, new RegExp(`^${prog}: --limit: unknown cap`, 'm'));
+    assert.doesNotMatch(unknown.err, /^error: /m,
+      `${prog} used the library's error: prefix for a command-line fault`);
+
+    // A cap this compiler does have, with a value it cannot.
+    const zero = run('--limit', 'depth=0');
+    assert.equal(zero.status, 2, zero.err);
+    assert.match(zero.err,
+      new RegExp(`^${prog}: --limit depth takes a positive integer`, 'm'));
+
+    // Not name=value at all.
+    const shapeless = run('--limit', 'depth');
+    assert.equal(shapeless.status, 2, shapeless.err);
+    assert.match(shapeless.err, new RegExp(`^${prog}: --limit takes NAME=N`, 'm'));
+
+    // AND THE ACCEPTING CASE, which is what ps2ui dev forwards. Without
+    // it the three refusals above would all pass on a bin that refuses
+    // every --limit, which is what ps2ui-dev used to do.
+    const ok = run('--limit', 'nodes=40000', '--limit', 'depth=128');
+    assert.equal(ok.status, 0,
+      `${prog} refused a valid --limit: ${ok.err}`);
+
+    // AND THE VALUE REACHES THE COMPILER, which accepting it does not
+    // prove. Falsification found this hole in the first version of
+    // this test: deleting `options.limits = limits` from ps2ui-dev
+    // left every assertion above green, because a flag parsed into a
+    // variable nothing reads is still parsed. That is the shape D9
+    // named in this same bin, where --strict and --min-font-size were
+    // accepted and inert. A cap of 1 on a screen with two elements has
+    // to be refused BY THE CAP.
+    const tight = run('--limit', 'nodes=1');
+    assert.equal(tight.status, 1,
+      `${prog} ignored --limit nodes=1: ${tight.err}`);
+    assert.match(tight.err, /more than 1 elements after data-repeat/);
+  }
+});

@@ -29,13 +29,30 @@ without moving this line.
   Across all 17 screens in `examples/` and `fixtures/`, counted with the
   compiler's own walk after `data-repeat` expands, the largest is 93
   elements at depth 5, every supported mode is 640x448 or 640x512, and
-  the largest source image is 1984x1408. Each cap sits an order of
-  magnitude above the biggest real thing.
+  the largest source image is 1984x1408. The headroom is each cap's
+  own: about 108x for elements, about 13x for depth, and for the canvas
+  none of that kind at all, because 2048 is the widest framebuffer the
+  hardware scans out rather than a multiple of anything the corpus
+  says. *"An order of magnitude above the biggest real thing"* stood
+  here until it was read back against the three.
 
   They fail rather than warn, which is the opposite of what
   `check-doc-impact.py` argues for itself and right for the same reason:
   a warning is correct where the work might be fine, and a PlayStation 2
   cannot display a 30000px canvas under any circumstances.
+
+  The escape hatch broke two verbs before it worked. `ps2ui check` was
+  sent a `--limit` it does not take, and `ps2ui dev` was sent one it
+  did not take either -- the project-file page had listed `limits` as
+  reaching dev the whole time -- so a project declaring any cap got
+  `unrecognized arguments` from the first and a bare usage line from
+  the second, while `ps2ui build` on the same file was fine. Both are
+  fixed, and the fence is a test that reads the spawned tool's own
+  parser rather than a list maintained beside it. `ps2ui-bake --limit
+  nodes=5` says so too now: a real cap, correctly spelled, handed to
+  the tool that does not enforce it, answered until now by
+  *"takes imagePixels=N with N a positive integer"* -- a complaint
+  about the 5.
 
 - **A version a document prints is now held to the version something
   prints.** `check-site-pages.py` pins a citation to the line it names,
@@ -205,10 +222,15 @@ without moving this line.
   size is read from the header now, before any decode, so the same file
   fails in 0.08 seconds with one error line.
 
-- **Nesting deeper than about 1500 reported `Maximum call stack size
+- **Nesting deep enough reported `Maximum call stack size
   exceeded`.** That is V8's stack rather than a decision, so the real
   limit moved with the machine and the message named neither the
-  element nor a number. The refusal is the compiler's now, at 64, and
+  element nor a number. How far it moves, bisected on one checkout:
+  1842 on node v22.22.2's default stack, 889 under `--stack-size=500`,
+  7781 under `--stack-size=4000`. The first version of this entry said
+  *"deeper than about 1500"*, which was the midpoint of the
+  1000-compiled / 2000-died bracket written as though it were a
+  reading; review of #166 asked for the reading. The refusal is the compiler's now, at 64, and
   names the line the deepest element sits on. The check is iterative,
   because a recursive walk to find the depth that breaks a recursive
   walk overflows before it can report anything.

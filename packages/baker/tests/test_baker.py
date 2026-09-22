@@ -5180,6 +5180,89 @@ class TestProjectFile(unittest.TestCase):
                 ["games-16x9"])
 
 
+    # ---- the other direction, for the other two spawned tools ----
+
+    @staticmethod
+    def _bin_flags(name):
+        """Every long option a layout bin accepts, from its own switch.
+
+        `_checker_flags` asks argparse through `--help`. These two are
+        node scripts, and the population that matters is the set of
+        `case '--flag':` arms the switch actually has: the usage line
+        is prose beside them and has been wrong before. Reading the
+        arms means a flag added to the usage line and not to the
+        switch cannot make this test pass.
+        """
+        import re
+        with open(os.path.join(REPO, "packages", "layout", "bin", name),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        return set(re.findall(r"case '(--[a-z][a-z-]+)'", src))
+
+    def _dev_argv(self, tmp, extra):
+        """What `ps2ui dev` hands ps2ui-dev for this project."""
+        import json as _json
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+        path = self.dev_project(tmp, ["library"])
+        with open(path) as fh:
+            data = _json.load(fh)
+        data.update(extra)
+        with open(path, "w") as fh:
+            _json.dump(data, fh)
+        seen = []
+        with mock.patch.object(front, "layout_command",
+                               lambda: ["ps2ui-layout"]), \
+                mock.patch.object(front.subprocess, "call",
+                                  lambda cmd, *a, **k: (seen.append(list(cmd)),
+                                                        0)[1]):
+            front.main(["dev", path, "--once"])
+        self.assertTrue(seen, "`ps2ui dev` spawned nothing to inspect")
+        return seen[0]
+
+    def test_every_flag_ps2ui_dev_is_sent_is_one_ps2ui_dev_accepts(self):
+        """The check test's rule, applied to the command beside it.
+
+        `test_every_flag_ps2ui_check_sends_is_one_the_checker_accepts`
+        was written because S3 sent the bake caps to a checker with no
+        `--limit`. It asks that question of ONE of the three tools the
+        front door spawns. The same change sent the LAYOUT caps to
+        `ps2ui-dev`, which had no `--limit` either, so every project
+        carrying a "limits" object answered `ps2ui dev` with a bare
+        usage line and exit 2 -- the identical defect, one command
+        over, and outside that test's population. Review of #166 found
+        it by reading the forwarding sites next to each other.
+
+        So the rule is asked of this tool too, from its own switch.
+        """
+        import tempfile
+        accepted = self._bin_flags("ps2ui-dev.js")
+        self.assertIn("--once", accepted,
+                      "the switch could not be read; this test would pass "
+                      "vacuously")
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._dev_argv(tmp, {
+                "limits": {"nodes": 40000, "depth": 128,
+                           "imagePixels": 64000000},
+                "minFontSize": 12,
+                "focusWrap": True,
+            })
+        sent = [a for a in argv if a.startswith("--")]
+        unknown = [f for f in sent if f not in accepted]
+        self.assertFalse(
+            unknown,
+            "`ps2ui dev` sends %s, which ps2ui-dev does not accept. It "
+            "takes %s. A project that sets one of these gets a usage dump "
+            "from `ps2ui dev` while `ps2ui build` succeeds. argv was %r"
+            % (", ".join(unknown), ", ".join(sorted(accepted)), argv))
+        # Not vacuous: the caps really are forwarded, so the assertion
+        # above has the flag it was written for in front of it.
+        self.assertIn("--limit", sent)
+        self.assertIn("nodes=40000", argv)
+        # And imagePixels is NOT sent here: it is the baker's cap, and
+        # sending it would be the same fault in the other direction.
+        self.assertNotIn("imagePixels=64000000", argv)
+
 
 class TestResourceLimits(unittest.TestCase):
     """S3: what an untrusted theme may ask the baker for.
@@ -5187,6 +5270,58 @@ class TestResourceLimits(unittest.TestCase):
     Each assertion here is a measurement taken before the cap existed,
     on main at 3053962. A theme is a file somebody else wrote.
     """
+
+    def test_limit_says_which_of_four_mistakes_was_made(self):
+        """ONE MESSAGE FOR FOUR FAULTS, AND IT DESCRIBED ONE.
+
+        `ps2ui-bake --limit nodes=5` answered
+
+            error: --limit takes imagePixels=N with N a positive
+            integer, got 'nodes=5'
+
+        which reads as a complaint about 5. 5 is a positive integer;
+        `nodes` is a real cap, spelled correctly, belonging to the
+        other compiler. The remedy the message implies -- write a
+        positive integer -- was already done, so the reader had
+        nothing to act on. Review of #166 found it.
+
+        project.LIMIT_KEYS already knows which tool enforces each cap,
+        so each fault gets the sentence that names it. All four still
+        exit 2, which is what this family answers a bad command line
+        with.
+        """
+        from ps2ui_bake import cli
+        cases = [
+            ("nodes=5", "layout cap"),
+            ("noodles=5", "unknown cap"),
+            ("imagePixels=0", "positive integer"),
+            ("imagePixels", "takes NAME=N"),
+        ]
+        seen = set()
+        for spec, wanted in cases:
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = cli.main(["--limit", spec, "-o", "/dev/null",
+                               "/nonexistent-ir.json"])
+            text = err.getvalue()
+            self.assertEqual(rc, 2, "%s: %r" % (spec, text))
+            self.assertIn(wanted, text,
+                          "--limit %s does not say %r: %r"
+                          % (spec, wanted, text))
+            seen.add(text)
+        # FOUR DISTINCT SENTENCES, not four spellings of one. The
+        # defect was that they WERE one, so a test that only asserted
+        # rc 2 four times would have passed on it.
+        self.assertEqual(len(seen), 4, "two of the four faults still "
+                                       "share a message: %r" % sorted(seen))
+        # And the cap this tool DOES enforce gets past the parser --
+        # otherwise all four refusals above would pass on a tool that
+        # refuses every --limit. The proof is that the run gets far
+        # enough to open the IR path and fail on THAT, which is the
+        # next thing main does after the loop.
+        with self.assertRaises(FileNotFoundError):
+            cli.main(["--limit", "imagePixels=64000000", "-o",
+                      "/dev/null", "/nonexistent-ir.json"])
 
     def test_no_budget_can_buy_room_for_a_framebuffer(self):
         """A canvas the GS cannot scan out fails whatever --vram-budget says.

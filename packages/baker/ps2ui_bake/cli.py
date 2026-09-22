@@ -16,6 +16,7 @@ from . import preview as preview_mod
 from . import arena
 from . import vram
 from . import caps as caps_mod
+from . import project
 
 
 def check_font_agreement(ir, font_paths):
@@ -169,10 +170,37 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     limits = {}
     for spec in args.limit:
-        name, _, raw = spec.partition("=")
-        if name != "imagePixels" or not raw.isdigit() or int(raw) < 1:
-            print("error: --limit takes imagePixels=N with N a positive "
-                  "integer, got %r" % spec, file=sys.stderr)
+        # FOUR DIFFERENT MISTAKES SHARED ONE MESSAGE, AND IT DESCRIBED
+        # ONE OF THEM. `--limit nodes=5` is a correctly spelled cap
+        # with a correct positive integer, sent to the tool that does
+        # not enforce it, and the answer was "--limit takes
+        # imagePixels=N with N a positive integer" -- which names
+        # neither the mistake nor the fix, and reads as though 5 were
+        # not an integer. Review of #166 found it. project.LIMIT_KEYS
+        # already knows which tool enforces each cap, so the refusal
+        # can say where the cap belongs instead of restating the one
+        # spelling this tool accepts.
+        name, eq, raw = spec.partition("=")
+        if not eq or not name:
+            print("error: --limit takes NAME=N, got %r" % spec,
+                  file=sys.stderr)
+            return 2
+        if name not in project.LIMIT_KEYS:
+            print("error: --limit: unknown cap %r. Known: %s"
+                  % (name, ", ".join(sorted(project.LIMIT_KEYS))),
+                  file=sys.stderr)
+            return 2
+        if project.LIMIT_KEYS[name] != "bake":
+            print("error: --limit %s is a layout cap and ps2ui-layout "
+                  "enforces it; this tool enforces imagePixels. "
+                  "`ps2ui build` reads \"limits\" from the project file "
+                  "and sends each cap to the tool that enforces it, so "
+                  "set it there rather than here." % name,
+                  file=sys.stderr)
+            return 2
+        if not raw.isdigit() or int(raw) < 1:
+            print("error: --limit %s takes a positive integer, got %r"
+                  % (name, raw), file=sys.stderr)
             return 2
         limits[name] = int(raw)
 

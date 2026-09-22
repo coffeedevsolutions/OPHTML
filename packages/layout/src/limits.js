@@ -38,17 +38,31 @@
  * and false for canvas, which is bounded by hardware rather than by
  * the corpus. The ratios, each with what set it:
  *
- *   canvas 2048   the GS framebuffer maximum per dimension, 3.2x the
- *                 tallest mode. A cap here cannot be the VRAM budget,
- *                 because that is the thing the override moves.
+ *   canvas 2048   the GS framebuffer maximum per dimension. Every
+ *                 supported mode is 640 wide and 448 or 512 tall, so
+ *                 the cap is 3.2x the width they all share and 4.0x
+ *                 the tallest of them. "3.2x the tallest mode" stood
+ *                 here until review of #166 read it back against the
+ *                 modes: 3.2 is the ratio to the width. A cap here
+ *                 cannot be the VRAM budget, because that is the
+ *                 thing the override moves.
  *   nodes  10000  ~108x the largest expanded screen, and it bounds
  *                 the IR at roughly 4 MB. data-repeat multiplies, so
  *                 the count is taken AFTER expansion. The ratio is
  *                 generous because the IR size, not the corpus, is
  *                 what 10000 was chosen against.
  *   depth  64     ~13x the deepest shipped screen and far under the
- *                 ~1500 where V8 gives out, so the refusal is this
- *                 file's rather than the interpreter's.
+ *                 depth where V8 gives out -- which is not one
+ *                 number. Bisected through bin/ps2ui-layout.js on
+ *                 this checkout: 1842 on node v22.22.2's default
+ *                 stack, 889 under --stack-size=500, 7781 under
+ *                 --stack-size=4000. "About 1500" stood here until
+ *                 review of #166 asked for the reading; it was the
+ *                 midpoint of the 1000-compiled / 2000-died bracket
+ *                 above, written as though it were one. That the
+ *                 cliff moves with the machine is the whole reason
+ *                 the refusal should be this file's rather than the
+ *                 interpreter's.
  *
  * THEY FAIL RATHER THAN WARN, which is the opposite of what
  * check-doc-impact.py argues for itself and right for the same reason.
@@ -86,6 +100,47 @@ export function resolveLimits(over) {
   }
   return out;
 }
+
+/**
+ * Read one `--limit NAME=N` command-line argument.
+ *
+ * SHARED BECAUSE THE TWO BINS HAD DRIFTED APART ON IT.
+ * `ps2ui-layout` screened the VALUE and not the NAME, so a misspelt
+ * cap fell through to resolveLimits and reached the terminal as
+ * `error: limits: unknown limit "noodles"` with exit 1, while the
+ * bad-value arm one line below it exited 2 -- and
+ * diagnostics.cli.usage says this family answers a malformed command
+ * line with exit 2 and no `error:` prefix. `ps2ui-dev` did not take
+ * the flag at all, so `ps2ui dev` on any project carrying a "limits"
+ * object got a bare usage dump, which is the defect that cost
+ * `ps2ui check` a release, one command over. Review of #166 found
+ * both.
+ *
+ * One parser is the fence: a bin cannot screen a cap the other does
+ * not. Returns {name, value}, or {error} carrying the message body
+ * without a program name, because the caller owns that and its exit
+ * code.
+ */
+export function parseLimitSpec(spec) {
+  const text = spec === undefined || spec === null ? '' : String(spec);
+  const eq = text.indexOf('=');
+  if (eq < 1) {
+    return { error: `--limit takes NAME=N, got ${JSON.stringify(text)}` };
+  }
+  const name = text.slice(0, eq);
+  const raw = text.slice(eq + 1);
+  if (!(name in LIMITS)) {
+    return { error: `--limit: unknown cap ${JSON.stringify(name)}. `
+                    + `Known: ${Object.keys(LIMITS).join(', ')}` };
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    return { error: `--limit ${name} takes a positive integer, `
+                    + `got ${JSON.stringify(raw)}` };
+  }
+  return { name, value };
+}
+
 
 /**
  * Refuse a canvas the hardware cannot scan out.
@@ -146,8 +201,9 @@ export function checkTree(root, limits) {
     throw new Error(
       `layout: elements nested ${deepest} deep${where}, past the limit `
       + `of ${limits.depth}. The deepest screen shipped with ps2ui is `
-      + '5. Past about 1500 the compiler runs out of stack and reports '
-      + 'nothing useful, which is what this exists to get in front of. '
+      + '5. Somewhere past 1800 the compiler runs out of stack and '
+      + 'reports nothing useful; the exact depth moves with the '
+      + 'interpreter, which is what this exists to get in front of. '
       + 'Raise "limits": {"depth": N} in the project file if you mean '
       + 'it.');
   }

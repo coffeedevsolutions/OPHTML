@@ -5,6 +5,7 @@
 //             [--mode ntsc|pal] [--canvas WxH]
 //             [--font-dir DIR | --fonts fonts.json]
 //             [--focus-wrap] [--strict] [--min-font-size PX]
+//             [--limit canvasDim=N|nodes=N|depth=N]
 //             [--montage] [--palettize-images] [--once]
 //
 // Watches the HTML, the CSS, and the HTML's directory (assets/ lives
@@ -18,12 +19,13 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { compileFiles } from '../src/index.js';
+import { parseLimitSpec } from '../src/limits.js';
 
 function usage(code) {
   console.error('usage: ps2ui-dev <page.html> <page.css> -o <outdir> '
     + '[--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] '
     + '[--fonts fonts.json] [--focus-wrap] [--strict] '
-    + '[--min-font-size PX] '
+    + '[--min-font-size PX] [--limit NAME=N] '
     + '[--montage] [--palettize-images] [--once] [--version]');
   process.exit(code);
 }
@@ -48,6 +50,7 @@ let minFontSize = null;
 let montage = false;
 let palettize = false;
 let once = false;
+const limits = {};
 
 for (let i = 0; i < args.length; i++) {
   switch (args[i]) {
@@ -72,6 +75,21 @@ for (let i = 0; i < args.length; i++) {
     // disagreed with each other.
     case '--strict': strict = true; break;
     case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;
+    // THE SAME CAPS ps2ui-layout TAKES, because `ps2ui dev` runs the
+    // same compiler on the same screens. Without this arm the flag
+    // `ps2ui dev` forwards from the project file landed in positional
+    // and the command answered a valid project with a bare usage
+    // dump -- `ps2ui check` and --limit, one command over, found in
+    // review of #166 by reading the forwarding sites next to it.
+    case '--limit': {
+      const got = parseLimitSpec(args[++i]);
+      if (got.error) {
+        console.error(`ps2ui-dev: ${got.error}`);
+        process.exit(2);
+      }
+      limits[got.name] = got.value;
+      break;
+    }
     case '--montage': montage = true; break;
     case '--palettize-images': palettize = true; break;
     case '--once': once = true; break;
@@ -87,6 +105,7 @@ const [htmlPath, cssPath] = positional.map((p) => resolve(p));
 mkdirSync(outDir, { recursive: true });
 
 const options = { fontDir, fontManifest, focusWrap };
+if (Object.keys(limits).length) options.limits = limits;
 if (minFontSize !== null) {
   if (!Number.isFinite(minFontSize) || minFontSize <= 0) {
     console.error('ps2ui-dev: --min-font-size takes a positive integer');
