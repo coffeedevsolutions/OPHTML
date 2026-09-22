@@ -332,6 +332,18 @@ jobs:
       - name: The deployment guide matches the source it describes
         run: python3 tools/check-deploying.py
 
+      # BEFORE the tutorial run, not after, and the order is the point.
+      # This checks what the checker SAYS WHEN A BLOCK FAILS, which is
+      # the one path a green tutorial never exercises: the report that
+      # a reader gets is only ever produced when something is already
+      # wrong. Reverting `tail()` to `splitlines()[-1]` -- which is how
+      # the Windows build failure arrived with its diagnosis already
+      # deleted -- would leave every job in this repository green.
+      # Running it first also means a broken reporter is named as such
+      # rather than showing up as a confusing tutorial failure.
+      - name: The tutorial checker still reports what it saw
+        run: python3 tools/check-tutorial.py --selftest
+
       - name: The tutorial still works from an empty directory
         run: python3 tools/check-tutorial.py
 

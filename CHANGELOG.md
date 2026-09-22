@@ -99,6 +99,148 @@ without moving this line.
 
 ### Fixed
 
+- **`fonts/default.metrics.json` is `fonts\default.metrics.json` on
+  Windows, so eight documented lines were false on a platform.**
+  `docs/tutorial-uc3.md` asserts eight lines carrying a path -- three
+  from `ps2ui fontgen`, four from `ps2ui build`, one from `ps2ui check`
+  -- and `os.path.join` and `os.path.relpath` spell every one of them
+  with a backslash there. This is the finding standing behind the two
+  entries below: the Windows leg refused its own manifest first, and
+  when that was fixed the separator was what remained.
+
+  **The other repair was considered and rejected.**
+  `tools/check-tutorial.py` could compare separator-insensitively. That
+  buys a green leg for a narrower claim than the one it appears to
+  certify -- it stops reading the separator everywhere, including where
+  a difference is real -- and it leaves the tool printing two spellings
+  of one path for every reader who is not a checker. One documented
+  string being true on three platforms is the stronger thing to own.
+
+  **A tool echoes; the wrapper constructs.** `ps2ui-layout`,
+  `ps2ui-bake` and `ps2ui-check` each print the path they were HANDED
+  -- `-o`, `--preview`, the positional blob, at
+  `ps2ui-layout.js:105`, `cli.py:338` and `check.py:745` -- and echoing
+  an argument back in a different spelling than it arrived in would be
+  its own defect. So the spelling is decided where a path is BUILT,
+  which is `ps2ui` and nowhere else. `shown()` translates `os.sep` to
+  `/`; `rel()` routes through it, which covers the five lines that
+  reach a tool as argv; `ps2ui fontgen` routes the three it builds
+  under `--out-dir`. Forward slashes are not a lie on
+  Windows -- Win32, Python's `open()` and Node's `fs` all take `/` --
+  so this changes how a path is written, never which file it names.
+
+  Four call sites computed their own `os.path.relpath` for a message
+  before this, each a separate chance to forget. There is one now and a
+  test counts them, because a fifth would be invisible on every machine
+  this suite runs on: `shown()` is the identity wherever `os.sep` is
+  already `/`. For the same reason the translation is checked under a
+  patched `os.sep` and the routing is checked by spying on the call --
+  the routing is what can regress, and unlike the translation it is
+  observable on any platform. Falsified four ways: the translation
+  removed, `rel` unrouted, `fontgen`'s manifest unrouted, and a fifth
+  `relpath` added.
+
+  **Nothing in CI can see this until 0.8.0 publishes**, which is now
+  true of three Windows fixes. `registry.yml` installs what is on the
+  registries; every job that tests this tree is Linux, where the
+  change is a no-op by construction.
+
+  **A correction this entry caused, and the reason it is worth
+  writing down.** Moving these lines, the first version of this change
+  declared the entry below off by one and "fixed" a citation that was
+  right. `ps2ui.py:194` was the `subprocess.call` at the commit that
+  wrote it; it read as `cmd += argv_extra` only because the commit
+  after that added an `import` at the top of the file and shifted
+  everything down one. The check was made against the wrong revision,
+  so a correct number was replaced with a wrong one, and then the
+  displacement was applied to that. Nothing could catch either step:
+  a `file.py:NN` written in this file's prose is pinned by no checker,
+  which is the open board row, and it now has a worked example.
+
+- **`ps2ui fontgen` wrote a manifest `ps2ui build` could not read, on
+  Windows, and the reporter above is what surfaced it.** The wrapper
+  built `fonts.json` by hand -- `"ttf": ["%s"]` against
+  `os.path.abspath` -- which is valid JSON for exactly as long as no
+  path contains a backslash. Every absolute Windows path does:
+
+      error: fonts\fonts.json: cannot be read as a fonts.json manifest
+      (Bad escaped character in JSON at position 30)
+
+  One command writes the file, the next refuses it, and both halves
+  behave exactly as designed. The only symptom a reader got was
+  `ps2ui: ps2ui-layout failed on ui\library.html (exit 1)` -- which is
+  the line, and the ONLY line, the tutorial checker used to print.
+  The two entries are one story: the reporter was fixed, the Windows
+  arm re-run, and the cause was in the log on the first attempt.
+
+  `json.dump` writes it now. **A serialiser rather than an escape,
+  deliberately**: escaping the two paths and keeping the hand-rolled
+  braces would fix this instance and leave the next one -- a face name,
+  a metrics filename -- one edit away. The structure is data, so data
+  writes it.
+
+  **Fenced on POSIX rather than asserted about Windows.** A backslash
+  is an ordinary character in a POSIX filename, so
+  `test_the_manifest_survives_a_backslash_in_the_font_path` copies a
+  real TTF to `Deja\Vu.ttf`, runs the wrapper, and requires that the
+  manifest parses, that the path round-trips byte for byte, and that
+  `load_font_manifest` -- the reader that actually failed -- accepts
+  it. Every run of the suite exercises it, on every platform, instead
+  of a claim about a machine this suite does not have. Falsified by
+  restoring the hand-rolled write.
+
+- **The tutorial checker threw away the diagnosis it had already
+  captured.** On a failing block it printed
+  `got.strip().splitlines()[-1]` -- one line, the last one. On a failing
+  `ps2ui build` the last line is `ps2ui: ps2ui-layout failed on
+  ui/library.html (exit 1)`, the wrapper's own summary, and everything
+  the compiler said above it was captured and dropped.
+
+  **Two places each locally right, combining to delete the evidence.**
+  `ps2ui.py:229` runs the compiler with stderr inheriting, under the
+  comment *"The compiler already printed why, in its own words. Adding a
+  second summary here would bury it"* -- and `check-tutorial.py` then
+  buried it, keeping exactly the summary that file had declined to add.
+  It cost a real failure: the Windows arm added this cycle reported
+  `ps2ui build` exiting 1 with no cause, and the cause had been read,
+  stored and discarded before anyone saw the log.
+
+  `tail()` keeps the last twenty lines, which carries the CSS stage's
+  error list now that a sheet reports every error in one pass. A tail
+  rather than everything, because the runner re-executes blocks 1..i in
+  one shell, so a whole-output dump on block 8 buries the failure in
+  seven blocks of healthy chatter -- the same defect pointing the other
+  way. When lines go, the count of them goes in their place; silence is
+  printed as `(no output)`, because "it failed and said nothing" points
+  at the command while a blank line points at nothing; and the runner's
+  own `___ps2ui_block_N___` sentinel is dropped rather than shown back
+  to somebody hunting for their error.
+
+  **The mismatch branch had the same shape and is fixed with it.** A
+  block that RAN but printed the wrong thing listed what the document
+  claimed and never what the command said, which is half a comparison.
+  Both sides are printed now, and the case that proves it is the one
+  this cost: `fonts/default.metrics.json` against
+  `fonts\default.metrics.json` is a glance when they are side by side
+  and a wheel inspection when they are not.
+
+  **FENCED BY A SELF-TEST RATHER THAN BY falsify.sh, because the defect
+  is on the failure path.** Every other guard in `tools/` is falsifiable
+  by breaking the thing and watching a check go red; that does not reach
+  a report which is only ever produced when something is already wrong.
+  A green tutorial prints no report at all, so reverting `tail()` would
+  have left every job in this repository green -- which is how it
+  survived. `--selftest` runs blocks written to fail and asserts the
+  REPORT: every printed line survives, a mismatch shows both sides, a
+  clipped tail says how much it dropped and keeps the END, silence is
+  named, and the sentinel stays out. `ci.yml` runs it BEFORE the
+  tutorial, so a broken reporter is named as such rather than arriving
+  as a confusing tutorial failure. Falsified four ways -- the old
+  `[-1]`, the mismatch branch reverted, the omission count silenced, the
+  sentinel filter removed -- each against a clean control, and the
+  second by hand after `falsify.sh` warned its own verdict was not
+  trustworthy.
+
 - **The remedy that ships inside the wheel sent Windows readers to
   build Pillow from source.** 0.7.0 removed a false claim from
   `_raqm_remedy()` -- it had handed Windows readers a fact about

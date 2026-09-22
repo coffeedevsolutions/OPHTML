@@ -4392,6 +4392,74 @@ class TestFontsAreRequiredBeforeEitherHalfRuns(unittest.TestCase):
             json.dump({"screens": ["ui/a.html"], "css": "ui/a.css"}, fh)
         return os.path.join(tmp, "ps2ui.json")
 
+    def test_the_manifest_survives_a_backslash_in_the_font_path(self):
+        """`ps2ui fontgen` must not write a file `ps2ui build` cannot read.
+
+        THE DEFECT, AND WHY IT WAS A PLATFORM RATHER THAN A TYPO. The
+        manifest was written by hand -- `"ttf": ["%s"]` against
+        os.path.abspath -- which is valid JSON for exactly as long as no
+        path contains a backslash. Every absolute Windows path does, so
+        `ps2ui fontgen` wrote
+
+            "ttf": ["C:\\\\Users\\\\me\\\\...\\\\DejaVuSans.ttf"]
+
+        and `ps2ui build`, one command later, refused its own manifest
+        with `Bad escaped character in JSON at position 30`. Both halves
+        behaving as designed; the file between them malformed.
+
+        REPRODUCED ON POSIX RATHER THAN ASSERTED ABOUT WINDOWS, because
+        a backslash is a perfectly ordinary character in a POSIX
+        filename. That makes this a fence every run of the suite
+        exercises, on every platform, instead of a claim about a machine
+        this suite does not have -- and it is the same condition: a path
+        the writer has to escape and did not.
+        """
+        import json as _json
+        from ps2ui_bake import ps2ui as ps2ui_mod
+
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        # A real TTF under a name carrying the offending character.
+        odd = os.path.join(tmp, "Deja\\Vu.ttf")
+        shutil.copy(os.path.join(FONTS, "vendor", "DejaVuSans.ttf"), odd)
+        out = os.path.join(tmp, "fonts")
+
+        rc = ps2ui_mod.main(["fontgen", odd, odd, "-o", out])
+        self.assertEqual(rc, 0)
+
+        written = os.path.join(out, "fonts.json")
+        with open(written, encoding="utf-8") as fh:
+            manifest = _json.load(fh)   # the assertion: it parses at all
+
+        # ...and the path survives the round trip byte for byte, which a
+        # naive escape-and-move-on would not guarantee.
+        self.assertEqual(manifest["regular"]["ttf"], [os.path.abspath(odd)])
+        self.assertEqual(manifest["bold"]["ttf"], [os.path.abspath(odd)])
+
+        # And the resolver the other half uses accepts it, which is the
+        # step that actually failed on Windows.
+        from ps2ui_bake.cli import load_font_manifest
+        self.assertEqual(load_font_manifest(written)["regular"]["ttf"],
+                         os.path.abspath(odd))
+
+        # A QUOTE, BECAUSE THE BACKSLASH ONLY FENCES THE INSTANCE.
+        # `cmd_fontgen` argues a serialiser over an escape: escaping the
+        # two paths and keeping the hand-rolled braces fixes the
+        # backslash and leaves the next character one edit away. Review
+        # showed the assertions above cannot tell those apart -- a
+        # hand-rolled write with `.replace("\\", "\\\\")` passes all of
+        # them -- so the comment was the only thing holding the choice.
+        # A `"` in a filename is legal on POSIX and breaks a hand-rolled
+        # writer that has escaped backslashes and nothing else, which is
+        # the argument rather than the instance.
+        quoted = os.path.join(tmp, 'Deja"Vu.ttf')
+        shutil.copy(os.path.join(FONTS, "vendor", "DejaVuSans.ttf"), quoted)
+        out2 = os.path.join(tmp, "fonts2")
+        self.assertEqual(ps2ui_mod.main(["fontgen", quoted, quoted, "-o", out2]), 0)
+        with open(os.path.join(out2, "fonts.json"), encoding="utf-8") as fh:
+            self.assertEqual(_json.load(fh)["bold"]["ttf"],
+                             [os.path.abspath(quoted)])
+
     def test_no_manifest_anywhere_names_ps2ui_fontgen_not_a_package_path(self):
         """The refusal names the command that actually writes one.
 
@@ -4456,6 +4524,184 @@ class TestFontsAreRequiredBeforeEitherHalfRuns(unittest.TestCase):
             proj = proj_mod.load(cfg)
             self.assertEqual(os.path.realpath(front.project_fonts(proj)),
                              os.path.realpath(own))
+
+
+class TestEveryConstructedPathIsSpelledOneWay(unittest.TestCase):
+    """`fonts/default.metrics.json` has to be that string on Windows too.
+
+    THE DEFECT. `docs/tutorial-uc3.md` asserts eight lines carrying a
+    path -- three from `ps2ui fontgen`, four from `ps2ui build`, one
+    from `ps2ui check` -- and on Windows os.path.join and
+    os.path.relpath spell every one of them with a backslash:
+
+        ps2ui-fontgen: 115 glyphs, 284 kern pairs -> fonts\\default.metrics.json
+
+    so the document was false on a platform, and `check-tutorial.py`
+    said so the moment it stopped throwing the diagnosis away.
+
+    THE OTHER FIX, AND WHY IT IS NOT THIS ONE. The checker could
+    compare separator-insensitively. That buys a green leg for a
+    narrower claim than the one it appears to certify -- it would stop
+    reading the separator everywhere, including where a difference is
+    real -- and it leaves the tool printing two spellings of one path
+    for every reader who is not a checker.
+
+    WHAT THESE FENCE. `shown()` is a no-op wherever os.sep is already
+    `/`, which is every machine this suite runs on, so a test that
+    merely calls it on POSIX proves nothing. These check the two halves
+    the platform cannot: that the translation is the right one, and
+    that the constructed paths are routed through it.
+    """
+
+    def test_a_windows_separator_is_translated_and_nothing_else_is(self):
+        """The translation itself, on the only platform it does anything.
+
+        os.sep is patched rather than the whole of ntpath, because
+        os.sep is the entire input: `shown` reads it at call time and
+        does one replacement. Single-threaded suite, restored on exit.
+        """
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+        with mock.patch.object(os, "sep", "\\"):
+            self.assertEqual(front.shown("fonts\\default.metrics.json"),
+                             "fonts/default.metrics.json")
+            self.assertEqual(front.shown("build\\ui.uib"), "build/ui.uib")
+            # A path with nothing to translate comes back untouched --
+            # including one already spelled the documents' way, so the
+            # function is safe to apply twice.
+            self.assertEqual(front.shown("build/ui.uib"), "build/ui.uib")
+            self.assertEqual(front.shown("ui.uib"), "ui.uib")
+        # And on this machine it is the identity, which is the claim
+        # that makes it safe to put in front of every path.
+        self.assertEqual(front.shown("build/ui.uib"), "build/ui.uib")
+
+    def test_rel_spells_what_relpath_hands_back(self):
+        """Five of the eight asserted lines are argv that came from `rel`.
+
+        `ps2ui` hands `-o build/library.json`, `--preview
+        build/preview.png` and the blob's own name to three tools that
+        each ECHO the path they were given -- ps2ui-layout.js:105,
+        cli.py:338, check.py:745. So the spelling is decided here and
+        nowhere else, and deleting `shown` from this one function turns
+        all five lines over on Windows at once.
+        """
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+
+        class P(object):
+            root = "C:\\proj"
+
+        with mock.patch.object(os, "sep", "\\"), \
+             mock.patch.object(os.path, "relpath",
+                               return_value="build\\ui.uib"):
+            self.assertEqual(front.rel(P(), "irrelevant"), "build/ui.uib")
+        self.assertIsNone(front.rel(P(), None))
+
+    # BOTH CONSTRUCTORS, because fencing one was fencing half of it.
+    # `ps2ui.py` builds a displayed path two ways -- os.path.relpath for
+    # a project-relative one and os.path.join for a directory-relative
+    # one -- and the join half is what produced three of the eight
+    # asserted lines and what `cmd_fontgen` had to be routed by hand.
+    # Review added a join-built printed path to this file and every test
+    # here stayed green, so the docstring's own argument ("a second
+    # would be invisible, so count them rather than trust the reading")
+    # was being made about one idiom and applied to neither.
+    #
+    # These are tripwires rather than prohibitions: a new site is often
+    # fine, and every join site in the file today does route. The
+    # failure is a prompt to look at it and say so by moving the number.
+    RELPATH_SITES = 1   # `rel` itself, and nothing else
+    JOIN_SITES = 5      # :49 :200 :359 :362 :436, each checked to route
+
+    def test_ps2ui_py_builds_a_displayed_path_in_a_counted_number_of_places(self):
+        """The fence that survives the next path being added."""
+        from ps2ui_bake import ps2ui as front
+        with io.open(front.__file__, encoding="utf-8") as fh:
+            source = fh.read()
+        # Counted with their parentheses, so this reads calls rather
+        # than mentions: `shown`'s docstring names both functions as
+        # the things that spell a path with a backslash, and prose is
+        # not a call site.
+        for fn, want in (("os.path.relpath(", self.RELPATH_SITES),
+                         ("os.path.join(", self.JOIN_SITES)):
+            got = source.count(fn)
+            self.assertEqual(
+                got, want,
+                "ps2ui.py has %d `%s` site(s) and this test knows of %d. "
+                "If the new one builds a path that gets PRINTED or handed "
+                "to a tool, wrap it in shown(); either way move the count "
+                "here, so the next one is visible too." % (got, fn, want))
+
+    def test_fontgen_puts_its_three_files_where_the_document_says(self):
+        """The other three lines, and a fence on the OUTPUT rather than the call.
+
+        `ps2ui fontgen` builds its own paths under --out-dir: the two
+        metrics files it hands to `ps2ui-fontgen` (which echoes each,
+        as the three tools above do) and the manifest it writes and
+        prints itself. None goes near a project root, so none goes
+        through `rel`.
+
+        THE FIRST VERSION OF THIS TEST SPIED ON `shown` AND ASSERTED
+        THAT EACH JOINED PATH WAS PASSED TO IT. Review showed that
+        proves the call and not the routing -- it never checks that
+        `shown`'s RETURN VALUE is what reaches the tool, so
+
+            _p = os.path.join(out_dir, name)
+            shown(_p)                    # called, result discarded
+            rc = fontgen.main([..., _p])
+
+        passed all four tests while the metrics paths went to
+        `ps2ui-fontgen` unspelled, which is the exact defect this
+        commit exists to fix. A fence one side of the function it is
+        fencing.
+
+        SO SIMULATE THE PLATFORM AND READ THE FILESYSTEM. With `os.sep`
+        and `os.path.join` both Windows, an unrouted path is not a
+        cosmetic difference -- `<out>/fonts\\default.metrics.json` names
+        a file called `fonts\\default.metrics.json` in `<out>`'s parent,
+        so the three files simply are not where the tutorial says they
+        are. Measured on this tree:
+
+            clean               landed 3, stray 0
+            unrouted            landed 0, stray 3
+            called-and-discarded landed 1 (the manifest), stray 2
+
+        An output cannot be satisfied by a discarded call, and none of
+        it needs a Windows machine.
+        """
+        import ntpath
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+        # The vendored faces rather than require_ttf(), so this runs on
+        # a machine with no system DejaVu -- the same choice the
+        # backslash fence above makes, and for the same reason.
+        ttf = os.path.join(FONTS, "vendor", "DejaVuSans.ttf")
+        bold = os.path.join(FONTS, "vendor", "DejaVuSans-Bold.ttf")
+        wrote = ("default.metrics.json", "default-bold.metrics.json",
+                 "fonts.json")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            # Built with the REAL join, because this is the caller's
+            # path and the tutorial's `fonts` is relative to the
+            # project rather than to anything the wrapper computes.
+            out = os.path.join(tmp, "fonts")
+            with mock.patch.object(os, "sep", "\\"), \
+                 mock.patch.object(os.path, "join", ntpath.join):
+                rc = front.main(["fontgen", ttf, bold, "--out-dir", out])
+            self.assertEqual(rc, 0)
+
+            for name in wrote:
+                self.assertTrue(
+                    os.path.exists(os.path.join(out, name)),
+                    "%s is not in the directory the tutorial names; a "
+                    "path was handed on with the platform's separator "
+                    "still in it" % name)
+            # And nothing landed beside it under a backslash name,
+            # which is where an unrouted path actually goes.
+            self.assertEqual(
+                sorted(f for f in os.listdir(tmp) if f != "fonts"), [],
+                "a file was written whose name contains the separator, "
+                "so a constructed path reached open() unspelled")
 
 
 class TestProjectFile(unittest.TestCase):
