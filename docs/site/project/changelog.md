@@ -34,7 +34,23 @@ neither registry; `pip install ophtml` and `npm install -g
   Rule 10c warns on a prerelease too, and can never fail, because the
   honest answer to "should this have an entry?" is sometimes no.
 
+- `registry.yml` had one non-Linux arm and it is now a deprecated
+  runner image, so the three jobs pinned to `macos-14` move to
+  `macos-15` and gain `macos-15-intel`, while the tutorial job gains
+  `windows-2025` beside a new `windows-plain`. Intel is not symmetry:
+  both macOS wheels name Intel's Homebrew prefix as their only absolute
+  fribidi candidate, so the two arms are the two sides of the
+  "probably" the remedy message has carried for a cycle.
+
 ### Fixed in the toolchain
+
+- The remedy that ships inside the wheel sent Windows readers to build
+  Pillow from source. 0.7.0 removed a false claim from that branch and
+  left them on the general one, which wants MSVC and a native
+  dependency chain on Windows. The wheel says the gap is fribidi, as it
+  is everywhere else, so the message names the three DLLs and the
+  `PATH` requirement instead. Read off the binary and not off a Windows
+  machine, which the compatibility page now says in as many words.
 
 - Nothing read the documentation library backwards, so a citation to a
   deleted file pointed at nothing indefinitely. `check-doc-impact.py`

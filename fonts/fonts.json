@@ -7,6 +7,8 @@
       "/Library/Fonts/DejaVuSans.ttf",
       "/usr/local/share/fonts/DejaVuSans.ttf",
       "~/Library/Fonts/DejaVuSans.ttf",
+      "C:/Windows/Fonts/DejaVuSans.ttf",
+      "~/AppData/Local/Microsoft/Windows/Fonts/DejaVuSans.ttf",
       "vendor/DejaVuSans.ttf"
     ],
     "metrics": "default.metrics.json"
@@ -19,6 +21,8 @@
       "/Library/Fonts/DejaVuSans-Bold.ttf",
       "/usr/local/share/fonts/DejaVuSans-Bold.ttf",
       "~/Library/Fonts/DejaVuSans-Bold.ttf",
+      "C:/Windows/Fonts/DejaVuSans-Bold.ttf",
+      "~/AppData/Local/Microsoft/Windows/Fonts/DejaVuSans-Bold.ttf",
       "vendor/DejaVuSans-Bold.ttf"
     ],
     "metrics": "default-bold.metrics.json"

@@ -46,13 +46,54 @@ jobs:
   # registries. So a green run here is necessary for the gate and is
   # not the gate, and the screenshot half needs a PlayStation 2 that no
   # runner has.
+  #
+  # FOUR ARMS, AND TWO OF THEM HAVE NEVER RUN. macos-14 was the only
+  # non-Linux arm and is now deprecated in actions/runner-images, so
+  # these jobs had to move regardless; macos-15-intel and
+  # windows-2025 ride along on a migration that was not optional.
+  #
+  # macos-15-intel is the STANDARD Intel runner and is free on a
+  # public repository. The `-large` labels are the billed larger
+  # runners -- reaching for `macos-15-large` because it is the older
+  # spelling of "Intel" is the easy mistake here, and it is a paid
+  # one.
+  #
+  # WHAT EACH NEW ARM IS FOR, because "more platforms" is not a
+  # reason. Intel settles a claim this repository has hedged for a
+  # cycle: `_raqm_remedy()` leads with "the missing piece is probably
+  # fribidi alone", and BOTH macOS wheels name `/usr/local/lib/
+  # libfribidi.dylib` -- the INTEL Homebrew prefix -- as their only
+  # absolute dlopen candidate. So `brew install fribidi` is more
+  # likely to be sufficient on Intel than on the arm64 runner the
+  # hedge was written against, and this arm is where that stops being
+  # an inference. Windows settles whether the authoring half runs
+  # there at all, which nothing has ever asked.
+  #
+  # A RED WINDOWS ARM ON THE FIRST DISPATCH IS THE POINT, NOT A
+  # REGRESSION. This workflow is schedule/release/dispatch only and
+  # gates no pull request -- the header says why -- so an arm that
+  # comes back red costs a tick on a weekly run and buys the first
+  # measurement anybody has of this platform. Two places to look
+  # first, both read off the wheel rather than off a Windows box:
+  # `ps2ui_bake/ps2ui.py`'s `layout_command()` resolves `ps2ui-layout`
+  # through `shutil.which` and then execs the list, and npm lays down
+  # an extensionless POSIX shim beside the `.cmd` on Windows; and
+  # `check-tutorial.py` shells out to `sh -e -c`, which needs Git
+  # Bash's `sh` on PATH.
   tutorial:
     name: tutorial from the registries (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        os: [ubuntu-24.04, macos-15, macos-15-intel, windows-2025]
     runs-on: ${{ matrix.os }}
+    # Every step below is POSIX shell, and was written when every arm
+    # was. Git Bash rather than pwsh keeps the Windows arm reading the
+    # same script as the other three, so a difference in the log is a
+    # difference in the PLATFORM and not in the harness.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
 
@@ -71,8 +112,43 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq fonts-dejavu-core
-          else
+          elif [ "$RUNNER_OS" = "macOS" ]; then
             brew install --cask font-dejavu
+          else
+            # WINDOWS HAS NO PACKAGE MANAGER STEP IN THE DOCUMENTS, so
+            # this arm does what `getting-started/installation` tells a
+            # Windows reader to do: fetch DejaVu and put it where fonts
+            # go. Per-user rather than C:\Windows\Fonts: it is the
+            # candidate `fonts.json` lists for the location a person
+            # actually installs into, and it needs no elevation.
+            #
+            # Nothing here registers the font with Windows, and nothing
+            # needs to. ps2ui never asks the OS for a face -- fontgen
+            # opens a PATH out of the manifest and hands it to FreeType
+            # -- so "installed" here means "the file is where the
+            # manifest looks", which is the whole of the requirement.
+            #
+            # PINNED AT 2.37 WHERE THE OTHER TWO ARMS PIN NOTHING, and
+            # the asymmetry is deliberate. This job's header says it
+            # pins no package version because the question is what a
+            # person gets today. The FONT is not that kind of
+            # dependency: the tutorial asserts `115 glyphs, 284 kern
+            # pairs`, which are properties of the font file, so an arm
+            # on a different DejaVu would go red over a number that is
+            # correct. apt's fonts-dejavu-core and brew's cask are both
+            # 2.37 today, so this pins to what they already serve --
+            # and if they move, this line is what has to move with
+            # them.
+            ver=2.37
+            url="https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-$ver.zip"
+            curl -sSfL "$url" -o dejavu.zip
+            # python rather than unzip: setup-python already ran, and
+            # Git Bash does not reliably carry unzip.
+            python -c "import zipfile; zipfile.ZipFile('dejavu.zip').extractall('dejavu')"
+            dest="$HOME/AppData/Local/Microsoft/Windows/Fonts"
+            mkdir -p "$dest"
+            cp "dejavu/dejavu-fonts-ttf-$ver/ttf/DejaVuSans.ttf" "$dest/"
+            cp "dejavu/dejavu-fonts-ttf-$ver/ttf/DejaVuSans-Bold.ttf" "$dest/"
           fi
           # WHICH CANDIDATES ACTUALLY EXIST, SO THE NEXT READER DOES
           # NOT HAVE TO INFER IT. Run 1 showed the cask moving
@@ -89,12 +165,14 @@ jobs:
           # the day a macOS image ships DejaVu somewhere else, this
           # listing is what says so, and the alternative is inferring it
           # again from a green tick.
-          python3 - <<'PY'
+          # `python`, not `python3`: setup-python puts both on PATH on
+          # Linux and macOS, and only `python` on Windows.
+          python - <<'PY'
           import json, os
           for face, spec in json.load(open("fonts/fonts.json")).items():
               for cand in spec["ttf"]:
                   full = os.path.expanduser(cand)
-                  print("%-8s %-46s %s" % (
+                  print("%-8s %-58s %s" % (
                       face, cand, "EXISTS" if os.path.exists(full) else "-"))
           PY
 
@@ -141,11 +219,42 @@ jobs:
           # confusing failure into a one-glance one.
           python3 -c "import sys, PIL; print('interpreter:', sys.executable); print('PIL:', PIL.__file__)"
 
+      # WINDOWS ONLY, AND THE FIRST TIME THIS ADVICE HAS BEEN RUN
+      # ANYWHERE. `_raqm_remedy()`'s win32 branch was written off the
+      # wheel: `_imagingft.cp311-win_amd64.pyd` carries `HAVE_RAQM`,
+      # ships no libraqm, and names `fribidi-0` / `libfribidi-0` /
+      # `fribidi` as run-time lookups. That is the same shape as the
+      # macOS and manylinux binaries, so the same remedy should apply
+      # -- SHOULD, from structure, with no Windows box behind it. This
+      # step is where that becomes a measurement.
+      #
+      # MSYS2 rather than conda, of the two routes the message names,
+      # because the runner image already carries it and this job is
+      # about what a person can reach rather than what we can install.
+      # The message names both; a red here means the branch is wrong
+      # and the message needs rewriting, which is the good outcome of
+      # a job like this one.
+      #
+      # GITHUB_PATH, not export: the DLL has to be on PATH for the
+      # STEPS BELOW, which is where fontgen actually runs. The inline
+      # PATH on the check is the same directory, so the diagnostic and
+      # the later steps are asking about one file.
+      - name: Windows only, the remedy fontgen prints
+        if: runner.os == 'Windows'
+        run: |
+          C:/msys64/usr/bin/pacman -S --noconfirm --needed mingw-w64-x86_64-fribidi
+          echo "C:/msys64/mingw64/bin" >> "$GITHUB_PATH"
+          ls -l C:/msys64/mingw64/bin/*fribidi* || true
+          # A SUCCESSFUL INSTALL IS NOT PROOF, the same rule the macOS
+          # branch above is built on: ask Pillow for the FEATURE, not
+          # the package manager for its exit status.
+          PATH="/c/msys64/mingw64/bin:$PATH" python -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
+
       # No version pin, on purpose. The question this job asks is what
       # a person gets today, not what we last tested.
       - name: Install what a stranger installs
         run: |
-          python3 -m pip install ophtml
+          python -m pip install ophtml
           npm install -g @ophtml/layout
           ps2ui --version
           ps2ui-layout --version
@@ -165,15 +274,27 @@ jobs:
           #
           # `|| true` on purpose: still a diagnostic, still not a fence.
           # The fence is block 1.
-          fontgen_bin="$(command -v ps2ui-fontgen)"
-          echo "ps2ui-fontgen shebang: $(head -1 "$fontgen_bin")"
-          its_python="$(head -1 "$fontgen_bin" | sed 's|^#!||')"
-          if [ -x "$its_python" ]; then
-            "$its_python" -c "import PIL; from PIL import features; print('  its PIL: ', PIL.__file__); print('  its raqm:', features.check('raqm'))" || true
+          #
+          # SKIPPED ON WINDOWS, because there is no shebang to read: pip
+          # lays console scripts down as `.exe` launchers there, so
+          # `head -1` would print the first line of a binary and `sed`
+          # would hand the `if` a nonsense path. The QUESTION still has
+          # an answer on Windows -- which interpreter is behind
+          # ps2ui-fontgen -- and the `-m ps2ui_bake.fontgen` line below
+          # is that answer, asked of the module rather than the shim.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            python -c "import sys, PIL; from PIL import features; print('interpreter:', sys.executable); print('  its PIL: ', PIL.__file__); print('  its raqm:', features.check('raqm'), 'fribidi:', features.check('fribidi'))" || true
+          else
+            fontgen_bin="$(command -v ps2ui-fontgen)"
+            echo "ps2ui-fontgen shebang: $(head -1 "$fontgen_bin")"
+            its_python="$(head -1 "$fontgen_bin" | sed 's|^#!||')"
+            if [ -x "$its_python" ]; then
+              "$its_python" -c "import PIL; from PIL import features; print('  its PIL: ', PIL.__file__); print('  its raqm:', features.check('raqm'))" || true
+            fi
           fi
 
       - name: The tutorial, against the installed commands
-        run: python3 tools/check-tutorial.py --from-registry
+        run: python tools/check-tutorial.py --from-registry
 
   # THE OTHER DIRECTION: IS THE DOCUMENTED FAILURE STILL THE FAILURE?
   #
@@ -185,9 +306,20 @@ jobs:
   #
   # So the absence is asserted rather than assumed. A red here is good
   # news that needs a documentation change, and the message says so.
+  #
+  # AND IT NOW RUNS ON BOTH ARCHITECTURES, which is the correction the
+  # step below has been asking for in prose since it was written. It
+  # said "a reading from one runner generalised to a platform, the
+  # same defect as in the documents it guards" -- and then kept doing
+  # it, because there was one arm. Two arms is the fix; the paragraph
+  # was the placeholder.
   macos-plain:
-    name: the documented macOS failure is still the failure
-    runs-on: macos-14
+    name: the documented macOS failure is still the failure (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
@@ -197,11 +329,20 @@ jobs:
         run: python3 -m pip install ophtml
       - name: Raqm is absent on this runner's arch, and fontgen refuses
         run: |
-          # SAY WHAT THIS MEASURED, AND DO NOT GENERALISE IT. macos-14
-          # is Apple silicon, so this job has only ever tested one
-          # machine while its output said "the macOS wheel" -- a
-          # reading from one runner generalised to a platform, the
-          # same defect as in the documents it guards.
+          # SAY WHAT THIS MEASURED, AND DO NOT GENERALISE IT. Each arm
+          # tests one machine, and `platform.machine()` is printed
+          # below so the log says which -- the failure mode this
+          # guards against is a reading from one runner generalised to
+          # a platform, the same defect as in the documents it guards.
+          #
+          # THE TWO ARMS ARE NOT REDUNDANT, and the reason is specific:
+          # both macOS wheels name `/usr/local/lib/libfribidi.dylib`
+          # as their only ABSOLUTE dlopen candidate, which is the
+          # INTEL Homebrew prefix. On Apple silicon that path misses
+          # and resolution falls through to the bare name; on Intel it
+          # is a direct hit. So the two arms can legitimately disagree
+          # about whether a developer Mac has fribidi, and a single
+          # arm cannot tell which side it measured.
           #
           # And the thing that varies is not the wheel. Both macOS
           # wheels compile Raqm in and neither bundles fribidi, which
@@ -211,14 +352,16 @@ jobs:
           # of the two changed.
           python3 -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
           if python3 -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; then
-            echo "::error::pip's macOS Pillow wheel for THIS architecture now HAS Raqm."
+            echo "::error::a plain pip install on ${{ matrix.os }} ($(python3 -c 'import platform; print(platform.machine())')) now HAS Raqm."
             echo "That is good news and it makes two documents wrong:"
             echo "  packages/baker/ps2ui_bake/fontgen.py  _raqm_remedy()"
             echo "  docs/tutorial-uc3.md                  the macOS blockquote in section 1"
-            echo "Both tell a Mac reader on this arch to brew install libraqm and rebuild Pillow."
+            echo "Both tell a Mac reader to install fribidi or rebuild Pillow."
+            echo "Check the OTHER arm before editing either: if only one flipped,"
+            echo "the cause is the runner image's fribidi and not the wheel."
             exit 1
           fi
-          echo "ok - no Raqm in this runner's macOS wheel, as documented"
+          echo "ok - no Raqm on ${{ matrix.os }}, as documented"
           # And the refusal is the refusal: exit 2, nothing written.
           set +e
           out=$(ps2ui fontgen /System/Library/Fonts/Helvetica.ttc /System/Library/Fonts/Helvetica.ttc 2>&1)
@@ -246,6 +389,76 @@ jobs:
           # PREMISE -- that a plain pip install on macOS has no Raqm --
           # is a fact about somebody else's build and can only be
           # checked here. Each claim is asserted where it can be true.
+
+  # THE SAME QUESTION, ASKED OF WINDOWS FOR THE FIRST TIME.
+  #
+  # `_raqm_remedy()` has a win32 branch as of 0.8.0 and it was written
+  # off the wheel rather than off a machine: the Windows
+  # `_imagingft` carries `HAVE_RAQM`, ships no libraqm, and names
+  # `fribidi-0` / `libfribidi-0` / `fribidi` as run-time lookups. From
+  # that, a plain `pip install ophtml` on a box with no fribidi DLL
+  # should refuse exactly as macOS does.
+  #
+  # SHOULD. Nobody has run it. This job is the difference between a
+  # documented failure and an assumed one, and it is deliberately the
+  # weaker of the two Windows arms: the tutorial arm needs a chain of
+  # things to work, while this one needs a single refusal, so if both
+  # go red this one says which half is broken.
+  #
+  # A RED HERE MEANS ONE OF TWO THINGS and the message says both,
+  # because they need opposite fixes: either Windows Pillow now finds
+  # fribidi (documentation is wrong, good news), or the refusal comes
+  # out differently on this platform (the win32 branch is wrong).
+  windows-plain:
+    name: the Windows failure nobody has measured
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: A plain pip install, and nothing else
+        run: python -m pip install ophtml
+      - name: What this machine actually reports
+        run: |
+          # PRINTED BEFORE ANYTHING IS ASSERTED, because this is the
+          # first run and the reading is the deliverable even if the
+          # assertion below turns out to be the wrong one to make.
+          python -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
+      - name: Raqm is absent on a stock Windows box, and fontgen refuses
+        run: |
+          if python -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; then
+            echo "::error::a plain pip install on windows-2025 HAS Raqm."
+            echo "Nothing in this repository predicted that. It makes two things wrong:"
+            echo "  packages/baker/ps2ui_bake/fontgen.py  _raqm_remedy()'s win32 branch"
+            echo "  docs/site/reference/compatibility.md  the Windows row"
+            echo "Both say a Windows reader has to supply fribidi themselves."
+            exit 1
+          fi
+          echo "ok - no Raqm on a stock windows-2025, as the win32 branch assumes"
+          # The refusal is the refusal, and it has to name Raqm rather
+          # than fail for some unrelated Windows reason -- a traceback
+          # out of a path or an encoding would satisfy a bare `rc != 0`
+          # and tell the reader nothing.
+          set +e
+          out=$(ps2ui fontgen fonts/vendor/DejaVuSans.ttf fonts/vendor/DejaVuSans-Bold.ttf 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -ne 0 ] || { echo "::error::fontgen succeeded without Raqm"; exit 1; }
+          case "$out" in
+            *"no Raqm layout engine"*) echo "ok - refused, naming Raqm" ;;
+            *) echo "::error::refused for some other reason"; exit 1 ;;
+          esac
+          # AND NOT THE WORDING, for the reason the macOS job above
+          # records at length: this installs what is PUBLISHED, the
+          # win32 branch ships in 0.8.0, and asserting 0.8.0's wording
+          # against a 0.7.0 install would go red on merge for a reason
+          # that is not a defect. The wording is fenced in the tree by
+          # test_windows_is_told_to_supply_the_dll_and_not_to_rebuild.
 
   # THE CONTRIBUTOR SUITE, ON THE PLATFORM THAT NEVER RAN IT.
   #
@@ -313,9 +526,23 @@ jobs:
   # Not gating a PR: it runs on the schedule and on dispatch, where
   # macos-plain already sits, which is this repository's existing
   # answer to what a macOS runner costs.
+  #
+  # BOTH ARCHITECTURES, for one concrete reason rather than symmetry.
+  # The `...including the piece only a Mac needs` step below branches
+  # on whether `brew install fribidi` ALONE flips the feature, and
+  # logs which branch it took because `_raqm_remedy()` says "probably"
+  # there. The two arms are the two sides of that probably: the wheels
+  # name `/usr/local/lib/libfribidi.dylib` -- Intel's Homebrew prefix
+  # -- as their only absolute candidate, so Intel is where the cheap
+  # path is most likely to hold and arm64 is where it is most likely
+  # to need the rebuild. One arm could only ever have answered half.
   macos-contributor-suite:
-    name: the contributor instructions, on macOS
-    runs-on: macos-14
+    name: the contributor instructions, on macOS (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

@@ -135,6 +135,7 @@ a prerelease refused `latest` and a release refused any other tag.
 | Python | 3.9 or newer | `packages/baker/pyproject.toml` |
 | Pillow | 9 or newer | `packages/baker/pyproject.toml` |
 | macOS | fribidi installed, for `ps2ui-fontgen`'s Raqm text shaping | CHANGELOG.md Unreleased section |
+| Windows | a fribidi DLL on `PATH`, for the same reason | `packages/baker/ps2ui_bake/fontgen.py` `_windows_fribidi_hint()` |
 | host C compiler | `cc` or clang, for `make -C runtime test` | `runtime/Makefile` |
 | gsKit (host tests) | vendored headers pinned to commit `43122eb96289167975b56caa45beb71eb8684fa2` | `runtime/vendor/README.md` |
 | PS2SDK / ps2dev toolchain | `ghcr.io/ps2dev/ps2dev:latest`, deliberately unpinned | `.github/workflows/hw.yml` |
@@ -144,6 +145,30 @@ Install both packages per
 Both macOS Pillow wheels compile Raqm into `_imagingft`, but Pillow
 loads `fribidi` at run time through `dlopen`; a Mac or a runner without
 it makes `ps2ui-fontgen` refuse until `brew install fribidi` runs.
+
+**The same is true on Windows, and the table row for it is read off
+the wheel rather than off a machine.** `_imagingft.cp311-win_amd64.pyd`
+carries `HAVE_RAQM`, ships no libraqm of its own, and names
+`fribidi-0`, `libfribidi-0` and `fribidi` as run-time lookups, the
+same shape as the macOS and manylinux binaries. So a stock Windows box
+should refuse exactly as a clean Mac does, and supplying the DLL should
+be the whole fix. **Should**: `registry.yml`'s `windows-plain` and
+`tutorial (windows-2025)` arms are the first things to ask a Windows
+machine, and until one has run this row is an inference from three
+binaries, not a measurement. The `.uib` format and the runtime are not
+involved either way; this is a property of the authoring host.
+
+### What each platform has actually been run on
+
+| platform | evidence |
+|---|---|
+| Linux (`ubuntu-24.04`) | every job in `ci.yml` and `hw.yml`, on every push |
+| macOS arm64 | `registry.yml`, weekly and on release |
+| macOS x86_64 | `registry.yml`, weekly and on release; and one stranger-path run recorded in `_raqm_remedy()`'s docstring |
+| Windows x86_64 | `registry.yml`, weekly and on release; added in 0.8.0 and not yet reported |
+
+Nothing else has been tried. A platform missing from this table is not
+known to fail; it is not known at all.
 
 The host test suite compiles against real gsKit declarations instead
 of a hand-written stub, on either compiler, so a struct-shape or

@@ -38,6 +38,8 @@ The T/o and A/V pairs close up at 32px. At 14px the same kerns round to zero.
       "/Library/Fonts/DejaVuSans.ttf",
       "/usr/local/share/fonts/DejaVuSans.ttf",
       "~/Library/Fonts/DejaVuSans.ttf",
+      "C:/Windows/Fonts/DejaVuSans.ttf",
+      "~/AppData/Local/Microsoft/Windows/Fonts/DejaVuSans.ttf",
       "vendor/DejaVuSans.ttf"
     ],
     "metrics": "default.metrics.json"
@@ -49,7 +51,7 @@ The T/o and A/V pairs close up at 32px. At 14px the same kerns round to zero.
 }
 ```
 
-`ttf` is a candidate list and the first path that exists wins. `~` expands before the absolute test. A relative candidate resolves against the manifest's own directory. Pass the file to both tools:
+`ttf` is a candidate list and the first path that exists wins. `~` expands before the absolute test. A relative candidate resolves against the manifest's own directory. A candidate for a platform you are not on costs nothing and is never a mistake: `os.path.isabs("C:/Windows/Fonts/DejaVuSans.ttf")` is `False` on POSIX, so it is joined to the manifest's directory, does not exist, and the loop moves to the next one, which is the same outcome as an absolute path that is absent. Pass the file to both tools:
 
 ```sh
 ps2ui-layout ui/library.html ui/library.css --fonts fonts/fonts.json -o build/library.json

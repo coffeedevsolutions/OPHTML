@@ -135,9 +135,9 @@ The bake exits 0 after the last line above. Every refusal exits 1 before `write_
 | `ps2ui-bake: 'ttf'` or another bare key or value error | 1 | A manifest a face lacks `ttf` or `metrics`, or a candidate list with no existing file; reproduced with a face holding only `metrics`. | Give every face both keys and at least one existing TTF. |
 | `ps2ui-bake: the IR and the font manifest describe different fonts:` | 1 | A face the manifest lacks, or a family or weight that differs from the IR's `fonts` block; reproduced by editing the family in memcard's IR. | Pass one `--fonts` file to both `ps2ui-layout` and `ps2ui-bake`. |
 | `ps2ui-bake: screen 'games': canvas {...} differs from {...}` | 1 | IRs compiled for different video modes in one bake; reproduced with channel6's 4:3 and 16:9 IRs together. | Bake one blob per video mode. |
-| `ps2ui-bake: image: ...` and other flattener errors | 1 | An image that cannot decode, an indexed PNG drawn at a size other than its own, an unknown IR op. Test: [test_indexed_png_refuses_to_be_resized](repo:packages/baker/tests/test_baker.py#L2100). | Fix the image or its `width`/`height`. |
+| `ps2ui-bake: image: ...` and other flattener errors | 1 | An image that cannot decode, an indexed PNG drawn at a size other than its own, an unknown IR op. Test: [test_indexed_png_refuses_to_be_resized](repo:packages/baker/tests/test_baker.py#L2145). | Fix the image or its `width`/`height`. |
 | `error: scissor nesting: N levels reaches PS2UI_MAX_SCISSOR_DEPTH = 8. ...` | 1 | `overflow: hidden` nested eight deep. The limit is parsed from [runtime/ps2ui.h](repo:runtime/ps2ui.h) when present; see [caps.py](repo:packages/baker/ps2ui_bake/caps.py#L77). | Flatten the nesting, or raise the constant in the header and rebuild the runtime. |
-| `error: <table>: N does not fit the format's uint16 count field.` | 1 | More than 65535 textures, CLUTs, slots or screens, or one slot capacity past 65535. Test: [TestCaps](repo:packages/baker/tests/test_baker.py#L858). | Split the UI. |
+| `error: <table>: N does not fit the format's uint16 count field.` | 1 | More than 65535 textures, CLUTs, slots or screens, or one slot capacity past 65535. Test: [TestCaps](repo:packages/baker/tests/test_baker.py#L903). | Split the UI. |
 | `error: texture VRAM footprint exceeds budget (see breakdown above; override with --vram-budget)` | 1 | The budget-charged total past the budget; reproduced with `--vram-budget 100000` on memcard. | Shrink or palettize textures, or declare the budget the console runs with. |
 
 ## Files written
@@ -149,7 +149,7 @@ The bake exits 0 after the last line above. Every refusal exits 1 before `write_
 | `<montage>.png` | `--montage` | Every focus state of every screen on one sheet. |
 | `<display>.png` | `--preview-display` | The preview resampled to the display size the blob declares. |
 
-Parent directories of all four paths are created before the write; test [test_bake_creates_its_output_directories](repo:packages/baker/tests/test_baker.py#L4161) covers it. The PNGs are byte-stable: two bakes of the memcard IRs in this session produced identical `preview.png` and `states.png`, and `tools/check-site-assets.py` relies on that.
+Parent directories of all four paths are created before the write; test [test_bake_creates_its_output_directories](repo:packages/baker/tests/test_baker.py#L4206) covers it. The PNGs are byte-stable: two bakes of the memcard IRs in this session produced identical `preview.png` and `states.png`, and `tools/check-site-assets.py` relies on that.
 
 ## Related pages
 

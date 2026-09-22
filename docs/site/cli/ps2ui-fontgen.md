@@ -43,7 +43,7 @@ ps2ui-fontgen --version
 ps2ui-fontgen 0.7.0
 ```
 
-The version check runs before every other check, so it cannot fail for a missing font or a missing Raqm. See [main](repo:packages/baker/ps2ui_bake/fontgen.py#L259).
+The version check runs before every other check, so it cannot fail for a missing font or a missing Raqm. See [main](repo:packages/baker/ps2ui_bake/fontgen.py#L319).
 
 ### Options
 

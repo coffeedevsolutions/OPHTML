@@ -301,6 +301,51 @@ class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
         self.assertIn("not the usual cause", other)
         self.assertNotIn("no rebuild", other)
 
+    def test_windows_is_told_to_supply_the_dll_and_not_to_rebuild(self):
+        """The one branch that was still handing out the general advice.
+
+        CHANGELOG 0.7.0 removed a FALSE CLAIM from this message -- it
+        told Windows readers a fact about manylinux wheels -- and left
+        them on the general branch, which prescribes
+        `pip install --no-binary pillow`. On Windows that wants MSVC
+        and Pillow's native dependencies present first, so the reader
+        is sent to start a different project than the one they are
+        trying to finish. The wheel says what the actual gap is:
+        `_imagingft.cp311-win_amd64.pyd` carries `HAVE_RAQM`, ships no
+        libraqm of its own, and names `fribidi-0` / `libfribidi-0` /
+        `fribidi` as run-time lookups -- the same shape as the macOS
+        and manylinux binaries.
+
+        Asserted per platform rather than once, because the defect was
+        a branch being MISSING and a test that only reads the win32
+        message cannot see the general one still catching it.
+        """
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        with mock.patch.object(fontgen.features, "check", lambda _n: False):
+            with mock.patch.object(fontgen.sys, "platform", "win32"):
+                win = fontgen._raqm_remedy()
+            with mock.patch.object(fontgen.sys, "platform", "darwin"):
+                mac = fontgen._raqm_remedy()
+            with mock.patch.object(fontgen.sys, "platform", "linux"):
+                lin = fontgen._raqm_remedy()
+
+        # The DLL names come from the binary, so they are what a reader
+        # can search for. A message naming none of them describes the
+        # problem without handing over the string that solves it.
+        self.assertIn("fribidi-0.dll", win)
+        self.assertIn("PATH", win)
+        # AND NOT A SOURCE BUILD. This is the assertion the row is for:
+        # the general branch's spelling must not reach a Windows reader.
+        self.assertNotIn("--no-binary", win)
+
+        # The list stays a list on the platforms that have a one-liner:
+        # four lines of Windows DLL search order is somebody else's
+        # problem when you are on a Mac.
+        for other in (mac, lin):
+            self.assertNotIn("fribidi-0.dll", other)
+            self.assertIn("--no-binary", other)
+
     def test_every_platform_says_a_clean_build_is_not_proof(self):
         """Pillow builds and exits 0 without libraqm, omitting the
         feature. So pip's return code answers a different question than

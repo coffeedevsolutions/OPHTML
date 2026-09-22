@@ -216,6 +216,7 @@ def _raqm_remedy():
                 "    brew install fribidi          # macOS\n"
                 "    apt install libfribidi0       # Debian/Ubuntu\n"
                 "    dnf install fribidi           # Fedora\n"
+                + _windows_fribidi_hint()
                 + check + "\n"
                 "If it is still false, rebuild Pillow against both:\n"
                 + _rebuild_hint())
@@ -224,6 +225,48 @@ def _raqm_remedy():
             "fribidi is present, so this is not the usual cause. "
             "Rebuild Pillow against Raqm:\n" + _rebuild_hint() + "\n"
             + check)
+
+
+def _windows_fribidi_hint():
+    """Windows needs a paragraph where the others need a line.
+
+    WHY THIS IS NOT A FOURTH ROW IN THE LIST ABOVE. The three lines
+    there each name a system package manager that has fribidi and put
+    it somewhere the loader already looks. Windows has neither half:
+    no package manager to ask, and no default directory the DLL can
+    land in. A row saying `choco install fribidi` would be the same
+    shape of wrong as the `/opt/homebrew` literal this function's
+    sibling exists to avoid -- plausible, and quietly useless.
+
+    WHAT IS MEASURED. `_imagingft.cp311-win_amd64.pyd` off PyPI
+    carries `HAVE_RAQM`, carries no libraqm of its own, and names
+    `fribidi-0`, `libfribidi-0` and `fribidi` as the things it looks
+    for at run time. That is the same shape as the macOS and manylinux
+    binaries -- Raqm linked in, fribidi loaded from the machine -- and
+    it is read off the wheel, not off a Windows box.
+
+    WHAT IS INFERRED, AND SAID AS SUCH. That supplying one of those
+    DLLs flips the feature on Windows follows from the structure and
+    has not been executed here, for exactly the reason the macOS
+    branch said "probably" for a cycle: nobody had the machine. The
+    `windows-plain` arm in registry.yml is what settles it, and the
+    day it does this text should stop hedging.
+
+    IT IS PLATFORM-GATED and the other three rows are not, because
+    this is four lines rather than one and a Mac reader scrolling past
+    a Windows DLL search order is being charged for somebody else's
+    problem. The list stays a list.
+    """
+    if sys.platform != "win32":
+        return ""
+    return ("On Windows there is no package manager to ask. Pillow looks "
+            "for `fribidi-0.dll`, `libfribidi-0.dll` or `fribidi.dll` on "
+            "the DLL search path; MSYS2 "
+            "(`pacman -S mingw-w64-x86_64-fribidi`) and conda-forge "
+            "(`conda install -c conda-forge fribidi`) both ship one. "
+            "Whichever you use, the directory holding the DLL has to be "
+            "on PATH before Python starts -- a DLL sitting in a folder "
+            "nothing searches fails exactly like an absent one.\n")
 
 
 def _rebuild_hint():
@@ -250,6 +293,23 @@ def _rebuild_hint():
                 "Use --no-binary pillow, not --no-binary :all: -- the bare "
                 "form source-builds every dependency and spends tens of "
                 "minutes bootstrapping CMake.")
+    # WINDOWS IS NOT THE GENERAL CASE AND WAS GETTING THE GENERAL
+    # ADVICE. A source build of Pillow here wants MSVC and a native
+    # dependency chain to be present first, so `--no-binary pillow` is
+    # not a thirty-second fix that happens to be slow -- it is a
+    # different project for most readers. CHANGELOG 0.7.0 already
+    # recorded that this branch "handed Windows readers a fact about
+    # manylinux wheels as their remedy"; the fact went, the wrong
+    # branch stayed. Supplying the DLL is the route, so say that
+    # instead of a rebuild nobody should start.
+    if sys.platform == "win32":
+        return ("    conda install -c conda-forge fribidi\n"
+                "    pacman -S mingw-w64-x86_64-fribidi    # under MSYS2\n"
+                "Either way the directory holding the DLL has to be on "
+                "PATH before Python starts. A source build of Pillow is "
+                "not the route here: it wants MSVC and Pillow's native "
+                "dependencies present first, which is a larger job than "
+                "the one you are trying to finish.")
     return ("    pip install --no-binary pillow --force-reinstall pillow\n"
             "Use --no-binary pillow, not --no-binary :all: -- the bare "
             "form source-builds every dependency and spends tens of "
