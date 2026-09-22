@@ -79,7 +79,7 @@ Three flags decide the pair, and two of them override the third.
 | `--canvas WxH` | replaces the framebuffer size, keeping the panel aspect |
 | `--display-aspect W:H` | replaces the panel aspect, keeping the framebuffer size |
 
-Argument order does not matter. The bin applies `--mode` first and the two overrides afterwards, at [ps2ui-layout.js](repo:packages/layout/bin/ps2ui-layout.js#L66).
+Argument order does not matter. The bin applies `--mode` first and the two overrides afterwards, at [ps2ui-layout.js](repo:packages/layout/bin/ps2ui-layout.js#L88).
 
 ```sh
 ps2ui-layout channel6/ui/games.html channel6/ui/channel6.css -o out/c1.json --mode pal --canvas 704x448

@@ -218,7 +218,7 @@ ps2ui-fontgen: 115 glyphs, 163 kern pairs -> out/default-bold.metrics.json
 ps2ui-fontgen: manifest -> out/fonts.json
 ```
 
-All three lines go to stderr. The implementation is `cmd_fontgen` at [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L310).
+All three lines go to stderr. The implementation is `cmd_fontgen` at [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L324).
 
 ### Options
 

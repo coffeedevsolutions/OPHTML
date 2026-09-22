@@ -16,6 +16,26 @@ without moving this line.
 
 ### Added
 
+- **Hard caps on what an untrusted theme may ask the compilers for.** A
+  theme is a file somebody else wrote, and the compilers accepted
+  whatever it asked for. Four caps now, each measured before it was
+  chosen: canvas dimensions at 2048, elements at 10000, nesting at 64,
+  and a source image at 32 megapixels. Every one is overridable in
+  `ps2ui.json` beside `vramBudget` -- `{"limits": {"nodes": 40000}}` --
+  because a cap with no escape gets edited out of the source by the
+  first person it blocks.
+
+  The numbers come from the shipped corpus rather than from taste.
+  Across all 17 screens in `examples/` and `fixtures/` the largest is 90
+  elements at depth 8, every supported mode is 640x448 or 640x512, and
+  the largest source image is 1984x1408. Each cap sits an order of
+  magnitude above the biggest real thing.
+
+  They fail rather than warn, which is the opposite of what
+  `check-doc-impact.py` argues for itself and right for the same reason:
+  a warning is correct where the work might be fine, and a PlayStation 2
+  cannot display a 30000px canvas under any circumstances.
+
 - **A version a document prints is now held to the version something
   prints.** `check-site-pages.py` pins a citation to the line it names,
   which is exact and cannot see a version *flowing* through a file the
@@ -47,6 +67,33 @@ without moving this line.
   cannot fire on the step it was designed around.
 
 ### Fixed
+
+- **A raised VRAM budget bought room for a framebuffer, which no budget
+  can.** `--vram-budget` exists to let a project declare the texture
+  space it really has. The refusal for a canvas too large to scan out
+  lived inside the advice printed only when no budget was given, so
+  passing one silenced the sentence and the failure together: a
+  30000x30000 canvas baked to a 17760-byte blob with exit 0, past a
+  message whose own last line reads "a narrower canvas is the only fix".
+  The budget charges textures and a framebuffer is not a texture, so the
+  check is now separate from the one a flag can reach.
+
+- **A 439 KiB image could cost 432 MB and eleven seconds, or end the
+  bake in a traceback.** An image is pre-scaled to its laid-out size, so
+  the baked bytes were already bounded: 40 distinct 1024x1024 sources
+  bake to 40 KiB. Nothing bounded the decode. A 12000x12000 PNG baked
+  clean in 11.0 seconds to produce 4 KiB of texture, and one step larger
+  Pillow's own `DecompressionBombError` reached the terminal raw. The
+  size is read from the header now, before any decode, so the same file
+  fails in 0.08 seconds with one error line.
+
+- **Nesting deeper than about 1500 reported `Maximum call stack size
+  exceeded`.** That is V8's stack rather than a decision, so the real
+  limit moved with the machine and the message named neither the
+  element nor a number. The refusal is the compiler's now, at 64, and
+  names the line the deepest element sits on. The check is iterative,
+  because a recursive walk to find the depth that breaks a recursive
+  walk overflows before it can report anything.
 
 - **Nothing read the documentation library backwards, so a citation to
   a deleted file pointed at nothing forever.** `check-doc-impact.py`

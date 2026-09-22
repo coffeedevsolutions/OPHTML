@@ -22,6 +22,11 @@ neither registry; `pip install ophtml` and `npm install -g
 
 ### Added
 
+- Hard caps on what a theme may ask the compilers for: canvas
+  dimensions, element count, nesting depth and source-image pixels.
+  Each is derived from the shipped examples, each fails rather than
+  warns, and each is overridable in `ps2ui.json` beside `vramBudget`.
+
 - `tools/check-doc-versions.py` holds every version this site prints to
   the version something actually prints. A citation pins the line it
   names, so it cannot see a version flowing through a file the row does
@@ -35,6 +40,16 @@ neither registry; `pip install ophtml` and `npm install -g
   honest answer to "should this have an entry?" is sometimes no.
 
 ### Fixed in the toolchain
+
+- A raised `--vram-budget` bought room for a framebuffer, which no
+  budget can. A 30000x30000 canvas baked to a blob with exit 0, past a
+  message saying a narrower canvas was the only fix.
+- A 439 KiB image could cost 432 MB and eleven seconds of bake time, or
+  end the bake in a Pillow traceback. The size is read from the header
+  now, before any decode.
+- Nesting past about 1500 reported `Maximum call stack size exceeded`,
+  which is the interpreter's stack rather than a decision. The refusal
+  is the compiler's now, and names the line.
 
 - Nothing read the documentation library backwards, so a citation to a
   deleted file pointed at nothing indefinitely. `check-doc-impact.py`
