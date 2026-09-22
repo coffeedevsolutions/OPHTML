@@ -208,6 +208,16 @@ jobs:
           # assert about that; it found a row 97% cut off the rendered
           # board on its first run.
           python3 tools/check-backlog.py
+          # And the citations pointing the other way. --impact asks what
+          # a change breaks; --orphans asks what the library still cites
+          # that the tree no longer holds, which is the direction that
+          # rots in silence -- nothing else reads a page's `sources:`
+          # list or a fact row's source column for existence. It is the
+          # one mode of this tool that fails rather than warns: a
+          # citation naming a file git is not ignoring is never correct
+          # work, so the doc-neutrality argument behind the warning does
+          # not reach it.
+          python3 tools/check-doc-impact.py --orphans
 
       # Phase 2's environment, and the blob its baseline numbers are
       # taken from. Built here rather than only by hand: the README's

@@ -36,6 +36,12 @@ neither registry; `pip install ophtml` and `npm install -g
 
 ### Fixed in the toolchain
 
+- Nothing read the documentation library backwards, so a citation to a
+  deleted file pointed at nothing indefinitely. `check-doc-impact.py`
+  reads a facts row's source cell structurally now, resolves a citation
+  that names no directory, and runs the graph backwards to report what
+  the library still cites that the tree no longer holds. It reaches 58
+  documents for `runtime/ps2ui.h` where it reached 45.
 - `ps2ui build` run before `ps2ui fontgen` named a directory inside the
   npm package as the place your font metrics belong. The project
   resolves fonts once now, before either half runs, and names
