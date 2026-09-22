@@ -4526,6 +4526,138 @@ class TestFontsAreRequiredBeforeEitherHalfRuns(unittest.TestCase):
                              os.path.realpath(own))
 
 
+class TestEveryConstructedPathIsSpelledOneWay(unittest.TestCase):
+    """`fonts/default.metrics.json` has to be that string on Windows too.
+
+    THE DEFECT. `docs/tutorial-uc3.md` asserts eight lines carrying a
+    path -- three from `ps2ui fontgen`, four from `ps2ui build`, one
+    from `ps2ui check` -- and on Windows os.path.join and
+    os.path.relpath spell every one of them with a backslash:
+
+        ps2ui-fontgen: 115 glyphs, 284 kern pairs -> fonts\\default.metrics.json
+
+    so the document was false on a platform, and `check-tutorial.py`
+    said so the moment it stopped throwing the diagnosis away.
+
+    THE OTHER FIX, AND WHY IT IS NOT THIS ONE. The checker could
+    compare separator-insensitively. That buys a green leg for a
+    narrower claim than the one it appears to certify -- it would stop
+    reading the separator everywhere, including where a difference is
+    real -- and it leaves the tool printing two spellings of one path
+    for every reader who is not a checker.
+
+    WHAT THESE FENCE. `shown()` is a no-op wherever os.sep is already
+    `/`, which is every machine this suite runs on, so a test that
+    merely calls it on POSIX proves nothing. These check the two halves
+    the platform cannot: that the translation is the right one, and
+    that the constructed paths are routed through it.
+    """
+
+    def test_a_windows_separator_is_translated_and_nothing_else_is(self):
+        """The translation itself, on the only platform it does anything.
+
+        os.sep is patched rather than the whole of ntpath, because
+        os.sep is the entire input: `shown` reads it at call time and
+        does one replacement. Single-threaded suite, restored on exit.
+        """
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+        with mock.patch.object(os, "sep", "\\"):
+            self.assertEqual(front.shown("fonts\\default.metrics.json"),
+                             "fonts/default.metrics.json")
+            self.assertEqual(front.shown("build\\ui.uib"), "build/ui.uib")
+            # A path with nothing to translate comes back untouched --
+            # including one already spelled the documents' way, so the
+            # function is safe to apply twice.
+            self.assertEqual(front.shown("build/ui.uib"), "build/ui.uib")
+            self.assertEqual(front.shown("ui.uib"), "ui.uib")
+        # And on this machine it is the identity, which is the claim
+        # that makes it safe to put in front of every path.
+        self.assertEqual(front.shown("build/ui.uib"), "build/ui.uib")
+
+    def test_rel_spells_what_relpath_hands_back(self):
+        """Five of the eight asserted lines are argv that came from `rel`.
+
+        `ps2ui` hands `-o build/library.json`, `--preview
+        build/preview.png` and the blob's own name to three tools that
+        each ECHO the path they were given -- ps2ui-layout.js:105,
+        cli.py:338, check.py:745. So the spelling is decided here and
+        nowhere else, and deleting `shown` from this one function turns
+        all five lines over on Windows at once.
+        """
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+
+        class P(object):
+            root = "C:\\proj"
+
+        with mock.patch.object(os, "sep", "\\"), \
+             mock.patch.object(os.path, "relpath",
+                               return_value="build\\ui.uib"):
+            self.assertEqual(front.rel(P(), "irrelevant"), "build/ui.uib")
+        self.assertIsNone(front.rel(P(), None))
+
+    def test_only_one_function_in_ps2ui_py_computes_a_shown_path(self):
+        """The fence that survives the next path being added.
+
+        Four call sites computed their own `os.path.relpath` for a
+        message before this, and each one was a separate chance to
+        forget. There is one now, and a second would be invisible on
+        every machine that runs this suite -- so count them rather than
+        trust the reading.
+        """
+        from ps2ui_bake import ps2ui as front
+        with io.open(front.__file__, encoding="utf-8") as fh:
+            source = fh.read()
+        # Counted with its parentheses, so this reads calls rather
+        # than mentions: `shown`'s docstring names os.path.relpath as
+        # the thing that spells a path with a backslash, and prose is
+        # not a call site. The one that remains is `rel`'s own.
+        calls = source.count("os.path.relpath(")
+        self.assertEqual(calls, 1,
+                         "ps2ui.py computes %d relative paths for display; "
+                         "`rel` is meant to be the only one" % calls)
+
+    def test_fontgen_routes_the_three_paths_it_constructs(self):
+        """The other three lines, which `rel` never sees.
+
+        `ps2ui fontgen` builds its own paths under --out-dir: the two
+        metrics files it hands to `ps2ui-fontgen` (which echoes each,
+        as the three tools above do) and the manifest it writes and
+        prints itself. None goes near a project root, so none goes
+        through `rel`.
+
+        Spying rather than simulating Windows: what can regress here is
+        the ROUTING, and the routing is observable on any platform.
+        """
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+        # The vendored faces rather than require_ttf(), so this runs on
+        # a machine with no system DejaVu -- the same choice the
+        # backslash fence above makes, and for the same reason.
+        ttf = os.path.join(FONTS, "vendor", "DejaVuSans.ttf")
+        bold = os.path.join(FONTS, "vendor", "DejaVuSans-Bold.ttf")
+        real = front.shown
+        seen = []
+
+        def spy(path):
+            seen.append(path)
+            return real(path)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "fonts")
+            with mock.patch.object(front, "shown", spy):
+                rc = front.main(["fontgen", ttf, bold, "--out-dir", out])
+            self.assertEqual(rc, 0)
+            for name in ("default.metrics.json", "default-bold.metrics.json",
+                         "fonts.json"):
+                self.assertIn(
+                    os.path.join(out, name), seen,
+                    "%s reached a tool or a message without being "
+                    "spelled the documents' way" % name)
+                self.assertTrue(os.path.exists(os.path.join(out, name)))
+
+
 class TestProjectFile(unittest.TestCase):
     """ps2ui.json: what it accepts, and what it refuses by name.
 

@@ -99,6 +99,52 @@ without moving this line.
 
 ### Fixed
 
+- **`fonts/default.metrics.json` is `fonts\default.metrics.json` on
+  Windows, so nine documented lines were false on a platform.**
+  `docs/tutorial-uc3.md` asserts eight lines carrying a path -- three
+  from `ps2ui fontgen`, four from `ps2ui build`, one from `ps2ui check`
+  -- and `os.path.join` and `os.path.relpath` spell every one of them
+  with a backslash there. This is the finding standing behind the two
+  entries below: the Windows leg refused its own manifest first, and
+  when that was fixed the separator was what remained.
+
+  **The other repair was considered and rejected.**
+  `tools/check-tutorial.py` could compare separator-insensitively. That
+  buys a green leg for a narrower claim than the one it appears to
+  certify -- it stops reading the separator everywhere, including where
+  a difference is real -- and it leaves the tool printing two spellings
+  of one path for every reader who is not a checker. One documented
+  string being true on three platforms is the stronger thing to own.
+
+  **A tool echoes; the wrapper constructs.** `ps2ui-layout`,
+  `ps2ui-bake` and `ps2ui-check` each print the path they were HANDED
+  -- `-o`, `--preview`, the positional blob, at
+  `ps2ui-layout.js:105`, `cli.py:338` and `check.py:745` -- and echoing
+  an argument back in a different spelling than it arrived in would be
+  its own defect. So the spelling is decided where a path is BUILT,
+  which is `ps2ui` and nowhere else. `shown()` translates `os.sep` to
+  `/`; `rel()` routes through it, which covers the five lines that
+  reach a tool as argv; `ps2ui fontgen` routes the three it builds
+  under `--out-dir`. Forward slashes are not a lie on
+  Windows -- Win32, Python's `open()` and Node's `fs` all take `/` --
+  so this changes how a path is written, never which file it names.
+
+  Four call sites computed their own `os.path.relpath` for a message
+  before this, each a separate chance to forget. There is one now and a
+  test counts them, because a fifth would be invisible on every machine
+  this suite runs on: `shown()` is the identity wherever `os.sep` is
+  already `/`. For the same reason the translation is checked under a
+  patched `os.sep` and the routing is checked by spying on the call --
+  the routing is what can regress, and unlike the translation it is
+  observable on any platform. Falsified four ways: the translation
+  removed, `rel` unrouted, `fontgen`'s manifest unrouted, and a fifth
+  `relpath` added.
+
+  **Nothing in CI can see this until 0.8.0 publishes**, which is now
+  true of three Windows fixes. `registry.yml` installs what is on the
+  registries; every job that tests this tree is Linux, where the
+  change is a no-op by construction.
+
 - **`ps2ui fontgen` wrote a manifest `ps2ui build` could not read, on
   Windows, and the reporter above is what surfaced it.** The wrapper
   built `fonts.json` by hand -- `"ttf": ["%s"]` against
@@ -139,7 +185,7 @@ without moving this line.
   the compiler said above it was captured and dropped.
 
   **Two places each locally right, combining to delete the evidence.**
-  `ps2ui.py:194` runs the compiler with stderr inheriting, under the
+  `ps2ui.py:227` runs the compiler with stderr inheriting, under the
   comment *"The compiler already printed why, in its own words. Adding a
   second summary here would bury it"* -- and `check-tutorial.py` then
   buried it, keeping exactly the summary that file had declined to add.

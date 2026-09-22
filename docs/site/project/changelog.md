@@ -34,15 +34,21 @@ neither registry; `pip install ophtml` and `npm install -g
   Rule 10c warns on a prerelease too, and can never fail, because the
   honest answer to "should this have an entry?" is sometimes no.
 
-- `registry.yml` had one non-Linux arm and it is now a deprecated
-  runner image, so the three jobs pinned to `macos-14` move to
+- `registry.yml` had one non-Linux arm and its runner image is now
+  deprecated, so the three jobs pinned to `macos-14` move to
   `macos-15` and gain `macos-15-intel`, while the tutorial job gains
   `windows-2025` beside a new `windows-plain`. Intel is not symmetry:
   both macOS wheels name Intel's Homebrew prefix as their only absolute
   fribidi candidate, so the two arms are the two sides of the
-  "probably" the remedy message has carried for a cycle.
+  "probably" the remedy has carried for a cycle.
 
 ### Fixed in the toolchain
+
+- The tutorial asserts eight lines carrying a path; on Windows the
+  toolchain spelled every one with a backslash. A checker that ignored
+  the separator would certify less than it appears to, so the tools
+  keep one spelling: only the wrapper builds a path, and it uses
+  forward slashes, which Windows takes.
 
 - `ps2ui fontgen` wrote a `fonts.json` that `ps2ui build` refused on
   Windows, because hand-built JSON left a Windows path's backslashes
@@ -52,23 +58,22 @@ neither registry; `pip install ophtml` and `npm install -g
 - The remedy that ships inside the wheel sent Windows readers to build
   Pillow from source. 0.7.0 removed a false claim from that branch and
   left them on the general one, which wants MSVC and a native
-  dependency chain on Windows. The wheel says the gap is fribidi, as it
-  is everywhere else, so the message names the three DLLs and the
-  `PATH` requirement instead. Read off the binary and not off a Windows
+  dependency chain there. The wheel says the gap is fribidi, as it is
+  everywhere else, so the message names the three DLLs and the `PATH`
+  requirement instead -- read off the binary and not off a Windows
   machine, which the compatibility page now says in as many words. The
-  first version of that fix led the reader in a circle -- its win32 arm
-  sat inside the source-build hint and then declined the source build,
-  so both callers promised a rebuild and neither delivered one. The
-  routing is the fix, and a second test fences the shape rather than the
+  first version led the reader in a circle: its win32 arm sat inside
+  the source-build hint and then declined the source build. The routing
+  is the fix, and a second test fences the shape rather than the
   spelling.
 
 - Nothing read the documentation library backwards, so a citation to a
-  deleted file pointed at nothing indefinitely. `check-doc-impact.py`
+  deleted file pointed at nothing for good. `check-doc-impact.py`
   reads a facts row's source cell structurally now, resolves a citation
   that names no directory, and runs the graph backwards to report what
   the library still cites that the tree no longer holds. It reaches 58
   documents for `runtime/ps2ui.h` where it reached 45, and 513 more
-  citations across the library.
+  citations.
 - `ps2ui build` run before `ps2ui fontgen` named a directory inside the
   npm package as the place your font metrics belong. The project
   resolves fonts once now, before either half runs, and names
@@ -97,9 +102,8 @@ neither registry; `pip install ophtml` and `npm install -g
 - `:hover` was answered with `unsupported selector syntax near ":"`. A
   pseudo-class the target does not implement is named, with `:focus`
   given as the one that exists.
-- `border-radius` costs a flat eight records a box, whatever the radius,
-  because a square box is one record and a rounded one is a nine-cell
-  patch. The CSS reference says so beside the property and in
+- `border-radius` costs a flat eight records a box, because a square
+  box is one record and a rounded one is a nine-cell patch. The CSS reference says so beside the property and in
   [what a rounded corner costs](page:authoring/css#what-a-rounded-corner-costs).
 - The previewer and `build/preview.png` are different sizes, and the
   self-test said "byte-identical" without naming which frame it had
@@ -107,25 +111,23 @@ neither registry; `pip install ophtml` and `npm install -g
   meets them.
 - This page restated a shipped release while calling it the open one.
 - And then it restated five of the open section's entries and called
-  that a mapping. The sentence above the list used to promise only
-  that every bullet here had an entry in the file, which is true of
-  any five of them. It now promises one bullet for each entry, and
-  the list keeps that promise. Writing the entry for that fix moved
-  every line under it, and the move turned up a second one: the table
-  of earlier releases below cited three releases it does not list, on
-  lines that had drifted onto prose. It was never red. A pin proves a
-  line has not moved, not that it was the right line. The new promise
-  is counted by `ps2ui`'s version checker, because a promise that can
-  be false and is never read is the same shape as the one it replaced.
+  that a mapping: the promise above the list was that every bullet
+  here has an entry in the file, true of any five of them. It
+  promises one bullet per entry now, counted by `ps2ui`'s version
+  checker, because a promise that can be false and is never read is
+  the same shape as the one it replaced. Moving every line under that
+  entry turned up a second fault: the table below cited three releases
+  it does not list, on lines that had drifted onto prose. It was never
+  red: a pin proves a line has not moved, not that it was right.
 - The audit that catches stale ticks on the backlog had missed rows
   three times. `tools/check-backlog.py` holds every row ID, every
   tick-claim and every open row to each other now, and CI runs it. It
   found a row showing 178 of its 6129 characters on its first run.
   Review found it reading a scaffolded marker as a shipped one, and a
-  table split by a blank line as having no rows to check at all. A
-  second review found the screen for an unrecognised marker looking
-  only at the first one on a line, so a known marker ahead of it hid
-  it. Both are fixed and both are fenced.
+  table split by a blank line as having no rows at all. A second found
+  its screen for an unrecognised marker looking only at the first one
+  on a line, so a known marker ahead of it hid it. All three are fixed
+  and fenced.
 
 ### Fixed in the documentation checker
 
