@@ -100,7 +100,7 @@ without moving this line.
 ### Fixed
 
 - **`fonts/default.metrics.json` is `fonts\default.metrics.json` on
-  Windows, so nine documented lines were false on a platform.**
+  Windows, so eight documented lines were false on a platform.**
   `docs/tutorial-uc3.md` asserts eight lines carrying a path -- three
   from `ps2ui fontgen`, four from `ps2ui build`, one from `ps2ui check`
   -- and `os.path.join` and `os.path.relpath` spell every one of them
@@ -145,6 +145,18 @@ without moving this line.
   registries; every job that tests this tree is Linux, where the
   change is a no-op by construction.
 
+  **A correction this entry caused, and the reason it is worth
+  writing down.** Moving these lines, the first version of this change
+  declared the entry below off by one and "fixed" a citation that was
+  right. `ps2ui.py:194` was the `subprocess.call` at the commit that
+  wrote it; it read as `cmd += argv_extra` only because the commit
+  after that added an `import` at the top of the file and shifted
+  everything down one. The check was made against the wrong revision,
+  so a correct number was replaced with a wrong one, and then the
+  displacement was applied to that. Nothing could catch either step:
+  a `file.py:NN` written in this file's prose is pinned by no checker,
+  which is the open board row, and it now has a worked example.
+
 - **`ps2ui fontgen` wrote a manifest `ps2ui build` could not read, on
   Windows, and the reporter above is what surfaced it.** The wrapper
   built `fonts.json` by hand -- `"ttf": ["%s"]` against
@@ -185,7 +197,7 @@ without moving this line.
   the compiler said above it was captured and dropped.
 
   **Two places each locally right, combining to delete the evidence.**
-  `ps2ui.py:227` runs the compiler with stderr inheriting, under the
+  `ps2ui.py:229` runs the compiler with stderr inheriting, under the
   comment *"The compiler already printed why, in its own words. Adding a
   second summary here would bury it"* -- and `check-tutorial.py` then
   buried it, keeping exactly the summary that file had declined to add.

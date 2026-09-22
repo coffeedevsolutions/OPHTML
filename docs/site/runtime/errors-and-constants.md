@@ -183,7 +183,7 @@ grep -n 'define PS2UI_MAX' runtime/ps2ui.h runtime/ps2ui.c
 runtime/ps2ui.h:297:#define PS2UI_MAX_SCISSOR_DEPTH 8
 ```
 
-`PS2UI_VERSION` is the format version, pledged frozen at 7 ([docs/format-uib.md](repo:docs/format-uib.md#L385)). It does not track runtime releases and no longer moves when `ps2ui.c` changes ([vendor.py](repo:packages/baker/ps2ui_bake/vendor.py#L190)). The baker's writer carries the same number ([uib.py](repo:packages/baker/ps2ui_bake/uib.py#L49)), and `tools/check-versions.py` holds the two equal in the tree ([check-versions.py](repo:tools/check-versions.py#L352)). Baker and runtime match in a project because `ps2ui vendor-runtime` ships both files from one installed package, not because of the macro.
+`PS2UI_VERSION` is the format version, pledged frozen at 7 ([docs/format-uib.md](repo:docs/format-uib.md#L385)). It does not track runtime releases and no longer moves when `ps2ui.c` changes ([vendor.py](repo:packages/baker/ps2ui_bake/vendor.py#L190)). The baker's writer carries the same number ([uib.py](repo:packages/baker/ps2ui_bake/uib.py#L49)), and `tools/check-versions.py` holds the two equal in the tree ([check-versions.py](repo:tools/check-versions.py#L375)). Baker and runtime match in a project because `ps2ui vendor-runtime` ships both files from one installed package, not because of the macro.
 
 ## Feature bits
 

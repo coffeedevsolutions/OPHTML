@@ -103,6 +103,29 @@ _WORDS = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
           "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 
 
+def spell(n):
+    """A count as this project's prose writes one.
+
+    The facts row rule 15 checks is written in words rather than
+    digits, because every page here is, so a rule that asserts the
+    prose names a computed number has to speak the prose's language.
+    Small range on purpose: these are counts of entries in one
+    changelog section, and a hundred of them is a different problem
+    than a stale word.
+    """
+    ones = ("zero", "one", "two", "three", "four", "five", "six",
+            "seven", "eight", "nine", "ten", "eleven", "twelve",
+            "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+            "eighteen", "nineteen")
+    tens = ("", "", "twenty", "thirty", "forty", "fifty", "sixty",
+            "seventy", "eighty", "ninety")
+    if n < 0 or n > 99:
+        return str(n)
+    if n < 20:
+        return ones[n]
+    return tens[n // 10] + ("-" + ones[n % 10] if n % 10 else "")
+
+
 def parse(text, pattern, what):
     """A version string -> (major, minor, patch, rank, prerelease_n).
 
@@ -1101,6 +1124,95 @@ def main(argv=None):
                   "bullet here for each entry there\". Restate the missing "
                   "one, or stop promising the count"
                   % (on_page, in_file, "y" if in_file == 1 else "ies"))
+
+            # 15. And the facts row that RESTATES rule 14's arithmetic
+            #     names the numbers rule 14 just computed.
+            #
+            #     TWICE IN FOUR COMMITS, BY THE SAME MECHANISM. The
+            #     `changelog.mapping` row spells out both totals, the
+            #     per-heading counts and the line each heading sits on.
+            #     Adding one entry to the open section moves every one
+            #     of them, and nothing read any of it: `--fix` follows
+            #     a citation's TEXT, so it relocates the pinned line
+            #     happily and leaves the prose beside it describing the
+            #     tree as it was. The row was corrected in one commit
+            #     of this pull request and was stale again in the next.
+            #
+            #     So it is derived rather than maintained, which is the
+            #     move #166 made when it stopped asserting a
+            #     measurement and started asserting the sentence that
+            #     cites it. Rule 14 already counts both sides; this
+            #     asks whether the row says what the count said.
+            #
+            #     ASSERTED AS THE ROW'S OWN PHRASE, `at N with WORD`,
+            #     rather than as loose numbers. A row can hold a
+            #     seventeen that belongs to something else, and two
+            #     headings can carry the same count; pairing the line
+            #     with the word makes each claim its own.
+            facts = os.path.join(ROOT, "docs", "site", "_facts",
+                                 "project", "changelog.md")
+            if os.path.exists(facts):
+                with open(facts, encoding="utf-8") as fh:
+                    rows = [ln for ln in fh.read().split("\n")
+                            if ln.startswith("| changelog.mapping |")]
+                if len(rows) != 1:
+                    check(False, "",
+                          "docs/site/_facts/project/changelog.md has %d "
+                          "`changelog.mapping` row(s); rule 15 reads "
+                          "exactly one" % len(rows))
+                else:
+                    row = rows[0]
+                    want = ["%s bullet%s for %s entr%s"
+                            % (spell(on_page),
+                               "" if on_page == 1 else "s",
+                               spell(in_file),
+                               "y" if in_file == 1 else "ies")]
+                    # Every `### ` heading under the open section on
+                    # each side, as "`<heading>` at <line> with <word>".
+                    #
+                    # READ FROM THE FILES RATHER THAN FROM `body`,
+                    # because the row names LINE NUMBERS and `body` is
+                    # a regex split with no line of its own. Both sides
+                    # are scanned the same way for the same reason rule
+                    # 14 counts them the same way.
+                    with open(os.path.join(ROOT, "CHANGELOG.md"),
+                              encoding="utf-8") as fh:
+                        clines = fh.read().split("\n")
+                    c_start = next(i for i, ln in enumerate(clines)
+                                   if ln.startswith("## ")
+                                   and ln[3:].strip() == head.strip())
+                    c_stop = next((i for i in range(c_start + 1, len(clines))
+                                   if clines[i].startswith("## ")),
+                                  len(clines))
+                    for lines, lo, hi in ((clines, c_start, c_stop),
+                                          (plines, start, stop)):
+                        headline, at, n = None, 0, 0
+
+                        def flush(headline, at, n):
+                            # A heading with no bullets is not in the
+                            # row and should not be: `### Format` is
+                            # prose, and rule 14 does not count it.
+                            if headline and n:
+                                want.append("`%s` at %d with %s"
+                                            % (headline, at, spell(n)))
+                        for i in range(lo, hi):
+                            ln = lines[i]
+                            if ln.startswith("### "):
+                                flush(headline, at, n)
+                                headline, at, n = ln.strip(), i + 1, 0
+                            elif ln.startswith("- ") and headline:
+                                n += 1
+                        flush(headline, at, n)
+                    missing = [w for w in want if w not in row]
+                    check(not missing,
+                          "the changelog.mapping row names the %d number(s) "
+                          "rule 14 counts" % len(want),
+                          "the changelog.mapping row does not say: %s. "
+                          "Rule 14 counted them from the two files; the row "
+                          "restates that arithmetic in prose and nothing "
+                          "else reads it, so it goes stale every time an "
+                          "entry is added. Paste the phrase(s) in"
+                          % "; ".join('"%s"' % m for m in missing))
 
     if except_tag:
         # SAID OUT LOUD. A green `--except-tag` run is not a pass, and

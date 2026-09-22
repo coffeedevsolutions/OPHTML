@@ -4597,29 +4597,43 @@ class TestEveryConstructedPathIsSpelledOneWay(unittest.TestCase):
             self.assertEqual(front.rel(P(), "irrelevant"), "build/ui.uib")
         self.assertIsNone(front.rel(P(), None))
 
-    def test_only_one_function_in_ps2ui_py_computes_a_shown_path(self):
-        """The fence that survives the next path being added.
+    # BOTH CONSTRUCTORS, because fencing one was fencing half of it.
+    # `ps2ui.py` builds a displayed path two ways -- os.path.relpath for
+    # a project-relative one and os.path.join for a directory-relative
+    # one -- and the join half is what produced three of the eight
+    # asserted lines and what `cmd_fontgen` had to be routed by hand.
+    # Review added a join-built printed path to this file and every test
+    # here stayed green, so the docstring's own argument ("a second
+    # would be invisible, so count them rather than trust the reading")
+    # was being made about one idiom and applied to neither.
+    #
+    # These are tripwires rather than prohibitions: a new site is often
+    # fine, and every join site in the file today does route. The
+    # failure is a prompt to look at it and say so by moving the number.
+    RELPATH_SITES = 1   # `rel` itself, and nothing else
+    JOIN_SITES = 5      # :49 :200 :359 :362 :436, each checked to route
 
-        Four call sites computed their own `os.path.relpath` for a
-        message before this, and each one was a separate chance to
-        forget. There is one now, and a second would be invisible on
-        every machine that runs this suite -- so count them rather than
-        trust the reading.
-        """
+    def test_ps2ui_py_builds_a_displayed_path_in_a_counted_number_of_places(self):
+        """The fence that survives the next path being added."""
         from ps2ui_bake import ps2ui as front
         with io.open(front.__file__, encoding="utf-8") as fh:
             source = fh.read()
-        # Counted with its parentheses, so this reads calls rather
-        # than mentions: `shown`'s docstring names os.path.relpath as
-        # the thing that spells a path with a backslash, and prose is
-        # not a call site. The one that remains is `rel`'s own.
-        calls = source.count("os.path.relpath(")
-        self.assertEqual(calls, 1,
-                         "ps2ui.py computes %d relative paths for display; "
-                         "`rel` is meant to be the only one" % calls)
+        # Counted with their parentheses, so this reads calls rather
+        # than mentions: `shown`'s docstring names both functions as
+        # the things that spell a path with a backslash, and prose is
+        # not a call site.
+        for fn, want in (("os.path.relpath(", self.RELPATH_SITES),
+                         ("os.path.join(", self.JOIN_SITES)):
+            got = source.count(fn)
+            self.assertEqual(
+                got, want,
+                "ps2ui.py has %d `%s` site(s) and this test knows of %d. "
+                "If the new one builds a path that gets PRINTED or handed "
+                "to a tool, wrap it in shown(); either way move the count "
+                "here, so the next one is visible too." % (got, fn, want))
 
-    def test_fontgen_routes_the_three_paths_it_constructs(self):
-        """The other three lines, which `rel` never sees.
+    def test_fontgen_puts_its_three_files_where_the_document_says(self):
+        """The other three lines, and a fence on the OUTPUT rather than the call.
 
         `ps2ui fontgen` builds its own paths under --out-dir: the two
         metrics files it hands to `ps2ui-fontgen` (which echoes each,
@@ -4627,9 +4641,35 @@ class TestEveryConstructedPathIsSpelledOneWay(unittest.TestCase):
         prints itself. None goes near a project root, so none goes
         through `rel`.
 
-        Spying rather than simulating Windows: what can regress here is
-        the ROUTING, and the routing is observable on any platform.
+        THE FIRST VERSION OF THIS TEST SPIED ON `shown` AND ASSERTED
+        THAT EACH JOINED PATH WAS PASSED TO IT. Review showed that
+        proves the call and not the routing -- it never checks that
+        `shown`'s RETURN VALUE is what reaches the tool, so
+
+            _p = os.path.join(out_dir, name)
+            shown(_p)                    # called, result discarded
+            rc = fontgen.main([..., _p])
+
+        passed all four tests while the metrics paths went to
+        `ps2ui-fontgen` unspelled, which is the exact defect this
+        commit exists to fix. A fence one side of the function it is
+        fencing.
+
+        SO SIMULATE THE PLATFORM AND READ THE FILESYSTEM. With `os.sep`
+        and `os.path.join` both Windows, an unrouted path is not a
+        cosmetic difference -- `<out>/fonts\\default.metrics.json` names
+        a file called `fonts\\default.metrics.json` in `<out>`'s parent,
+        so the three files simply are not where the tutorial says they
+        are. Measured on this tree:
+
+            clean               landed 3, stray 0
+            unrouted            landed 0, stray 3
+            called-and-discarded landed 1 (the manifest), stray 2
+
+        An output cannot be satisfied by a discarded call, and none of
+        it needs a Windows machine.
         """
+        import ntpath
         from unittest import mock
         from ps2ui_bake import ps2ui as front
         # The vendored faces rather than require_ttf(), so this runs on
@@ -4637,25 +4677,31 @@ class TestEveryConstructedPathIsSpelledOneWay(unittest.TestCase):
         # backslash fence above makes, and for the same reason.
         ttf = os.path.join(FONTS, "vendor", "DejaVuSans.ttf")
         bold = os.path.join(FONTS, "vendor", "DejaVuSans-Bold.ttf")
-        real = front.shown
-        seen = []
-
-        def spy(path):
-            seen.append(path)
-            return real(path)
+        wrote = ("default.metrics.json", "default-bold.metrics.json",
+                 "fonts.json")
 
         with tempfile.TemporaryDirectory() as tmp:
+            # Built with the REAL join, because this is the caller's
+            # path and the tutorial's `fonts` is relative to the
+            # project rather than to anything the wrapper computes.
             out = os.path.join(tmp, "fonts")
-            with mock.patch.object(front, "shown", spy):
+            with mock.patch.object(os, "sep", "\\"), \
+                 mock.patch.object(os.path, "join", ntpath.join):
                 rc = front.main(["fontgen", ttf, bold, "--out-dir", out])
             self.assertEqual(rc, 0)
-            for name in ("default.metrics.json", "default-bold.metrics.json",
-                         "fonts.json"):
-                self.assertIn(
-                    os.path.join(out, name), seen,
-                    "%s reached a tool or a message without being "
-                    "spelled the documents' way" % name)
-                self.assertTrue(os.path.exists(os.path.join(out, name)))
+
+            for name in wrote:
+                self.assertTrue(
+                    os.path.exists(os.path.join(out, name)),
+                    "%s is not in the directory the tutorial names; a "
+                    "path was handed on with the platform's separator "
+                    "still in it" % name)
+            # And nothing landed beside it under a backslash name,
+            # which is where an unrouted path actually goes.
+            self.assertEqual(
+                sorted(f for f in os.listdir(tmp) if f != "fonts"), [],
+                "a file was written whose name contains the separator, "
+                "so a constructed path reached open() unspelled")
 
 
 class TestProjectFile(unittest.TestCase):
