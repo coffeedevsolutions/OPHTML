@@ -4392,6 +4392,56 @@ class TestFontsAreRequiredBeforeEitherHalfRuns(unittest.TestCase):
             json.dump({"screens": ["ui/a.html"], "css": "ui/a.css"}, fh)
         return os.path.join(tmp, "ps2ui.json")
 
+    def test_the_manifest_survives_a_backslash_in_the_font_path(self):
+        """`ps2ui fontgen` must not write a file `ps2ui build` cannot read.
+
+        THE DEFECT, AND WHY IT WAS A PLATFORM RATHER THAN A TYPO. The
+        manifest was written by hand -- `"ttf": ["%s"]` against
+        os.path.abspath -- which is valid JSON for exactly as long as no
+        path contains a backslash. Every absolute Windows path does, so
+        `ps2ui fontgen` wrote
+
+            "ttf": ["C:\\\\Users\\\\me\\\\...\\\\DejaVuSans.ttf"]
+
+        and `ps2ui build`, one command later, refused its own manifest
+        with `Bad escaped character in JSON at position 30`. Both halves
+        behaving as designed; the file between them malformed.
+
+        REPRODUCED ON POSIX RATHER THAN ASSERTED ABOUT WINDOWS, because
+        a backslash is a perfectly ordinary character in a POSIX
+        filename. That makes this a fence every run of the suite
+        exercises, on every platform, instead of a claim about a machine
+        this suite does not have -- and it is the same condition: a path
+        the writer has to escape and did not.
+        """
+        import json as _json
+        from ps2ui_bake import ps2ui as ps2ui_mod
+
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        # A real TTF under a name carrying the offending character.
+        odd = os.path.join(tmp, "Deja\\Vu.ttf")
+        shutil.copy(os.path.join(FONTS, "vendor", "DejaVuSans.ttf"), odd)
+        out = os.path.join(tmp, "fonts")
+
+        rc = ps2ui_mod.main(["fontgen", odd, odd, "-o", out])
+        self.assertEqual(rc, 0)
+
+        written = os.path.join(out, "fonts.json")
+        with open(written, encoding="utf-8") as fh:
+            manifest = _json.load(fh)   # the assertion: it parses at all
+
+        # ...and the path survives the round trip byte for byte, which a
+        # naive escape-and-move-on would not guarantee.
+        self.assertEqual(manifest["regular"]["ttf"], [os.path.abspath(odd)])
+        self.assertEqual(manifest["bold"]["ttf"], [os.path.abspath(odd)])
+
+        # And the resolver the other half uses accepts it, which is the
+        # step that actually failed on Windows.
+        from ps2ui_bake.cli import load_font_manifest
+        self.assertEqual(load_font_manifest(written)["regular"]["ttf"],
+                         os.path.abspath(odd))
+
     def test_no_manifest_anywhere_names_ps2ui_fontgen_not_a_package_path(self):
         """The refusal names the command that actually writes one.
 

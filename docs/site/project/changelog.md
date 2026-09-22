@@ -44,6 +44,11 @@ neither registry; `pip install ophtml` and `npm install -g
 
 ### Fixed in the toolchain
 
+- `ps2ui fontgen` wrote a `fonts.json` that `ps2ui build` refused on
+  Windows, because hand-built JSON left a Windows path's backslashes
+  unescaped. `json.dump` writes it now, fenced with a backslash in a
+  filename.
+
 - The remedy that ships inside the wheel sent Windows readers to build
   Pillow from source. 0.7.0 removed a false claim from that branch and
   left them on the general one, which wants MSVC and a native
@@ -124,16 +129,14 @@ neither registry; `pip install ophtml` and `npm install -g
 
 ### Fixed in the documentation checker
 
-Eleven entries: ten about `tools/check-site-pages.py`, which holds every
-claim here to the lines it cites, and one about
-`tools/check-tutorial.py`. No runtime or format behaviour.
+Eleven entries: ten about `tools/check-site-pages.py`, which holds
+every claim here to the lines it cites, and one about
+`tools/check-tutorial.py`.
 
 - The tutorial checker printed only the last line of a failing block:
-  the wrapper's summary, not the compiler's explanation above it. The
-  Windows arm reported `ps2ui build` exiting 1 with its cause already
-  discarded. It keeps twenty lines, counts what it drops, and shows what
-  a mismatched block printed beside what was claimed. Fenced by
-  `--selftest`: a passing tutorial prints no report.
+  the wrapper's summary, not the compiler's explanation. That hid the
+  bug above. It keeps twenty lines now and shows what a mismatched
+  block printed. Fenced by `--selftest`.
 
 - A comma list was one citation instead of several, so
   `ps2ui.h:653,660,668` pinned the first number and left the rest

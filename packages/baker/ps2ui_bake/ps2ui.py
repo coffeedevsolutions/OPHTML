@@ -24,6 +24,7 @@ anyone else.
 """
 import argparse
 import contextlib
+import json
 import os
 import shutil
 import subprocess
@@ -325,12 +326,31 @@ def cmd_fontgen(args):
         if rc != 0:
             return rc
     manifest = os.path.join(out_dir, "fonts.json")
+    # json.dump RATHER THAN A FORMAT STRING, AND THE DIFFERENCE IS A
+    # PLATFORM. This wrote the file by hand -- `"ttf": ["%s"]` against
+    # os.path.abspath -- which is valid JSON for exactly as long as no
+    # path contains a backslash. On Windows every absolute path does:
+    #
+    #   "ttf": ["C:\Users\me\AppData\...\DejaVuSans.ttf"]
+    #    -> Bad escaped character in JSON at position 30
+    #
+    # so `ps2ui fontgen` wrote a manifest that `ps2ui build` could not
+    # read, one command later, with both halves working as designed.
+    # The tool broke its own output on the platform it was not written
+    # on, and the only symptom a reader got was the compiler exiting 1.
+    #
+    # A serialiser is not a style preference here. Escaping the two
+    # paths and keeping the hand-rolled braces would fix this instance
+    # and leave the next one -- a face name, a metrics filename -- one
+    # edit away. The structure is data, so data is what writes it.
     with open(manifest, "w", encoding="utf-8") as fh:
-        fh.write(
-            '{\n'
-            '  "regular": { "ttf": ["%s"], "metrics": "default.metrics.json" },\n'
-            '  "bold":    { "ttf": ["%s"], "metrics": "default-bold.metrics.json" }\n'
-            '}\n' % (os.path.abspath(args.regular), os.path.abspath(args.bold)))
+        json.dump({
+            "regular": {"ttf": [os.path.abspath(args.regular)],
+                        "metrics": "default.metrics.json"},
+            "bold": {"ttf": [os.path.abspath(args.bold)],
+                     "metrics": "default-bold.metrics.json"},
+        }, fh, indent=2)
+        fh.write("\n")
     print("ps2ui-fontgen: manifest -> %s" % manifest, file=sys.stderr)
     return 0
 

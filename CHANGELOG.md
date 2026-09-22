@@ -99,6 +99,38 @@ without moving this line.
 
 ### Fixed
 
+- **`ps2ui fontgen` wrote a manifest `ps2ui build` could not read, on
+  Windows, and the reporter above is what surfaced it.** The wrapper
+  built `fonts.json` by hand -- `"ttf": ["%s"]` against
+  `os.path.abspath` -- which is valid JSON for exactly as long as no
+  path contains a backslash. Every absolute Windows path does:
+
+      error: fonts\fonts.json: cannot be read as a fonts.json manifest
+      (Bad escaped character in JSON at position 30)
+
+  One command writes the file, the next refuses it, and both halves
+  behave exactly as designed. The only symptom a reader got was
+  `ps2ui: ps2ui-layout failed on ui\library.html (exit 1)` -- which is
+  the line, and the ONLY line, the tutorial checker used to print.
+  The two entries are one story: the reporter was fixed, the Windows
+  arm re-run, and the cause was in the log on the first attempt.
+
+  `json.dump` writes it now. **A serialiser rather than an escape,
+  deliberately**: escaping the two paths and keeping the hand-rolled
+  braces would fix this instance and leave the next one -- a face name,
+  a metrics filename -- one edit away. The structure is data, so data
+  writes it.
+
+  **Fenced on POSIX rather than asserted about Windows.** A backslash
+  is an ordinary character in a POSIX filename, so
+  `test_the_manifest_survives_a_backslash_in_the_font_path` copies a
+  real TTF to `Deja\Vu.ttf`, runs the wrapper, and requires that the
+  manifest parses, that the path round-trips byte for byte, and that
+  `load_font_manifest` -- the reader that actually failed -- accepts
+  it. Every run of the suite exercises it, on every platform, instead
+  of a claim about a machine this suite does not have. Falsified by
+  restoring the hand-rolled write.
+
 - **The tutorial checker threw away the diagnosis it had already
   captured.** On a failing block it printed
   `got.strip().splitlines()[-1]` -- one line, the last one. On a failing
