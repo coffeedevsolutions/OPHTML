@@ -39,7 +39,27 @@ neither registry; `pip install ophtml` and `npm install -g
   Rule 10c warns on a prerelease too, and can never fail, because the
   honest answer to "should this have an entry?" is sometimes no.
 
+- `registry.yml` had one non-Linux arm and it is now a deprecated
+  runner image, so the three jobs pinned to `macos-14` move to
+  `macos-15` and gain `macos-15-intel`, while the tutorial job gains
+  `windows-2025` beside a new `windows-plain`. Intel is not symmetry:
+  both macOS wheels name Intel's Homebrew prefix as their only absolute
+  fribidi candidate.
+
 ### Fixed in the toolchain
+
+- The remedy that ships inside the wheel sent Windows readers to build
+  Pillow from source. 0.7.0 removed a false claim from that branch and
+  left them on the general one, which wants MSVC and a native
+  dependency chain on Windows. The wheel says the gap is fribidi, as it
+  is everywhere else, so the message names the three DLLs and the
+  `PATH` requirement instead, read off the binary and not off a Windows
+  machine. The first version of that fix led the reader in a circle:
+  its win32 arm sat inside the source-build hint and then declined the
+  source build, so both callers promised a rebuild and neither
+  delivered one. The
+  routing is the fix, and a second test fences the shape rather than the
+  spelling.
 
 - A raised `--vram-budget` bought room for a framebuffer, which no
   budget can. A 30000x30000 canvas baked to a blob with exit 0, past a
@@ -57,7 +77,7 @@ neither registry; `pip install ophtml` and `npm install -g
   that names no directory, and runs the graph backwards to report what
   the library still cites that the tree no longer holds. It reaches 58
   documents for `runtime/ps2ui.h` where it reached 45, and 513 more
-  citations across the library.
+  citations.
 - `ps2ui build` run before `ps2ui fontgen` named a directory inside the
   npm package as the place your font metrics belong. The project
   resolves fonts once now, before either half runs, and names
@@ -96,25 +116,21 @@ neither registry; `pip install ophtml` and `npm install -g
   meets them.
 - This page restated a shipped release while calling it the open one.
 - And then it restated five of the open section's entries and called
-  that a mapping. The sentence above the list used to promise only
-  that every bullet here had an entry in the file, which is true of
-  any five of them. It now promises one bullet for each entry, and
-  the list keeps that promise. Writing the entry for that fix moved
-  every line under it, and the move turned up a second one: the table
-  of earlier releases below cited three releases it does not list, on
-  lines that had drifted onto prose. It was never red. A pin proves a
-  line has not moved, not that it was the right line. The new promise
-  is counted by `ps2ui`'s version checker, because a promise that can
-  be false and is never read is the same shape as the one it replaced.
+  that a mapping. The sentence above the list promised only that every
+  bullet here had an entry in the file, which is true of any five of
+  them. It now promises one bullet for each entry. Writing that fix
+  moved every line under it, and the move turned up a second fault:
+  the earlier-releases table cited three releases it does not list, on
+  lines that had drifted onto prose. A pin proves a line has not
+  moved, not that it was the right line.
 - The audit that catches stale ticks on the backlog had missed rows
   three times. `tools/check-backlog.py` holds every row ID, every
   tick-claim and every open row to each other now, and CI runs it. It
   found a row showing 178 of its 6129 characters on its first run.
   Review found it reading a scaffolded marker as a shipped one, and a
-  table split by a blank line as having no rows to check at all. A
-  second review found the screen for an unrecognised marker looking
-  only at the first one on a line, so a known marker ahead of it hid
-  it. Both are fixed and both are fenced.
+  table split by a blank line as having no rows at all; a second
+  review found an unrecognised marker hidden by a known one ahead of
+  it on the same line. All three are fixed and fenced.
 
 ### Fixed in the documentation checker
 

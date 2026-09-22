@@ -216,14 +216,115 @@ def _raqm_remedy():
                 "    brew install fribidi          # macOS\n"
                 "    apt install libfribidi0       # Debian/Ubuntu\n"
                 "    dnf install fribidi           # Fedora\n"
+                + _windows_fribidi_hint()
                 + check + "\n"
-                "If it is still false, rebuild Pillow against both:\n"
-                + _rebuild_hint())
+                + _escalation(fribidi_present=False))
 
     return (detected +
-            "fribidi is present, so this is not the usual cause. "
-            "Rebuild Pillow against Raqm:\n" + _rebuild_hint() + "\n"
+            "fribidi is present, so this is not the usual cause.\n"
+            + _escalation(fribidi_present=True) + "\n"
             + check)
+
+
+def _escalation(fribidi_present):
+    """The step after the first advice did not work, per platform.
+
+    WHY THIS EXISTS AT ALL: BOTH CALLERS PROMISED A REBUILD AND THE
+    WINDOWS BRANCH THEN DECLINED IT. `_rebuild_hint()` is the
+    SOURCE-BUILD route, and on Windows a source build is not the route
+    -- so the win32 arm answered a question neither lead-in had asked.
+    With fribidi missing, "if it is still false, rebuild Pillow against
+    both" handed back the same two install commands the reader had
+    already run and then refused the harder thing, leaving somebody who
+    followed the advice and is still stuck with no next action. With
+    fribidi present, "fribidi is present, so this is not the usual
+    cause. Rebuild Pillow against Raqm" told them to install fribidi.
+
+    The branch's CONTENT was right and its two CALLERS were wrong,
+    which is why the test that fences the spelling passed over it:
+    `test_windows_is_told_to_supply_the_dll_and_not_to_rebuild` asks
+    whether the DLLs are named and `--no-binary` is absent, and nothing
+    asked whether the reader is left with somewhere to go. The fix is
+    to stop routing win32 into a rebuild hint at all rather than to
+    reword the hint, because the defect is the routing.
+
+    WHAT THE WINDOWS ARMS ARE GROUNDED IN, so neither branch states a
+    rule it has not measured. `_imagingft.cp311-win_amd64.pyd` off PyPI
+    carries `HAVE_RAQM` and loads fribidi by name at run time. So:
+
+      fribidi absent, still false after installing it -> the DLL is
+      not being LOADED, and the two causes are a directory that is not
+      on PATH when Python starts and a bitness mismatch. Neither is a
+      Pillow problem and neither is fixed by reinstalling anything.
+
+      fribidi present and Raqm still false -> on a PyPI wheel that
+      combination should not occur, because Raqm is linked in and
+      fribidi is the only run-time piece. So the Pillow in front of
+      the reader is not that wheel, and reinstalling it is the action.
+    """
+    if sys.platform != "win32":
+        if fribidi_present:
+            return "Rebuild Pillow against Raqm:\n" + _rebuild_hint()
+        return ("If it is still false, rebuild Pillow against both:\n"
+                + _rebuild_hint())
+
+    if fribidi_present:
+        return ("PyPI's Windows wheel compiles Raqm in and loads only "
+                "fribidi at run time, so fribidi present with Raqm absent "
+                "means the Pillow you have is not that wheel. Take it:\n"
+                "    pip install --force-reinstall --only-binary :all: pillow")
+    return ("If it is still false the DLL is present and Python is not "
+            "loading it, which is a search problem rather than a Pillow "
+            "one. Two causes, in the order they bite:\n"
+            "  1. the directory is not on PATH *before* Python starts -- "
+            "setting it inside the session that already imported PIL is "
+            "too late, because the lookup happens once, at import.\n"
+            "  2. the DLL and the interpreter disagree on bitness. A "
+            "32-bit fribidi cannot load into a 64-bit Python or the "
+            "other way round; `python -c \"import sys; "
+            "print(sys.maxsize > 2**32)\"` says which you are on.")
+
+
+def _windows_fribidi_hint():
+    """Windows needs a paragraph where the others need a line.
+
+    WHY THIS IS NOT A FOURTH ROW IN THE LIST ABOVE. The three lines
+    there each name a system package manager that has fribidi and put
+    it somewhere the loader already looks. Windows has neither half:
+    no package manager to ask, and no default directory the DLL can
+    land in. A row saying `choco install fribidi` would be the same
+    shape of wrong as the `/opt/homebrew` literal this function's
+    sibling exists to avoid -- plausible, and quietly useless.
+
+    WHAT IS MEASURED. `_imagingft.cp311-win_amd64.pyd` off PyPI
+    carries `HAVE_RAQM`, carries no libraqm of its own, and names
+    `fribidi-0`, `libfribidi-0` and `fribidi` as the things it looks
+    for at run time. That is the same shape as the macOS and manylinux
+    binaries -- Raqm linked in, fribidi loaded from the machine -- and
+    it is read off the wheel, not off a Windows box.
+
+    WHAT IS INFERRED, AND SAID AS SUCH. That supplying one of those
+    DLLs flips the feature on Windows follows from the structure and
+    has not been executed here, for exactly the reason the macOS
+    branch said "probably" for a cycle: nobody had the machine. The
+    `windows-plain` arm in registry.yml is what settles it, and the
+    day it does this text should stop hedging.
+
+    IT IS PLATFORM-GATED and the other three rows are not, because
+    this is four lines rather than one and a Mac reader scrolling past
+    a Windows DLL search order is being charged for somebody else's
+    problem. The list stays a list.
+    """
+    if sys.platform != "win32":
+        return ""
+    return ("On Windows there is no package manager to ask. Pillow looks "
+            "for `fribidi-0.dll`, `libfribidi-0.dll` or `fribidi.dll` on "
+            "the DLL search path; MSYS2 "
+            "(`pacman -S mingw-w64-x86_64-fribidi`) and conda-forge "
+            "(`conda install -c conda-forge fribidi`) both ship one. "
+            "Whichever you use, the directory holding the DLL has to be "
+            "on PATH before Python starts -- a DLL sitting in a folder "
+            "nothing searches fails exactly like an absent one.\n")
 
 
 def _rebuild_hint():
@@ -250,6 +351,15 @@ def _rebuild_hint():
                 "Use --no-binary pillow, not --no-binary :all: -- the bare "
                 "form source-builds every dependency and spends tens of "
                 "minutes bootstrapping CMake.")
+    # NO win32 ARM, AND ITS ABSENCE IS THE POINT. A source build of
+    # Pillow on Windows wants MSVC and a native dependency chain in
+    # place first, so it is not a slow fix, it is a different project.
+    # This function is only ever the SOURCE-BUILD route, so win32 does
+    # not belong in it: `_escalation()` routes that platform somewhere
+    # else entirely. The first version of this change did put a win32
+    # arm here, and it was reached from two lead-ins that both promised
+    # a rebuild -- so the message offered a rebuild, declined it, and
+    # handed back the advice the reader had already followed.
     return ("    pip install --no-binary pillow --force-reinstall pillow\n"
             "Use --no-binary pillow, not --no-binary :all: -- the bare "
             "form source-builds every dependency and spends tens of "

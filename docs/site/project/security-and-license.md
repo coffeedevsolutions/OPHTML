@@ -44,8 +44,10 @@ permissions:
 
 `hw.yml` and `registry.yml` set the identical block. Every job in all three
 workflows runs on a GitHub-hosted runner: `ubuntu-24.04` in `ci.yml`,
-`ubuntu-24.04` in `hw.yml`, and a `matrix.os` of hosted images (including
-`macos-14`) in `registry.yml`. None declares a self-hosted runner. A
+`ubuntu-24.04` in `hw.yml`, and hosted images in `registry.yml`
+(`macos-15`, `macos-15-intel` and `windows-2025`, through a `matrix.os`
+in three of its four jobs and a literal `runs-on` in the fourth). None
+of the three declares a self-hosted runner. A
 workflow run from a first-time contributor's pull request needs a
 maintainer's approval before it starts, a GitHub repository setting rather
 than a line in these files. Do not attach a self-hosted runner to this

@@ -301,6 +301,110 @@ class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
         self.assertIn("not the usual cause", other)
         self.assertNotIn("no rebuild", other)
 
+    def test_windows_is_told_to_supply_the_dll_and_not_to_rebuild(self):
+        """The one branch that was still handing out the general advice.
+
+        CHANGELOG 0.7.0 removed a FALSE CLAIM from this message -- it
+        told Windows readers a fact about manylinux wheels -- and left
+        them on the general branch, which prescribes
+        `pip install --no-binary pillow`. On Windows that wants MSVC
+        and Pillow's native dependencies present first, so the reader
+        is sent to start a different project than the one they are
+        trying to finish. The wheel says what the actual gap is:
+        `_imagingft.cp311-win_amd64.pyd` carries `HAVE_RAQM`, ships no
+        libraqm of its own, and names `fribidi-0` / `libfribidi-0` /
+        `fribidi` as run-time lookups -- the same shape as the macOS
+        and manylinux binaries.
+
+        Asserted per platform rather than once, because the defect was
+        a branch being MISSING and a test that only reads the win32
+        message cannot see the general one still catching it.
+        """
+        from unittest import mock
+        from ps2ui_bake import fontgen
+        with mock.patch.object(fontgen.features, "check", lambda _n: False):
+            with mock.patch.object(fontgen.sys, "platform", "win32"):
+                win = fontgen._raqm_remedy()
+            with mock.patch.object(fontgen.sys, "platform", "darwin"):
+                mac = fontgen._raqm_remedy()
+            with mock.patch.object(fontgen.sys, "platform", "linux"):
+                lin = fontgen._raqm_remedy()
+
+        # The DLL names come from the binary, so they are what a reader
+        # can search for. A message naming none of them describes the
+        # problem without handing over the string that solves it.
+        self.assertIn("fribidi-0.dll", win)
+        self.assertIn("PATH", win)
+        # AND NOT A SOURCE BUILD. This is the assertion the row is for:
+        # the general branch's spelling must not reach a Windows reader.
+        self.assertNotIn("--no-binary", win)
+
+        # The list stays a list on the platforms that have a one-liner:
+        # four lines of Windows DLL search order is somebody else's
+        # problem when you are on a Mac.
+        for other in (mac, lin):
+            self.assertNotIn("fribidi-0.dll", other)
+            self.assertIn("--no-binary", other)
+
+    def test_the_escalation_never_repeats_the_advice_it_escalates_from(self):
+        """A reader who followed the first fix and is still stuck has to
+        be given something ELSE.
+
+        THE DEFECT THIS EXISTS FOR, and why the test beside it did not
+        catch it. `_rebuild_hint()` is the source-build route and its
+        win32 arm declined the source build, so both callers promised a
+        rebuild and neither delivered one: with fribidi missing, "if it
+        is still false, rebuild Pillow against both" handed back the two
+        install commands the reader had just run; with fribidi present,
+        "fribidi is present, so this is not the usual cause" was
+        followed by an instruction to install fribidi.
+
+        `test_windows_is_told_to_supply_the_dll_and_not_to_rebuild`
+        fences the SPELLING -- the DLLs are named, `--no-binary` is
+        absent, the list stays a list -- and a message can satisfy all
+        of that while leading the reader in a circle. So this one
+        fences the SHAPE: what comes after the check is not what came
+        before it.
+        """
+        from unittest import mock
+        from ps2ui_bake import fontgen
+
+        FIRST_TRY = ("pacman -S mingw-w64-x86_64-fribidi",
+                     "conda install -c conda-forge fribidi")
+        CHECK = "print(features.check('raqm'))"
+
+        with mock.patch.object(fontgen.sys, "platform", "win32"):
+            with mock.patch.object(fontgen.features, "check",
+                                   lambda _n: False):
+                missing = fontgen._raqm_remedy()
+            with mock.patch.object(fontgen.features, "check",
+                                   lambda n: n == "fribidi"):
+                present = fontgen._raqm_remedy()
+
+        # fribidi missing: the first advice is allowed to name the
+        # installs; what follows the check must not name them again.
+        self.assertIn(CHECK, missing)
+        tail = missing.split(CHECK, 1)[1]
+        for cmd in FIRST_TRY:
+            self.assertNotIn(cmd, tail)
+        # ...and it has to say something, not merely not-repeat.
+        self.assertIn("PATH", tail)
+
+        # fribidi present: never tell them to install what they have.
+        for cmd in FIRST_TRY:
+            self.assertNotIn(cmd, present)
+        self.assertIn("pip install", present)
+
+        # The other two platforms keep the rebuild, which IS a different
+        # action from `apt install libfribidi0`, so their escalation is
+        # sound and this test must not start failing on them.
+        for plat in ("darwin", "linux"):
+            with mock.patch.object(fontgen.sys, "platform", plat):
+                with mock.patch.object(fontgen.features, "check",
+                                       lambda _n: False):
+                    msg = fontgen._raqm_remedy()
+            self.assertIn("--no-binary", msg.split(CHECK, 1)[1], plat)
+
     def test_every_platform_says_a_clean_build_is_not_proof(self):
         """Pillow builds and exits 0 without libraqm, omitting the
         feature. So pip's return code answers a different question than

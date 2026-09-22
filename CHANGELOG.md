@@ -67,7 +67,124 @@ without moving this line.
   release is exactly one, the back-to-development commit itself, so it
   cannot fire on the step it was designed around.
 
+- **Three platforms had never run this toolchain, and the arm that
+  covered the one non-Linux platform is now deprecated.**
+  `registry.yml` had a single non-Linux arm, `macos-14`, which
+  `actions/runner-images` marks deprecated, so the three jobs pinned to
+  it had to move whatever else happened. They move to `macos-15` and
+  gain `macos-15-intel`; the tutorial job gains `windows-2025`, and a
+  new `windows-plain` asks Windows the question `macos-plain` has
+  always asked macOS. Nine runner legs across four jobs, where there
+  were four.
+
+  **Intel is not symmetry, it settles a hedge that has stood for a
+  cycle.** `_raqm_remedy()` leads with "the missing piece is probably
+  fribidi alone" and says *probably* because no Mac was available when
+  it was written. Both macOS wheels name `/usr/local/lib/
+  libfribidi.dylib` -- the **Intel** Homebrew prefix -- as their only
+  absolute dlopen candidate, so on Apple silicon that path misses and
+  resolution falls through to the bare name, while on Intel it is a
+  direct hit. The two arms are the two sides of that probably, and
+  `macos-contributor-suite` already logs which branch it took. One arm
+  could only ever have answered half of it, which is also what
+  `macos-plain`'s own commentary has been saying about itself since it
+  was written: *"a reading from one runner generalised to a platform,
+  the same defect as in the documents it guards"*. Two arms is the fix;
+  the paragraph was the placeholder.
+
+  `macos-15-intel` is the **standard** Intel runner and is free on a
+  public repository. The `-large` labels are the billed larger runners,
+  and reaching for `macos-15-large` because it is the older spelling of
+  "Intel" is the expensive version of this change.
+
+  **A red Windows arm on its first dispatch is the point, not a
+  regression.** This workflow gates no pull request -- schedule,
+  release and dispatch only, for the reasons its header gives -- so an
+  arm that comes back red costs a tick on a weekly run and buys the
+  first measurement anybody has of the platform. Two places to look
+  first, both read off the wheel rather than off a Windows box:
+  `layout_command()` resolves `ps2ui-layout` through `shutil.which` and
+  then execs the list, and npm lays an extensionless POSIX shim down
+  beside the `.cmd`; and `check-tutorial.py` shells out to `sh -e -c`,
+  which wants Git Bash's `sh` on PATH. The arms run POSIX shell on
+  every leg through `defaults.run.shell`, so a difference in the log is
+  a difference in the platform rather than in the harness.
+
+  The font the Windows arm fetches is pinned at DejaVu 2.37 where the
+  other arms pin nothing, and the asymmetry is deliberate: this job's
+  header refuses to pin a *package* because the question is what a
+  person gets today, but the tutorial asserts `115 glyphs, 284 kern
+  pairs`, which are properties of the **font file**. apt's
+  `fonts-dejavu-core` and brew's cask are both 2.37 today, so the pin
+  is to what they already serve.
+
 ### Fixed
+
+- **The remedy that ships inside the wheel sent Windows readers to
+  build Pillow from source.** 0.7.0 removed a false claim from
+  `_raqm_remedy()` -- it had handed Windows readers a fact about
+  manylinux wheels as their remedy -- and left them on the general
+  branch, which prescribes `pip install --no-binary pillow`. On Windows
+  that wants MSVC and Pillow's native dependencies in place first, so
+  the fix goes from one keystroke away to a different project
+  altogether. The false fact went; the wrong branch stayed, which is
+  the shape this repository keeps finding in its own corrections.
+
+  **The wheel says what the gap actually is.**
+  `_imagingft.cp311-win_amd64.pyd` off PyPI carries `HAVE_RAQM`, ships
+  no libraqm of its own, and names `fribidi-0`, `libfribidi-0` and
+  `fribidi` as run-time lookups. Same shape as the macOS and manylinux
+  binaries: Raqm linked in, fribidi loaded from the machine. So the
+  cheap path is the same cheap path, and the message now names those
+  three DLLs and the requirement that their directory is on `PATH`,
+  with conda-forge and MSYS2 as the two routes rather than a source
+  build nobody should start.
+
+  **Said as inference, because that is what it is.** No Windows machine
+  has run any of it; the shape is read off three binaries. The macOS
+  branch said "probably" for exactly this reason for a cycle, and the
+  two new Windows arms are what turn this one into a measurement. Until
+  one reports, `reference/compatibility`'s Windows row says so in the
+  same words, and the page gains a table of what each platform has
+  actually been run on, because a platform missing from that table is
+  not known to fail, it is not known at all.
+
+  **AND THE FIRST VERSION OF THIS FIX LED THE READER IN A CIRCLE**,
+  caught in review before it shipped. The win32 arm lived inside
+  `_rebuild_hint()`, which is the SOURCE-BUILD route, and it declined
+  the source build -- so both callers promised a rebuild and neither
+  delivered one. With fribidi missing, *"if it is still false, rebuild
+  Pillow against both"* handed back the two install commands the reader
+  had just run; with fribidi present, *"fribidi is present, so this is
+  not the usual cause"* was followed by an instruction to install
+  fribidi. Somebody who followed the advice and was still stuck had
+  nowhere to go, on both branches.
+
+  The branch's content was right and its two callers were wrong, so the
+  fix is the routing rather than the wording: `_escalation()` sends
+  win32 somewhere else entirely. A still-false check after the DLL is
+  installed is named as what it is, a search problem -- PATH not set
+  *before* Python starts, since the lookup happens once at import, or a
+  bitness mismatch between DLL and interpreter -- and fribidi present
+  with Raqm absent is named as a Pillow that is not PyPI's wheel, since
+  that wheel compiles Raqm in. `_rebuild_hint()` has no win32 arm now,
+  and its comment says why the absence is the point.
+
+  The test beside it could not have caught this:
+  `test_windows_is_told_to_supply_the_dll_and_not_to_rebuild` fences the
+  SPELLING, and a message can satisfy every one of its assertions while
+  going in a circle. `test_the_escalation_never_repeats_the_advice_it_
+  escalates_from` fences the SHAPE -- what follows the check is not what
+  preceded it -- on all three platforms, and fails when the old routing
+  is put back.
+
+  `fonts/fonts.json` gains the two Windows candidates it never had, and
+  the installation page gains the `$env:` spelling of the two variables
+  the quickstart needs plus a note that the site's heredocs want Git
+  Bash or WSL. A candidate for a platform you are not on costs nothing:
+  `os.path.isabs("C:/Windows/Fonts/DejaVuSans.ttf")` is false on POSIX,
+  so it joins the manifest's own directory, misses, and the loop moves
+  to the next one.
 
 - **A raised VRAM budget bought room for a framebuffer, which no budget
   can.** `--vram-budget` exists to let a project declare the texture
@@ -507,8 +624,8 @@ without moving this line.
   it, and both filed it rather than fixing it because those changes were
   about the checker.
 
-  The section is restated in full now, twenty-five bullets for
-  twenty-five entries including this one, and the promise is rewritten
+  The section is restated in full now, twenty-nine bullets for
+  twenty-nine entries including this one, and the promise is rewritten
   to say "one bullet here for each entry there" so the count is the
   claim. `check-versions.py` counts both sides and fails when
   they disagree, because the new promise was falsifiable and still
