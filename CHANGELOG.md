@@ -48,7 +48,12 @@ without moving this line.
   `unrecognized arguments` from the first and a bare usage line from
   the second, while `ps2ui build` on the same file was fine. Both are
   fixed, and the fence is a test that reads the spawned tool's own
-  parser rather than a list maintained beside it. `ps2ui-bake --limit
+  parser rather than a list maintained beside it. Re-running every
+  sabotage after that found one more: each cap has a test that its
+  check fires, and the image cap was the one whose *number* nothing
+  read, so raising it to ten billion left the whole suite green. It is
+  held to the corpus, to the default an ordinary bake gets, and to the
+  figure the project-file page prints. `ps2ui-bake --limit
   nodes=5` says so too now: a real cap, correctly spelled, handed to
   the tool that does not enforce it, answered until now by
   *"takes imagePixels=N with N a positive integer"* -- a complaint

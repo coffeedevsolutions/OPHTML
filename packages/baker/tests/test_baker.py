@@ -5387,6 +5387,75 @@ class TestResourceLimits(unittest.TestCase):
         self.assertIn("drawn at 4x4", msg)
         self.assertIn("imagePixels", msg)
 
+    def test_the_image_cap_is_the_number_the_corpus_and_the_docs_name(self):
+        """THE CAP'S VALUE WAS THE ONE THING NOTHING READ.
+
+        The test above writes `max_image_pixels = 16` on purpose, so
+        the header check runs against an 8x8 fixture instead of a
+        432 MB one. That leaves the DEFAULT outside its population.
+        Falsification found it while the whole set was re-run after
+        the merge: raising `Flattener.MAX_IMAGE_PIXELS` to
+        10_000_000_000 left all 309 tests green. Every cap in S3 has a
+        test that its check FIRES, and this was the one whose NUMBER
+        nothing read -- the configured-but-unread shape this
+        repository keeps finding, and the same defect as the layout
+        derivation test one package over, where asserting the
+        measurement and not the sentence citing it left the sentence
+        free to drift.
+
+        So the number is held to the three things that already claim
+        it: the corpus it was derived from, the default a Flattener
+        actually gets, and the page that documents the override.
+        """
+        from ps2ui_bake.quads import Flattener
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+
+        cap = Flattener.MAX_IMAGE_PIXELS
+        self.assertEqual(cap, 32_000_000)
+
+        # THE DEFAULT REACHES AN INSTANCE, which is the half the test
+        # above steps around by assigning the attribute directly.
+        flat = Flattener({"canvas": {"w": 640, "h": 448}, "commands": [],
+                          "focus": {"nodes": []}}, {})
+        self.assertEqual(flat.max_image_pixels, cap)
+
+        # THE CORPUS, measured here rather than quoted.
+        biggest, seen = (0, None, 0, 0), 0
+        for top in ("examples", "fixtures"):
+            for dirpath, _dirs, names in os.walk(os.path.join(REPO, top)):
+                for name in names:
+                    if not name.lower().endswith((".png", ".jpg", ".jpeg")):
+                        continue
+                    path = os.path.join(dirpath, name)
+                    try:
+                        with Image.open(path) as im:
+                            w, h = im.size
+                    except Exception:
+                        continue
+                    seen += 1
+                    if w * h > biggest[0]:
+                        biggest = (w * h, path, w, h)
+        self.assertGreaterEqual(seen, 30, "the corpus walk found almost "
+                                "nothing, so this test would pass vacuously")
+        self.assertEqual(
+            (biggest[2], biggest[3]), (1984, 1408),
+            "the largest shipped image is no longer 1984x1408 (%r). "
+            "BACKLOG.md, the CHANGELOG and the project-file page all quote "
+            "that figure as what this cap is derived from" % (biggest,))
+        self.assertGreater(
+            cap, biggest[0] * 10,
+            "the image cap is no longer 10x the largest shipped image")
+
+        # AND THE PAGE DOCUMENTING THE HATCH NAMES THE SAME DEFAULT.
+        # A reader raising the cap reads that page, not this class.
+        with open(os.path.join(REPO, "docs", "site", "authoring",
+                               "project-file.md"), encoding="utf-8") as fh:
+            page = fh.read()
+        self.assertIn('"imagePixels": %d' % cap, page)
+
     def test_the_project_file_validates_a_raised_cap(self):
         """The escape hatch is real, and a typo in it is not a cap of 0.
 
