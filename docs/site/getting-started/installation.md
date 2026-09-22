@@ -121,7 +121,10 @@ Get DejaVu from
 [dejavu-fonts.github.io](https://dejavu-fonts.github.io/), or
 `brew install --cask font-dejavu`, which lands them in
 `~/Library/Fonts`. Most Linux distributions already have them under
-`/usr/share/fonts/truetype/dejavu/`.
+`/usr/share/fonts/truetype/dejavu/`. On Windows, unzip the release and
+install the two faces the usual way; a per-user install lands them in
+`%LOCALAPPDATA%\Microsoft\Windows\Fonts`, which is one of the
+candidates `fonts.json` carries.
 
 The quickstart and the tutorial both spell the first command
 `ps2ui fontgen "$TTF_REGULAR" "$TTF_BOLD"` and neither assigns the two
@@ -137,7 +140,23 @@ export TTF_REGULAR=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
 export TTF_BOLD=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 ```
 
+On Windows the same two variables, in PowerShell:
+
+```powershell
+$env:TTF_REGULAR = "$env:LOCALAPPDATA\Microsoft\Windows\Fonts\DejaVuSans.ttf"
+$env:TTF_BOLD    = "$env:LOCALAPPDATA\Microsoft\Windows\Fonts\DejaVuSans-Bold.ttf"
+```
+
 Unset, `fontgen` receives two empty paths and fails on the first.
+
+The rest of this site spells its commands for a POSIX shell: the
+quickstart and the tutorial both write files with `cat > f <<'EOF'`
+heredocs, which `cmd` and PowerShell do not have. Git Bash or WSL runs
+them as written; otherwise create the files with an editor and run only
+the `ps2ui` lines. Nothing in the toolchain requires a POSIX shell:
+`ps2ui` is a Python console script and `ps2ui-layout` an npm bin, and
+both are ordinary commands on Windows. It is the *documents* that
+assume one.
 
 ### Verify
 
