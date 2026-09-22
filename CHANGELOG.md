@@ -487,6 +487,32 @@ without moving this line.
   what is claimed. A marker carries across a line break only when it
   ends its line. Ten sabotages now, all caught.
 
+  A second review found the unknown-marker screen defeated by any known
+  marker earlier on the same line. It read only the first symbol
+  standing before an ID, which on a board of dot-separated claims is
+  almost always a tick, so the line was cleared and anything after it
+  went unexamined. The two failures compounded: segmenting on the two
+  *known* markers made an unknown one ordinary text, so the preceding
+  tick ran straight through it and the IDs after it became claims
+  again, silently. Both halves take the same answer, which is to
+  segment on the marker class rather than the list. Unicode
+  Symbol-other exactly, because both markers are that category and
+  every one on this board's status lines is one of them, while `+` is
+  Symbol-math and sits inside `B9 + B8`, the line the non-adjacent
+  case exists for. Twelve sabotages now, all caught.
+
+  The same review found this work's own shape one document over. The
+  facts file recorded how many `ok -` lines `check-versions.py` prints,
+  said 27, was corrected to 30 here, and the rule this change itself
+  added made it 31 before the commit landed. The sentence recording
+  that the number went stale because rules were added went stale
+  because a rule was added, in the same commit. The count is gone
+  rather than corrected again, which is what `BACKLOG.md`'s closed-log
+  marker settled the first time: it counted commits and releases since,
+  both wrong by the commit that added them, and the fix was to keep the
+  date and drop the count. The exit status and the seven lines quoted
+  verbatim are what a reader needs.
+
 - **A comma list was one citation instead of several, so
   `runtime/ps2ui.h:653,652,660,668,704,802,806` pinned 653 and left six
   line numbers unread.** 122 members across 69 citations in 13 files

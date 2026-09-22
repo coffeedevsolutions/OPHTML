@@ -89,7 +89,10 @@ neither registry; `pip install ophtml` and `npm install -g
   tick-claim and every open row to each other now, and CI runs it. It
   found a row showing 178 of its 6129 characters on its first run.
   Review found it reading a scaffolded marker as a shipped one, and a
-  table split by a blank line as having no rows to check at all.
+  table split by a blank line as having no rows to check at all. A
+  second review found the screen for an unrecognised marker looking
+  only at the first one on a line, so a known marker ahead of it hid
+  it. Both are fixed and both are fenced.
 
 ### Fixed in the documentation checker
 

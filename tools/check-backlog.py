@@ -98,7 +98,9 @@ TICK = "✅"
 # every symbol as a marker would suppress real claims after it.
 MARKERS = (TICK, "🏗")
 # A SYMBOL sitting where a marker sits -- immediately before an ID
-# -- that this tool does not know. Symbol as Unicode means it:
+# -- that this tool does not know. Symbol-other as Unicode means
+# it, and `is_marker` says why that category and not every
+# symbol:
 # both markers are category So, while the em dash in "for the same
 # finding -- S4 wants that pinned" is Pd and the board uses it as
 # ordinary punctuation. It fires on nothing today and would fire
@@ -151,6 +153,25 @@ def tokens(text):
     return re.findall(r"[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*", flat)
 
 
+def is_marker(ch):
+    """True for a character in a marker's POSITION, known or not.
+
+    Segmenting on the two known markers alone let an unknown one be
+    ordinary text, so the preceding tick ran straight through it and
+    the IDs after it became claims again -- the over-attribution this
+    tool just fixed, restored by one character, silently. Segmenting
+    on the CLASS instead means a marker nobody taught it still stops
+    the tick, whatever else happens to the run.
+
+    Symbol-other exactly, not every symbol category. Both markers are
+    So, and every So on this board's status lines is one of them (29
+    ticks, 1 scaffolded). `+` is Sm and sits inside trap (d)'s own
+    line, `\u2705 B9 + B8`, where treating it as a marker would split the
+    one segment the trap exists to keep whole.
+    """
+    return unicodedata.category(ch) == "So"
+
+
 def claims_in(block):
     """The (line, ID) pairs a status block TICKS: every ID whose
     nearest preceding status marker is a tick.
@@ -182,7 +203,7 @@ def claims_in(block):
     for lineno, line in block:
         buf = []
         for ch in line:
-            if ch in MARKERS:
+            if is_marker(ch):
                 if marker == TICK:
                     out += [(lineno, t) for t in tokens("".join(buf))
                             if ID_RE.match(t)]
@@ -193,7 +214,7 @@ def claims_in(block):
             out += [(lineno, t) for t in tokens("".join(buf))
                     if ID_RE.match(t)]
         # The marker survives the newline only if nothing followed it.
-        if not (line.rstrip() and line.rstrip()[-1] in MARKERS):
+        if not (line.rstrip() and is_marker(line.rstrip()[-1])):
             marker = None
     return out
 
@@ -350,9 +371,14 @@ def check(text):
     for block in status_blocks(lines):
         claims += claims_in(block)
     for lineno, line in status_lines(lines):
-        u = UNKNOWN_MARKER_RE.search(line)
-        if (u and u.group(1) not in MARKERS
-                and unicodedata.category(u.group(1)).startswith("S")):
+        # EVERY candidate on the line, not the first. `search` stops
+        # at the first symbol standing before an ID, which on this
+        # board is almost always a known tick -- several dot-
+        # separated claims to a line -- so the line was cleared and
+        # an unknown marker later on it went unexamined.
+        for u in UNKNOWN_MARKER_RE.finditer(line):
+            if u.group(1) in MARKERS or not is_marker(u.group(1)):
+                continue
             bad.append("check 3: BACKLOG.md:%d puts %r where a status "
                        "marker goes, and this tool knows only the tick "
                        "and the scaffolded marker. Rather than guess "
