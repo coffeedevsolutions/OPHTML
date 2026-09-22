@@ -218,13 +218,71 @@ def _raqm_remedy():
                 "    dnf install fribidi           # Fedora\n"
                 + _windows_fribidi_hint()
                 + check + "\n"
-                "If it is still false, rebuild Pillow against both:\n"
-                + _rebuild_hint())
+                + _escalation(fribidi_present=False))
 
     return (detected +
-            "fribidi is present, so this is not the usual cause. "
-            "Rebuild Pillow against Raqm:\n" + _rebuild_hint() + "\n"
+            "fribidi is present, so this is not the usual cause.\n"
+            + _escalation(fribidi_present=True) + "\n"
             + check)
+
+
+def _escalation(fribidi_present):
+    """The step after the first advice did not work, per platform.
+
+    WHY THIS EXISTS AT ALL: BOTH CALLERS PROMISED A REBUILD AND THE
+    WINDOWS BRANCH THEN DECLINED IT. `_rebuild_hint()` is the
+    SOURCE-BUILD route, and on Windows a source build is not the route
+    -- so the win32 arm answered a question neither lead-in had asked.
+    With fribidi missing, "if it is still false, rebuild Pillow against
+    both" handed back the same two install commands the reader had
+    already run and then refused the harder thing, leaving somebody who
+    followed the advice and is still stuck with no next action. With
+    fribidi present, "fribidi is present, so this is not the usual
+    cause. Rebuild Pillow against Raqm" told them to install fribidi.
+
+    The branch's CONTENT was right and its two CALLERS were wrong,
+    which is why the test that fences the spelling passed over it:
+    `test_windows_is_told_to_supply_the_dll_and_not_to_rebuild` asks
+    whether the DLLs are named and `--no-binary` is absent, and nothing
+    asked whether the reader is left with somewhere to go. The fix is
+    to stop routing win32 into a rebuild hint at all rather than to
+    reword the hint, because the defect is the routing.
+
+    WHAT THE WINDOWS ARMS ARE GROUNDED IN, so neither branch states a
+    rule it has not measured. `_imagingft.cp311-win_amd64.pyd` off PyPI
+    carries `HAVE_RAQM` and loads fribidi by name at run time. So:
+
+      fribidi absent, still false after installing it -> the DLL is
+      not being LOADED, and the two causes are a directory that is not
+      on PATH when Python starts and a bitness mismatch. Neither is a
+      Pillow problem and neither is fixed by reinstalling anything.
+
+      fribidi present and Raqm still false -> on a PyPI wheel that
+      combination should not occur, because Raqm is linked in and
+      fribidi is the only run-time piece. So the Pillow in front of
+      the reader is not that wheel, and reinstalling it is the action.
+    """
+    if sys.platform != "win32":
+        if fribidi_present:
+            return "Rebuild Pillow against Raqm:\n" + _rebuild_hint()
+        return ("If it is still false, rebuild Pillow against both:\n"
+                + _rebuild_hint())
+
+    if fribidi_present:
+        return ("PyPI's Windows wheel compiles Raqm in and loads only "
+                "fribidi at run time, so fribidi present with Raqm absent "
+                "means the Pillow you have is not that wheel. Take it:\n"
+                "    pip install --force-reinstall --only-binary :all: pillow")
+    return ("If it is still false the DLL is present and Python is not "
+            "loading it, which is a search problem rather than a Pillow "
+            "one. Two causes, in the order they bite:\n"
+            "  1. the directory is not on PATH *before* Python starts -- "
+            "setting it inside the session that already imported PIL is "
+            "too late, because the lookup happens once, at import.\n"
+            "  2. the DLL and the interpreter disagree on bitness. A "
+            "32-bit fribidi cannot load into a 64-bit Python or the "
+            "other way round; `python -c \"import sys; "
+            "print(sys.maxsize > 2**32)\"` says which you are on.")
 
 
 def _windows_fribidi_hint():
@@ -293,23 +351,15 @@ def _rebuild_hint():
                 "Use --no-binary pillow, not --no-binary :all: -- the bare "
                 "form source-builds every dependency and spends tens of "
                 "minutes bootstrapping CMake.")
-    # WINDOWS IS NOT THE GENERAL CASE AND WAS GETTING THE GENERAL
-    # ADVICE. A source build of Pillow here wants MSVC and a native
-    # dependency chain to be present first, so `--no-binary pillow` is
-    # not a thirty-second fix that happens to be slow -- it is a
-    # different project for most readers. CHANGELOG 0.7.0 already
-    # recorded that this branch "handed Windows readers a fact about
-    # manylinux wheels as their remedy"; the fact went, the wrong
-    # branch stayed. Supplying the DLL is the route, so say that
-    # instead of a rebuild nobody should start.
-    if sys.platform == "win32":
-        return ("    conda install -c conda-forge fribidi\n"
-                "    pacman -S mingw-w64-x86_64-fribidi    # under MSYS2\n"
-                "Either way the directory holding the DLL has to be on "
-                "PATH before Python starts. A source build of Pillow is "
-                "not the route here: it wants MSVC and Pillow's native "
-                "dependencies present first, which is a larger job than "
-                "the one you are trying to finish.")
+    # NO win32 ARM, AND ITS ABSENCE IS THE POINT. A source build of
+    # Pillow on Windows wants MSVC and a native dependency chain in
+    # place first, so it is not a slow fix, it is a different project.
+    # This function is only ever the SOURCE-BUILD route, so win32 does
+    # not belong in it: `_escalation()` routes that platform somewhere
+    # else entirely. The first version of this change did put a win32
+    # arm here, and it was reached from two lead-ins that both promised
+    # a rebuild -- so the message offered a rebuild, declined it, and
+    # handed back the advice the reader had already followed.
     return ("    pip install --no-binary pillow --force-reinstall pillow\n"
             "Use --no-binary pillow, not --no-binary :all: -- the bare "
             "form source-builds every dependency and spends tens of "

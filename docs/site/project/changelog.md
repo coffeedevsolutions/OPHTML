@@ -50,7 +50,12 @@ neither registry; `pip install ophtml` and `npm install -g
   dependency chain on Windows. The wheel says the gap is fribidi, as it
   is everywhere else, so the message names the three DLLs and the
   `PATH` requirement instead. Read off the binary and not off a Windows
-  machine, which the compatibility page now says in as many words.
+  machine, which the compatibility page now says in as many words. The
+  first version of that fix led the reader in a circle -- its win32 arm
+  sat inside the source-build hint and then declined the source build,
+  so both callers promised a rebuild and neither delivered one. The
+  routing is the fix, and a second test fences the shape rather than the
+  spelling.
 
 - Nothing read the documentation library backwards, so a citation to a
   deleted file pointed at nothing indefinitely. `check-doc-impact.py`

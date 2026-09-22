@@ -128,6 +128,35 @@ without moving this line.
   actually been run on, because a platform missing from that table is
   not known to fail, it is not known at all.
 
+  **AND THE FIRST VERSION OF THIS FIX LED THE READER IN A CIRCLE**,
+  caught in review before it shipped. The win32 arm lived inside
+  `_rebuild_hint()`, which is the SOURCE-BUILD route, and it declined
+  the source build -- so both callers promised a rebuild and neither
+  delivered one. With fribidi missing, *"if it is still false, rebuild
+  Pillow against both"* handed back the two install commands the reader
+  had just run; with fribidi present, *"fribidi is present, so this is
+  not the usual cause"* was followed by an instruction to install
+  fribidi. Somebody who followed the advice and was still stuck had
+  nowhere to go, on both branches.
+
+  The branch's content was right and its two callers were wrong, so the
+  fix is the routing rather than the wording: `_escalation()` sends
+  win32 somewhere else entirely. A still-false check after the DLL is
+  installed is named as what it is, a search problem -- PATH not set
+  *before* Python starts, since the lookup happens once at import, or a
+  bitness mismatch between DLL and interpreter -- and fribidi present
+  with Raqm absent is named as a Pillow that is not PyPI's wheel, since
+  that wheel compiles Raqm in. `_rebuild_hint()` has no win32 arm now,
+  and its comment says why the absence is the point.
+
+  The test beside it could not have caught this:
+  `test_windows_is_told_to_supply_the_dll_and_not_to_rebuild` fences the
+  SPELLING, and a message can satisfy every one of its assertions while
+  going in a circle. `test_the_escalation_never_repeats_the_advice_it_
+  escalates_from` fences the SHAPE -- what follows the check is not what
+  preceded it -- on all three platforms, and fails when the old routing
+  is put back.
+
   `fonts/fonts.json` gains the two Windows candidates it never had, and
   the installation page gains the `$env:` spelling of the two variables
   the quickstart needs plus a note that the site's heredocs want Git
