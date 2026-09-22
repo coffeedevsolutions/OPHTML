@@ -60,14 +60,21 @@ without moving this line.
   qualified paths with bare ones, and the ambiguity is concentrated:
   234 of the fact half's 1759 path references are bare, over 24 names,
   and `check.py` alone is 58 of them, answering to three real files.
-  156 resolve to exactly one tracked file and were edges nothing could
-  see. 75 are ambiguous and are reported rather than guessed at, since
+  167 resolve to exactly one tracked file and were edges nothing could
+  see. 64 are ambiguous and are reported rather than guessed at, since
   attaching them to every candidate invents citations while dropping
   them under-reports in silence. Matching is by path suffix, not
   basename, because the same defect sits one level up: `ui/probe.html`
-  resolves uniquely and `ui/library.css` answers to four files. Across
-  the change: 512 more edges on real files, 38 files newly reachable,
-  and `runtime/ps2ui.h` reaches 58 documents where it reached 45.
+  resolves uniquely and `ui/library.css` answers to four files, and an
+  exact tracked path beats a suffix, which is a third policy rather
+  than a case of the second: `README.md` is the only token that is
+  both, and the root holds one.
+
+  Measured over one document corpus with the two versions of the file,
+  which is the comparison that isolates the code change: edges on
+  tracked files go 1262 to 1772, 513 gained and 3 lost, 38 files newly
+  reachable, and `runtime/ps2ui.h` reaches 58 documents where it
+  reached 45.
 
   The index also lost 454 keys that named nothing in the tree, three
   quarters of it, mostly paths pasted out of shell transcripts. They
@@ -79,10 +86,14 @@ without moving this line.
   ones.
 
   `--orphans` classifies rather than lists, because a flat existence
-  test returns 35 here and almost every one is correct: gitignored
+  test returns 59 here and almost every one is correct: gitignored
   build outputs the documents tell a reader to produce, an HTTP route
-  the previewer page documents, and tokens that are not paths at all.
-  Zero are genuine. It is the one mode of this tool that fails rather
+  the previewer page documents, and tokens naming no directory that
+  match no tracked file. Zero are genuine. That last class is three
+  things at once -- an output filename from a documented command,
+  prose that looks like a path, and a bare citation whose file was
+  renamed, which is an orphan -- so it warns and says it cannot tell
+  them apart. It is the one mode of this tool that fails rather
   than warns, and the split is an argument rather than a mood: a change
   can be genuinely doc-neutral, which is why the diff mode warns, and a
   citation naming a file git is not ignoring is never correct work.

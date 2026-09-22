@@ -51,13 +51,28 @@ WHAT IT CANNOT DO, stated here rather than discovered later:
   - A BARE FILENAME IS NOT A PATH WAS THE LIMIT HERE, AND IS NOW
     RESOLVED. `resolve()` reaches the file a bare `check.py` or a
     project-relative `ui/probe.html` names, and reports rather than
-    guesses when several answer. Measured across the change: 512 more
-    edges on real files, 38 files newly reachable, and
-    `runtime/ps2ui.h` went from 45 documents to 58. It also dropped
+    guesses when several answer. Measured over ONE DOCUMENT CORPUS with
+    the two versions of this file -- the comparison that isolates the
+    code change -- edges on tracked files go 1262 to 1772: 513 gained,
+    3 lost, 38 files newly reachable, and `runtime/ps2ui.h` from 45
+    documents to 58. THE POPULATION IS THE POINT. Comparing the base
+    TREE with the head tree instead mixes in the documents this change
+    adds, which cite files themselves, and gives 1260 to 1772 for a
+    gain of 515. It also dropped
     454 index keys that named nothing tracked -- three quarters of the
     old index was tokens like `../../../../Users/you/repo/fonts.json`
     from a pasted shell transcript, harmless because they matched no
     changed file, and noise the moment anything asks what is unresolved.
+
+  - A BARE CITATION WHOSE FILE IS RENAMED CAN GO ORPHANED WITHOUT
+    FAILING. `--orphans` cannot tell a bare name that used to resolve
+    from an output filename in a documented command, so it warns
+    rather than failing on that class. Nothing is exposed on this tree
+    -- every bare token that resolves is also cited qualified
+    somewhere, so a rename trips the qualified citation -- and that is
+    a coincidence rather than a guarantee, over a corpus carrying 234
+    bare references. Closing it needs the index remembered between
+    runs, which is the stored graph F30's row forbids.
 
   - A DELETED FILE UNDER A GITIGNORE RULE READS AS A BUILD ARTIFACT,
     not an orphan, which is the price of not reporting `build/ui.uib`
@@ -243,12 +258,24 @@ def resolve(tok):
     concentrated rather than spread: measured on this tree, 234 of the
     fact half's 1759 path references are bare, over 24 names, and
     `check.py` alone is 58 of them -- answering to three real files.
-    156 of the 234 resolve to exactly one tracked file and are edges
-    the tool could not see before. 75 are ambiguous, and attaching
+    167 of the 234 resolve to exactly one tracked file and are edges
+    the tool could not see before. 64 are ambiguous, and attaching
     them to every candidate would invent citations while dropping them
     UNDER-REPORTS SILENTLY, which is the worse of the two failure
     modes. They are reported instead, as something a human fixes by
     qualifying the path.
+
+    AN EXACT TRACKED PATH WINS OVER A SUFFIX, and that is a third
+    policy rather than a case of the second. `README.md` is the only
+    token on this tree that is both: eleven tracked files end in that
+    name, and the repository root holds one, so it resolves exactly
+    and the other ten never enter the question. The rule is right --
+    all 11 fact citations mean the root README, and `README.md:214-224`
+    and `:222` land on its Supported CSS list -- but it is a decision,
+    not a resolution, so it is written down. Review of #165 found it
+    by noticing that every count above is what you get if `README.md`
+    were ambiguous: 156 and 75 rather than 167 and 64, differing by
+    exactly its 11 references.
 
     Suffix rather than basename, because the same defect appears one
     level up: `ui/probe.html` names `examples/channel6/ui/probe.html`
@@ -263,8 +290,9 @@ def resolve(tok):
       artifact   resolves nowhere but is gitignored: a build output,
                  cited on purpose and absent from a clean checkout
       route      not a repo path at all (see below)
-      unanchored names no directory and matches nothing -- usually
-                 prose rather than a citation
+      unanchored names no directory and matches no tracked file. THIS
+                 CLASS IS THREE DIFFERENT THINGS AND THIS TOOL CANNOT
+                 TELL THEM APART -- see orphans()
       orphan     none of the above
     """
     # A LEADING SLASH MEANS IT IS NOT A REPO PATH. `previewer.md` says
@@ -298,11 +326,12 @@ def resolve(tok):
         return "ambiguous", sorted(hits)
     if _ignored(bare):
         return "artifact", []
-    # A token naming no directory that matches no file is most often
-    # not a path: `self.uib` is an attribute access in prose about
-    # serve.py, and `ui-16x9.uib` is an output filename from a command
-    # line. Kept apart from a real orphan so a reader is not sent
-    # looking for a file that was never meant to exist.
+    # A token naming no directory that matches no tracked file. Kept
+    # apart from a real orphan because it cannot be one confidently --
+    # and kept out of `artifact` for the same reason, since
+    # `_ignored()` can only test the token it is given and no ignore
+    # rule covers a bare name. Reported as a warning, never as a
+    # failure. See orphans() for the three things it mixes.
     if "/" not in bare:
         return "unanchored", []
     return "orphan", []
@@ -411,9 +440,18 @@ def orphans():
     pointing at nothing, and no check reads a `sources:` entry.
 
     IT CLASSIFIES RATHER THAN LISTING, because a flat existence test
-    on this tree returns 35 and almost all of them are correct. F30's
+    on this tree returns 59 and almost all of them are correct. F30's
     row predicted the shape and named three; measured here they fall
-    into five kinds, and only what survives all of them is an orphan.
+    into six kinds, and only what survives all of them is an orphan.
+
+    THE FIGURE WAS FIRST WRITTEN AS 35, which is a different
+    population: the cited tokens that carry a slash and are not a file
+    on disk. 59 is the tokens that are not a tracked path, which is
+    what "a flat existence test" means, and 39 of those carry a slash.
+    The two collided confusingly, because 35 is also exactly the size
+    of the `suffix` class -- tokens that resolve fine. Review of #165
+    caught it. The larger number is the stronger argument for
+    classifying: not 35 mostly-correct reports but 59.
     """
     cited = cited_tokens()
     buckets = {}
@@ -429,14 +467,33 @@ def orphans():
                       "route or a fragment the path pattern misread"),
             ("artifact", "gitignored build output, cited on purpose and "
                          "absent from a clean checkout"),
-            ("unanchored", "names no directory and matches no file -- "
-                           "usually prose, not a citation"),
     ):
         rows = buckets.get(kind, [])
         if rows:
             print("# %d %s: %s" % (len(rows), kind, note))
             for tok, _w in rows:
                 print("#     %s" % tok)
+    # UNANCHORED IS A WARNING, NOT A FOOTNOTE, and review of #165 is
+    # why. The class mixes an output filename from a documented command
+    # (`-o build/ui-16x9.uib` leaves a bare `ui-16x9.uib`), prose that
+    # merely looks like a path (`self.uib` is an attribute access in
+    # prose about serve.py), AND a bare citation whose file was
+    # renamed -- which is an orphan, and the one thing this mode exists
+    # to find. Nothing here can separate them without remembering what
+    # resolved last time.
+    #
+    # Nothing is exposed today and that is a coincidence, not a
+    # design: of the 27 bare tokens, the 20 that resolve are EVERY ONE
+    # of them also cited qualified somewhere in the library, so a
+    # rename trips the qualified citation and fails the run. That
+    # coincidence is all that stands between a deletion and a silent
+    # pass, over a corpus whose habit is 234 bare references.
+    for tok, where in buckets.get("unanchored", []):
+        print("warning - %s names no directory and matches no tracked file. "
+              "It may be an output filename from a documented command, prose "
+              "that looks like a path, or a citation whose file was renamed "
+              "-- and nothing here can tell those apart. %d citation(s): %s"
+              % (tok, len(where), ", ".join(w for w, _h in where[:2])))
     for tok, where in buckets.get("ambiguous", []):
         _k, found = resolve(tok)
         # THE COUNT OF CITING PLACES, NOT ONE OF THEM. The first
@@ -455,8 +512,9 @@ def orphans():
         print("not ok - %s resolves to nothing in the tree and is not "
               "ignored. Cited by %s" % (tok, where[0][0]), file=sys.stderr)
     amb, dead = buckets.get("ambiguous", []), buckets.get("orphan", [])
-    print("%s - %d ambiguous citation(s), %d pointing at nothing"
-          % ("not ok" if dead else "ok", len(amb), len(dead)))
+    loose = buckets.get("unanchored", [])
+    print("%s - %d ambiguous, %d unanchored, %d pointing at nothing"
+          % ("not ok" if dead else "ok", len(amb), len(loose), len(dead)))
     # AND THIS MODE FAILS, WHICH THE REST OF THIS TOOL DOES NOT.
     #
     # "It warns and never fails" is an argument about DOC-NEUTRALITY: a
