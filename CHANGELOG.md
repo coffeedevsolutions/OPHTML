@@ -408,7 +408,11 @@ without moving this line.
   The section is restated in full now, twenty-five bullets for
   twenty-five entries including this one, and the promise is rewritten
   to say "one bullet here for each entry there" so the count is the
-  claim. The twenty-three Fixed entries split on the page by who is
+  claim. `check-versions.py` counts both sides and fails when
+  they disagree, because the new promise was falsifiable and still
+  unenforced: adding an entry the page did not restate left every
+  checker green, the only drift being pinned line numbers moving, which
+  `check-site-pages.py --fix` is the sanctioned way to silence. The twenty-three Fixed entries split on the page by who is
   affected rather than by kind, because ten of them changed only the
   checker that reads these pages and no compiler, runtime or format
   behaviour, and a reader deciding whether to upgrade should not have to
@@ -462,6 +466,26 @@ without moving this line.
   characters**. Escaped now. Six sabotages through `tools/falsify.sh`
   are all caught, including the marker, the non-adjacent `B9 + B8`
   claim, and the blank line that once stopped seven rows being rows.
+
+  Review of the pull request found the corpus rule had been applied in
+  only one of the two places it belongs. "A bare prose mention is a
+  reference, not a claim" was drawn for table rows and not for status
+  lines, so every ID beside a tick became a claim, including IDs under
+  a *different* marker: one status line reads "F18 shipped ... F1 + B3
+  scaffolded" and the checker recorded F1 and B3 as shipped. Claims are
+  attributed by nearest preceding marker now. One of the three rows
+  check 3 was credited with finding was this rule misreading a prose
+  mention, so the historical run returns three, not four.
+
+  Two more from the same review. A severed table has no rows, so check
+  1 had nothing to say about one: a blank line above the last row
+  deleted it and printed `PASS: 63 row(s)`, the count being printed and
+  never asserted. And fixing the first exposed a hole neither the
+  backlog row nor the review named: a status line can end on a bare
+  tick with its subject wrapped onto the next line, and where a wrap
+  falls is an accident of reflowing a paragraph, not a decision about
+  what is claimed. A marker carries across a line break only when it
+  ends its line. Ten sabotages now, all caught.
 
 - **A comma list was one citation instead of several, so
   `runtime/ps2ui.h:653,652,660,668,704,802,806` pinned 653 and left six

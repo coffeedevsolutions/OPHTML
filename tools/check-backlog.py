@@ -76,6 +76,7 @@ import argparse
 import os
 import re
 import sys
+import unicodedata
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOARD = os.path.join(REPO, "BACKLOG.md")
@@ -88,8 +89,21 @@ STATUS_OPEN_RE = re.compile(r"^\*\*Sprint\s+\d+\s+status\s*\(")
 # How the file declares an ID spent on work that never got a row. It is
 # prose a person reaching for a free ID will read, on purpose: the
 # collision this prevents was made twice by people reading the tables.
+HEADING_RE = re.compile(r"^#{1,6} ")
 CONSUMED_RE = re.compile(r"^\*\*Consumed IDs \(never reuse\):\*\*\s*(.+?)\.?\s*$")
 TICK = "✅"
+# The board's status markers, and only those. An arrow is NOT one:
+# it appears three times on status lines as ordinary prose (a colour
+# to a colour, 851 to 831 commands, 16 to 24 bytes), and treating
+# every symbol as a marker would suppress real claims after it.
+MARKERS = (TICK, "🏗")
+# A SYMBOL sitting where a marker sits -- immediately before an ID
+# -- that this tool does not know. Symbol as Unicode means it:
+# both markers are category So, while the em dash in "for the same
+# finding -- S4 wants that pinned" is Pd and the board uses it as
+# ordinary punctuation. It fires on nothing today and would fire
+# loudly on a new marker, which is the alternative to guessing.
+UNKNOWN_MARKER_RE = re.compile(r"(\S)\s*\**(?:F|B|S|P)[0-9]+\b")
 
 
 def cells(line):
@@ -137,6 +151,53 @@ def tokens(text):
     return re.findall(r"[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*", flat)
 
 
+def claims_in(block):
+    """The (line, ID) pairs a status block TICKS: every ID whose
+    nearest preceding status marker is a tick.
+
+    The rule "a bare prose mention is a reference, not a claim" was
+    drawn for table rows and not for status lines, where the same
+    thing happens. Scoped to a whole line, every ID beside a tick
+    became a claim -- including IDs under a different marker. Line 23
+    reads "✅ F18 shipped ... 🏗 F1 + B3 scaffolded" and says in so
+    many words that F1 and B3 are NOT shipped. Line 110 reads "now
+    filed as F24. ✅ **S4-partial**", where the tick belongs to
+    S4-partial and F24 is named because it had just been FILED -- so
+    one of the rows check 3 was credited with finding at 098b134 was
+    this rule misreading a prose mention.
+
+    A MARKER CARRIES ACROSS A LINE BREAK ONLY WHEN IT ENDS ITS LINE,
+    and the board needs both halves of that. Line 119 ends on a bare
+    tick with its subject wrapped onto 120, so a strictly per-line
+    rule cannot see it at all -- and where the wrap falls is an
+    accident of reflowing a paragraph, which must not decide whether
+    a claim is checked. Carrying the marker through every following
+    line instead puts line 110's F24 under line 103's tick, seven
+    lines earlier, which is the over-attribution above wearing a hat.
+
+    Trap (d) survives either way: "✅ B9 + B8" is one segment and
+    both IDs are inside it.
+    """
+    out, marker = [], None
+    for lineno, line in block:
+        buf = []
+        for ch in line:
+            if ch in MARKERS:
+                if marker == TICK:
+                    out += [(lineno, t) for t in tokens("".join(buf))
+                            if ID_RE.match(t)]
+                marker, buf = ch, []
+            else:
+                buf.append(ch)
+        if marker == TICK:
+            out += [(lineno, t) for t in tokens("".join(buf))
+                    if ID_RE.match(t)]
+        # The marker survives the newline only if nothing followed it.
+        if not (line.rstrip() and line.rstrip()[-1] in MARKERS):
+            marker = None
+    return out
+
+
 def board_tables(lines):
     """The three `| ID |` tables, as (line number, width, row) tuples.
 
@@ -145,7 +206,7 @@ def board_tables(lines):
     The width travels with the row because a row that splits into more
     cells than its header has is the truncation defect, stated.
     """
-    rows, i = [], 0
+    rows, severed, i = [], [], 0
     while i < len(lines):
         if not lines[i].lstrip().startswith("|"):
             i += 1
@@ -154,21 +215,37 @@ def board_tables(lines):
         while i < len(lines) and lines[i].lstrip().startswith("|"):
             i += 1
         block = lines[start:i]
+        head = cells(block[0])
+        if not head or head[0].strip() != "ID":
+            # A pipe-block whose FIRST cell is an ID is a board
+            # table that lost its header -- one blank line does
+            # it, and the rows below the break stop being rows.
+            # Check 1 then has nothing to say about them, which
+            # is how seven of them rendered as literal text for a
+            # month with every check green. Trap (c) is safe: the
+            # sequencing table's first cell is "F27 positional
+            # API" plus a tick, which is not an ID.
+            # The severed test runs BEFORE any "is this big enough
+            # to be a table" guard. A one-line orphan is the
+            # easiest case to produce -- a blank line above the
+            # last row of a table -- and a guard placed first
+            # skips exactly that one.
+            if head and ID_RE.match(head[0].strip()):
+                severed.append((start + 1, head[0].strip(),
+                                len(block)))
+            continue
         if len(block) < 2:
             continue
-        head = cells(block[0])
         sep = cells(block[1])
-        if not head or head[0].strip() != "ID":
-            continue
         if not all(re.fullmatch(r"\s*:?-{2,}:?\s*", c) for c in sep):
             continue
         for k, row in enumerate(block[2:], start=start + 2):
             rows.append((k + 1, len(head), row))
-    return rows
+    return rows, severed
 
 
-def status_lines(lines):
-    """Every physical line of every sprint-status BLOCK.
+def status_blocks(lines):
+    """Every sprint-status BLOCK, as a list of (line number, line).
 
     Physical rather than joined, because that is the unit the file
     wraps claims in and the unit `✅ B9 + B8` fits inside.
@@ -183,7 +260,10 @@ def status_lines(lines):
     the only reason the gap was found. A spec that records its expected
     output is a spec that can fail its implementer.
 
-    The `## ` terminator is what keeps the narrative sections out. They
+    ANY heading ends a block, not `## ` alone: "### x" does
+    not start with "## ", so a `## `-only test ran straight through the
+    `###` narrative sections. Ending on any heading is what keeps them
+    out. They
     quote `✅ B9 + B8` and `✅ B2` while explaining this very check, and
     over that corpus check 3 fires on the quotations.
     """
@@ -192,21 +272,30 @@ def status_lines(lines):
         if not STATUS_OPEN_RE.match(lines[i]):
             i += 1
             continue
-        out.append((i + 1, lines[i]))
+        block = [(i + 1, lines[i])]
         i += 1
-        while (i < len(lines) and not lines[i].startswith("## ")
+        while (i < len(lines) and not HEADING_RE.match(lines[i])
                and not STATUS_OPEN_RE.match(lines[i])):
-            out.append((i + 1, lines[i]))
+            block.append((i + 1, lines[i]))
             i += 1
+        out.append(block)
     return out
+
+
+def status_lines(lines):
+    """Every physical line of every status block, flattened."""
+    return [pair for block in status_blocks(lines) for pair in block]
 
 
 def check(text):
     lines = text.split("\n")
     bad = []
-    rows = board_tables(lines)
+    rows, severed = board_tables(lines)
 
     # --- check 1: the rows are well formed and survive rendering -----
+    for lineno, ident, count in severed:
+        bad.append("check 1: BACKLOG.md:%d starts a run of %d pipe line(s) at %s with no header row above it, so they are not rows and nothing below checks them. A blank line inside a board table does this, and it once hid seven rows for a month" % (lineno, count, ident))
+
     declared, dupes = {}, []
     for lineno, width, row in rows:
         cs = cells(row)
@@ -258,12 +347,17 @@ def check(text):
 
     # --- checks 2 and 3: the claims, read from the status lines ------
     claims = []
+    for block in status_blocks(lines):
+        claims += claims_in(block)
     for lineno, line in status_lines(lines):
-        if TICK not in line:
-            continue
-        for t in tokens(line):
-            if ID_RE.match(t):
-                claims.append((lineno, t))
+        u = UNKNOWN_MARKER_RE.search(line)
+        if (u and u.group(1) not in MARKERS
+                and unicodedata.category(u.group(1)).startswith("S")):
+            bad.append("check 3: BACKLOG.md:%d puts %r where a status "
+                       "marker goes, and this tool knows only the tick "
+                       "and the scaffolded marker. Rather than guess "
+                       "whether the ID after it is claimed, it says so"
+                       % (lineno, u.group(1)))
 
     for lineno, ident in claims:
         if ident in declared or ident in consumed:

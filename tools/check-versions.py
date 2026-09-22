@@ -1049,6 +1049,59 @@ def main(argv=None):
                  "cost more and get written from `git log`."
                  % (BAKER_VERSION, n, ref, n))
 
+    # 14. The site's Changelog page restates the open section one for
+    #     one, and this counts both sides.
+    #
+    #     THE PROMISE IT ENFORCES IS ONE THIS PAGE ONLY RECENTLY COULD
+    #     MAKE. It used to read "every bullet below has a full entry in
+    #     the file", which is true of any subset: the page sat at five
+    #     bullets against twenty-four entries for two releases, and no
+    #     check could fail, because the sentence was written about the
+    #     direction that cannot go wrong. It now reads "one bullet here
+    #     for each entry there", which can be false -- and was still
+    #     unenforced, so adding a twenty-fifth entry left seventeen
+    #     green checkers over a page promising a count it no longer
+    #     kept. The drift such an entry causes is real but incidental:
+    #     it is the pinned CHANGELOG line numbers moving, and
+    #     check-site-pages.py --fix is the sanctioned way to make that
+    #     go away, taking the only signal with it.
+    #
+    #     TOP-LEVEL BULLETS ON BOTH SIDES, counted the same way on
+    #     purpose. The rule above counts "- " and "  - " alike, because
+    #     it only asks whether the section said anything at all. This
+    #     one is an equality, so a nested bullet added on one side
+    #     would make it lie; neither file nests today and this keeps it
+    #     honest if one starts.
+    page = os.path.join(ROOT, "docs", "site", "project", "changelog.md")
+    if os.path.exists(page):
+        with open(page, encoding="utf-8") as fh:
+            plines = fh.read().split("\n")
+        want = "## %s" % BAKER_VERSION
+        start = next((i for i, ln in enumerate(plines)
+                      if ln.strip() == want), None)
+        if start is None:
+            check(False, "",
+                  "docs/site/project/changelog.md has no `%s` heading, so "
+                  "nothing holds the page that restates the open section to "
+                  "the section it restates" % want)
+        else:
+            stop = next((i for i in range(start + 1, len(plines))
+                         if plines[i].startswith("## ")), len(plines))
+            on_page = sum(1 for ln in plines[start:stop]
+                          if ln.startswith("- "))
+            in_file = sum(1 for ln in body.splitlines()
+                          if ln.startswith("- "))
+            check(on_page == in_file,
+                  "the Changelog page restates the open %s section one for "
+                  "one: %d bullet(s) for %d entr%s"
+                  % (BAKER_VERSION, on_page, in_file,
+                     "y" if in_file == 1 else "ies"),
+                  "the Changelog page shows %d bullet(s) for the open "
+                  "section's %d entr%s, and its own sentence says \"one "
+                  "bullet here for each entry there\". Restate the missing "
+                  "one, or stop promising the count"
+                  % (on_page, in_file, "y" if in_file == 1 else "ies"))
+
     if except_tag:
         # SAID OUT LOUD. A green `--except-tag` run is not a pass, and
         # the one thing that would make this flag dangerous is someone
