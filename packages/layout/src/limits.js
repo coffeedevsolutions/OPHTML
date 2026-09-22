@@ -23,17 +23,26 @@
  *     bounded either.
  *
  * THE NUMBERS ARE DERIVED FROM THE SHIPPED CORPUS, NOT CHOSEN. Measured
- * across all 17 screens in examples/ and fixtures/: the largest is 90
- * elements at depth 8, and every supported mode is 640x448 or 640x512.
+ * across all 17 screens in examples/ and fixtures/ with THIS FILE'S OWN
+ * checkTree, after expandRepeats: the largest is 93 elements at depth
+ * 5 (examples/opl-env/ui/library.html), and every supported mode is
+ * 640x448 or 640x512. The first version of this paragraph said 90 at
+ * depth 8, from a regex over raw HTML that counted void elements and
+ * did not expand repeats -- a different population, measured with a
+ * different instrument than the one the cap uses. Review of #166
+ * caught it.
+ *
  * So each cap sits an order of magnitude above the biggest real thing:
  *
  *   canvas 2048   the GS framebuffer maximum per dimension, 3.2x the
  *                 tallest mode. A cap here cannot be the VRAM budget,
  *                 because that is the thing the override moves.
- *   nodes  10000  ~16x the largest expanded screen, and it bounds the
- *                 IR at roughly 4 MB. data-repeat multiplies, so the
- *                 count is taken AFTER expansion.
- *   depth  64     8x the deepest shipped screen and far under the
+ *   nodes  10000  ~108x the largest expanded screen, and it bounds
+ *                 the IR at roughly 4 MB. data-repeat multiplies, so
+ *                 the count is taken AFTER expansion. The ratio is
+ *                 generous because the IR size, not the corpus, is
+ *                 what 10000 was chosen against.
+ *   depth  64     ~13x the deepest shipped screen and far under the
  *                 ~1500 where V8 gives out, so the refusal is this
  *                 file's rather than the interpreter's.
  *
@@ -120,7 +129,7 @@ export function checkTree(root, limits) {
     if (nodes > limits.nodes) {
       throw new Error(
         `layout: more than ${limits.nodes} elements after data-repeat `
-        + 'expansion. The largest screen shipped with ps2ui is 90, and '
+        + 'expansion. The largest screen shipped with ps2ui is 93, and '
         + 'a PS2 draws one record per box, so this is a runaway repeat '
         + 'or a generated file. Raise "limits": {"nodes": N} in the '
         + 'project file if it is neither.');
@@ -133,7 +142,7 @@ export function checkTree(root, limits) {
     throw new Error(
       `layout: elements nested ${deepest} deep${where}, past the limit `
       + `of ${limits.depth}. The deepest screen shipped with ps2ui is `
-      + '8. Past about 1500 the compiler runs out of stack and reports '
+      + '5. Past about 1500 the compiler runs out of stack and reports '
       + 'nothing useful, which is what this exists to get in front of. '
       + 'Raise "limits": {"depth": N} in the project file if you mean '
       + 'it.');

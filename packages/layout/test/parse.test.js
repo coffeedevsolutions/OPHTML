@@ -3,7 +3,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseHTML } from '../src/html.js';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { parseHTML, Element, TextNode } from '../src/html.js';
+import { expandRepeats } from '../src/repeat.js';
+import { checkTree, LIMITS } from '../src/limits.js';
 import {
   parseStylesheet, computeStyle, INITIAL_STYLE, parseSelector, selectorMatches,
   applyDeclaration,
@@ -817,7 +822,7 @@ test('limits: a tree too deep is refused by this compiler, not by V8', () => {
     () => compile(deep, 'box { width: 4px; height: 4px }', { fonts }),
     /nested 4000 deep .* past the limit of 64/,
   );
-  // The deepest screen shipped with ps2ui is 8.
+  // The deepest screen shipped with ps2ui is 5.
   const ok = `<screen>${'<box>'.repeat(8)}x${'</box>'.repeat(8)}</screen>`;
   assert.ok(compile(ok, 'box { width: 4px; height: 4px }', { fonts }));
 });
@@ -852,4 +857,72 @@ test('limits: a raised cap is honoured, and a nonsense one is refused', () => {
                   { fonts, limits: { noodles: 5 } }),
     /unknown limit "noodles"/,
   );
+});
+
+test('limits: the derivation in limits.js still describes the corpus', () => {
+  // THE DERIVATION WAS A SENTENCE AND THE SENTENCE WAS WRONG. It said
+  // the largest screen is 90 elements at depth 8; measured with this
+  // file's own checkTree after expandRepeats -- the instrument the cap
+  // actually uses -- it is 93 at depth 5. The first figures came from a
+  // regex over raw HTML that counted void elements and did not expand
+  // repeats, which is a different population. Review of #166 caught it.
+  //
+  // So the claim is checked rather than written down. If the examples
+  // grow past what limits.js says about them, this fails and the
+  // paragraph gets corrected with the corpus instead of drifting from
+  // it -- which is what "derived, not chosen" has to mean to survive.
+  const root = new URL('../../../', import.meta.url).pathname;
+  const files = [];
+  for (const dir of ['examples', 'fixtures']) {
+    for (const project of readdirSync(join(root, dir), { withFileTypes: true })) {
+      if (!project.isDirectory()) continue;
+      const ui = join(root, dir, project.name, 'ui');
+      if (!existsSync(ui)) continue;
+      for (const f of readdirSync(ui)) {
+        if (f.endsWith('.html')) files.push(join(ui, f));
+      }
+    }
+  }
+  assert.ok(files.length >= 17, `only ${files.length} screens found; this test `
+    + 'would pass vacuously');
+  let maxNodes = 0;
+  let maxDepth = 0;
+  for (const f of files) {
+    const dom = parseHTML(readFileSync(f, 'utf8'));
+    expandRepeats(dom, { Element, TextNode }, []);
+    const seen = checkTree(dom, { nodes: 1e9, depth: 1e9 });
+    maxNodes = Math.max(maxNodes, seen.nodes);
+    maxDepth = Math.max(maxDepth, seen.depth);
+  }
+  assert.equal(maxNodes, 93, 'limits.js says the largest shipped screen is 93 '
+    + 'elements; update the derivation there and the two error messages');
+  assert.equal(maxDepth, 5, 'limits.js says the deepest shipped screen is 5; '
+    + 'update the derivation there and the depth error message');
+  // And the caps stay above the corpus by the margin the file claims.
+  assert.ok(LIMITS.nodes > maxNodes * 50, 'the nodes cap is no longer an order '
+    + 'of magnitude above the largest real screen');
+  assert.ok(LIMITS.depth > maxDepth * 5, 'the depth cap is no longer well '
+    + 'above the deepest real screen');
+
+  // AND THE MESSAGES QUOTE THE SAME CORPUS. Asserting the measurement
+  // and not the sentence that cites it leaves the sentence free to
+  // drift, which is the defect this test was added for -- one level
+  // over. These are the strings an author actually reads.
+  const caught = (fn) => {
+    try { fn(); } catch (e) { return e.message; }
+    return assert.fail('expected a limit to be refused');
+  };
+  const nodeMsg = caught(() => compile(
+    '<screen><box>x</box><box>y</box></screen>',
+    'screen { flex-direction: row }\nbox { width: 4px }',
+    { fonts, limits: { nodes: 1 } }));
+  assert.match(nodeMsg, new RegExp(`is ${maxNodes}\\b`),
+    `the nodes message cites a largest screen that is not ${maxNodes}: `
+    + nodeMsg);
+  const deepMsg = caught(() => compile(
+    `<screen>${'<box>'.repeat(70)}x${'</box>'.repeat(70)}</screen>`,
+    'box { width: 4px }', { fonts }));
+  assert.match(deepMsg, new RegExp(`ps2ui is ${maxDepth}\\b`),
+    `the depth message cites a deepest screen that is not ${maxDepth}: `
+    + deepMsg);
 });

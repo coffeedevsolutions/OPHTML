@@ -301,9 +301,20 @@ def cmd_check(args):
     argv = [rel(proj, proj.out_path)]
     if proj.vram_budget is not None:
         argv += ["--vram-budget", str(proj.vram_budget)]
-    for _k, _v in sorted((proj.limits or {}).items()):
-        if LIMIT_KEYS.get(_k) == "bake":
-            argv += ["--limit", "%s=%d" % (_k, _v)]
+    # NO LIMITS HERE, AND THIS COMMENT IS THE SECOND VERSION OF THIS
+    # FUNCTION'S OWN LESSON. The first version of S3 forwarded the bake
+    # caps to the checker beside the budget, because both are "bake"
+    # settings in LIMIT_KEYS -- and `ps2ui-check` has no --limit, so
+    # ANY project using the documented escape hatch failed here with
+    # `unrecognized arguments: --limit imagePixels=64000000`, rc 2,
+    # while `ps2ui build` on the same file was fine.
+    #
+    # The caps bound what the COMPILERS accept. check.py reads a blob
+    # that is already baked and decodes no image, so imagePixels says
+    # nothing to it. `bake` in LIMIT_KEYS names the tool that enforces
+    # a cap, and this function needed the other question: which flags
+    # does the CHECKER take. Reading the first as the second is what
+    # put a flag here that nothing accepts.
     # AND `strict`, which was the same drop one flag over. Raised in
     # review of the commit that fixed the budget: check.py takes five
     # options, two of them have a project key, and this forwarded one.

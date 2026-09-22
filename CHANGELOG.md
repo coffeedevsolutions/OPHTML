@@ -26,8 +26,9 @@ without moving this line.
   first person it blocks.
 
   The numbers come from the shipped corpus rather than from taste.
-  Across all 17 screens in `examples/` and `fixtures/` the largest is 90
-  elements at depth 8, every supported mode is 640x448 or 640x512, and
+  Across all 17 screens in `examples/` and `fixtures/`, counted with the
+  compiler's own walk after `data-repeat` expands, the largest is 93
+  elements at depth 5, every supported mode is 640x448 or 640x512, and
   the largest source image is 1984x1408. Each cap sits an order of
   magnitude above the biggest real thing.
 

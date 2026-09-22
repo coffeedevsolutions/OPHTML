@@ -4426,6 +4426,26 @@ class TestProjectFile(unittest.TestCase):
               "canvas": "640x448"}
 
     @staticmethod
+    def _checker_flags():
+        """Every long option ps2ui-check accepts, read from its --help.
+
+        Shared by the two directions rather than computed twice: one
+        test asks whether every checker flag with a project key is
+        forwarded, the other whether every flag forwarded is one the
+        checker takes. Two copies of this could disagree about what
+        "accepted" means, which is the shape both tests exist for.
+        """
+        import re
+        import subprocess
+        import sys
+        help_text = subprocess.run(
+            [sys.executable, "-m", "ps2ui_bake.check", "--help"],
+            capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        ).stdout
+        return set(re.findall(r"--[a-z][a-z-]+", help_text))
+
+    @staticmethod
     def _kebab(key):
         out = ""
         for ch in key:
@@ -4449,13 +4469,7 @@ class TestProjectFile(unittest.TestCase):
         and not forwarded, rather than when somebody remembers to write
         a test for it. `strict` was found by exactly this, in review.
         """
-        import re, subprocess, sys, tempfile
-        help_text = subprocess.run(
-            [sys.executable, "-m", "ps2ui_bake.check", "--help"],
-            capture_output=True, text=True,
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        ).stdout
-        accepted = set(re.findall(r"--[a-z][a-z-]+", help_text))
+        accepted = self._checker_flags()
         from ps2ui_bake import project
         shared = [k for k in sorted(project.DEFAULTS)
                   if self._kebab(k) in accepted]
@@ -4481,6 +4495,48 @@ class TestProjectFile(unittest.TestCase):
             "argv was %r"
             % (", ".join(self._kebab(k) for k in not_forwarded),
                ", ".join(sorted(accepted)), argv))
+
+    def test_every_flag_ps2ui_check_sends_is_one_the_checker_accepts(self):
+        """The converse of the test above, and it cost a broken verb.
+
+        That test asks: for each project key the checker accepts, is it
+        forwarded? It derives `shared` from the checker's --help, so a
+        flag `ps2ui check` sends that the checker does NOT accept is
+        never in the population and cannot fail it. S3 forwarded the
+        bake caps here beside the budget, and every project using the
+        documented escape hatch got
+
+            ps2ui-check: error: unrecognized arguments:
+                --limit imagePixels=64000000        rc 2
+
+        while `ps2ui build` on the same file worked. Two tests were
+        written to catch exactly this shape and neither faced this way.
+
+        `_check_argv` mocks check.main, so argparse never sees the argv
+        either -- which is why this compares against --help rather than
+        running the checker.
+        """
+        from ps2ui_bake import project
+
+        accepted = self._checker_flags()
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._check_argv(tmp, {
+                "vramBudget": 1212416,
+                "strict": True,
+                "limits": {"imagePixels": 64000000, "nodes": 40000},
+            })
+        sent = [a for a in argv if a.startswith("--")]
+        unknown = [f for f in sent if f not in accepted]
+        self.assertFalse(
+            unknown,
+            "`ps2ui check` sends %s, which ps2ui-check does not accept. "
+            "It takes %s. A project that sets one of these makes `ps2ui "
+            "check` fail with rc 2 while `ps2ui build` succeeds. argv "
+            "was %r" % (", ".join(unknown), ", ".join(sorted(accepted)),
+                        argv))
+        # Not vacuous: the budget and strict really are forwarded, so
+        # `sent` is non-empty and the assertion has something to check.
+        self.assertIn("--vram-budget", sent)
 
     def test_check_is_given_the_budget_the_build_was_given(self):
         """One project, one number, two commands that must agree.

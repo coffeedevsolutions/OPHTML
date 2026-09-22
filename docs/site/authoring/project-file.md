@@ -236,14 +236,14 @@ the baker; `ps2ui build` sends each one to the tool that checks it.
 A theme is a file somebody else wrote, so the caps refuse rather than
 warn: a PlayStation 2 cannot display a 30000px canvas, and there is no
 version of that request worth an exemption. The numbers come from the
-examples in this repository, where the largest screen is 90 elements at
-depth 8 and the largest source image is 1984x1408, so each sits an
-order of magnitude above the biggest real one. Raise a cap here when
+examples in this repository, where the largest screen is 93 elements at
+depth 5 and the largest source image is 1984x1408, so each sits well
+above the biggest real one. Raise a cap here when
 your project needs it.
 
 ### Keys that reach the checker
 
-New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1110). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
+New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1111). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
 
 ```sh
 cd packages/baker/tests && python3 -m unittest \

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // ps2ui-layout <page.html> <page.css> -o ui.json [--canvas 640x448]
 //              [--font-dir DIR | --fonts fonts.json] [--strict] [--min-font-size PX]
+//              [--limit canvasDim=N|nodes=N|depth=N]
 //
 // --strict promotes warnings (including CRT lints) to a non-zero exit.
 
@@ -20,7 +21,7 @@ const VERSION = JSON.parse(
 
 function usage(code) {
   console.error('usage: ps2ui-layout <page.html> <page.css> -o <ui.json> '
-    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--version]');
+    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--version]');
   process.exit(code);
 }
 
