@@ -449,8 +449,11 @@ def orphans():
 
     THE FIGURE WAS FIRST WRITTEN AS 35, which is a different
     population AND NOT A FIXED ONE: the cited tokens that carry a
-    slash and are not a file on disk, which moves with whether the
-    example builds have been run. 59 is a property of the tree. 59 is the tokens that are not a tracked path, which is
+    slash and are not a file on disk. That is a definition plus a tree
+    state -- 35 holds only where the examples have been built, because
+    four `build/` outputs come into existence and leave the set, and a
+    clean checkout gives 39. 59 is a property of the tree and nothing
+    else. 59 is the tokens that are not a tracked path, which is
     what "a flat existence test" means, and 39 of those carry a slash.
     The two collided confusingly, because 35 is also exactly the size
     of the `suffix` class -- tokens that resolve fine. Review of #165
