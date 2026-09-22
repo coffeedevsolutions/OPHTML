@@ -405,8 +405,8 @@ _facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	64	def default_fo
 _facts/authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/authoring/project-file	packages/baker/ps2ui_bake/ps2ui.py	290	    argv = [rel(proj, proj.out_path)]	    # written; nothing passed it.	    if proj.vram_budget is not None:
 _facts/authoring/project-file	packages/layout/src/index.js	260	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
-_facts/authoring/screens-and-overlays	BACKLOG.md	566	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
-_facts/authoring/screens-and-overlays	BACKLOG.md	589	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
+_facts/authoring/screens-and-overlays	BACKLOG.md	567	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
+_facts/authoring/screens-and-overlays	BACKLOG.md	590	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
 _facts/authoring/screens-and-overlays	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
 _facts/authoring/screens-and-overlays	examples/opl-env/ps2ui.json	2	  "screens": [	{	    "ui/landing.html", "ui/library.html", "ui/detail.html",
 _facts/authoring/screens-and-overlays	examples/opl-env/ui/confirm.html	24	    <!-- The readout. On EVERY screen, not only on library: slots are	    </div>	         per-screen (render_slots walks the current screen's slot range),
