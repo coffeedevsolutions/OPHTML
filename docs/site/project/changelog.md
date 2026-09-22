@@ -10,9 +10,9 @@ sources: [CHANGELOG.md, tools/check-versions.py, docs/site/_facts/reference/comp
 
 # Changelog
 
-The open 0.8.0.dev0 section of `CHANGELOG.md`, restated by category. Every
-bullet below has a full entry in the file itself, linked at the bottom
-of this page.
+The open 0.8.0.dev0 section of `CHANGELOG.md`, restated by category, one
+bullet here for each entry there. The file carries the reasoning and the
+measurements; this page carries what changed.
 
 ## 0.8.0.dev0
 
@@ -28,8 +28,13 @@ neither registry; `pip install ophtml` and `npm install -g
   not cite: ten rows survived the 0.8.0.dev0 bump asserting 0.7.0 with
   every citation green. 28 banners are pinned as meaning the tree or the
   last release.
+- `check-versions.py` asks whether a CHANGELOG section has any content,
+  and asked it only of a release tree. A whole cycle could accumulate
+  silence and land at the cut as N changes to reconstruct from the log.
+  Rule 10c warns on a prerelease too, and can never fail, because the
+  honest answer to "should this have an entry?" is sometimes no.
 
-### Fixed
+### Fixed in the toolchain
 
 - `ps2ui build` run before `ps2ui fontgen` named a directory inside the
   npm package as the place your font metrics belong. The project
@@ -47,6 +52,85 @@ neither registry; `pip install ophtml` and `npm install -g
   `pip install ophtml` reader lands on.
 - The Installation page did not say that `pip install ophtml` fails on a
   current macOS or Debian box under PEP 668, nor where to get a TTF.
+- `ps2ui check build/ui.uib` ended in a `UnicodeDecodeError` on a blob it
+  could not read as text. It names the file and what it expected now.
+- `ps2ui serve --port <busy>` printed a bind traceback, and `--help` did
+  not say the port could be taken. Both say it.
+- A stylesheet with three mistakes cost three builds, because the CSS
+  stage stopped at the first. Every error in a sheet is reported in one
+  pass now, one `error:` line each, sorted by line.
+- A declaration was reported at the line its rule opens on rather than
+  its own, so a long rule pointed every mistake at the same place.
+- `:hover` was answered with `unsupported selector syntax near ":"`. A
+  pseudo-class the target does not implement is named, with `:focus`
+  given as the one that exists.
+- `border-radius` costs a flat eight records a box, whatever the radius,
+  because a square box is one record and a rounded one is a nine-cell
+  patch. The CSS reference says so beside the property and in
+  [what a rounded corner costs](page:authoring/css#what-a-rounded-corner-costs).
+- The previewer and `build/preview.png` are different sizes, and the
+  self-test said "byte-identical" without naming which frame it had
+  compared. It names the frame, and both sizes are stated where a reader
+  meets them.
+- This page restated a shipped release while calling it the open one.
+- And then it restated five of the open section's entries and called
+  that a mapping. The sentence above the list used to promise only
+  that every bullet here had an entry in the file, which is true of
+  any five of them. It now promises one bullet for each entry, and
+  the list keeps that promise. Writing the entry for that fix moved
+  every line under it, and the move turned up a second one: the table
+  of earlier releases below cited three releases it does not list, on
+  lines that had drifted onto prose. It was never red. A pin proves a
+  line has not moved, not that it was the right line. The new promise
+  is counted by `ps2ui`'s version checker, because a promise that can
+  be false and is never read is the same shape as the one it replaced.
+- The audit that catches stale ticks on the backlog had missed rows
+  three times. `tools/check-backlog.py` holds every row ID, every
+  tick-claim and every open row to each other now, and CI runs it. It
+  found a row showing 178 of its 6129 characters on its first run.
+  Review found it reading a scaffolded marker as a shipped one, and a
+  table split by a blank line as having no rows to check at all. A
+  second review found the screen for an unrecognised marker looking
+  only at the first one on a line, so a known marker ahead of it hid
+  it. Both are fixed and both are fenced.
+
+### Fixed in the documentation checker
+
+Ten entries about `tools/check-site-pages.py`, which holds every claim
+on this site to the lines it cites. They changed no compiler, runtime or
+format behaviour.
+
+- A comma list was one citation instead of several, so
+  `ps2ui.h:653,660,668` pinned the first number and left the rest
+  unread. 122 members came into view.
+- 424 line numbers named no file, because a citation was only recognised
+  when its path began with one of six directories. A file at the
+  repository root matched none of them. 27 of the newly readable ones
+  were wrong when they were taken.
+- The checker counted one line more than every file had, so a citation
+  could name the line after the last one and never drift. The count is
+  asserted against bytes the tool writes itself.
+- A member written as a colon and a number, with no path, named nothing
+  any reader could follow. 424 of them now name their path, and writing
+  one that does not fails. 57 were wrong.
+- An annotation beside a citation is a claim. `ps2ui.py:290-305
+  (cmd_check)` says those lines are `cmd_check`, and nothing checked it.
+  Two of the four faults found had been green since the day they were
+  written.
+- A stronger drift test was measured and rejected. It would catch 110 of
+  69810 simulated insertions and fire on every in-place edit of the line
+  above a citation. The measurement is recorded where the design is.
+- Fifty-eight citations named the line before the thing they meant, and
+  the ranges prove it: each was the exact length of the construct it
+  described, displaced by exactly one. A citation that starts on a blank
+  line now fails.
+- Three of the seven most-cited rows named the wrong lines, found by
+  reading them against the code rather than by any check. Twelve wrong
+  members in fifty-nine.
+- The annotation rule is widened as far as it goes, and that is not far:
+  sixty citations checked before, sixty-eight after, no new faults.
+- One screen had a hole. Four members separated by slashes instead of
+  commas tripped neither reader, in the row that most needed reading.
 
 ### Format
 

@@ -8,28 +8,48 @@ directly in this session.
 
 **This file describes a page that is rewritten every cycle, and nothing
 mechanical notices when it stops matching.** It carried the 0.6.0
-restatement for two releases: `check-site-pages` is green because no
-row here is line-pinned (`_citations.tsv` has zero rows for
-`project/changelog`), `check-doc-versions` reads banners and its own
-docstring says it does not read the sentence around one, and
-`check-doc-impact` is file-level, so a document that *should* cite a
-changed file and does not is invisible to it -- its own caveat line
-says so. Re-read this file whenever the page is re-restated.
+restatement for two releases, and then restated five of the open
+section's entries for two more. Three checks were green through all of
+it. `_citations.tsv` holds fourteen rows for this facts file and zero
+for the page, so `check-site-pages` pins what the rows below cite and
+nothing at all about what the page chooses to restate. Fourteen pinned
+rows is also the smaller half of the lesson: two of them spent this
+cycle sitting on prose in the middle of a release, green, because
+**a pin proves a line has not moved, not that it was the right line.**
+`check-doc-versions` reads banners and its own docstring says it does
+not read the sentence around one. `check-doc-impact` is file-level, so
+a document that *should* cite a changed file and does not is invisible
+to it -- its own caveat line says so. Re-read this file whenever the
+page is re-restated, and count the bullets against the section.
 
 Session commands run from the repository root:
 
-- `python3 tools/check-versions.py --except-tag` printed 27 `ok -`
-  lines and 1 `skip -` line, exit 0. The 7 lines pasted on the page
+- `python3 tools/check-versions.py --except-tag` exited 0 with one
+  `skip -` line, and each of the 7 lines below was matched against
+  that run's output. **THE COUNT OF `ok -` LINES USED TO BE HERE AND IS
+  GONE ON PURPOSE.** It said 27, which three added rules had made
+  false; it was corrected to 30 in this change, and the rule that
+  change itself added made it 31 before the commit landed. The
+  sentence recording that the number went stale because rules were
+  added went stale because a rule was added, in the same commit.
+  `BACKLOG.md`'s closed-log marker settled this shape already -- its
+  first version counted commits and releases since, both wrong by the
+  commit that added them, and the fix was to keep the date and drop
+  the count. A total that every new rule invalidates is evidence the
+  run happened and nothing more, and the exit status says that
+  without rotting. The 7 lines pasted on the page
   (rules 2 through 7: the two package versions, `PS2UI_VERSION` against
   `uib.VERSION`, the two `docs/format-uib.md` checks, and the newest
   two CHANGELOG section checks) are copied verbatim from this run.
 - `grep -n '^- \*\*\|^### ' CHANGELOG.md` located every bullet and
-  heading cited below by symbol, in this session.
+  heading cited below by symbol, in this session, and a pass over the
+  same output counted 26 entries under the open section's two headings
+  against 26 bullets under the page's three.
 
 | id | fact | source | verified by | status |
 |---|---|---|---|---|
-| changelog.mapping | Every 0.8.0.dev0 bullet on this page maps to an entry in `CHANGELOG.md`'s Unreleased section: the page's one Added bullet to the version-banner fence, and its four Fixed bullets to the font path, the build line, `--starter` and the Installation page, in that order. Five bullets under two headings, which is what the page shows. **The section has grown to twenty-four entries and the page still shows five** -- the page's own sentence claims only that every bullet on it has an entry in the file, which holds, but the nineteen added since are not restated. Found by F41(a) while re-pointing these citations and widened by F42; filed rather than fixed here, because it is a content gap and this change is about the checker. | `CHANGELOG.md:17, 19-30, 49` (`### Added`, the version-banner fence, `### Fixed`); `CHANGELOG.md:320, 342-355, 357-374, 376-384` (the four Fixed bullets the page restates). **Written as comma lists on purpose.** `FACTS_CITE` pins every member of one and `--fix` moves each. The shape this cell used to use wrote every member after the first as a colon and a number with no path in front of it, which named nothing the checker could read: it pointed at 32 for `### Fixed` while that heading sat at 49, and at 34, 56, 71 and 90 for four bullets that were at 51, 73, 88 and 107. **The numbers in that last sentence are spelled without their colons on purpose**, because F42 made the shape a failure and nothing can tell an example of it from a use of it | re-derived this session: `awk` over the open section puts `### Added` at 17 and `### Fixed` at 49, the two Added bullets at 19 and 32, and twenty-two Fixed bullets from 51; the page's own rendered bullets counted five under the same two headings. **The previous version of this row, including the one F41(a) itself wrote, claimed an `awk` run that put the headings at 17 and 32** -- 32 is the second Added bullet, and no run of that command ever said otherwise | verified |
-| changelog.earlier-releases | The Earlier releases table's three rows read straight from the CHANGELOG headings and their format paragraphs: `## 0.5.0 — 2026-09-06` (format v7, zero moves since 0.4.0); `## 0.4.0 — 2026-09-06` (format v7, zero moves since 0.3.0, the v7 stability pledge and vendored DejaVu fonts added in that section); `## 0.3.0 — 2026-09-04` (format v7, four moves since 0.2.0: v4 display aspect, v5 kerning, v6 texture kinds, v7 tint table; first tagged release). | CHANGELOG.md:533, CHANGELOG.md:743, CHANGELOG.md:935 (the `## 0.7.0`, `## 0.6.0` and `## 0.5.0` headings) and their Added/format paragraphs | `grep -n '^## ' CHANGELOG.md` and the headings and format paragraphs read directly in this session | verified |
+| changelog.mapping | Every 0.8.0.dev0 bullet on this page maps to one entry in `CHANGELOG.md`'s open section, and the map is now onto: **twenty-six bullets for twenty-six entries**, one each. The file carries two headings, `### Added` with two entries and `### Fixed` with twenty-four. The page carries three, because the twenty-four split by who is affected rather than by kind: fourteen changed the toolchain a project uses, ten changed the checker that reads these pages and no compiler, runtime or format behaviour. **The page restated five of the twenty-four then open until this change** -- its own sentence claimed only that every bullet on it had an entry in the file, which held, so nothing failed while nineteen were missing. Found by F41(a) while re-pointing these citations, widened by F42, filed rather than fixed both times because those changes were about the checker | `CHANGELOG.md:17, 19-30, 49, 51` (`### Added`, its two entries, `### Fixed`, the first of its twenty-four). **Written as a comma list on purpose.** `FACTS_CITE` pins every member of one and `--fix` moves each. The shape this cell used to use wrote every member after the first as a colon and a number with no path in front of it, which named nothing the checker could read: it pointed at 32 for `### Fixed` while that heading sat at 49, and at 34, 56, 71 and 90 for four bullets that were at 51, 73, 88 and 107. **The numbers in that last sentence are spelled without their colons on purpose**, because F42 made the shape a failure and nothing can tell an example of it from a use of it | re-derived this session: a pass over the open section counts `### Added` at 17 with two entries from 19 and `### Fixed` at 49 with twenty-four from 51, twenty-six in all; the same pass over the page counts `### Added` at 23 with two, `### Fixed in the toolchain` at 37 with fourteen and `### Fixed in the documentation checker` at 94 with ten, twenty-six in all. **The previous version of this row, including the one F41(a) itself wrote, claimed an `awk` run that put the headings at 17 and 32** -- 32 is the second Added entry, and no run of that command ever said otherwise | verified |
+| changelog.earlier-releases | The Earlier releases table's three rows read straight from the CHANGELOG headings and their format paragraphs: `## 0.5.0 — 2026-09-06` (format v7, zero moves since 0.4.0); `## 0.4.0 — 2026-09-06` (format v7, zero moves since 0.3.0, the v7 stability pledge and vendored DejaVu fonts added in that section); `## 0.3.0 — 2026-09-04` (format v7, four moves since 0.2.0: v4 display aspect, v5 kerning, v6 texture kinds, v7 tint table; first tagged release). | `CHANGELOG.md:1113, 1116, 1151` (the 0.5.0 heading, the `vendor-runtime` entry its headline restates, and the format paragraph that section carries); `CHANGELOG.md:1163, 1165, 1178, 1189` (0.4.0, its format paragraph, the stability-pledge entry, the vendored-fonts bullet); `CHANGELOG.md:1253, 1255, 1267` (0.3.0, its format paragraph naming the four moves, the first-tagged sentence). **The previous version of this cell cited 0.7.0, 0.6.0 and 0.5.0 for a table whose three rows are 0.5.0, 0.4.0 and 0.3.0**, and two of its three numbers sat on prose in the middle of a release rather than on a heading. It stayed green throughout: whatever those lines once named, a `--pin` run recorded the text they held by then, and the drift test has faithfully kept them on it since. **A pin proves a line has not moved, not that it was the right line.** | a pass over `^## ` in this session puts the release headings at 1026, 1076 and 1166, and the three format paragraphs at 1064, 1078 and 1168; each cited line was read directly. The table's three headlines were re-read against those sections: `vendor-runtime` ships the runtime from the installed package (1029), the v7 pledge and `fonts/vendor/` (1091, 1102), and the first tagged release with four moves v4 through v7 (1168, 1180) | verified |
 | compat.versions | `ophtml` is 0.7.0 and `@ophtml/layout` is 0.7.0, the same version in two spellings. Neither package is tagged. | reference/compatibility (parent) | restated without new verification; this session's own `check-versions.py` run reproduces the same line | verified |
 | compat.format-matrix | Format v7 is unchanged since 0.5.0: CHANGELOG.md counts zero format moves since that release, and a v7 blob loads under a v7 runtime regardless of the two products' package versions. | reference/compatibility (parent) | restated without new verification; this session's own `check-versions.py` run printed the same "zero format moves since 0.5.0" confirmation the parent cites | verified |
 | offset.new | `ps2ui_offset_set` (F27) is the 0.6.0 addition; runtime visibility is older, from 0.3.0. | runtime/moving-and-hiding (parent) | restated without new verification | verified |

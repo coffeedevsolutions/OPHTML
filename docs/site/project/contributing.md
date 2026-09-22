@@ -5,7 +5,7 @@ description: Set up the tree, run the test suite CI runs, follow the five design
 section: project
 order: 71
 version: 0.7.0
-sources: [docs/site/ARCHITECTURE.md, CONTRIBUTING.md, .github/workflows/ci.yml, .github/ISSUE_TEMPLATE/bug.yml, .github/ISSUE_TEMPLATE/feature.yml, BACKLOG.md, docs/PLAN.md, packages/layout/package.json, examples/memcard/build.sh, tools/check-tutorial.py, tools/check-site-assets.py, tools/check-blobs.sh, tools/falsify.sh, tools/check-versions.py, tools/check-format-frozen.py, tools/check-runtime-shipped.py, tools/check-example-figures.py, tools/check-sweep-table.py, tools/check-deploying.py, tools/check-vram-model.py, tools/check-timing-probe.py, tools/check-findings.py, docs/site/runtime/integrating.md, docs/site/cli/ps2ui.md, docs/site/project/internals.md, docs/site/project/security-and-license.md, docs/site/_facts/runtime/integrating.md, docs/site/_facts/cli/ps2ui.md, docs/site/_facts/reference/compatibility.md]
+sources: [docs/site/ARCHITECTURE.md, CONTRIBUTING.md, .github/workflows/ci.yml, .github/ISSUE_TEMPLATE/bug.yml, .github/ISSUE_TEMPLATE/feature.yml, BACKLOG.md, docs/PLAN.md, packages/layout/package.json, examples/memcard/build.sh, tools/check-tutorial.py, tools/check-site-assets.py, tools/check-blobs.sh, tools/falsify.sh, tools/check-versions.py, tools/check-format-frozen.py, tools/check-runtime-shipped.py, tools/check-example-figures.py, tools/check-sweep-table.py, tools/check-deploying.py, tools/check-vram-model.py, tools/check-timing-probe.py, tools/check-findings.py, tools/check-backlog.py, docs/site/runtime/integrating.md, docs/site/cli/ps2ui.md, docs/site/project/internals.md, docs/site/project/security-and-license.md, docs/site/_facts/runtime/integrating.md, docs/site/_facts/cli/ps2ui.md, docs/site/_facts/reference/compatibility.md]
 ---
 
 ## Setup
@@ -148,6 +148,7 @@ Every script below exists under `tools/`.
 | `tools/check-findings.py` | the findings graph in `docs/findings.yaml`: no cycle, no confirmed finding resting on an overturned one, no document citing an overturned finding unmarked. |
 | `tools/check-vram-model.py` | the Python VRAM model against the gsKit function it ports, compiled and diffed over 45,000 sizes. |
 | `tools/check-timing-probe.py` | the Phase 2 driver's frame timer measures work, not waiting, a source-level ordering check. |
+| `tools/check-backlog.py` | `BACKLOG.md` against itself: every row ID well formed and rendering whole, every tick on a status line resolving to one row or a declared-consumed ID, and no status line claiming an ID shipped while its row is open. |
 | `tools/check-blobs.sh` | every baked blob against the runtime's assumptions, calling `ps2ui-check --strict` and naming each blob's exemptions in the script itself. |
 | `tools/falsify.sh` | sabotages a file, runs a fence command against it, and restores the exact original bytes without calling `git checkout`. |
 

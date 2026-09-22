@@ -396,6 +396,123 @@ without moving this line.
   decision rather than a side effect: the split moved 11 release / 17
   tree to 10 / 18, exactly the one banner whose meaning changed.
 
+- **And then it restated five of the open section's twenty-four
+  entries.** Fixing the version the page named did not fix the coverage
+  behind it. The page's own sentence promised only that every bullet on
+  it had an entry in the file, so it was true with five bullets and
+  would have stayed true with one: the claim was written about the
+  direction nothing could get wrong. F41(a) found the gap, F42 widened
+  it, and both filed it rather than fixing it because those changes were
+  about the checker.
+
+  The section is restated in full now, twenty-five bullets for
+  twenty-five entries including this one, and the promise is rewritten
+  to say "one bullet here for each entry there" so the count is the
+  claim. `check-versions.py` counts both sides and fails when
+  they disagree, because the new promise was falsifiable and still
+  unenforced: adding an entry the page did not restate left every
+  checker green, the only drift being pinned line numbers moving, which
+  `check-site-pages.py --fix` is the sanctioned way to silence. The twenty-three Fixed entries split on the page by who is
+  affected rather than by kind, because ten of them changed only the
+  checker that reads these pages and no compiler, runtime or format
+  behaviour, and a reader deciding whether to upgrade should not have to
+  work that out entry by entry.
+
+  Adding the entry you are reading moved every line below it, and the
+  relocation turned up a second fault in the same facts file. The row
+  behind the Earlier releases table cited the 0.7.0, 0.6.0 and 0.5.0
+  headings for a table whose three rows are 0.5.0, 0.4.0 and 0.3.0, and
+  two of its three numbers had come to rest on prose in the middle of a
+  release. It was green the whole time: a `--pin` run had recorded the
+  text those lines held by then, and the drift test kept them on it
+  faithfully ever after. **A pin proves a line has not moved. It does
+  not prove the line was the right one.** The row now cites the three
+  headings, the three format paragraphs and the four entries its
+  headlines restate, and each was read before it was written down.
+
+- **The audit that catches stale ticks on `BACKLOG.md` had missed rows
+  three times, and none of the three was a judgement call.** One row's
+  ID cell read `B8*`, a marker no legend defines, so no ID-keyed
+  pattern could match it. One shipped, was well formed, and was
+  findable only by reading the code. One was audited and *recorded as
+  unsettled*, which is worse than either, because a reader consulting
+  the board learned something false from a row somebody had checked.
+  `tools/check-backlog.py` holds the board to three rules now, and
+  `ci.yml` runs it: every row ID in the three ID tables is well formed
+  and renders whole, every tick-claim on a status line resolves to one
+  row or a declared-consumed ID, and no status line claims an ID
+  shipped while its row is open.
+
+  One corpus rule serves the last two and is the whole design: a table
+  row contributes only its ID cell, and every tick-claim is read from
+  the status lines. A bare prose mention is a reference, not a claim.
+  Widened over table rows, check 3 fires on every ticked row that cites
+  an open one in its prose, which these rows do routinely.
+
+  **The backlog row specified the checks and recorded what they should
+  return on a named past commit, and that recorded output failed the
+  implementation once.** The first draft scoped a status line to the
+  sprint-status paragraph and returned seven of the ten rows expected;
+  three are announced in a continuation paragraph that a paragraph-
+  scoped rule cannot see. Nothing else would have caught it, because
+  the check was green on the current board either way. A spec that
+  writes down its expected output is a spec that can fail its
+  implementer, and this one did.
+
+  Check 1 found a live defect on its first run, six days younger than
+  the row warning about it: a backlog row carried an unescaped `|`
+  inside a code span three times, so it split into 17 cells in a
+  two-column table and the rendered board showed **178 of its 6129
+  characters**. Escaped now. Six sabotages through `tools/falsify.sh`
+  are all caught, including the marker, the non-adjacent `B9 + B8`
+  claim, and the blank line that once stopped seven rows being rows.
+
+  Review of the pull request found the corpus rule had been applied in
+  only one of the two places it belongs. "A bare prose mention is a
+  reference, not a claim" was drawn for table rows and not for status
+  lines, so every ID beside a tick became a claim, including IDs under
+  a *different* marker: one status line reads "F18 shipped ... F1 + B3
+  scaffolded" and the checker recorded F1 and B3 as shipped. Claims are
+  attributed by nearest preceding marker now. One of the three rows
+  check 3 was credited with finding was this rule misreading a prose
+  mention, so the historical run returns three, not four.
+
+  Two more from the same review. A severed table has no rows, so check
+  1 had nothing to say about one: a blank line above the last row
+  deleted it and printed `PASS: 63 row(s)`, the count being printed and
+  never asserted. And fixing the first exposed a hole neither the
+  backlog row nor the review named: a status line can end on a bare
+  tick with its subject wrapped onto the next line, and where a wrap
+  falls is an accident of reflowing a paragraph, not a decision about
+  what is claimed. A marker carries across a line break only when it
+  ends its line. Ten sabotages now, all caught.
+
+  A second review found the unknown-marker screen defeated by any known
+  marker earlier on the same line. It read only the first symbol
+  standing before an ID, which on a board of dot-separated claims is
+  almost always a tick, so the line was cleared and anything after it
+  went unexamined. The two failures compounded: segmenting on the two
+  *known* markers made an unknown one ordinary text, so the preceding
+  tick ran straight through it and the IDs after it became claims
+  again, silently. Both halves take the same answer, which is to
+  segment on the marker class rather than the list. Unicode
+  Symbol-other exactly, because both markers are that category and
+  every one on this board's status lines is one of them, while `+` is
+  Symbol-math and sits inside `B9 + B8`, the line the non-adjacent
+  case exists for. Twelve sabotages now, all caught.
+
+  The same review found this work's own shape one document over. The
+  facts file recorded how many `ok -` lines `check-versions.py` prints,
+  said 27, was corrected to 30 here, and the rule this change itself
+  added made it 31 before the commit landed. The sentence recording
+  that the number went stale because rules were added went stale
+  because a rule was added, in the same commit. The count is gone
+  rather than corrected again, which is what `BACKLOG.md`'s closed-log
+  marker settled the first time: it counted commits and releases since,
+  both wrong by the commit that added them, and the fix was to keep the
+  date and drop the count. The exit status and the seven lines quoted
+  verbatim are what a reader needs.
+
 - **A comma list was one citation instead of several, so
   `runtime/ps2ui.h:653,652,660,668,704,802,806` pinned 653 and left six
   line numbers unread.** 122 members across 69 citations in 13 files
