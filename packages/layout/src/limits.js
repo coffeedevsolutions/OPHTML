@@ -32,7 +32,11 @@
  * different instrument than the one the cap uses. Review of #166
  * caught it.
  *
- * So each cap sits an order of magnitude above the biggest real thing:
+ * EACH CAP'S HEADROOM IS ITS OWN, and "an order of magnitude above
+ * the biggest real thing" was the summary here until it was checked
+ * against the corrected figures: it is true of nodes, thin for depth
+ * and false for canvas, which is bounded by hardware rather than by
+ * the corpus. The ratios, each with what set it:
  *
  *   canvas 2048   the GS framebuffer maximum per dimension, 3.2x the
  *                 tallest mode. A cap here cannot be the VRAM budget,
