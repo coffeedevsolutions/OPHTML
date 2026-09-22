@@ -124,9 +124,16 @@ neither registry; `pip install ophtml` and `npm install -g
 
 ### Fixed in the documentation checker
 
-Ten entries about `tools/check-site-pages.py`, which holds every claim
-on this site to the lines it cites. They changed no compiler, runtime or
-format behaviour.
+Eleven entries: ten about `tools/check-site-pages.py`, which holds every
+claim here to the lines it cites, and one about
+`tools/check-tutorial.py`. No runtime or format behaviour.
+
+- The tutorial checker printed only the last line of a failing block:
+  the wrapper's summary, not the compiler's explanation above it. The
+  Windows arm reported `ps2ui build` exiting 1 with its cause already
+  discarded. It keeps twenty lines, counts what it drops, and shows what
+  a mismatched block printed beside what was claimed. Fenced by
+  `--selftest`: a passing tutorial prints no report.
 
 - A comma list was one citation instead of several, so
   `ps2ui.h:653,660,668` pinned the first number and left the rest

@@ -397,7 +397,7 @@ _facts/authoring/lists	runtime/ps2ui.h	821	/* The item index displayed in row `r
 _facts/authoring/lists	runtime/ps2ui.h	822	 * the end of the data and should be blanked. This is the loop the app	/* The item index displayed in row `row`, or -1 when that row is past	 * runs after every move to refill the slots. */
 _facts/authoring/lists	runtime/ps2ui.h	826	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
 _facts/authoring/lists	runtime/ps2ui.h	830	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
-_facts/authoring/project-file	CHANGELOG.md	1194	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/project-file	CHANGELOG.md	1246	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/project-file	README.md	136	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
 _facts/authoring/project-file	README.md	657	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
@@ -586,7 +586,7 @@ _facts/authoring/video-modes	runtime/ps2ui.c	1493	uint32_t ps2ui_pixel_aspect_x1
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
-_facts/authoring/vram-budget	CHANGELOG.md	1194	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/vram-budget	CHANGELOG.md	1246	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	595	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	600	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	624	    if note and not ok:	    # look better tested than it is.	        for line in note:
@@ -679,7 +679,7 @@ _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	344	            print(f"p
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	348	            print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)	            preview_mod.montage(uib).save(args.montage)	    return 0
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	203	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
-_facts/cli/ps2ui-check	.github/workflows/ci.yml	418	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+_facts/cli/ps2ui-check	.github/workflows/ci.yml	430	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 _facts/cli/ps2ui-check	.github/workflows/hw.yml	120	          ./tools/check-blobs.sh	          # about what "valid" means for the same bytes.	          # conform.elf is built SCREEN=probe. That name lives in
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/caps.py	44	def parse_header(path: str = None) -> dict:		    """Caps from ps2ui.h, or FALLBACK when the header is not reachable."""
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	70	    def note(self, label: str) -> None:		        """A measured number with no threshold to fail against.
@@ -852,17 +852,17 @@ _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        
 _facts/project/changelog	CHANGELOG.md	17	### Added		
 _facts/project/changelog	CHANGELOG.md	19	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
 _facts/project/changelog	CHANGELOG.md	100	### Fixed		
-_facts/project/changelog	CHANGELOG.md	102	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
-_facts/project/changelog	CHANGELOG.md	1284	## 0.5.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1287	- **`ps2ui vendor-runtime`, and the C runtime inside the wheel.**	### Added	  `pip install ophtml` gave you the whole authoring path and then the
-_facts/project/changelog	CHANGELOG.md	1322	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.4.0, which is what a section
-_facts/project/changelog	CHANGELOG.md	1334	## 0.4.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1336	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.3.0, which is what a section
-_facts/project/changelog	CHANGELOG.md	1349	- **The `.uib` format stability pledge, made at v7.** v7 is the last	### Added	  incompatible layout: additions go in feature bits rather than strides,
-_facts/project/changelog	CHANGELOG.md	1360	- `fonts/vendor/` carries the default DejaVu faces under their own	  because a break landed inside the phase meant to end them.	  licence, so a checkout builds without a system font. They sit **last**
-_facts/project/changelog	CHANGELOG.md	1424	## 0.3.0 — 2026-09-04		
-_facts/project/changelog	CHANGELOG.md	1426	`.uib` format **version 7**. v3 through v6 files are rejected; re-bake.		Four format moves have landed since 0.2.0 — v4 display aspect, v5
-_facts/project/changelog	CHANGELOG.md	1438	**This is the first tagged release this repository has ever had.**		There is no 0.2.0 tag and there never was one — 0.2.0 was a number in
+_facts/project/changelog	CHANGELOG.md	154	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/project/changelog	CHANGELOG.md	1336	## 0.5.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1339	- **`ps2ui vendor-runtime`, and the C runtime inside the wheel.**	### Added	  `pip install ophtml` gave you the whole authoring path and then the
+_facts/project/changelog	CHANGELOG.md	1374	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.4.0, which is what a section
+_facts/project/changelog	CHANGELOG.md	1386	## 0.4.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1388	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.3.0, which is what a section
+_facts/project/changelog	CHANGELOG.md	1401	- **The `.uib` format stability pledge, made at v7.** v7 is the last	### Added	  incompatible layout: additions go in feature bits rather than strides,
+_facts/project/changelog	CHANGELOG.md	1412	- `fonts/vendor/` carries the default DejaVu faces under their own	  because a break landed inside the phase meant to end them.	  licence, so a checkout builds without a system font. They sit **last**
+_facts/project/changelog	CHANGELOG.md	1476	## 0.3.0 — 2026-09-04		
+_facts/project/changelog	CHANGELOG.md	1478	`.uib` format **version 7**. v3 through v6 files are rejected; re-bake.		Four format moves have landed since 0.2.0 — v4 display aspect, v5
+_facts/project/changelog	CHANGELOG.md	1490	**This is the first tagged release this repository has ever had.**		There is no 0.2.0 tag and there never was one — 0.2.0 was a number in
 _facts/project/internals	docs/PLAN.md	1	# ps2ui Foundation Plan		
 _facts/project/internals	docs/architecture.md	1	# ps2ui — architecture and decisions		
 _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the streaming sitting		
@@ -1390,8 +1390,8 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1096	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1630	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1148	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1682	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
 _facts/runtime/moving-and-hiding	README.md	435	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
@@ -1519,7 +1519,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	78	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	379	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	1180	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	1232	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	147	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -1550,8 +1550,8 @@ cli/ps2ui-fontgen	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:mai
 cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenRefusesWithoutRaqm(unittest.TestCase):		    """Without Raqm the advances come out identical and the kern table
 cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 examples/channel6	.github/workflows/ci.yml	181	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
-examples/channel6	.github/workflows/ci.yml	348	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
-examples/channel6	.github/workflows/ci.yml	418	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+examples/channel6	.github/workflows/ci.yml	360	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
+examples/channel6	.github/workflows/ci.yml	430	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)

@@ -144,6 +144,82 @@ def blocks(doc):
     return found
 
 
+def selftest():
+    """Check what this script SAYS when a block fails.
+
+    WHY A SELF-TEST AND NOT A FENCE. Every other guard in tools/ is
+    falsifiable with tools/falsify.sh: break the thing, watch the check
+    go red. That does not reach here, because this defect lives on the
+    FAILURE path and CI only ever exercises the success one. A tutorial
+    that passes prints no report at all, so reverting `tail()` to
+    `splitlines()[-1]` would keep every job in this repository green
+    while deleting the diagnosis again -- which is how it survived in
+    the first place, and precisely the shape of "a check that passes for
+    the wrong reason" that docs/method.md is about.
+
+    So the failure path is run on purpose, against blocks written to
+    fail, and the REPORT is the thing asserted. Synthetic commands
+    rather than a real tutorial: the subject is the reporting, and
+    borrowing a real failure would couple this to whatever the tutorial
+    happens to be doing wrong that week.
+    """
+    fails = []
+
+    def report(cmds):
+        work = tempfile.mkdtemp(prefix="ps2ui-selftest-")
+        shutil.rmtree(work)
+        out, log = [], []
+        try:
+            run_doc(DOCS[0], cmds, len(cmds), work, dict(os.environ), out, log)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+        return "\n".join(out)
+
+    # 1. A failing block shows every line it printed, not the last one.
+    #    The three `error:` lines are the CSS stage's shape, which is
+    #    the case that made this worth fixing.
+    r = report([("printf 'error: one\\nerror: two\\nerror: three\\n'; exit 1", "")])
+    for want in ("error: one", "error: two", "error: three"):
+        if want not in r:
+            fails.append("a failing block dropped %r from its report" % want)
+
+    # 2. A block that RAN but printed something else shows what it
+    #    printed. Half a comparison is what made a path separator on
+    #    Windows invisible in its own log.
+    r = report([("printf 'out -> fonts\\\\x.json\\n'", "out -> fonts/x.json")])
+    if "fonts\\x.json" not in r:
+        fails.append("a mismatched block did not show what it printed")
+    if "out -> fonts/x.json" not in r:
+        fails.append("a mismatched block stopped naming what was expected")
+
+    # 3. Dropped lines are counted. A silently clipped tail is the
+    #    original defect one size up.
+    r = report([("for n in $(seq 1 %d); do echo L$n; done; exit 1"
+                 % (TAIL_LINES + 5), "")])
+    if "5 earlier line(s) omitted" not in r:
+        fails.append("a clipped tail did not say how much it dropped")
+    if "L%d" % (TAIL_LINES + 5) not in r:
+        fails.append("a clipped tail dropped the END rather than the start")
+
+    # 4. Silence is named. "It failed and said nothing" points at the
+    #    command; a blank line points at nothing.
+    if "(no output)" not in report([("exit 1", "")]):
+        fails.append("a silent failure did not say it was silent")
+
+    # 5. The harness's own sentinel stays out of the report.
+    if "___ps2ui_block_" in report([("printf 'x\\n'", "not-this-line")]):
+        fails.append("the block marker leaked into a report")
+
+    for f in fails:
+        print("not ok - check-tutorial selftest: %s" % f)
+    if fails:
+        return 1
+    print("ok - check-tutorial selftest: a failing block reports every line "
+          "it printed, a mismatch reports both sides, a clipped tail counts "
+          "what it dropped, silence is named, and the marker is dropped")
+    return 0
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     docs = {}
@@ -193,14 +269,17 @@ def main(argv=None):
     # which is the exact swap that file's header says must not be
     # possible. The only visible difference was a `#` line in a log.
     for a in argv:
-        if a != "--from-registry":
+        if a not in ("--from-registry", "--selftest"):
             raise SystemExit(
-                "not ok - check-tutorial: unknown argument %r. The only "
-                "flag is --from-registry, and it changes what this runs "
-                "against: with it the five console scripts come from "
-                "installed packages, without it from shims onto this "
-                "checkout. Those are different subjects, so a flag that "
-                "does not parse must not quietly pick one." % a)
+                "not ok - check-tutorial: unknown argument %r. The flags "
+                "are --from-registry, which changes what this runs "
+                "against (installed packages rather than shims onto this "
+                "checkout -- different subjects, so a flag that does not "
+                "parse must not quietly pick one), and --selftest, which "
+                "runs no tutorial and checks this script's own failure "
+                "reporting." % a)
+    if "--selftest" in argv:
+        return selftest()
     from_registry = "--from-registry" in argv
     tmp = tempfile.mkdtemp(prefix="ps2ui-tutorial-")
     env = dict(os.environ)
@@ -235,6 +314,59 @@ def main(argv=None):
     return 1 if fail else 0
 
 
+# How many lines of a failing block's output to print. Twenty carries a
+# compiler's error list -- the CSS stage reports every error in a sheet
+# now, one line each -- without turning a failure into a wall.
+TAIL_LINES = 20
+
+
+def tail(got, marker=None, limit=TAIL_LINES):
+    """The end of a failing block's output, indented and bounded.
+
+    THIS REPLACES `splitlines()[-1]`, WHICH THREW THE DIAGNOSIS AWAY.
+    On a failing `ps2ui build` the last line is `ps2ui: ps2ui-layout
+    failed on ui/library.html (exit 1)` -- the wrapper's own summary --
+    and everything the compiler said above it was captured and dropped.
+    `ps2ui.py` runs the compiler with stderr inheriting under the
+    comment "The compiler already printed why, in its own words. Adding
+    a second summary here would bury it", and then this function buried
+    it, keeping exactly the summary that file declined to add. Two
+    places each locally right, combining to delete the evidence. It cost
+    a Windows failure that could not be diagnosed from its own log.
+
+    A TAIL RATHER THAN EVERYTHING, because `run` re-executes blocks 1..i
+    in one shell, so `got` carries every earlier block's output as well:
+    dumping all of it on block 8 buries the failure in seven blocks of
+    healthy chatter, which is the same defect pointing the other way.
+    The failure is always at the end, so the end is what is kept.
+
+    AND THE OMISSION IS COUNTED. A tail that silently drops lines is the
+    original defect one size up -- a reader cannot tell a complete
+    message from a clipped one -- so when lines go, the line saying so
+    goes in their place.
+
+    EMPTY IS NAMED RATHER THAN PRINTED BLANK. "It failed and said
+    nothing" is a finding: it points at the command rather than at its
+    message. A blank line reads as a formatting slip.
+
+    THE BLOCK MARKER IS DROPPED. `run` appends `echo ___ps2ui_block_N___`
+    to know the block reached its end, so on a block that RAN the
+    sentinel is the last thing printed -- and printing the harness's own
+    bookkeeping back at a reader looking for their error is noise from
+    the tool that is supposed to be helping.
+    """
+    lines = [ln for ln in got.strip().splitlines()
+             if marker is None or ln.strip() != marker]
+    if not lines:
+        return "    (no output)"
+    shown = lines[-limit:]
+    dropped = len(lines) - len(shown)
+    out = ["    " + ln for ln in shown]
+    if dropped:
+        out.insert(0, "    ... %d earlier line(s) omitted" % dropped)
+    return "\n".join(out)
+
+
 def run_doc(doc, cmds, expected, work, env, fail, log):
     name = os.path.relpath(doc, ROOT)
     # One shell for the whole document: `cd browser` in step 1 has to
@@ -252,19 +384,27 @@ def run_doc(doc, cmds, expected, work, env, fail, log):
                               capture_output=True, text=True)
         got = proc.stdout + proc.stderr
         if proc.returncode != 0:
-            fail.append("%s block %d exited %d:\n    $ %s\n    %s"
+            fail.append("%s block %d exited %d:\n    $ %s\n%s"
                         % (name, i + 1, proc.returncode,
-                           cmd.strip().splitlines()[0],
-                           got.strip().splitlines()[-1] if got.strip() else ""))
+                           cmd.strip().splitlines()[0], tail(got, marker)))
             return
         if want:
             missing = [ln for ln in want.splitlines()
                        if ln.strip() and ln not in got]
             if missing:
+                # THE OBSERVATION BESIDE THE CLAIM. Listing what the
+                # document promised and not what the command printed
+                # states half a comparison: a reader who can see both
+                # spots `fonts\default.metrics.json` against
+                # `fonts/default.metrics.json` in a glance, and a reader
+                # who can see only the expected line has to go and run
+                # it themselves to find out it was a separator.
                 fail.append("%s block %d ran, but the tutorial's output "
-                            "block claims lines that did not appear:\n%s"
+                            "block claims lines that did not appear:\n%s\n"
+                            "  and what it printed instead:\n%s"
                             % (name, i + 1,
-                               "\n".join("    " + m for m in missing)))
+                               "\n".join("    " + m for m in missing),
+                               tail(got, marker)))
             else:
                 log.append("ok - %s block %d: %d output line(s) as "
                            "documented"

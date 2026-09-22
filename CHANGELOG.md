@@ -99,6 +99,58 @@ without moving this line.
 
 ### Fixed
 
+- **The tutorial checker threw away the diagnosis it had already
+  captured.** On a failing block it printed
+  `got.strip().splitlines()[-1]` -- one line, the last one. On a failing
+  `ps2ui build` the last line is `ps2ui: ps2ui-layout failed on
+  ui/library.html (exit 1)`, the wrapper's own summary, and everything
+  the compiler said above it was captured and dropped.
+
+  **Two places each locally right, combining to delete the evidence.**
+  `ps2ui.py:194` runs the compiler with stderr inheriting, under the
+  comment *"The compiler already printed why, in its own words. Adding a
+  second summary here would bury it"* -- and `check-tutorial.py` then
+  buried it, keeping exactly the summary that file had declined to add.
+  It cost a real failure: the Windows arm added this cycle reported
+  `ps2ui build` exiting 1 with no cause, and the cause had been read,
+  stored and discarded before anyone saw the log.
+
+  `tail()` keeps the last twenty lines, which carries the CSS stage's
+  error list now that a sheet reports every error in one pass. A tail
+  rather than everything, because the runner re-executes blocks 1..i in
+  one shell, so a whole-output dump on block 8 buries the failure in
+  seven blocks of healthy chatter -- the same defect pointing the other
+  way. When lines go, the count of them goes in their place; silence is
+  printed as `(no output)`, because "it failed and said nothing" points
+  at the command while a blank line points at nothing; and the runner's
+  own `___ps2ui_block_N___` sentinel is dropped rather than shown back
+  to somebody hunting for their error.
+
+  **The mismatch branch had the same shape and is fixed with it.** A
+  block that RAN but printed the wrong thing listed what the document
+  claimed and never what the command said, which is half a comparison.
+  Both sides are printed now, and the case that proves it is the one
+  this cost: `fonts/default.metrics.json` against
+  `fonts\default.metrics.json` is a glance when they are side by side
+  and a wheel inspection when they are not.
+
+  **FENCED BY A SELF-TEST RATHER THAN BY falsify.sh, because the defect
+  is on the failure path.** Every other guard in `tools/` is falsifiable
+  by breaking the thing and watching a check go red; that does not reach
+  a report which is only ever produced when something is already wrong.
+  A green tutorial prints no report at all, so reverting `tail()` would
+  have left every job in this repository green -- which is how it
+  survived. `--selftest` runs blocks written to fail and asserts the
+  REPORT: every printed line survives, a mismatch shows both sides, a
+  clipped tail says how much it dropped and keeps the END, silence is
+  named, and the sentinel stays out. `ci.yml` runs it BEFORE the
+  tutorial, so a broken reporter is named as such rather than arriving
+  as a confusing tutorial failure. Falsified four ways -- the old
+  `[-1]`, the mismatch branch reverted, the omission count silenced, the
+  sentinel filter removed -- each against a clean control, and the
+  second by hand after `falsify.sh` warned its own verdict was not
+  trustworthy.
+
 - **The remedy that ships inside the wheel sent Windows readers to
   build Pillow from source.** 0.7.0 removed a false claim from
   `_raqm_remedy()` -- it had handed Windows readers a fact about
