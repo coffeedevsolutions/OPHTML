@@ -52,6 +52,20 @@ DEFAULTS = {
     "focusWrap": False,
     "palettizeImages": False,
     "vramBudget": None,
+    # Hard caps on what a screen may ask the compilers for (S3). An
+    # object, not four top-level keys, so the escape hatch reads as one
+    # decision: {"limits": {"nodes": 40000}}.
+    "limits": None,
+}
+
+# The caps, and which tool enforces each. Every default is derived from
+# the shipped corpus rather than chosen -- see limits.js and
+# Flattener.MAX_IMAGE_PIXELS, which carry the derivations.
+LIMIT_KEYS = {
+    "canvasDim": "layout",
+    "nodes": "layout",
+    "depth": "layout",
+    "imagePixels": "bake",
 }
 
 # Per-screen keys. A screen is usually just a path; an object is for
@@ -291,6 +305,27 @@ def load(path):
         raise ProjectError("%s: not valid JSON -- %s" % (path, exc))
     if not isinstance(data, dict):
         raise ProjectError("%s: the top level must be an object" % path)
+
+    limits = data.get("limits")
+    if limits is not None:
+        if not isinstance(limits, dict):
+            raise ProjectError(
+                "%s: \"limits\" must be an object, e.g. "
+                "{\"limits\": {\"nodes\": 40000}}" % path)
+        bad = sorted(set(limits) - set(LIMIT_KEYS))
+        if bad:
+            raise ProjectError(
+                "%s: unknown limit(s) %s.\n  Known: %s"
+                % (path, ", ".join(repr(k) for k in bad),
+                   ", ".join(sorted(LIMIT_KEYS))))
+        for key, value in sorted(limits.items()):
+            # A cap of 0 or -1 is not "no limit", it is a typo that
+            # would refuse every screen. Say so rather than enforce it.
+            if not isinstance(value, int) or isinstance(value, bool) \
+                    or value < 1:
+                raise ProjectError(
+                    "%s: limits.%s must be a positive integer, got %r"
+                    % (path, key, value))
 
     unknown = sorted(set(data) - set(DEFAULTS))
     if unknown:

@@ -5019,3 +5019,160 @@ class TestProjectFile(unittest.TestCase):
                 [s["name"] for s in read_uib(b("ui-16x9.uib")).screens],
                 ["games-16x9"])
 
+
+
+class TestResourceLimits(unittest.TestCase):
+    """S3: what an untrusted theme may ask the baker for.
+
+    Each assertion here is a measurement taken before the cap existed,
+    on main at 3053962. A theme is a file somebody else wrote.
+    """
+
+    def test_no_budget_can_buy_room_for_a_framebuffer(self):
+        """A canvas the GS cannot scan out fails whatever --vram-budget says.
+
+        MEASURED: a 30000x30000 canvas baked to a 17760-byte blob with
+        exit 0 under `--vram-budget 999999999`. The refusal lived in
+        `budget_note`, which report() appends only when NO budget was
+        given, so passing one silenced the sentence and the failure
+        together -- past a message whose own last line read "a narrower
+        canvas is the only fix".
+
+        The budget charges textures. A framebuffer is not a texture, so
+        no budget can make this true, and the check is separate from the
+        one a flag can reach.
+        """
+        from ps2ui_bake import vram
+
+        ok, lines = vram.canvas_fits(30000, 30000)
+        self.assertFalse(ok)
+        joined = "\n".join(lines)
+        self.assertIn("cannot be displayed", joined)
+        # And it says why raising the budget is not the fix, because
+        # that is exactly what the old message invited.
+        self.assertIn("--vram-budget cannot buy room", joined)
+        # Every shipped mode is fine, and so is the widest canvas the
+        # layout compiler will now accept a single framebuffer of.
+        for w, h in ((640, 448), (640, 512)):
+            self.assertEqual(vram.canvas_fits(w, h), (True, []))
+
+    def test_an_oversized_source_image_is_refused_before_it_is_decoded(self):
+        """A 439 KiB file decoding to 432 MB used to bake clean in 11s.
+
+        MEASURED: a 12000x12000 PNG (144 Mpx, 439 KiB on disk) baked
+        with exit 0 in 11.0 seconds, producing 4 KiB of texture, because
+        an image is pre-scaled to its laid-out size and nothing bounded
+        the DECODE. After the cap the same file fails in 0.08s.
+
+        And just past it the failure was a traceback: Pillow raises
+        DecompressionBombError above 178 Mpx, so a 14000x14000 file
+        ended the bake with a PIL stack trace rather than an error line.
+        """
+        from ps2ui_bake.quads import Flattener
+
+        # The check reads the HEADER, so the fixture never has to hold
+        # 432 MB: a tiny image against a tiny cap proves the same rule.
+        flat = Flattener.__new__(Flattener)
+        flat._images = {}
+        flat.textures, flat.cluts = [], []
+        flat.max_image_pixels = 16
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "a.png")
+            try:
+                from PIL import Image
+            except ImportError:
+                self.skipTest("Pillow not installed")
+            Image.new("RGB", (8, 8), (1, 2, 3)).save(path)
+            with self.assertRaises(ValueError) as cm:
+                flat._image_texture(path, 4, 4, False)
+        msg = str(cm.exception)
+        self.assertIn("8x8 = 64 pixels, past the limit of 16", msg)
+        # It names the drawn size, because that is the argument: the
+        # pixels past it are decoded and thrown away.
+        self.assertIn("drawn at 4x4", msg)
+        self.assertIn("imagePixels", msg)
+
+    def test_the_project_file_validates_a_raised_cap(self):
+        """The escape hatch is real, and a typo in it is not a cap of 0.
+
+        A cap with no override gets edited out of the source by the
+        first person it blocks. A cap that accepts 0 refuses every
+        screen and reads as the override working.
+        """
+        from ps2ui_bake import project
+
+        with tempfile.TemporaryDirectory() as d:
+            for name in ("a.html", "a.css"):
+                with open(os.path.join(d, name), "w") as fh:
+                    fh.write("")
+            path = os.path.join(d, "ps2ui.json")
+
+            def write(limits):
+                with open(path, "w") as fh:
+                    json.dump({"screens": ["a.html"], "css": "a.css",
+                               "limits": limits}, fh)
+
+            write({"nodes": 40000, "imagePixels": 64000000})
+            proj = project.load(path)
+            self.assertEqual(proj.limits["nodes"], 40000)
+
+            write({"nodes": 0})
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("must be a positive integer", str(cm.exception))
+
+            write({"noodles": 5})
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("unknown limit", str(cm.exception))
+            # The message lists what it does take, so the fix is in it.
+            self.assertIn("canvasDim", str(cm.exception))
+
+            write([])
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("must be an object", str(cm.exception))
+
+    def test_the_bake_ITSELF_refuses_the_canvas_under_a_raised_budget(self):
+        """END TO END, BECAUSE THE UNIT TEST ABOVE LEFT A HOLE.
+
+        `test_no_budget_can_buy_room_for_a_framebuffer` exercises
+        vram.canvas_fits() and nothing exercised the CALL to it.
+        Falsification found that immediately: commenting out cli.py's
+        `if not fits:` left all 303 tests passing and handed the
+        --vram-budget bypass straight back. A check that is configured
+        but unexecuted is the shape this repository keeps catching, and
+        this is the version of it that lives one line from the fix.
+        """
+        require_ttf()
+        import json as _json
+        from ps2ui_bake import cli
+
+        ir = TestDynamicText().slot_ir()
+        ir = copy.deepcopy(ir)
+        ir["canvas"] = {"w": 30000, "h": 30000}
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "ui.json")
+            with open(src, "w", encoding="utf-8") as fh:
+                _json.dump(ir, fh)
+            out = os.path.join(tmp, "ui.uib")
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = cli.main([src, "-o", out,
+                               "--fonts", os.path.join(FONTS, "fonts.json"),
+                               "--vram-budget", "999999999"])
+            self.assertEqual(rc, 1, "a raised budget bought a framebuffer")
+            self.assertIn("cannot be scanned out of GS VRAM", err.getvalue())
+            self.assertFalse(os.path.exists(out),
+                             "the bake wrote a blob it had refused")
+
+    def test_each_cap_is_forwarded_to_the_tool_that_enforces_it(self):
+        """imagePixels is the baker's; the other three are the layout
+        compiler's. Sending one to the wrong tool is an unknown-limit
+        error, so the split is data rather than two lists that drift.
+        """
+        from ps2ui_bake.project import LIMIT_KEYS
+
+        self.assertEqual(LIMIT_KEYS["imagePixels"], "bake")
+        for key in ("canvasDim", "nodes", "depth"):
+            self.assertEqual(LIMIT_KEYS[key], "layout")

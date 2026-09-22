@@ -36,6 +36,7 @@ let fontManifest;
 let strict = false;
 let minFontSize = null;
 let focusWrap = false;
+const limits = {};
 
 for (let i = 0; i < args.length; i++) {
   switch (args[i]) {
@@ -54,6 +55,26 @@ for (let i = 0; i < args.length; i++) {
     // rule; a document that means to go below it has to say so here
     // rather than have the rule quietly not reach its text.
     case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;
+    // A CAP, RAISED ON PURPOSE AND IN THE OPEN (S3). Repeatable:
+    // --limit nodes=40000 --limit depth=128. `ps2ui build` forwards
+    // whatever the project file's "limits" object says.
+    case '--limit': {
+      const spec = args[++i] || '';
+      const eq = spec.indexOf('=');
+      if (eq < 1) {
+        console.error('ps2ui-layout: --limit takes name=value, '
+                      + `got ${JSON.stringify(spec)}`);
+        process.exit(2);
+      }
+      const n = Number(spec.slice(eq + 1));
+      if (!Number.isInteger(n) || n < 1) {
+        console.error(`ps2ui-layout: --limit ${spec.slice(0, eq)} takes a `
+                      + `positive integer, got ${JSON.stringify(spec.slice(eq + 1))}`);
+        process.exit(2);
+      }
+      limits[spec.slice(0, eq)] = n;
+      break;
+    }
     case '-h': case '--help': usage(0); break;
     case '-V': case '--version':
       console.log(`ps2ui-layout ${VERSION}`); process.exit(0); break;
@@ -63,6 +84,7 @@ for (let i = 0; i < args.length; i++) {
 if (positional.length !== 2 || !out) usage(2);
 
 const options = { fontDir, fontManifest, focusWrap };
+if (Object.keys(limits).length) options.limits = limits;
 if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;

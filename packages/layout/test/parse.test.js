@@ -784,3 +784,72 @@ test('css: a bad selector drops its rule and the pass continues', () => {
   assert.equal(sheet.rules.length, 1);
   assert.equal(sheet.rules[0].selector.source, '.b');
 });
+
+// ---------------------------------------------------------------- limits (S3)
+//
+// Each of these was measured before it was capped, on main at 3053962,
+// and the measurement is what the limit is derived from -- see
+// src/limits.js. A theme is a file somebody else wrote.
+
+test('limits: a canvas the GS cannot scan out is refused before layout', () => {
+  // Measured: --canvas 30000x30000 compiled clean, exit 0, and wrote
+  // IR. The bake refused it and --vram-budget walked past that refusal.
+  assert.throws(
+    () => compile('<screen><box>x</box></screen>',
+                  'box { width: 4px; height: 4px }',
+                  { fonts, canvasW: 30000, canvasH: 30000 }),
+    /canvas width 30000 exceeds 2048/,
+  );
+  // And the largest real mode is nowhere near it.
+  assert.ok(compile('<screen><box>x</box></screen>',
+                    'box { width: 4px; height: 4px }',
+                    { fonts, canvasW: 640, canvasH: 512 }));
+});
+
+test('limits: a tree too deep is refused by this compiler, not by V8', () => {
+  // Measured: depth 1000 compiled, depth 2000 died with "Maximum call
+  // stack size exceeded" -- V8's stack rather than a decision, so the
+  // real limit moved with the machine. 4000 is past our cap of 64 and
+  // still far under where the stack gives out, so this asserts OUR
+  // message rather than the interpreter's.
+  const deep = `<screen>${'<box>'.repeat(4000)}x${'</box>'.repeat(4000)}</screen>`;
+  assert.throws(
+    () => compile(deep, 'box { width: 4px; height: 4px }', { fonts }),
+    /nested 4000 deep .* past the limit of 64/,
+  );
+  // The deepest screen shipped with ps2ui is 8.
+  const ok = `<screen>${'<box>'.repeat(8)}x${'</box>'.repeat(8)}</screen>`;
+  assert.ok(compile(ok, 'box { width: 4px; height: 4px }', { fonts }));
+});
+
+test('limits: node count is counted AFTER data-repeat expands', () => {
+  // The cap has to see what the rest of the compiler walks. A template
+  // of one box repeated past the limit is the runaway this exists for,
+  // and before expansion it is a single element.
+  assert.throws(
+    () => compile('<screen><box data-repeat="40">x</box></screen>',
+                  'screen { flex-direction: row; flex-wrap: wrap }\n'
+                  + 'box { width: 4px; height: 4px; flex-direction: row }',
+                  { fonts, limits: { nodes: 10 } }),
+    /more than 10 elements after data-repeat expansion/,
+  );
+});
+
+test('limits: a raised cap is honoured, and a nonsense one is refused', () => {
+  // A cap with no escape gets edited out of the source by the first
+  // person it blocks, so the hatch is part of the design.
+  assert.ok(compile('<screen><box>x</box></screen>',
+                    'box { width: 4px; height: 4px }',
+                    { fonts, canvasW: 3000, canvasH: 480,
+                      limits: { canvasDim: 4096 } }));
+  assert.throws(
+    () => compile('<screen><box>x</box></screen>', 'box { width: 4px }',
+                  { fonts, limits: { nodes: 0 } }),
+    /nodes must be a positive integer/,
+  );
+  assert.throws(
+    () => compile('<screen><box>x</box></screen>', 'box { width: 4px }',
+                  { fonts, limits: { noodles: 5 } }),
+    /unknown limit "noodles"/,
+  );
+});

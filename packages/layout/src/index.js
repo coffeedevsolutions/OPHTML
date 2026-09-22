@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { parseHTML, Element, TextNode } from './html.js';
 import { parseStylesheet } from './css.js';
 import { expandRepeats } from './repeat.js';
+import { resolveLimits, checkCanvas, checkTree } from './limits.js';
 import { buildBoxTree, resetBoxIds } from './box.js';
 import { layoutTree } from './flex.js';
 import { buildDisplayList } from './paint.js';
@@ -154,6 +155,11 @@ function cssError(list) {
 export function compile(htmlSrc, cssSrc, options = {}) {
   const canvasW = options.canvasW ?? 640;
   const canvasH = options.canvasH ?? 448;
+  // BEFORE ANYTHING READS A FILE. A canvas the hardware cannot scan
+  // out is refused here rather than after a full layout pass, and
+  // rather than at bake time where a budget flag can raise the limit.
+  const limits = resolveLimits(options.limits);
+  checkCanvas(canvasW, canvasH, limits);
   // The panel's aspect, which is not the framebuffer's. Default 4:3.
   const displayAspect = options.displayAspect ?? [4, 3];
   const par = pixelAspect(canvasW, canvasH, displayAspect);
@@ -167,6 +173,11 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   // Stamp out data-repeat templates before anything computes styles, so
   // a repeated row is indistinguishable from one that was typed out.
   expandRepeats(dom, { Element, TextNode }, warnings);
+  // AFTER EXPANSION, because data-repeat multiplies and the count that
+  // matters is the one the rest of the compiler walks. Iterative, so
+  // the check for a tree too deep to walk recursively does not need to
+  // walk it recursively.
+  checkTree(dom, limits);
   // EVERY CSS ERROR IN ONE PASS, for the reason the flex-direction
   // refusal below gives about its own: reporting the first turns a
   // normal stylesheet into a queue of single-line fixes. A sheet
