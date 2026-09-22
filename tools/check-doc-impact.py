@@ -54,8 +54,11 @@ WHAT IT CANNOT DO, stated here rather than discovered later:
     guesses when several answer. Measured over ONE DOCUMENT CORPUS with
     the two versions of this file -- the comparison that isolates the
     code change -- edges on tracked files go 1262 to 1772: 513 gained,
-    3 lost, 38 files newly reachable, and `runtime/ps2ui.h` from 45
-    documents to 58. THE POPULATION IS THE POINT. Comparing the base
+    3 lost, 38 files newly reachable, and `runtime/ps2ui.h` from 46
+    documents to 58. THE HEADLINE FIGURE HAD THE SAME FAULT AS THE
+    TOTALS AND OUTLIVED THE FIRST CORRECTION: 45 is the BASE TREE's
+    count, so the sentence gave a one-corpus total and a base-tree
+    headline side by side. THE POPULATION IS THE POINT. Comparing the base
     TREE with the head tree instead mixes in the documents this change
     adds, which cite files themselves, and gives 1260 to 1772 for a
     gain of 515. It also dropped
@@ -445,8 +448,9 @@ def orphans():
     into six kinds, and only what survives all of them is an orphan.
 
     THE FIGURE WAS FIRST WRITTEN AS 35, which is a different
-    population: the cited tokens that carry a slash and are not a file
-    on disk. 59 is the tokens that are not a tracked path, which is
+    population AND NOT A FIXED ONE: the cited tokens that carry a
+    slash and are not a file on disk, which moves with whether the
+    example builds have been run. 59 is a property of the tree. 59 is the tokens that are not a tracked path, which is
     what "a flat existence test" means, and 39 of those carry a slash.
     The two collided confusingly, because 35 is also exactly the size
     of the `suffix` class -- tokens that resolve fine. Review of #165
@@ -483,7 +487,7 @@ def orphans():
     # resolved last time.
     #
     # Nothing is exposed today and that is a coincidence, not a
-    # design: of the 27 bare tokens, the 20 that resolve are EVERY ONE
+    # design: of the 26 bare tokens, the 20 that resolve are EVERY ONE
     # of them also cited qualified somewhere in the library, so a
     # rename trips the qualified citation and fails the run. That
     # coincidence is all that stands between a deletion and a silent

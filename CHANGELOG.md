@@ -74,7 +74,10 @@ without moving this line.
   which is the comparison that isolates the code change: edges on
   tracked files go 1262 to 1772, 513 gained and 3 lost, 38 files newly
   reachable, and `runtime/ps2ui.h` reaches 58 documents where it
-  reached 45.
+  reached 46. That last number was first written as 45, which is the
+  base tree's, so the sentence carried a one-corpus total beside a
+  base-tree headline after the totals had already been corrected
+  once.
 
   The index also lost 454 keys that named nothing in the tree, three
   quarters of it, mostly paths pasted out of shell transcripts. They
