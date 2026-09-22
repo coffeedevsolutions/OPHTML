@@ -8,7 +8,7 @@ _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	553	def check_crt
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	749	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/project.py	51	    "minFontSize": None,	    "strict": False,	    "focusWrap": False,
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/ps2ui.py	190	        if proj.min_font_size is not None:	            cmd += ["--strict"]	            cmd += ["--min-font-size", str(proj.min_font_size)]
-_facts/authoring/crt-linter	packages/baker/ps2ui_bake/ps2ui.py	424	        if proj.min_font_size is not None:	            cmd += ["--strict"]	            cmd += ["--min-font-size", str(proj.min_font_size)]
+_facts/authoring/crt-linter	packages/baker/ps2ui_bake/ps2ui.py	422	        if proj.strict:	            cmd += ["--display-aspect", proj.display_aspect]	            cmd += ["--strict"]
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve.py	375	        warnings = []		        for screen in proj.screens:
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	136	    <button id="btnSafe" title="Title-safe area — 10% inset, the CRT overscan budget">Safe area</button>	    <button id="btnGrid" title="8px grid">Grid</button>	    <button id="btnFull" title="Screen only (F, Esc to leave)">Full screen</button>
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	320	  if (S.safe) {	  }	    const ix = Math.round(w * 0.1), iy = Math.round(h * 0.1);
@@ -744,7 +744,7 @@ _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	399	    with open(
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	311	def cmd_fontgen(args):		    """Both faces in one command, which is how a person needs them.
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	320	    out_dir = args.out_dir	    from . import fontgen	    os.makedirs(out_dir, exist_ok=True)
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	324	        rc = fontgen.main([ttf, "default", str(weight),	                              (args.bold, 700, "default-bold.metrics.json")):	                           os.path.join(out_dir, name)])
-_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	327	            return rc	        if rc != 0:	    manifest = os.path.join(out_dir, "fonts.json")
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	346	    with open(manifest, "w", encoding="utf-8") as fh:	    # edit away. The structure is data, so data is what writes it.	        json.dump({
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	389	    base = layout_command()	def cmd_dev(args):	    dev = [c.replace("ps2ui-layout", "ps2ui-dev") for c in base]
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	477	    f = sub.add_parser("fontgen",		                       help="metrics and a manifest from two TTFs")
 _facts/cli/ps2ui-fontgen	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
@@ -852,7 +852,7 @@ _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        
 _facts/project/changelog	CHANGELOG.md	17	### Added		
 _facts/project/changelog	CHANGELOG.md	19	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
 _facts/project/changelog	CHANGELOG.md	100	### Fixed		
-_facts/project/changelog	CHANGELOG.md	186	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/project/changelog	CHANGELOG.md	102	- **`ps2ui fontgen` wrote a manifest `ps2ui build` could not read, on		  Windows, and the reporter above is what surfaced it.** The wrapper
 _facts/project/changelog	CHANGELOG.md	1368	## 0.5.0 — 2026-09-06		
 _facts/project/changelog	CHANGELOG.md	1371	- **`ps2ui vendor-runtime`, and the C runtime inside the wheel.**	### Added	  `pip install ophtml` gave you the whole authoring path and then the
 _facts/project/changelog	CHANGELOG.md	1406	`.uib` format **version 7**, unchanged from the release below.		Zero format moves have landed since 0.4.0, which is what a section

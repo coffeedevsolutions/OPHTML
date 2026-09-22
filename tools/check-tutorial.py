@@ -178,8 +178,20 @@ def selftest():
     # 1. A failing block shows every line it printed, not the last one.
     #    The three `error:` lines are the CSS stage's shape, which is
     #    the case that made this worth fixing.
+    # INDENTED, AND THE FOUR SPACES ARE THE WHOLE ASSERTION. The report
+    # opens with the command that produced the output --
+    # `    $ printf 'error: one\nerror: two\n...'` -- so every one of
+    # these strings appears in it whatever tail() does. Searching the
+    # report for a bare "error: one" is satisfied by the ECHO, and the
+    # check aimed at this defect could not fail: a tail() that keeps the
+    # whole tail past the limit and only the last line under it -- the
+    # original defect for every realistic compiler failure -- passed
+    # this entire selftest. Tail lines are indented and the `$ ` line is
+    # not, so the indent is what distinguishes the output from the
+    # command that made it. Found in review; the check was vacuous for
+    # exactly as long as it existed.
     r = report([("printf 'error: one\\nerror: two\\nerror: three\\n'; exit 1", "")])
-    for want in ("error: one", "error: two", "error: three"):
+    for want in ("    error: one", "    error: two", "    error: three"):
         if want not in r:
             fails.append("a failing block dropped %r from its report" % want)
 

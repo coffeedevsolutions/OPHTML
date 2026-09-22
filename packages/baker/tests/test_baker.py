@@ -4442,6 +4442,24 @@ class TestFontsAreRequiredBeforeEitherHalfRuns(unittest.TestCase):
         self.assertEqual(load_font_manifest(written)["regular"]["ttf"],
                          os.path.abspath(odd))
 
+        # A QUOTE, BECAUSE THE BACKSLASH ONLY FENCES THE INSTANCE.
+        # `cmd_fontgen` argues a serialiser over an escape: escaping the
+        # two paths and keeping the hand-rolled braces fixes the
+        # backslash and leaves the next character one edit away. Review
+        # showed the assertions above cannot tell those apart -- a
+        # hand-rolled write with `.replace("\\", "\\\\")` passes all of
+        # them -- so the comment was the only thing holding the choice.
+        # A `"` in a filename is legal on POSIX and breaks a hand-rolled
+        # writer that has escaped backslashes and nothing else, which is
+        # the argument rather than the instance.
+        quoted = os.path.join(tmp, 'Deja"Vu.ttf')
+        shutil.copy(os.path.join(FONTS, "vendor", "DejaVuSans.ttf"), quoted)
+        out2 = os.path.join(tmp, "fonts2")
+        self.assertEqual(ps2ui_mod.main(["fontgen", quoted, quoted, "-o", out2]), 0)
+        with open(os.path.join(out2, "fonts.json"), encoding="utf-8") as fh:
+            self.assertEqual(_json.load(fh)["bold"]["ttf"],
+                             [os.path.abspath(quoted)])
+
     def test_no_manifest_anywhere_names_ps2ui_fontgen_not_a_package_path(self):
         """The refusal names the command that actually writes one.
 
