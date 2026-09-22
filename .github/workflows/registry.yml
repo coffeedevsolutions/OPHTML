@@ -246,9 +246,21 @@ jobs:
           echo "C:/msys64/mingw64/bin" >> "$GITHUB_PATH"
           ls -l C:/msys64/mingw64/bin/*fribidi* || true
           # A SUCCESSFUL INSTALL IS NOT PROOF, the same rule the macOS
-          # branch above is built on: ask Pillow for the FEATURE, not
-          # the package manager for its exit status.
-          PATH="/c/msys64/mingw64/bin:$PATH" python -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
+          # branch above is built on: the question is whether Pillow
+          # reports the FEATURE, not whether pacman exited 0.
+          #
+          # ASKED IN THE STEP BELOW RATHER THAN HERE, and the first
+          # version of this job got that wrong and went red on it:
+          # `ModuleNotFoundError: No module named 'PIL'`. The macOS
+          # branch above can measure in place because its remedy
+          # INSTALLS Pillow on the way past; this one only lays down a
+          # DLL, and Pillow does not arrive until `pip install ophtml`
+          # in the next step. So the reading lives with the consumer,
+          # where the interpreter that will actually run fontgen is
+          # the one being asked.
+          #
+          # The fence either way is block 1 of the tutorial, which
+          # cannot pass without Raqm.
 
       # No version pin, on purpose. The question this job asks is what
       # a person gets today, not what we last tested.

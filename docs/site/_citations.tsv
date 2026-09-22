@@ -836,7 +836,7 @@ _facts/examples/opl-env	tools/check-blobs.sh	28	known_flags() {	# them are reada
 _facts/examples/opl-env	tools/check-example-figures.py	1	#!/usr/bin/env python3		"""Diff a shipped example's documented figures against its actual blob.
 _facts/examples/opl-env	tools/check-example-figures.py	46	# 392 KiB footprint that P3b-6 had moved to 336, a Phase 2 record three	# read to decide what to build next. In one day it was found carrying a	# figures out of date, and a slot count of 127 against a blob holding
 _facts/examples/opl-env	tools/check-example-figures.py	111	    act = dict(act)	    text = open(path, encoding="utf-8").read()	    act["vram_kib"] = (
-_facts/getting-started/installation	.github/workflows/registry.yml	257	          python -m pip install ophtml	        run: |	          npm install -g @ophtml/layout
+_facts/getting-started/installation	.github/workflows/registry.yml	269	          python -m pip install ophtml	        run: |	          npm install -g @ophtml/layout
 _facts/getting-started/installation	packages/baker/ps2ui_bake/fontgen.py	103	def _raqm_remedy():		    """What to actually do about it, on the platform you are on.
 _facts/getting-started/installation	packages/baker/ps2ui_bake/fontgen.py	332	    if not features.check("raqm"):	    # no metrics file.	        print("ps2ui-fontgen: this Pillow has no Raqm layout engine, so "
 _facts/getting-started/installation	packages/baker/ps2ui_bake/ps2ui.py	36	def layout_command():		    """How to invoke ps2ui-layout, or a message saying how to get it."""
@@ -899,9 +899,9 @@ _facts/project/security-and-license	.github/workflows/hw.yml	188	    runs-on: ub
 _facts/project/security-and-license	.github/workflows/hw.yml	742	    runs-on: ubuntu-24.04	    needs: [bake, elf]	    # No continue-on-error, deliberately. The probation this job shipped
 _facts/project/security-and-license	.github/workflows/registry.yml	36	permissions:		  contents: read
 _facts/project/security-and-license	.github/workflows/registry.yml	89	    runs-on: ${{ matrix.os }}	        os: [ubuntu-24.04, macos-15, macos-15-intel, windows-2025]	    # Every step below is POSIX shell, and was written when every arm
-_facts/project/security-and-license	.github/workflows/registry.yml	322	    runs-on: ${{ matrix.os }}	        os: [macos-15, macos-15-intel]	    steps:
-_facts/project/security-and-license	.github/workflows/registry.yml	414	    runs-on: windows-2025	    name: the Windows failure nobody has measured	    defaults:
-_facts/project/security-and-license	.github/workflows/registry.yml	545	    runs-on: ${{ matrix.os }}	        os: [macos-15, macos-15-intel]	    steps:
+_facts/project/security-and-license	.github/workflows/registry.yml	334	    runs-on: ${{ matrix.os }}	        os: [macos-15, macos-15-intel]	    steps:
+_facts/project/security-and-license	.github/workflows/registry.yml	426	    runs-on: windows-2025	    name: the Windows failure nobody has measured	    defaults:
+_facts/project/security-and-license	.github/workflows/registry.yml	557	    runs-on: ${{ matrix.os }}	        os: [macos-15, macos-15-intel]	    steps:
 _facts/project/security-and-license	SECURITY.md	5	Report vulnerabilities privately via GitHub's "Report a vulnerability"		(Security tab) on this repository rather than a public issue.
 _facts/project/security-and-license	SECURITY.md	10	- **The C runtime parses `.uib` files.** `ps2ui_load` validates every		  offset, count, cross-reference and string terminator before the
 _facts/project/security-and-license	SECURITY.md	15	- **The build tools run on your machine.** `ps2ui-layout` and	  planned (backlog S2).	  `ps2ui-bake` read HTML/CSS/IR you point them at. Resource-exhaustion
