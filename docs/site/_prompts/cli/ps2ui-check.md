@@ -87,7 +87,7 @@ title: ps2ui-check
 description: <one sentence>
 section: cli
 order: 33
-version: 0.7.0
+version: 0.8.0
 sources: [<every repository path opened>]
 ---
 ```

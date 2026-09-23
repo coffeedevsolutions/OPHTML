@@ -4,7 +4,7 @@ title: Diagnostics
 description: Every message the compiler, baker, checker, previewer and runtime can produce, with its cause, its fix and the page that explains it.
 section: reference
 order: 52
-version: 0.7.0
+version: 0.8.0
 sources: [packages/layout/src/aspect.js, packages/layout/src/box.js, packages/layout/src/css.js, packages/layout/src/flex.js, packages/layout/src/focus.js, packages/layout/src/html.js, packages/layout/src/image.js, packages/layout/src/index.js, packages/layout/src/lint.js, packages/layout/src/paint.js, packages/layout/src/repeat.js, packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/rounding.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/vram.py, runtime/ps2ui.h]
 ---
 

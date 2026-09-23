@@ -89,7 +89,7 @@ title: First boot
 description: <one sentence>
 section: runtime
 order: 48
-version: 0.7.0
+version: 0.8.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -4,7 +4,7 @@ title: ps2ui-fontgen
 description: Measure a TTF into the metrics JSON that the layout compiler and the baker share.
 section: cli
 order: 34
-version: 0.7.0
+version: 0.8.0
 sources: [packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/__init__.py, packages/baker/pyproject.toml, packages/baker/tests/test_baker.py, fonts/regen.sh, fonts/fonts.json, fonts/default.metrics.json, fonts/default-bold.metrics.json, README.md, docs/site/ARCHITECTURE.md]
 ---
 
@@ -40,7 +40,7 @@ ps2ui-fontgen --version
 ```
 
 ```
-ps2ui-fontgen 0.7.0
+ps2ui-fontgen 0.8.0
 ```
 
 The version check runs before every other check, so it cannot fail for a missing font or a missing Raqm. See [main](repo:packages/baker/ps2ui_bake/fontgen.py#L369).

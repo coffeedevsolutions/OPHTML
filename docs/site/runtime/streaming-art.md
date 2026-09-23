@@ -4,7 +4,7 @@ title: Streaming art
 description: Reserve a texture slot at build time and fill it at runtime with ps2ui_tex_set, from texels converted on the host.
 section: runtime
 order: 44
-version: 0.7.0
+version: 0.8.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/sample/main.c, runtime/sample/cover_pattern.h, runtime/tests/test_runtime.c, tools/make_cover_raw.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/vram.py, packages/baker/tests/test_baker.py, packages/layout/src/box.js, fixtures/bench-stream/ui/covers.html, fixtures/bench-stream/ui/dialog.html, fixtures/bench-stream/ui/bench.css, fixtures/bench-stream/build.sh, docs/deploying.md, CHANGELOG.md]
 ---
 

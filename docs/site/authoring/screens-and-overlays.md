@@ -4,7 +4,7 @@ title: Screens and overlays
 description: Bake several screens into one blob, and composite two of them in a frame to get dialogs without a modal feature.
 section: authoring
 order: 19
-version: 0.7.0
+version: 0.8.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/sample/main.c, runtime/tests/test_runtime.c, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/ps2ui.py, packages/layout/src/css.js, examples/opl-env/ps2ui.json, examples/opl-env/ui/confirm.html, examples/opl-env/ui/opl.css, examples/channel6/preview_in_game.py, BACKLOG.md, README.md]
 ---
 

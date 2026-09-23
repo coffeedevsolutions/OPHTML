@@ -4,7 +4,7 @@ title: VRAM budget
 description: The bake-time texture budget, the breakdown ps2ui-bake prints, and how to override it.
 section: authoring
 order: 22
-version: 0.7.0
+version: 0.8.0
 sources: [packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/tests/test_baker.py, runtime/ps2ui.c, runtime/ps2ui.h, runtime/tests/test_runtime.c, tools/check-vram-model.py, CHANGELOG.md, fixtures/bench-stream/build.sh, examples/memcard/ps2ui.json]
 ---
 

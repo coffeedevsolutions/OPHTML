@@ -89,7 +89,7 @@ title: VRAM budget
 description: <one sentence>
 section: authoring
 order: 22
-version: 0.7.0
+version: 0.8.0
 sources: [<every repository path opened>]
 ---
 ```

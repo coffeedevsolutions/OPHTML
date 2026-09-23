@@ -4,7 +4,7 @@ title: Compatibility
 description: The versions that ship together, the .uib format pledge across runtimes, registry prerelease rules, and the supported platforms.
 section: reference
 order: 53
-version: 0.7.0
+version: 0.8.0
 sources: [tools/check-versions.py, tools/check-format-frozen.py, CHANGELOG.md, docs/releasing.md, packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/__init__.py, packages/baker/ps2ui_bake/uib.py, packages/layout/src/index.js, runtime/ps2ui.h, runtime/ps2ui.c, runtime/Makefile, runtime/vendor/README.md, .github/workflows/hw.yml, .github/workflows/registry.yml, examples/memcard/build/library.json]
 ---
 
@@ -24,18 +24,20 @@ them.
 ```
 $ python3 tools/check-versions.py --except-tag
 ok - packages/baker derives its version from ps2ui_bake.__version__ and declares it nowhere else
-ok - @ophtml/layout 0.7.0 and ophtml 0.7.0 are the same version in the two spellings
+ok - @ophtml/layout 0.8.0 and ophtml 0.8.0 are the same version in the two spellings
 ok - PS2UI_VERSION and uib.VERSION are both 7
 ok - docs/format-uib.md's header table says version 7
 ok - docs/format-uib.md's Versioning list explains v7
-ok - CHANGELOG's newest section is headed with 0.7.0
+ok - CHANGELOG's newest section is headed '0.8.0 — 2026-09-23', dated, and is the release the packages carry
 ok - CHANGELOG's open section names format v7
-ok - CHANGELOG's 0.5.0 section records the format it shipped (v7)
-ok - CHANGELOG counts zero format moves since 0.5.0, and v7 -> v7 is 0
-ok - CHANGELOG counts the drift from 0.5.0, the section below it
-ok - README's Quick start note names 0.7.0, 0.7.0, format v7 and the drift since 0.5.0
+ok - CHANGELOG's 0.7.0 section records the format it shipped (v7)
+ok - CHANGELOG counts zero format moves since 0.7.0, and v7 -> v7 is 0
+ok - CHANGELOG counts the drift from 0.7.0, the section below it
+ok - README's Quick start note names 0.8.0, 0.8.0, format v7 and the drift since 0.7.0
+ok - and docs/assets/ophtml-logo-releaseVersion080-plain-white-darkbg.png is actually there
+ok - README's header logo names 0.8.0, which is the release being cut
 ok - @ophtml is scoped and publishes with access: public
-ok - @ophtml/layout publishes to the 'next' dist-tag, so a publish of this prerelease would not take `latest`
+ok - @ophtml/layout 0.8.0 is a release and publishes to `latest`
 ok - docs/releasing.md exists and still names __version__ and the tagging step (keywords, not correctness)
 ok - layout is named @ophtml/layout
 ok - baker is named ophtml
@@ -50,19 +52,22 @@ ok - docs/tutorial-uc3.md names the packages it tells people to install
 ok - docs/PLAN.md's format history runs v1 through v7
 ok - ci.yml runs this file unflagged exactly once, so the tag rule is evaluated (2 invocation(s) in total)
 ok - and it is the last `run:` step in the workflow, so a red tag rule cannot mask the checks before it
+ok - CHANGELOG's 0.8.0 section says what changed (32 entries under 2 heading(s))
+ok - the Changelog page restates the open 0.8.0 section one for one: 32 bullet(s) for 32 entries
+ok - the changelog.mapping row names the 6 number(s) rule 14 counts
 skip - the tag rule, deferred to the full unflagged run at the end of this job (--except-tag)
 ```
 
 | component | version | reads |
 |---|---|---|
-| `ophtml` (PyPI) | 0.8.0.dev0 | `ps2ui_bake.__version__` |
-| `@ophtml/layout` (npm) | 0.8.0-dev.0 | `packages/layout/package.json` |
+| `ophtml` (PyPI) | 0.8.0 | `ps2ui_bake.__version__` |
+| `@ophtml/layout` (npm) | 0.8.0 | `packages/layout/package.json` |
 | ui.json IR | 1 | `IR_VERSION` in `packages/layout/src/index.js` |
 | `.uib` format | 7 | `VERSION` in `packages/baker/ps2ui_bake/uib.py` |
 | `PS2UI_VERSION` (runtime macro) | 7 | `runtime/ps2ui.h` |
 
-`ps2ui --version` prints `ps2ui 0.7.0`. `ps2ui-layout --version`
-prints `ps2ui-layout 0.7.0`. `PS2UI_VERSION` is the frozen
+`ps2ui --version` prints `ps2ui 0.8.0`. `ps2ui-layout --version`
+prints `ps2ui-layout 0.8.0`. `PS2UI_VERSION` is the frozen
 `.uib` format version, not a mechanism that stops the baker and the
 runtime drifting apart by itself. Baker and runtime agree because
 `ps2ui vendor-runtime` ships both files from one package in one

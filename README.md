@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ophtml-logo-releaseVersion070-plain-white-darkbg.png"
+  <img src="docs/assets/ophtml-logo-releaseVersion080-plain-white-darkbg.png"
        alt="OPHTML" width="600">
 </p>
 
@@ -88,28 +88,31 @@ Three ways in, depending on what you want:
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 **Both packages are published**, so `pip install ophtml` and
-`npm install -g @ophtml/layout` are the way in. Those give you `0.7.0`,
-tagged `v0.7.0`, including `ps2ui vendor-runtime`, which writes
-`ps2ui.c` and `ps2ui.h` out of the installed package — so the console
-half needs no clone, and the runtime you compile is the one matching the
-baker that wrote your blob, and `ps2ui_offset_set`, the first call that
-changes *where* the runtime draws rather than what. This tree has since
-moved on to `0.8.0.dev0` (`0.8.0-dev.0` on npm), a prerelease that is on
-neither registry and is not meant to be. The two still understand each
-other, because the blobs baked here are format **v7** and zero moves of
-the `.uib` format have landed since 0.7.0: that is the stability
-pledge, made at v7 and enforced by `tools/check-format-frozen.py`
-rather than announced, so a blob this tree writes loads under a 0.7.0
-runtime and the other way round. Every CLI answers `--version`. What is
-left of Phase 4's exit gate in [docs/PLAN.md](docs/PLAN.md) is the half
-that always needed a console; [docs/releasing.md](docs/releasing.md) is
-the procedure, and `tools/check-versions.py` keeps this paragraph
-honest.
+`npm install -g @ophtml/layout` are the way in. Those give you `0.8.0`,
+tagged `v0.8.0` — the first release cut with Windows and Apple Intel
+arms in CI. It carries three Windows fixes, two of which the Windows
+arm's first runs turned up, and none of which any job could execute
+until this release existed. It includes
+`ps2ui vendor-runtime`, which writes `ps2ui.c` and `ps2ui.h` out of the
+installed package — so the console half needs no clone, and the runtime
+you compile is the one matching the baker that wrote your blob — and
+`ps2ui_offset_set`, the first call that changes *where* the runtime
+draws rather than what. The blobs it bakes are format **v7**, and
+zero moves of the `.uib` format have landed since 0.7.0: that is
+the stability pledge, made at v7 and enforced by
+`tools/check-format-frozen.py` rather than announced, so a blob this
+tree writes loads under a 0.7.0 runtime and the other way round. Every
+CLI answers `--version`. What is left of Phase 4's exit gate in
+[docs/PLAN.md](docs/PLAN.md) is the half that always needed a console;
+[docs/releasing.md](docs/releasing.md) is the procedure, and
+`tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:
 
 - Node 18+
-- Python 3 with Pillow
+- Python 3 with a Pillow that reports Raqm. On macOS or Windows that
+  usually means installing fribidi first; `ps2ui fontgen` refuses
+  without it and prints the remedy for your platform
 - A C compiler for the host tests
 - DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 

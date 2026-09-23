@@ -4,7 +4,7 @@ title: Text and fonts
 description: How fonts reach the toolchain, what glyphs exist, and how the shared pen measures, kerns, wraps and truncates a string.
 section: authoring
 order: 13
-version: 0.7.0
+version: 0.8.0
 sources: [packages/layout/src/text.js, packages/layout/src/index.js, packages/layout/src/values.js, packages/layout/src/css.js, packages/layout/src/flex.js, packages/layout/src/paint.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/rounding.py, packages/baker/ps2ui_bake/pen.py, packages/baker/ps2ui_bake/atlas.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, fonts/fonts.json, fonts/regen.sh, fonts/default.metrics.json]
 ---
 

@@ -12,7 +12,7 @@ runtime replays on the PlayStation 2, plus PNG previews rendered by
 replaying that same blob.
 
 ```sh
-PYTHONPATH=. python3 -m ps2ui_bake ui.json -o ui.uib --preview out.png
+ps2ui-bake ui.json -o ui.uib --preview out.png
 ```
 
 `ps2ui serve` puts that same replay behind a localhost page with
@@ -56,11 +56,21 @@ further wiring. That is the whole console half without a clone.
 is the same thing inside a checkout, with build arms for each bring-up
 step.
 
-Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. The
-authoring half above needs none of this: `pip install ophtml`, a TTF and
-Node are enough to build, check and preview a real blob.
+Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively.
 [docs/deploying.md](https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/deploying.md)
 is the path from an ELF onto hardware.
+
+The authoring half needs none of that: `pip install ophtml`, a TTF,
+Node, and a Pillow that reports Raqm are enough to build, check and
+preview a real blob. **Raqm is not automatic on macOS or Windows.**
+`ps2ui fontgen` needs it to measure kerning, and Raqm loads fribidi from
+the system at run time; no Pillow wheel bundles fribidi. Most Linux
+systems already have it. On macOS it is `brew install fribidi`; on
+Windows it is a fribidi DLL on `PATH` before Python starts. `ps2ui
+fontgen` checks before writing anything and prints the remedy for the
+platform it finds, and the
+[installation guide](https://coffeedevsolutions.github.io/OPHTML/getting-started/installation/#if-fontgen-refuses)
+has the full table.
 
 ## Working from a checkout
 
