@@ -4,7 +4,7 @@ title: CRT linter
 description: Eight compile-time rules that catch what a desktop preview cannot show, and the three CRT warnings the blob validator adds.
 section: authoring
 order: 21
-version: 0.8.0
+version: 0.9.0
 sources: [packages/layout/src/lint.js, packages/layout/src/index.js, packages/layout/src/box.js, packages/layout/src/paint.js, packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, docs/tutorial-uc3.md, README.md, docs/site/assets/authoring/crt-linter/demo/ui/library.html, docs/site/assets/authoring/crt-linter/demo/ui/library.css, docs/site/assets/authoring/crt-linter/demo/ps2ui.json]
 ---
 

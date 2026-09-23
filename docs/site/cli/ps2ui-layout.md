@@ -4,7 +4,7 @@ title: ps2ui-layout and ps2ui-dev
 description: Compile one screen's HTML and CSS into ui.json, or watch the pair and rebake the blob and preview on every save.
 section: cli
 order: 31
-version: 0.8.0
+version: 0.9.0
 sources: [packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, packages/layout/src/aspect.js, packages/layout/src/lint.js, packages/layout/package.json, packages/layout/test/cli.test.js, packages/layout/test/fonts.test.js, packages/baker/ps2ui_bake/ps2ui.py, examples/memcard/ps2ui.json, examples/memcard/build.sh, fonts/fonts.json, README.md]
 ---
 

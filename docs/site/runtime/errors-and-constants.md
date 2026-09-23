@@ -4,7 +4,7 @@ title: Errors and constants
 description: Every ps2ui error code with its value and trigger, the order ps2ui_load checks a blob, every public macro, the feature bits, and the build-time switches.
 section: runtime
 order: 43
-version: 0.8.0
+version: 0.9.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/tests/test_narrow.c, runtime/Makefile, runtime/sample/main.c, runtime/sample/Makefile, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/uib.py, tools/check-versions.py, docs/format-uib.md, README.md]
 ---
 

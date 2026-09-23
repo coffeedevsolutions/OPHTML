@@ -84,7 +84,7 @@ title: How it works
 description: <one sentence>
 section: getting-started
 order: 4
-version: 0.8.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

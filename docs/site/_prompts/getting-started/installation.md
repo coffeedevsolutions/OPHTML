@@ -55,7 +55,7 @@ Line numbers are hints from the exploration that produced this brief; re-locate 
 
 - packages/baker/pyproject.toml - name, requires-python, dependencies, console scripts
 - packages/layout/package.json - name, bin, engines, publishConfig
-- CHANGELOG.md 0.4.0, 0.7.0 and 0.8.0 entries on `_raqm_remedy` - 0.8.0's refusal and per-platform remedy, which F47 deleted from the tree; packages/baker/ps2ui_bake/fontgen.py `_shaper` - why the next release needs none of it
+- CHANGELOG.md 0.4.0, 0.6.0 and 0.8.0 entries on `_raqm_remedy` - 0.8.0's refusal and per-platform remedy, which F47 deleted from the tree; packages/baker/ps2ui_bake/fontgen.py `_shaper` - why the next release needs none of it
 - packages/baker/ps2ui_bake/ps2ui.py lines 36-57 - how `ps2ui build` finds the layout compiler (`PS2UI_LAYOUT`, PATH, checkout)
 - fonts/fonts.json - candidate paths; the vendored DejaVu pair exists only in a checkout
 - .github/workflows/registry.yml - what a from-registry install proves on ubuntu and macOS
@@ -68,7 +68,7 @@ Each item is `claim -> how to prove it`. Run every command. Paste real output in
 1. `pip install ophtml` installs `ps2ui`, `ps2ui-bake`, `ps2ui-check`, `ps2ui-fontgen` -> read `[project.scripts]`; run `ps2ui --version` and paste
 2. `npm install -g @ophtml/layout` installs `ps2ui-layout` and `ps2ui-dev` -> read `bin`; run `ps2ui-layout --version` and paste
 3. Node >= 18, Python >= 3.9, Pillow >= 9 -> read `engines` and `requires-python`/`dependencies`
-4. 0.8.0's `ps2ui fontgen` refuses without Raqm and prints a platform remedy that checks fribidi separately; the next release measures through uharfbuzz and has no refusal -> label the section as 0.8.0's; cite the CHANGELOG entries and `registry.yml`'s runs against the published package for the remedy, and `TestFontgenNeedsNoRaqm` for the tree
+4. `ps2ui fontgen` measures through uharfbuzz and has no Raqm requirement; 0.8.0 and earlier refused without Raqm, and upgrading is the fix -> keep "If fontgen refuses" (other pages link to its anchor) as one paragraph saying so; cite the 0.9.0 CHANGELOG entry and `TestFontgenNeedsNoRaqm`
 5. Layout compiler discovery order is `$PS2UI_LAYOUT`, then `ps2ui-layout` on PATH, then a sibling checkout -> read ps2ui.py; run `PS2UI_LAYOUT=/bin/false ps2ui build` on the memcard example and paste the error
 6. From a checkout: `pip install -e packages/baker` puts the four commands on PATH -> run it and `which ps2ui`
 7. The console half needs ps2dev; nothing else does -> cite integrate.vendor.behaviour from runtime/integrating
@@ -92,7 +92,7 @@ title: Installation
 description: <one sentence>
 section: getting-started
 order: 1
-version: 0.8.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

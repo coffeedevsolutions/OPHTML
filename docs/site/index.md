@@ -4,7 +4,7 @@ title: OPHTML
 description: Build PlayStation 2 homebrew UIs from HTML and CSS, and find every part of the documentation library from one page.
 section: root
 order: 0
-version: 0.8.0
+version: 0.9.0
 sources: [docs/site/ARCHITECTURE.md, docs/site/_facts/getting-started/installation.md, docs/site/_facts/getting-started/quickstart.md, docs/site/_facts/getting-started/how-it-works.md, docs/site/_facts/reference/compatibility.md, docs/site/getting-started/installation.md, docs/site/getting-started/quickstart.md, docs/site/getting-started/tutorial-game-browser.md, docs/site/assets/getting-started/how-it-works/stages.svg, docs/site/assets/assets.json, README.md]
 ---
 
@@ -51,8 +51,7 @@ the same opl-env library screen, the same blob, theme 0 then theme 1:
 | Node.js | 18 or newer | `ps2ui-layout`, `ps2ui-dev` |
 | Python | 3.9 or newer | `ps2ui`, `ps2ui-bake`, `ps2ui-check`, `ps2ui-fontgen` |
 | Pillow | 9 or newer | `ps2ui-bake`, `ps2ui-fontgen` |
-| uharfbuzz | 0.51.7 or newer, from the next release | `ps2ui-fontgen`; pip installs it |
-| Raqm and fribidi in Pillow | present, for 0.8.0 only | `ps2ui-fontgen` 0.8.0 refuses without Raqm; see [If fontgen refuses](page:getting-started/installation#if-fontgen-refuses). The next release does not need it |
+| uharfbuzz | 0.51.7 or newer | `ps2ui-fontgen`; pip installs it, and nothing comes from the system |
 | a TTF | any | `ps2ui-fontgen` |
 | a C cross toolchain (ps2dev) | latest | the console half only, vendored by `ps2ui vendor-runtime` |
 

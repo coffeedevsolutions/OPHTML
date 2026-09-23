@@ -92,7 +92,7 @@ title: The frame loop
 description: <one sentence>
 section: runtime
 order: 41
-version: 0.8.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

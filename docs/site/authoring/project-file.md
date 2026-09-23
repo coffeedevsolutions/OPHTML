@@ -4,7 +4,7 @@ title: The project file
 description: Every ps2ui.json key with its default and the tool it reaches, how paths resolve, and what the loader refuses.
 section: authoring
 order: 10
-version: 0.8.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, examples/memcard/ps2ui.json, examples/opl-env/ps2ui.json, examples/channel6/ps2ui.json, examples/memcard/build.sh, examples/channel6/build.sh, docs/tutorial-uc3.md, CHANGELOG.md, CONTRIBUTING.md, .github/workflows/ci.yml, README.md]
 ---
 
@@ -133,7 +133,7 @@ A screen's name is the HTML file's stem. The name is the intermediate's file ste
 
 ### Fonts
 
-The `fonts` key names a manifest. Without it, `fonts/fonts.json` beside the project is used when that file exists. Without either, no `--fonts` is passed and the baker applies its own default, which is the repository's `fonts/fonts.json` and exists only in a checkout. The tutorial project sets no `fonts` key, [docs/tutorial-uc3.md](repo:docs/tutorial-uc3.md#L146); it relies on `ps2ui fontgen` having written `fonts/fonts.json` beside it. The three shipped examples set no `fonts` key either and build against the checkout default.
+The `fonts` key names a manifest. Without it, `fonts/fonts.json` beside the project is used when that file exists. Without either, no `--fonts` is passed and the baker applies its own default, which is the repository's `fonts/fonts.json` and exists only in a checkout. The tutorial project sets no `fonts` key, [docs/tutorial-uc3.md](repo:docs/tutorial-uc3.md#L134); it relies on `ps2ui fontgen` having written `fonts/fonts.json` beside it. The three shipped examples set no `fonts` key either and build against the checkout default.
 
 ### A directory argument
 

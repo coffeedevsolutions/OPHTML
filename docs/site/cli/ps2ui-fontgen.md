@@ -4,7 +4,7 @@ title: ps2ui-fontgen
 description: Measure a TTF into the metrics JSON that the layout compiler and the baker share.
 section: cli
 order: 34
-version: 0.8.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/__init__.py, packages/baker/pyproject.toml, packages/baker/tests/test_baker.py, fonts/regen.sh, fonts/fonts.json, fonts/default.metrics.json, fonts/default-bold.metrics.json, README.md, docs/site/ARCHITECTURE.md]
 ---
 
@@ -40,7 +40,7 @@ ps2ui-fontgen --version
 ```
 
 ```
-ps2ui-fontgen 0.8.0
+ps2ui-fontgen 0.9.0
 ```
 
 The version check runs before every other check, so it cannot fail for a missing font or a missing dependency. See [main](repo:packages/baker/ps2ui_bake/fontgen.py#L145).
@@ -143,7 +143,7 @@ Kerning is measured, not read from a `kern` or `GPOS` table. For every ordered p
 | 1 | the TTF cannot be opened (`OSError: cannot open resource` traceback) | check the path |
 | 1 | `uharfbuzz` is not installed, which only a checkout can be | `pip install uharfbuzz` |
 
-There is no Raqm check. Up to 0.8.0 the tool measured through Pillow's Raqm layout engine, which loads fribidi from the machine, so a stock macOS or Windows install refused to write anything; that refusal and its remedies are on [Installation](page:getting-started/installation#if-fontgen-refuses) for as long as 0.8.0 is the published release. HarfBuzz reproduces the tables Raqm measured exactly, so no committed metrics file changed. `TestFontgenNeedsNoRaqm` at [test_baker.py](repo:packages/baker/tests/test_baker.py#L157) tells Pillow it has no Raqm and requires the committed tables byte for byte.
+There is no Raqm check. Up to 0.8.0 the tool measured through Pillow's Raqm layout engine, which loads fribidi from the machine, so a stock macOS or Windows install refused to write anything; that refusal is on [Installation](page:getting-started/installation#if-fontgen-refuses), where upgrading is the fix. HarfBuzz reproduces the tables Raqm measured exactly, so no committed metrics file changed. `TestFontgenNeedsNoRaqm` at [test_baker.py](repo:packages/baker/tests/test_baker.py#L157) tells Pillow it has no Raqm and requires the committed tables byte for byte.
 
 `uharfbuzz` is imported only when a font is measured, so a checkout without it loses this one command, with one line naming the package to install, and nothing is written.
 

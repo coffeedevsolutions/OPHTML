@@ -82,7 +82,7 @@ title: FAQ
 description: <one sentence>
 section: project
 order: 73
-version: 0.8.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

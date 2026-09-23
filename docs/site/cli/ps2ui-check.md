@@ -4,7 +4,7 @@ title: ps2ui-check
 description: Validate a baked .uib against the invariants the C runtime indexes by without checking.
 section: cli
 order: 33
-version: 0.8.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/clip.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, tools/check-blobs.sh, runtime/ps2ui.h, .github/workflows/ci.yml, .github/workflows/hw.yml, examples/memcard/build.sh, examples/memcard/ps2ui.json, README.md, CHANGELOG.md]
 ---
 

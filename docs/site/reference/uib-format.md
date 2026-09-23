@@ -4,7 +4,7 @@ title: .uib
 description: The baked blob the console loads, record by record, with the alignment and CRC rules and the v7 stability pledge.
 section: reference
 order: 51
-version: 0.8.0
+version: 0.9.0
 sources: [docs/format-uib.md, runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/ps2ui.py, tools/check-format-frozen.py, tools/check-versions.py, docs/PLAN.md, README.md, examples/memcard/build/ui.uib, examples/opl-env/build/ui.uib, examples/channel6/build/ui.uib]
 ---
 

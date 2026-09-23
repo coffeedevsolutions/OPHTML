@@ -29,10 +29,10 @@ tracks both headings. A runbook nobody has executed is a draft.
 
 Less than it looks like, and the exact amount matters.
 
-This section describes the tree as it stands. Step 9 has been done, so
-`__version__` is `0.4.0.dev0` and `packages/layout/package.json` is
-back on the `next` dist-tag. It stops describing the tree the moment
-step 4 retitles the CHANGELOG for the next release.
+This section describes the tree between a step 9 and the next step 4,
+when `__version__` is a `.dev0` prerelease and `packages/layout/
+package.json` is on the `next` dist-tag. From step 4 to the next step 9,
+while a cut is open and then published, it describes no tree at all.
 
 **npm.** A range like `^0.3.0` does not match `0.3.0-dev.0`, so a
 dependent asking for the package by range never resolves a prerelease.
@@ -199,6 +199,27 @@ written twice to avoid.
    skips this stays green. The 0.7.0 cut did it and nothing wrote it
    down; the 0.8.0 cut then skipped it, and was caught only by a
    pre-publish audit reading the live footer.
+
+   **Then the prose written relative to the release being cut.**
+   Between cuts, pages and facts rows about a change that has not
+   shipped say "from the next release", "0.8.0 only", "the published
+   0.8.0". At the cut every one of them is false: the next release is
+   this one. Nothing reads them. `check-doc-versions.py` reads the
+   recorded version banners and these are prose, and
+   `check-site-pages.py` pins citations, not whether a fact row still
+   agrees with the page it restates. So grep for them, in the pages
+   *and* the facts rows:
+
+   ```sh
+   git grep -n -E 'next release|<previous> only|published <previous>|<previous> and earlier' -- docs/ README.md packages/*/README.md
+   ```
+
+   with `<previous>` spelled out (`0.8.0`). Every hit either becomes a
+   statement about this version or is history that says so. This is
+   the gap three cuts running were reviewed for and missed until review:
+   #170's version table, #172's front-page requirements row, and at
+   0.9.0 four facts rows that still called 0.9.0 "the next release"
+   after every page beside them had moved.
 
    ```sh
    python3 tools/check-doc-impact.py <previous tag> --all
@@ -565,7 +586,13 @@ written twice to avoid.
    (the changelog page's two, and `install.commands`' verified-by pair
    once measured from the registries), and restoring the collapsed
    rows' halves added banners, so the record went from 29 to **31: 14
-   release and 17 tree**. Expect the next cut to collapse all 31 again.
+   release and 17 tree**. The 0.9.0 cut then collapsed it as predicted,
+   to **30 banners, all tree**: the two collapsed rows lost their second
+   halves again, `install.commands` went from six banners to four, and the
+   cut added two, `compat.versions` on the changelog page's facts and the
+   `is a release and publishes to latest` line in the pasted block on
+   `reference/compatibility.md`. Step 9 after 0.9.0 starts from that
+   record and re-derives the groups before it trusts them.
 
    The first draft of this note listed ten banners copied from the
    record before the cut. Review of #170 found one of them no longer
