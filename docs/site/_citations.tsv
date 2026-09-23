@@ -945,6 +945,10 @@ _facts/reference/diagnostics	packages/baker/ps2ui_bake/preview.py	118	    if isi
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/preview.py	236	            canvas.alpha_composite(src, (c[0], c[1]))	                                c[0] - dx + c[2], c[1] - dy + c[3]))	            continue
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/project.py	112	    def _screen(self, spec, index):		        if isinstance(spec, str):
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/project.py	190	    # blob. Treating `-o` as "the blob moves, everything else stays"	    # A SECOND BUILD OF ONE PROJECT MOVES ITS WHOLE BUILD, not just the	    # made channel6's 16:9 build overwrite the 4:3 build's intermediate
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/ps2ui.py	156	def require_fonts(proj):		    """Refuse a project with no font manifest, and say what writes one.
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/ps2ui.py	187	    raise ProjectError(	        return	        "no fonts for this project: %s does not exist.\\n"
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/ps2ui.py	207	    require_fonts(proj)	    """Run the layout compiler over every screen. Returns IR paths."""	    base = layout_command()
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/ps2ui.py	426	    require_fonts(proj)	    proj = load(args.project)	    screen = pick_screen(proj, args.screen)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/ps2ui.py	582	    d.set_defaults(fn=cmd_dev)	                   help="build once and exit, rather than watching")	
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	400	        the point of a name. At different sizes they cannot: the	        Two elements naming the same slot share one texture, which is	        reservation is one number and the app is told one number, so
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	575	                    raise ValueError(f"unknown IR command op: {op}")	                else:	            self.dropped += self._trim_dead_geometry(cmd_first, canvas)

@@ -112,7 +112,7 @@ pass stopped at the first.
 
 [box.js](repo:packages/layout/src/box.js), the flex solver and the
 display-list builder produce these. An error prints as `error: <message>` and
-exits 1. A warning prints as `warning: <message>`. Four rows are unreachable
+exits 1. A warning prints as `warning: <message>`. Two rows are unreachable
 from any sheet, and are listed so a search for them ends here.
 
 | message | severity | cause | fix | page |
@@ -147,7 +147,6 @@ from any sheet, and are listed so a search for them ends here.
 | `warning: unknown attribute: <tag> line <n>: <attr> is not read by anything`, then `— did you mean <known>?` or `— known: <sorted list>` | warning | a `data-` attribute outside the six the compiler reads; one line per typo | correct the spelling | [HTML](page:authoring/html#reference-table) |
 | `layout: <tag> line <n>: data-repeat="<n>" but no {i} or {n} anywhere inside, so every copy is identical. Add {i} to the ids and data-slot names, or the copies cannot be told apart.` | warning | a count above 1 with no index substitution in the subtree | add `{i}` to the ids and slot names | [Lists](page:authoring/lists#expansion) |
 | `focus: "<name>" is unreachable from the initial focus by D-pad` | warning | the breadth-first walk from `initial` never reaches that node | move the element, or pass `--focus-wrap` | [Focus and navigation](page:authoring/focus-and-navigation#limits-and-errors) |
-| `css: :focus styles matched <tag> line <n> but no enclosing element has the focusable attribute; the delta can never show` | warning | unreachable; a `:focus` compound never matches outside a focusable scope | nothing to fix | [Focus and navigation](page:authoring/focus-and-navigation#limits-and-errors) |
 
 ## Lints
 
@@ -263,6 +262,7 @@ exit 2.
 | `ps2ui: screens[<i>] has unknown key(s) '<k>'; a screen takes css, focusWrap, html` | error | a misspelt key on a screen entry | use one of the three | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: screens[<i>] has no "html"` | error | a screen object with no markup path | add `html` | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: screens[<i>] (<html>) has no stylesheet: set "css" at the top level for every screen, or on this one` | error | neither the project nor the screen names a stylesheet | set `css` | [The project file](page:authoring/project-file#reference-table) |
+| `ps2ui: no fonts for this project: <path> does not exist.` plus the `ps2ui fontgen` line that writes one | error, exit 1 | `ps2ui build` or `ps2ui dev` on a project whose font manifest does not exist, with no fallback beside the package | run `ps2ui fontgen <regular.ttf> <bold.ttf>`, or point `fonts` in `ps2ui.json` at a manifest you have | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
 | `ps2ui: cannot find ps2ui-layout, which compiles the HTML and CSS.` plus three remedy lines | error | no `PS2UI_LAYOUT`, no `ps2ui-layout` on PATH and no checkout beside the package | install `@ophtml/layout`, or set `PS2UI_LAYOUT` | [ps2ui](page:cli/ps2ui#how-build-finds-the-compiler) |
 | `ps2ui: ps2ui-layout failed on <html> (exit <n>)` | error | the compiler refused that screen and already said why | fix what the compiler printed | [ps2ui](page:cli/ps2ui#build) |
 | `` ps2ui: <path>: no blob to check. Run `ps2ui build` first -- this does not build, so that a check can never report on a blob it just made and nobody has seen. `` | error | `ps2ui check` ran before any build | run `ps2ui build` | [ps2ui](page:cli/ps2ui#check) |
