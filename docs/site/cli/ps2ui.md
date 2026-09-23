@@ -4,7 +4,7 @@ title: ps2ui
 description: The umbrella command over the toolchain: every subcommand, the project keys it forwards, what it writes and its exit codes.
 section: cli
 order: 30
-version: 0.8.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/__main__.py, packages/baker/pyproject.toml, packages/layout/package.json, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, packages/baker/tests/test_baker.py, packages/baker/tests/test_serve.py, examples/memcard/build.sh, examples/channel6/build.sh, README.md, CHANGELOG.md]
 ---
 
@@ -17,7 +17,7 @@ for what the keys mean. This page states where each key goes.
 
 ```console
 $ ps2ui --version
-ps2ui 0.8.0
+ps2ui 0.9.0
 ```
 
 ```console
@@ -291,7 +291,7 @@ single-face tool and its charset are on
 |---|---|
 | 0 | both faces and the manifest were written |
 | 1 | a TTF cannot be read, the weight is not an integer, or `uharfbuzz` is not installed |
-| 2 | argparse rejected the command line; in 0.8.0, also Pillow having no Raqm layout engine |
+| 2 | argparse rejected the command line |
 
 The first failing face returns its own code and no manifest is written.
 
@@ -625,15 +625,15 @@ Run these from the repository root.
 
 ```console
 $ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui --version
-ps2ui 0.9.0.dev0
+ps2ui 0.9.0
 $ node packages/layout/bin/ps2ui-layout.js --version
-ps2ui-layout 0.9.0-dev.0
+ps2ui-layout 0.9.0
 ```
 
-This tree is a prerelease, so the two read differently: PEP 440's
-`0.9.0.dev0` is semver `0.9.0-dev.0`. A plain release is spelled
-identically in both, so an installed 0.8.0 prints `0.8.0` twice;
-`tools/check-versions.py` holds the two spellings together either way.
+A plain release is spelled identically as a Python version and as an npm
+version, so these two read the same. They diverge on a prerelease, where
+PEP 440's `0.10.0.dev0` is semver `0.10.0-dev.0`; `tools/check-versions.py`
+holds the two spellings together either way.
 
 ## Related pages
 

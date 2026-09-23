@@ -66,9 +66,9 @@ Windows and Linux alike. `ps2ui fontgen` measures kerning with HarfBuzz
 through `uharfbuzz`, which pip installs with this package as a wheel for
 every platform, so nothing has to come from the system. (0.8.0 and
 earlier measured through Pillow's Raqm engine, which needs a fribidi no
-Pillow wheel bundles; if you are pinned to one of those, the
+Pillow wheel bundles, and refused on a stock Mac or Windows box; see the
 [installation guide](https://coffeedevsolutions.github.io/OPHTML/getting-started/installation/#if-fontgen-refuses)
-has the remedy for each platform.)
+if you meet that refusal.)
 
 ## Working from a checkout
 

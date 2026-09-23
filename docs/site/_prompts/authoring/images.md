@@ -93,7 +93,7 @@ title: Images
 description: <one sentence>
 section: authoring
 order: 14
-version: 0.8.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -4,7 +4,7 @@ title: Lists
 description: data-repeat bakes a fixed number of rows, and the runtime list window scrolls any number of items through them.
 section: authoring
 order: 16
-version: 0.8.0
+version: 0.9.0
 sources: [packages/layout/src/repeat.js, packages/layout/src/index.js, packages/layout/test/layout.test.js, runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/Makefile, docs/tutorial-uc3.md, docs/site/assets/authoring/lists/demo/ui/library.html, docs/site/assets/authoring/lists/demo/ui/library.css, docs/site/assets/authoring/lists/demo/ps2ui.json]
 ---
 
@@ -24,7 +24,7 @@ Six rows cost six focus nodes and six copies of the row's paint commands. That c
 
 ## Minimal example
 
-The screen below is the tutorial's [library.html](repo:docs/tutorial-uc3.md#L77). One row carries `data-repeat="6"`, an `id` with `{i}` in it, and two slots.
+The screen below is the tutorial's [library.html](repo:docs/tutorial-uc3.md#L65). One row carries `data-repeat="6"`, an `id` with `{i}` in it, and two slots.
 
 ```html
 <screen name="library">
@@ -54,7 +54,7 @@ ps2ui-bake: 1 screen(s), 24 records, 2 textures (32 KiB baked), 1 CLUTs -> build
 ps2ui-bake: arena 1516 bytes (static uint8_t arena[1516] __attribute__((aligned(16))))
 ```
 
-That run wrote six focus nodes named `row-0` to `row-5`, and thirteen slots. The runtime binds a list to those names and fills those slots. This is the loop from [the tutorial](repo:docs/tutorial-uc3.md#L378).
+That run wrote six focus nodes named `row-0` to `row-5`, and thirteen slots. The runtime binds a list to those names and fills those slots. This is the loop from [the tutorial](repo:docs/tutorial-uc3.md#L366).
 
 ```c
 ps2ui_list list;

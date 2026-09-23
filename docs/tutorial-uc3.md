@@ -41,28 +41,16 @@ ps2ui-fontgen: manifest -> fonts/fonts.json
 Two faces, not a weight axis: the PS2 does not have the VRAM for one.
 Anything with `font-weight: 600` or more resolves to bold.
 
-> **With 0.8.0 on macOS or Windows you may find this is where the
-> tutorial stops**, with `ps2ui-fontgen: this Pillow has no Raqm layout
-> engine`. That release measures kerning through Pillow's Raqm engine,
-> which loads `fribidi` from your system at run time, and no Pillow
-> wheel bundles it. Without Raqm every advance comes out identical and
-> the kern table empty, so it refuses rather than silently un-kern the
-> whole project.
->
-> **The next release needs none of this.** It measures through
-> HarfBuzz with `uharfbuzz`, which `pip install ophtml` installs as a
-> wheel on every platform, and reproduces 0.8.0's tables exactly; this
-> tree already works that way, and CI runs this step on stock macOS
-> and Windows machines. Until it is published, `ps2ui fontgen` prints
-> the fix for the platform it finds. On macOS try `brew install
-> fribidi` first, which was enough on an Intel runner, then
-> `brew install libraqm` and a source build of Pillow **alone**, with
-> `--no-binary pillow` rather than `--no-binary :all:`, which is what
-> an Apple silicon runner needed. On Windows it is a fribidi DLL on
-> `PATH` before Python starts. Check `features.check('raqm')` rather
-> than pip's exit status, because Pillow builds and exits 0 without
-> libraqm and simply leaves the feature out. This is the first thing
-> Phase 4's exit gate found, and it is tracked in [PLAN.md](PLAN.md).
+> **On 0.8.0 or earlier, macOS or Windows may stop you here**, with
+> `ps2ui-fontgen: this Pillow has no Raqm layout engine`. Those
+> releases measured kerning through Pillow's Raqm engine, which loads a
+> `fribidi` library no Pillow wheel ships. `pip install --upgrade
+> ophtml` is the whole fix: 0.9.0 measures through HarfBuzz with
+> `uharfbuzz`, which pip installs as a wheel on every platform, and
+> writes the same tables byte for byte. CI runs this step on stock
+> macOS and Windows machines for every pull request. This was the first
+> thing Phase 4's exit gate found, and it is tracked in
+> [PLAN.md](PLAN.md).
 
 That wrote `fonts/fonts.json` as well, which names both TTFs and both
 metrics files. Everything downstream reads it and you will not have to

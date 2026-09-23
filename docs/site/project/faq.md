@@ -4,7 +4,7 @@ title: FAQ
 description: Twenty questions the code answers, each linked to the page that proves it.
 section: project
 order: 73
-version: 0.8.0
+version: 0.9.0
 sources: [docs/site/ARCHITECTURE.md, docs/findings.md, docs/site/_facts/authoring/css.md, docs/site/_facts/authoring/text-and-fonts.md, docs/site/_facts/getting-started/installation.md, docs/site/_facts/runtime/frame-loop.md, docs/site/_facts/runtime/errors-and-constants.md, docs/site/_facts/runtime/streaming-art.md, docs/site/_facts/cli/previewer.md, docs/site/_facts/authoring/screens-and-overlays.md, docs/site/_facts/runtime/moving-and-hiding.md, docs/site/_facts/authoring/vram-budget.md, docs/site/_facts/authoring/dynamic-text.md, docs/site/_facts/authoring/lists.md, docs/site/_facts/cli/ps2ui-check.md, docs/site/_facts/cli/ps2ui-fontgen.md, docs/site/_facts/authoring/html.md, docs/site/_facts/runtime/integrating.md, docs/site/authoring/css.md, docs/site/authoring/text-and-fonts.md, docs/site/getting-started/installation.md, docs/site/runtime/frame-loop.md, docs/site/runtime/errors-and-constants.md, docs/site/runtime/streaming-art.md, docs/site/cli/previewer.md, docs/site/authoring/screens-and-overlays.md, docs/site/authoring/lists.md, docs/site/cli/ps2ui-check.md, docs/site/authoring/vram-budget.md, docs/site/authoring/html.md, docs/site/authoring/dynamic-text.md, docs/site/runtime/integrating.md]
 ---
 
@@ -36,12 +36,10 @@ every other colour a screen needs. See [CSS](page:authoring/css#colours).
 
 ### fontgen refuses on macOS or Windows
 
-That is 0.8.0, which checks `features.check("raqm")` before opening a
-font and refuses to write a metrics file without it. The next release
-measures through `uharfbuzz` and does not ask. With 0.8.0 on macOS the
-remedy is `brew install fribidi` first, then rebuilding Pillow against
-`libraqm` if that does not clear it; on Apple silicon it takes the
-rebuild. Verify with `features.check('raqm')`, not pip's exit status. See
+That is 0.8.0 or earlier, which measured kerning through Pillow's Raqm
+engine and refused without the fribidi library no Pillow wheel ships.
+`pip install --upgrade ophtml` is the fix: 0.9.0 measures through
+`uharfbuzz`, never asks, and writes the same tables. See
 [Installation](page:getting-started/installation#if-fontgen-refuses).
 
 ### Text is boxes on the console

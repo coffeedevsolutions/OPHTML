@@ -4,7 +4,7 @@ title: HTML
 description: What the ps2ui parser accepts, every attribute the compiler reads, and every hard error the markup can raise.
 section: authoring
 order: 11
-version: 0.8.0
+version: 0.9.0
 sources: [packages/layout/src/html.js, packages/layout/src/box.js, packages/layout/src/repeat.js, packages/layout/src/focus.js, packages/layout/src/css.js, packages/layout/test/parse.test.js, packages/layout/test/fonts.test.js, docs/tutorial-uc3.md, examples/memcard/ui/library.html, README.md]
 ---
 
@@ -22,7 +22,7 @@ Thirteen attributes reach the compiler. They are listed under [Reference table](
 
 ## Minimal example
 
-This is the screen from the [tutorial](repo:docs/tutorial-uc3.md#L77). `data-repeat` stamps out six rows. Each row holds two slots and one focus node.
+This is the screen from the [tutorial](repo:docs/tutorial-uc3.md#L65). `data-repeat` stamps out six rows. Each row holds two slots and one focus node.
 
 ```html
 <screen name="library">

@@ -4,7 +4,7 @@ title: Internals
 description: The repository documents behind this site, the seven testing-failure shapes, and the findings graph that tracks what still holds.
 section: project
 order: 75
-version: 0.8.0
+version: 0.9.0
 sources: [docs/site/ARCHITECTURE.md, docs/architecture.md, docs/PLAN.md, docs/method.md, docs/findings.md, docs/findings.yaml, docs/bench-phase1.md, docs/bench-phase2.md, docs/bench-runbook.md, docs/bringup.md, docs/design-bringup-3-to-9.md, docs/design-p3b-theming.md, docs/design-v6-resource-model.md, docs/releasing.md, tools/check-findings.py, docs/site/reference/uib-format.md, docs/site/runtime/first-boot.md, docs/site/authoring/theming.md, docs/site/runtime/frame-loop.md]
 ---
 

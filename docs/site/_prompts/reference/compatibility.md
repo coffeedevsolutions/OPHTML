@@ -87,7 +87,7 @@ title: Compatibility
 description: <one sentence>
 section: reference
 order: 53
-version: 0.8.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

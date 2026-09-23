@@ -4,7 +4,7 @@ title: Security and license
 description: How to report a vulnerability, what the runtime and build tools do with untrusted input, CI's read-only posture, and the licences covering the code and vendored assets.
 section: project
 order: 72
-version: 0.8.0
+version: 0.9.0
 sources: [SECURITY.md, LICENSE, fonts/vendor/LICENSE.txt, runtime/vendor/README.md, runtime/vendor/gsKit/dmaCore.h, packages/baker/pyproject.toml, packages/layout/package.json, runtime/ps2ui.c, .github/workflows/ci.yml, .github/workflows/hw.yml, .github/workflows/registry.yml]
 ---
 
@@ -63,7 +63,7 @@ in [contributing](page:project/contributing).
 |---|---|---|
 | Repository (this codebase) | MIT | [LICENSE](repo:LICENSE) |
 | `ophtml` (Python package, `packages/baker`) | MIT | [pyproject.toml](repo:packages/baker/pyproject.toml#L10) |
-| `@ophtml/layout` (npm package, `packages/layout`) | MIT | [package.json](repo:packages/layout/package.json#L9) |
+| `@ophtml/layout` (npm package, `packages/layout`) | MIT | [package.json](repo:packages/layout/package.json#L8) |
 | DejaVu fonts (`fonts/vendor/`) | Bitstream Vera License | [fonts/vendor/LICENSE.txt](repo:fonts/vendor/LICENSE.txt) |
 | gsKit headers and `gsTexture.c` (`runtime/vendor/gsKit/`) | Academic Free License 2.0 | [runtime/vendor/README.md](repo:runtime/vendor/README.md#L7) |
 

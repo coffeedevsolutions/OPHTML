@@ -565,7 +565,13 @@ written twice to avoid.
    (the changelog page's two, and `install.commands`' verified-by pair
    once measured from the registries), and restoring the collapsed
    rows' halves added banners, so the record went from 29 to **31: 14
-   release and 17 tree**. Expect the next cut to collapse all 31 again.
+   release and 17 tree**. The 0.9.0 cut then collapsed it as predicted,
+   to **30 banners, all tree**: the two collapsed rows lost their second
+   halves again, `install.commands` went from six banners to four, and the
+   cut added two, `compat.versions` on the changelog page's facts and the
+   `is a release and publishes to latest` line in the pasted block on
+   `reference/compatibility.md`. Step 9 after 0.9.0 starts from that
+   record and re-derives the groups before it trusts them.
 
    The first draft of this note listed ten banners copied from the
    record before the cut. Review of #170 found one of them no longer

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ophtml-logo-releaseVersion080-plain-white-darkbg.png"
+  <img src="docs/assets/ophtml-logo-releaseVersion090-plain-white-darkbg.png"
        alt="OPHTML" width="600">
 </p>
 
@@ -88,19 +88,19 @@ Three ways in, depending on what you want:
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 **Both packages are published**, so `pip install ophtml` and
-`npm install -g @ophtml/layout` are the way in. Those give you `0.8.0`,
-tagged `v0.8.0` — the first release cut with Windows and Apple Intel
-arms in CI. It carries three Windows fixes, two of which the Windows
-arm's first runs turned up, and none of which any job could execute
-until this release existed. It includes
+`npm install -g @ophtml/layout` are the way in. Those give you `0.9.0`,
+tagged `v0.9.0` — the first release a stock Mac or Windows box can run
+from end to end: `ps2ui fontgen` measures kerning with HarfBuzz through
+`uharfbuzz`, which pip installs with the package, where 0.8.0 asked
+Pillow's Raqm engine and refused without a fribidi no wheel ships. The
+tables it writes are byte for byte the ones 0.8.0 wrote. It includes
 `ps2ui vendor-runtime`, which writes `ps2ui.c` and `ps2ui.h` out of the
 installed package — so the console half needs no clone, and the runtime
 you compile is the one matching the baker that wrote your blob — and
 `ps2ui_offset_set`, the first call that changes *where* the runtime
-draws rather than what. This tree has since moved on to `0.9.0.dev0`
-(`0.9.0-dev.0` on npm), a prerelease that is on neither registry and is
-not meant to be. The two still understand each other, because the
-blobs baked here are format **v7** and
+draws rather than what. CI now runs `ps2ui fontgen` on stock macOS
+arm64, macOS x86_64 and Windows runners for every pull request, and
+the blobs it bakes are format **v7**:
 zero moves of the `.uib` format have landed since 0.8.0: that is
 the stability pledge, made at v7 and enforced by
 `tools/check-format-frozen.py` rather than announced, so a blob this
@@ -113,9 +113,9 @@ CLI answers `--version`. What is left of Phase 4's exit gate in
 Requirements:
 
 - Node 18+
-- Python 3.9+ with Pillow and uharfbuzz; `pip install ophtml` brings both.
-  The published 0.8.0 alone also needs fribidi on macOS or Windows; its
-  `ps2ui fontgen` refuses without it and prints the remedy for your platform
+- Python 3.9+ with Pillow and uharfbuzz; `pip install ophtml` brings both,
+  on macOS, Windows and Linux alike. 0.8.0 and earlier also needed fribidi
+  on macOS or Windows; upgrade rather than install it
 - A C compiler for the host tests
 - DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 

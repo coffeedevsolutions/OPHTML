@@ -4,7 +4,7 @@ title: Compatibility
 description: The versions that ship together, the .uib format pledge across runtimes, registry prerelease rules, and the supported platforms.
 section: reference
 order: 53
-version: 0.8.0
+version: 0.9.0
 sources: [tools/check-versions.py, tools/check-format-frozen.py, CHANGELOG.md, docs/releasing.md, packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/__init__.py, packages/baker/ps2ui_bake/uib.py, packages/layout/src/index.js, runtime/ps2ui.h, runtime/ps2ui.c, runtime/Makefile, runtime/vendor/README.md, .github/workflows/hw.yml, .github/workflows/registry.yml, examples/memcard/build/library.json]
 ---
 
@@ -24,20 +24,20 @@ them.
 ```
 $ python3 tools/check-versions.py --except-tag
 ok - packages/baker derives its version from ps2ui_bake.__version__ and declares it nowhere else
-ok - @ophtml/layout 0.9.0-dev.0 and ophtml 0.9.0.dev0 are the same version in the two spellings
+ok - @ophtml/layout 0.9.0 and ophtml 0.9.0 are the same version in the two spellings
 ok - PS2UI_VERSION and uib.VERSION are both 7
 ok - docs/format-uib.md's header table says version 7
 ok - docs/format-uib.md's Versioning list explains v7
-ok - CHANGELOG's open section is headed with 0.9.0.dev0
+ok - CHANGELOG's newest section is headed '0.9.0 — 2026-09-23', dated, and is the release the packages carry
 ok - CHANGELOG's open section names format v7
 ok - CHANGELOG's 0.8.0 section records the format it shipped (v7)
 ok - CHANGELOG counts zero format moves since 0.8.0, and v7 -> v7 is 0
 ok - CHANGELOG counts the drift from 0.8.0, the section below it
-ok - README's Quick start note names 0.9.0.dev0, 0.9.0-dev.0, format v7 and the drift since 0.8.0
-ok - and docs/assets/ophtml-logo-releaseVersion080-plain-white-darkbg.png is actually there
-ok - README's header logo names 0.8.0, which is the last release
+ok - README's Quick start note names 0.9.0, 0.9.0, format v7 and the drift since 0.8.0
+ok - and docs/assets/ophtml-logo-releaseVersion090-plain-white-darkbg.png is actually there
+ok - README's header logo names 0.9.0, which is the release being cut
 ok - @ophtml is scoped and publishes with access: public
-ok - @ophtml/layout publishes to the 'next' dist-tag, so a publish of this prerelease would not take `latest`
+ok - @ophtml/layout 0.9.0 is a release and publishes to `latest`
 ok - docs/releasing.md exists and still names __version__ and the tagging step (keywords, not correctness)
 ok - layout is named @ophtml/layout
 ok - baker is named ophtml
@@ -52,25 +52,22 @@ ok - docs/tutorial-uc3.md names the packages it tells people to install
 ok - docs/PLAN.md's format history runs v1 through v7
 ok - ci.yml runs this file unflagged exactly once, so the tag rule is evaluated (2 invocation(s) in total)
 ok - and it is the last `run:` step in the workflow, so a red tag rule cannot mask the checks before it
-ok - the open 0.9.0.dev0 section has 0 entries for the 0 commit(s) since v0.8.0
-ok - the Changelog page restates the open 0.9.0.dev0 section one for one: 0 bullet(s) for 0 entries
-ok - the changelog.mapping row names the 1 number(s) rule 14 counts
+ok - CHANGELOG's 0.9.0 section says what changed (1 entry under 1 heading(s))
+ok - the Changelog page restates the open 0.9.0 section one for one: 1 bullet(s) for 1 entry
+ok - the changelog.mapping row names the 3 number(s) rule 14 counts
 skip - the tag rule, deferred to the full unflagged run at the end of this job (--except-tag)
 ```
 
 | component | version | reads |
 |---|---|---|
-| `ophtml` (PyPI) | 0.9.0.dev0 | `ps2ui_bake.__version__` |
-| `@ophtml/layout` (npm) | 0.9.0-dev.0 | `packages/layout/package.json` |
+| `ophtml` (PyPI) | 0.9.0 | `ps2ui_bake.__version__` |
+| `@ophtml/layout` (npm) | 0.9.0 | `packages/layout/package.json` |
 | ui.json IR | 1 | `IR_VERSION` in `packages/layout/src/index.js` |
 | `.uib` format | 7 | `VERSION` in `packages/baker/ps2ui_bake/uib.py` |
 | `PS2UI_VERSION` (runtime macro) | 7 | `runtime/ps2ui.h` |
 
-The table is this tree, a prerelease on neither registry. What
-`pip install ophtml` and `npm install -g @ophtml/layout` give you is
-the release: its `ps2ui --version` prints `ps2ui 0.8.0`.
-Its `ps2ui-layout --version` prints `ps2ui-layout 0.8.0`. Both write
-format 7, as this tree does. `PS2UI_VERSION` is the frozen
+`ps2ui --version` prints `ps2ui 0.9.0`. `ps2ui-layout --version`
+prints `ps2ui-layout 0.9.0`. `PS2UI_VERSION` is the frozen
 `.uib` format version, not a mechanism that stops the baker and the
 runtime drifting apart by itself. Baker and runtime agree because
 `ps2ui vendor-runtime` ships both files from one package in one
@@ -127,8 +124,8 @@ prerelease in different ways.
 
 | registry | package | prerelease mechanism | current state |
 |---|---|---|---|
-| npm | `@ophtml/layout` | `publishConfig.tag` set to `next` while the version is a prerelease; a plain `npm install` resolves the `latest` dist-tag, so the prerelease stays unreachable by it | no `publishConfig.tag`, version 0.7.0 — a release, so `latest` is correct |
-| PyPI | `ophtml` | pip excludes a prerelease from a plain `pip install` unless no stable version satisfies the request | 0.7.0 is a release, so a plain `pip install ophtml` resolves it |
+| npm | `@ophtml/layout` | `publishConfig.tag` set to `next` while the version is a prerelease; a plain `npm install` resolves the `latest` dist-tag, so the prerelease stays unreachable by it | no `publishConfig.tag`, version 0.9.0 — a release, so `latest` is correct |
+| PyPI | `ophtml` | pip excludes a prerelease from a plain `pip install` unless no stable version satisfies the request | 0.9.0 is a release, so a plain `pip install ophtml` resolves it |
 
 A release drops `publishConfig.tag`, or sets it to `latest`; pip needs
 no equivalent step, because a real release already satisfies a plain
@@ -142,29 +139,27 @@ a prerelease refused `latest` and a release refused any other tag.
 | Node.js | 18 or newer | `packages/layout/package.json` |
 | Python | 3.9 or newer | `packages/baker/pyproject.toml` |
 | Pillow | 9 or newer | `packages/baker/pyproject.toml` |
-| uharfbuzz | 0.51.7 or newer, from the next release; pip installs it | `packages/baker/pyproject.toml` |
-| macOS | 0.8.0 only: fribidi installed, for `ps2ui-fontgen`'s Raqm text shaping | CHANGELOG.md 0.7.0 section |
-| Windows | 0.8.0 only: a fribidi DLL on `PATH`, for the same reason | CHANGELOG.md 0.8.0 section |
+| uharfbuzz | 0.51.7 or newer; pip installs it | `packages/baker/pyproject.toml` |
+| macOS, Windows | nothing beyond the two wheels, since 0.9.0 | CHANGELOG.md 0.9.0 section |
 | host C compiler | `cc` or clang, for `make -C runtime test` | `runtime/Makefile` |
 | gsKit (host tests) | vendored headers pinned to commit `43122eb96289167975b56caa45beb71eb8684fa2` | `runtime/vendor/README.md` |
 | PS2SDK / ps2dev toolchain | `ghcr.io/ps2dev/ps2dev:latest`, deliberately unpinned | `.github/workflows/hw.yml` |
 
 Install both packages per
 [installation](page:getting-started/installation#what-you-need).
-**The macOS and Windows rows end with 0.8.0.** That release's
-`ps2ui-fontgen` measures through Pillow's Raqm engine, which Pillow
+**Until 0.9.0, macOS and Windows needed fribidi.** 0.8.0's
+`ps2ui-fontgen` measured through Pillow's Raqm engine, which Pillow
 compiles in and which loads `fribidi` from the machine at run time, so
-a stock Mac or Windows box refuses until fribidi is supplied. The
-first run on both, `registry.yml` run 35809073289, measured it: a
-plain install refused on all three; `brew install fribidi` alone
-cleared it on Intel but not on Apple silicon, which needed a Pillow
-rebuild; and the MSYS2 DLL on `PATH` cleared it on Windows.
+a stock Mac or Windows box refused until fribidi was supplied.
+`registry.yml` run 35809073289 measured it: a plain install refused on
+all three; `brew install fribidi` alone cleared it on Intel but not on
+Apple silicon, which needed a Pillow rebuild; and the MSYS2 DLL on
+`PATH` cleared it on Windows.
 
-The next release measures through `uharfbuzz`, whose wheels carry
-HarfBuzz whole, and reproduces 0.8.0's tables exactly. `ci.yml` runs
-this tree's `ps2ui fontgen` on stock macOS arm64, macOS x86_64 and
-Windows runners on every pull request, with nothing installed but the
-package. The `.uib` format and the runtime are not involved either
+0.9.0 measures through `uharfbuzz`, whose wheels carry HarfBuzz whole,
+and reproduces 0.8.0's tables exactly. `ci.yml` runs `ps2ui fontgen`
+on stock macOS arm64, macOS x86_64 and Windows runners on every pull
+request, with nothing installed but the package. The `.uib` format and the runtime are not involved either
 way; this is a property of the authoring host.
 
 ### What each platform has actually been run on
