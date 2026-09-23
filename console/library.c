@@ -158,6 +158,19 @@ static int is_system_cnf(const unsigned char *name, unsigned n)
  * field in a file somebody downloaded. */
 #define ROOT_SECTORS_MAX 32
 
+/* And bounds WHICH sectors, not only how many: an extent is a field from
+ * the same file. The limit is 2 GiB, in sectors, because that is where
+ * the console's reads stop being honest. off_t is 64-bit on the EE, but
+ * libcglue hands lseek to fileXio through __fileXioLseekHelper, whose
+ * offset is an int (ps2sdk ee/rpc/filexio/src/fileXio_ps2sdk.c), so a
+ * seek past 2 GiB is truncated and reads some other sector without an
+ * error. SYSTEM.CNF and the root directory sit in a disc's first few
+ * megabytes; an extent out here is a damaged or truncated image, and
+ * the answer is "no ID", not a read of whatever the truncation lands on.
+ * The #179 review found this from a comment that claimed off_t itself
+ * was 32-bit; it was wrong about the type and right about the hazard. */
+#define ISO_LBA_LIMIT (1u << 20)
+
 int console_iso_id(console_read_fn read, void *user,
                    char *id, size_t id_cap)
 {
@@ -175,6 +188,7 @@ int console_iso_id(console_read_fn read, void *user,
     root_len = le32(sec + 156 + 10);
     n = (root_len + 2047) / 2048;
     if (n == 0 || n > ROOT_SECTORS_MAX) n = ROOT_SECTORS_MAX;
+    if (root_lba >= ISO_LBA_LIMIT - n) return 0;
 
     for (s = 0; s < n; s++) {
         unsigned off = 0;
@@ -191,6 +205,7 @@ int console_iso_id(console_read_fn read, void *user,
                 uint32_t lba = le32(sec + off + 2);
                 uint32_t len = le32(sec + off + 10);
                 if (len > 2048) len = 2048;
+                if (lba >= ISO_LBA_LIMIT) return 0;
                 if (read(user, lba, sec) != 0) return 0;
                 return console_cnf_id((const char *)sec, len, id, id_cap);
             }

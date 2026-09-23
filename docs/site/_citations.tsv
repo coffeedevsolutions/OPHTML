@@ -679,7 +679,7 @@ _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	344	            print(f"p
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	348	            print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)	            preview_mod.montage(uib).save(args.montage)	    return 0
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	203	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
-_facts/cli/ps2ui-check	.github/workflows/ci.yml	515	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+_facts/cli/ps2ui-check	.github/workflows/ci.yml	521	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 _facts/cli/ps2ui-check	.github/workflows/hw.yml	121	          ./tools/check-blobs.sh	          # about what "valid" means for the same bytes.	          # conform.elf is built SCREEN=probe. That name lives in
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/caps.py	44	def parse_header(path: str = None) -> dict:		    """Caps from ps2ui.h, or FALLBACK when the header is not reachable."""
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	70	    def note(self, label: str) -> None:		        """A measured number with no threshold to fail against.
@@ -1560,8 +1560,8 @@ cli/ps2ui-fontgen	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:mai
 cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenNeedsNoRaqm(unittest.TestCase):		    """F47: fontgen measures through uharfbuzz, not Pillow's Raqm.
 cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 examples/channel6	.github/workflows/ci.yml	253	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
-examples/channel6	.github/workflows/ci.yml	444	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
-examples/channel6	.github/workflows/ci.yml	515	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+examples/channel6	.github/workflows/ci.yml	450	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
+examples/channel6	.github/workflows/ci.yml	521	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)

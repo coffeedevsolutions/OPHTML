@@ -15,8 +15,9 @@
 static int read_sector(void *user, uint32_t lba, void *buf)
 {
     int fd = *(int *)user;
-    /* SYSTEM.CNF sits in the first few megabytes of every PS2 disc, so
-     * the offset fits a 32-bit off_t even on an 8 GB dual-layer image. */
+    /* console_iso_id never asks for a sector past 2 GiB (ISO_LBA_LIMIT
+     * in library.c), which is what keeps this offset inside the int that
+     * fileXio's lseek actually carries on the EE. */
     if (lseek(fd, (off_t)lba * 2048, SEEK_SET) < 0) return -1;
     return read(fd, buf, 2048) == 2048 ? 0 : -1;
 }

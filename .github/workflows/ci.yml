@@ -314,6 +314,12 @@ jobs:
       - name: Console library tests
         run: make -C console/tests test
 
+      # Again under ASan and UBSan. The console parses file names, ISO9660
+      # records and SYSTEM.CNF off a user's drive; a clean sanitizer run
+      # is only evidence if it runs on every change (the #179 review).
+      - name: Console library tests, sanitized
+        run: make -C console/tests test-sanitize
+
       # A shipped example's README opens "Taken from the blob, not
       # estimated". They were, once. Then a slot was added and three
       # figures drifted through two pull requests and a phase lock,

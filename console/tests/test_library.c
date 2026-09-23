@@ -207,6 +207,29 @@ static void test_iso_id(void)
     CHECK(console_iso_id(read_iso, NULL, id, sizeof id) == 0,
           "a corrupt directory record stops the walk");
 
+    /* A root extent past 2 GiB is refused before it is read: on the EE
+     * the seek would be truncated to an int by fileXio and land on some
+     * other sector without an error. The read counter is the check,
+     * because the host's 64-bit lseek would fail the read honestly and
+     * hide the difference. */
+    build_iso("SYSTEM.CNF;1");
+    put32(iso[16] + 156 + 2, 0x200000);
+    reads = 0;
+    CHECK(console_iso_id(read_iso, NULL, id, sizeof id) == 0 && reads == 1,
+          "a root extent past 2 GiB is refused without being read");
+
+    build_iso("SYSTEM.CNF;1");
+    put32(iso[16] + 156 + 2, 0xffffffffu);
+    reads = 0;
+    CHECK(console_iso_id(read_iso, NULL, id, sizeof id) == 0 && reads == 1,
+          "a root extent at the top of the 32-bit range is refused, not wrapped");
+
+    build_iso("SYSTEM.CNF;1");
+    put32(iso[20] + 34 + 34 + 46 + 2, 0x100000); /* after ".", ".." and the ELF */
+    reads = 0;
+    CHECK(console_iso_id(read_iso, NULL, id, sizeof id) == 0 && reads == 2,
+          "a SYSTEM.CNF extent past 2 GiB is refused without being read");
+
     build_iso("SYSTEM.CNF;1");
     put32(iso[16] + 156 + 2, 4000); /* root past the end of the image */
     CHECK(console_iso_id(read_iso, NULL, id, sizeof id) == 0,

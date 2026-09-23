@@ -101,7 +101,8 @@ typedef int (*console_read_fn)(void *user, uint32_t lba, void *buf);
  * title ID from it. This is the fallback for a file named "Name.iso",
  * which is how most people name them; OPL's ART and CFG folders are
  * keyed by the ID, so a game without one has no cover and no settings.
- * Returns 1 on success. Reads at most a few dozen sectors. */
+ * Returns 1 on success. Reads at most a few dozen sectors, and none
+ * past 2 GiB into the image (library.c says why). */
 int console_iso_id(console_read_fn read, void *user,
                    char *id, size_t id_cap);
 
