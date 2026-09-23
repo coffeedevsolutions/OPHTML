@@ -11,8 +11,12 @@ sources: [CHANGELOG.md, tools/check-versions.py, docs/site/_facts/reference/comp
 # Changelog
 
 The 0.8.0 section of `CHANGELOG.md`, restated by category, one bullet
-here for each entry there. The file carries the reasoning and the
-measurements; this page carries what changed.
+here for each entry there. The file carries the reasoning; this page
+carries what changed.
+
+## 0.9.0.dev0
+
+Nothing yet; 0.8.0, below, is what installs.
 
 ## 0.8.0
 
@@ -174,7 +178,7 @@ every claim here to the lines it cites, and one about
 ### Format
 
 `.uib` format version 7, unchanged since 0.7.0. `python3
-tools/check-versions.py --except-tag` holds the packages, the format
+tools/check-versions.py --except-tag` held the packages, the format
 document and this section to each other:
 
 ```
