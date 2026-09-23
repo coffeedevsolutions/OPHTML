@@ -524,17 +524,29 @@ written twice to avoid.
      `compat.registries`' verified-by cell, which says "at the 0.8.0
      cut".
    - **Moves with the tree** — everything that is output of *this
-     checkout*: the six `--version` rows under `_facts/cli/`, the
-     "Running from a checkout" block on `cli/ps2ui.md`, the pasted
+     checkout*: the `--version` rows for `ps2ui-bake`, `ps2ui-check`,
+     `ps2ui-layout` and `ps2ui-dev` under `_facts/cli/`; the session
+     command list opening `_facts/reference/compatibility.md`, and
+     `compat.versions` in the same file; the verified-by half of
+     `install.commands`, which records what the checkout printed; the
+     "Running from a checkout" block on `cli/ps2ui.md`; the pasted
      `check-versions.py` blocks on `reference/compatibility.md` and
-     `project/changelog.md` (regenerate those, do not edit them), the
-     wheel name on `runtime/integrating.md`, and `compat.versions`.
+     `project/changelog.md` (regenerate those, do not edit them); the
+     line opening that page's release section, which restates whatever
+     section is open; and the wheel name on `runtime/integrating.md`.
    - **Collapsed at the cut and needing their other half back** —
      `cli.ps2ui.version` in `_facts/cli/ps2ui.md` and `fontgen.version`
      in `_facts/cli/ps2ui-fontgen.md` used to say "the released version
      prints X; this tree prints Y". At a cut X and Y are one string, so
      0.8.0 rewrote each to a single claim about the tree. After this
      step they diverge again, and each wants both halves restored.
+
+   **Every banner in the record is in exactly one group**, and the
+   count is the check on that: at the 0.8.0 cut the record held 29, and
+   the groups above are 9 still the release, 17 moving with the tree and
+   3 collapsed. If the record and the groups disagree when you run this
+   step, a banner has been added or lost since and the list needs
+   re-deriving before it is trusted.
 
    The first draft of this note listed ten banners copied from the
    record before the cut. Review of #170 found one of them no longer
