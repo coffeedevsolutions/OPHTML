@@ -780,7 +780,7 @@ sequencing is [docs/PLAN.md](docs/PLAN.md) §6.
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)
-- [ ] npm / PyPI releases
+- [x] npm / PyPI releases (`ophtml` and `@ophtml/layout`, since 0.3.0)
 - [x] A draw-time offset for sliding, scrolling and parallax, `ps2ui_offset_set` (no format change)
 - [x] CLUT-swap theming and a tint table `ps2ui_theme_set` selects (`.uib` v7)
 - [x] Streamed textures the app fills on the console, `ps2ui_tex_set` (`.uib` v6)

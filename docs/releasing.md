@@ -29,10 +29,10 @@ tracks both headings. A runbook nobody has executed is a draft.
 
 Less than it looks like, and the exact amount matters.
 
-This section describes the tree as it stands. Step 9 has been done, so
-`__version__` is `0.4.0.dev0` and `packages/layout/package.json` is
-back on the `next` dist-tag. It stops describing the tree the moment
-step 4 retitles the CHANGELOG for the next release.
+This section describes the tree between a step 9 and the next step 4,
+when `__version__` is a `.dev0` prerelease and `packages/layout/
+package.json` is on the `next` dist-tag. From step 4 to the next step 9,
+while a cut is open and then published, it describes no tree at all.
 
 **npm.** A range like `^0.3.0` does not match `0.3.0-dev.0`, so a
 dependent asking for the package by range never resolves a prerelease.

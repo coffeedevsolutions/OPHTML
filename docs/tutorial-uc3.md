@@ -5,7 +5,7 @@ launcher: a list of titles on a CRT, driven by a D-pad, with the row
 text filled in at runtime from whatever is on the disc. This builds a
 working one from an empty directory.
 
-You will need **Node 18+**, **Python 3 with Pillow**, and **a TTF**.
+You will need **Node 18+**, **Python 3.9+**, and **a TTF**.
 Nothing else: no clone, no build system, no C compiler until you want
 the ELF.
 
