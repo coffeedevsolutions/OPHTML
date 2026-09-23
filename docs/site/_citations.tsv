@@ -2,7 +2,7 @@
 # Written by tools/check-site-pages.py --pin. Do not edit by hand.
 _facts/README	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
 _facts/README	runtime/ps2ui.c	1397	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
-_facts/authoring/crt-linter	README.md	212	## Supported CSS		
+_facts/authoring/crt-linter	README.md	213	## Supported CSS		
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	520	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	553	def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,		              allow_hairline: int = 0) -> None:
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	749	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
@@ -61,9 +61,9 @@ _facts/authoring/crt-linter	packages/layout/src/lint.js	277	    if (x + w > safe
 _facts/authoring/crt-linter	packages/layout/src/lint.js	279	        rule: 'overscan',	      warnings.push({	        message: `focusable "${node.name}" extends past the action-safe area`,
 _facts/authoring/crt-linter	packages/layout/src/paint.js	156	      ...(box.nocontrast ? { nocontrast: true } : {}),	      focusId: box.focusId,	    });
 _facts/authoring/crt-linter	packages/layout/src/paint.js	255	        ...(box.nocontrast ? { nocontrast: true } : {}),	        focusId: box.focusId,	      });
-_facts/authoring/css	README.md	214	- Flexbox: `flex-direction`, `flex-wrap`, `flex-grow`/`-shrink`/`-basis` and the `flex` shorthand, `gap`/`row-gap`/`column-gap`, `justify-content`, `align-items`, `align-self`. **`flex-direction` has no default** (see below)		- Box model (border-box): `padding`, `margin`, borders, `border-radius` (one px length, baked as nine-patch textures)
-_facts/authoring/css	README.md	230	**Colors are not open-ended.** Hex (`#rgb`, `#rgba`, `#rrggbb`,		`#rrggbbaa`), `rgb()`/`rgba()` with numbers or percentages, and exactly
-_facts/authoring/css	README.md	244	**A `:focus` rule may change paint, and only paint.** Changing `width`,		`padding`, `flex-*`, `font-size`, `line-height` or `overflow` there is a
+_facts/authoring/css	README.md	215	- Flexbox: `flex-direction`, `flex-wrap`, `flex-grow`/`-shrink`/`-basis` and the `flex` shorthand, `gap`/`row-gap`/`column-gap`, `justify-content`, `align-items`, `align-self`. **`flex-direction` has no default** (see below)		- Box model (border-box): `padding`, `margin`, borders, `border-radius` (one px length, baked as nine-patch textures)
+_facts/authoring/css	README.md	231	**Colors are not open-ended.** Hex (`#rgb`, `#rgba`, `#rrggbb`,		`#rrggbbaa`), `rgb()`/`rgba()` with numbers or percentages, and exactly
+_facts/authoring/css	README.md	245	**A `:focus` rule may change paint, and only paint.** Changing `width`,		`padding`, `flex-*`, `font-size`, `line-height` or `overflow` there is a
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	72	def patch_key(radius: int, border_w: int, part: int):		    """A coverage patch is identified by its GEOMETRY and nothing else.
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	82	@dataclass		class NinePatch:
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	155	def slice_quads(patch: NinePatch, x: int, y: int, w: int, h: int):		    """Yield (dst_rect, src_rect) pairs mapping the nine cells onto a
@@ -398,8 +398,8 @@ _facts/authoring/lists	runtime/ps2ui.h	822	 * the end of the data and should be 
 _facts/authoring/lists	runtime/ps2ui.h	826	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
 _facts/authoring/lists	runtime/ps2ui.h	830	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
 _facts/authoring/project-file	CHANGELOG.md	1336	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
-_facts/authoring/project-file	README.md	136	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
-_facts/authoring/project-file	README.md	657	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
+_facts/authoring/project-file	README.md	137	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
+_facts/authoring/project-file	README.md	658	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 _facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	64	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
 _facts/authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
@@ -483,7 +483,7 @@ _facts/authoring/text-and-fonts	packages/layout/src/text.js	160	export function 
 _facts/authoring/text-and-fonts	packages/layout/src/text.js	183	export function resolveLineHeight(lineHeight, fontSize) {	/** Resolve line-height (px or unitless multiplier) to integral px. */	  if (lineHeight.unit === 'px') return roundHalfUp(lineHeight.value);
 _facts/authoring/text-and-fonts	packages/layout/src/values.js	24	export function roundHalfUp(x) {	// floor(x + 0.5) so glyph advances agree between the two hosts.	  return Math.floor(x + 0.5);
 _facts/authoring/theming	README.md	25	One blob, two themes, swapped on the console at runtime by		`ps2ui_theme_set`. No rebuild, no second asset set: a theme is a row of
-_facts/authoring/theming	README.md	222	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
+_facts/authoring/theming	README.md	223	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	646	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	736	    if args.tints:		        print_tints(uib, args.uib)
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	289	    if args.tints:		        names = ir.get("themes") or ["root"]
@@ -620,7 +620,7 @@ _facts/authoring/vram-budget	runtime/ps2ui.h	325	                               
 _facts/authoring/vram-budget	runtime/ps2ui.h	390	    /* Runtime slot text. Each slot owns capacity+1 bytes at	    int       uploaded;	     * slot_text + slot_off[i] -- the capacity the baker declared for
 _facts/authoring/vram-budget	runtime/ps2ui.h	468	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
 _facts/authoring/vram-budget	runtime/ps2ui.h	477	/* Point a streamed texture slot at the caller's texels.		 *
-_facts/cli/previewer	README.md	716	**Runtime visibility is not previewable in v1**, and that is a stated		boundary. The renderer is parameterised on screen, focus node, theme and
+_facts/cli/previewer	README.md	717	**Runtime visibility is not previewable in v1**, and that is a stated		boundary. The renderer is parameterised on screen, focus node, theme and
 _facts/cli/previewer	docs/tutorial-uc3.md	294	**It does not replace hardware testing**, and the finding that says so		is specific. F-048, gsKit's full-screen clear not paying the blended
 _facts/cli/previewer	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/cli/previewer	packages/baker/ps2ui_bake/ps2ui.py	531	    sv = sub.add_parser("serve", help="preview the project in a browser")	    # reaches. test_serve.py asserts it by running `build --help`.	    sv.add_argument("project", nargs="?", default="ps2ui.json")
@@ -711,9 +711,9 @@ _facts/cli/ps2ui-check	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * 
 _facts/cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 _facts/cli/ps2ui-check	tools/check-blobs.sh	69	    if ! flags=$(known_flags "$blob"); then	for blob in $blobs; do	        echo "check-blobs: no rules for $blob" >&2
 _facts/cli/ps2ui-check	tools/check-blobs.sh	90	if [ "$checked" = 0 ]; then	# turn this whole step into a no-op that reports nothing and passes.	    echo "check-blobs: no blobs found -- nothing was validated" >&2
-_facts/cli/ps2ui-fontgen	README.md	125	`ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare		commands on `PATH`, and `-e` points them at this tree, so editing the
-_facts/cli/ps2ui-fontgen	README.md	134	ps2ui fontgen /path/DejaVuSans.ttf /path/DejaVuSans-Bold.ttf	```sh	cat > ps2ui.json <<'EOF'
-_facts/cli/ps2ui-fontgen	README.md	307	./fonts/regen.sh	```sh	```
+_facts/cli/ps2ui-fontgen	README.md	126	`ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare		commands on `PATH`, and `-e` points them at this tree, so editing the
+_facts/cli/ps2ui-fontgen	README.md	135	ps2ui fontgen /path/DejaVuSans.ttf /path/DejaVuSans-Bold.ttf	```sh	cat > ps2ui.json <<'EOF'
+_facts/cli/ps2ui-fontgen	README.md	308	./fonts/regen.sh	```sh	```
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	40	from ps2ui_bake.cli import load_font_manifest	import sys, os	from ps2ui_bake import fontgen
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	49	    rc = fontgen.main([ttf, "DejaVu Sans", str(weight),	    print("regen: %s = %s" % (face, ttf))	                       os.path.join(here, out)])
@@ -1075,7 +1075,7 @@ _facts/reference/uib-format	tools/check-format-frozen.py	4	WHY THIS EXISTS. docs
 _facts/reference/uib-format	tools/check-format-frozen.py	80	PLEDGED_VERSION = 7		
 _facts/reference/uib-format	tools/check-format-frozen.py	184	    # 4. Assigned feature bits keep their values. New ones are the		    #    growth path and are allowed -- this loop is over the FROZEN
 _facts/reference/uib-format	tools/check-versions.py	375	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
-_facts/runtime/api-reference	README.md	428	  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by	- **Queries stay in UI coordinates.** The focused node's rect is	  the offset, so your own hit-testing keeps working; add the offset
+_facts/runtime/api-reference	README.md	429	  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by	- **Queries stay in UI coordinates.** The focused node's rect is	  the offset, so your own hit-testing keeps working; add the offset
 _facts/runtime/api-reference	runtime/ps2ui.c	39	uint32_t ps2ui_crc32(const void *data, size_t len)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	238	size_t ps2ui_arena_size(const void *data, size_t size)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	252	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,		               void *arena, size_t arena_size)
@@ -1392,7 +1392,7 @@ _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee do
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
 _facts/runtime/moving-and-hiding	CHANGELOG.md	1238	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
 _facts/runtime/moving-and-hiding	CHANGELOG.md	1772	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
-_facts/runtime/moving-and-hiding	README.md	435	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
+_facts/runtime/moving-and-hiding	README.md	436	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	171	    # The canvas rect, and it does NOT take the offset: it is the screen	    tex_cache = {}	    # edge, the same role stack[0] has in ps2ui_render. Content pushed

@@ -90,8 +90,9 @@ Three ways in, depending on what you want:
 **Both packages are published**, so `pip install ophtml` and
 `npm install -g @ophtml/layout` are the way in. Those give you `0.8.0`,
 tagged `v0.8.0` — the first release cut with Windows and Apple Intel
-arms in CI, carrying the three Windows fixes those arms turned up, none
-of which any job could execute until this release existed. It includes
+arms in CI. It carries three Windows fixes, two of which the Windows
+arm's first runs turned up, and none of which any job could execute
+until this release existed. It includes
 `ps2ui vendor-runtime`, which writes `ps2ui.c` and `ps2ui.h` out of the
 installed package — so the console half needs no clone, and the runtime
 you compile is the one matching the baker that wrote your blob — and
