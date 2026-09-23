@@ -32,9 +32,10 @@ ps2ui-fontgen: manifest -> fonts/fonts.json
 ```
 
 Two faces, not a weight axis: `font-weight: 600` and above resolves to
-bold. On macOS this step can refuse over a missing Raqm engine; the
+bold. With 0.8.0 on macOS or Windows this step can refuse over a
+missing Raqm engine; the
 [installation](page:getting-started/installation#if-fontgen-refuses) page
-covers the fix.
+covers the fix, and the next release does not need it.
 
 You now have `fonts/fonts.json`, naming both TTFs and their metrics.
 Nothing downstream mentions fonts again.

@@ -133,7 +133,7 @@ A screen's name is the HTML file's stem. The name is the intermediate's file ste
 
 ### Fonts
 
-The `fonts` key names a manifest. Without it, `fonts/fonts.json` beside the project is used when that file exists. Without either, no `--fonts` is passed and the baker applies its own default, which is the repository's `fonts/fonts.json` and exists only in a checkout. The tutorial project sets no `fonts` key, [docs/tutorial-uc3.md](repo:docs/tutorial-uc3.md#L147); it relies on `ps2ui fontgen` having written `fonts/fonts.json` beside it. The three shipped examples set no `fonts` key either and build against the checkout default.
+The `fonts` key names a manifest. Without it, `fonts/fonts.json` beside the project is used when that file exists. Without either, no `--fonts` is passed and the baker applies its own default, which is the repository's `fonts/fonts.json` and exists only in a checkout. The tutorial project sets no `fonts` key, [docs/tutorial-uc3.md](repo:docs/tutorial-uc3.md#L146); it relies on `ps2ui fontgen` having written `fonts/fonts.json` beside it. The three shipped examples set no `fonts` key either and build against the checkout default.
 
 ### A directory argument
 
@@ -218,7 +218,7 @@ ui.uib
 
 ### Keys that reach the checker
 
-New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1336). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
+New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1387). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
 
 ```sh
 cd packages/baker/tests && python3 -m unittest \

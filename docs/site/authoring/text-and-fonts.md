@@ -62,7 +62,7 @@ ps2ui-bake build/library.json --fonts fonts/fonts.json -o build/ui.uib
 
 ## Reference table
 
-Fields of a metrics JSON, from `build_metrics` in [fontgen.py](repo:packages/baker/ps2ui_bake/fontgen.py#L79):
+Fields of a metrics JSON, from `build_metrics` in [fontgen.py](repo:packages/baker/ps2ui_bake/fontgen.py#L121):
 
 | field | type | meaning |
 |---|---|---|
@@ -270,11 +270,11 @@ Further limits:
 | Spaces only | No hyphenation, no CJK breaking, no soft hyphen. |
 | `~` in `metrics` | The baker expands it, the compiler does not. A manifest using `~` for a metrics path loads in `ps2ui-bake` and fails in `ps2ui-layout` with an `ENOENT` naming a literal `~` directory. |
 | Checked keywords | New in 0.7.0. `white-space` takes `normal` or `nowrap` and `text-overflow` takes `clip` or `ellipsis`; anything else is an error. `pre` and its relatives are named as real CSS this target does not implement. Before it, any other value behaved as the default. |
-| Raqm | `ps2ui-fontgen` refuses to write metrics from a Pillow without the Raqm layout engine, because kerning cannot be extracted. See [installation](page:getting-started/installation#limits-and-errors). |
+| Raqm | 0.8.0 only: `ps2ui-fontgen` refuses to write metrics from a Pillow without the Raqm layout engine, because kerning cannot be extracted. The next release measures through `uharfbuzz` and has no such requirement. See [installation](page:getting-started/installation#limits-and-errors). |
 
 ## Related pages
 
 - [ps2ui-fontgen](page:cli/ps2ui-fontgen#synopsis) generates a metrics JSON and a `fonts.json`.
 - [CSS](page:authoring/css#reference-table) lists every text property, its values and its default.
 - [Dynamic text](page:authoring/dynamic-text#behaviour) covers slot text, which walks this pen at runtime.
-- [Installation](page:getting-started/installation#limits-and-errors) covers the Raqm requirement.
+- [Installation](page:getting-started/installation#limits-and-errors) covers 0.8.0's Raqm requirement.

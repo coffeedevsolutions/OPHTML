@@ -14,7 +14,7 @@ the console is a single `.uib` blob that a small C99 runtime replays through
 
 ```
 ui/*.html,css -> @ophtml/layout -> ui.json (IR) -> ps2ui-bake -> ui.uib -> runtime (C99 + gsKit)
-                 Node, zero deps                  Python, Pillow only
+                 Node, zero deps                  Python, Pillow + HarfBuzz
 ```
 
 Originally built for UIs shipped on an SD2PSX / PSxMemCard GEN2 virtual
@@ -113,9 +113,9 @@ CLI answers `--version`. What is left of Phase 4's exit gate in
 Requirements:
 
 - Node 18+
-- Python 3 with a Pillow that reports Raqm. On macOS or Windows that
-  usually means installing fribidi first; `ps2ui fontgen` refuses
-  without it and prints the remedy for your platform
+- Python 3.9+ with Pillow and uharfbuzz; `pip install ophtml` brings both.
+  The published 0.8.0 alone also needs fribidi on macOS or Windows; its
+  `ps2ui fontgen` refuses without it and prints the remedy for your platform
 - A C compiler for the host tests
 - DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 
@@ -585,7 +585,7 @@ It prints one line per elapsed second on stdout: measured frame rate, missed vsy
 | path | what |
 |------|------|
 | `packages/layout` | HTML/CSS to `ui.json`. Node, zero dependencies. |
-| `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow only. |
+| `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow and uharfbuzz. |
 | `runtime`         | `.uib` loader, gsKit replay, D-pad nav. C99, no allocation. |
 | `fonts`           | metrics JSON (the layout/baker seam) and `ps2ui-fontgen`. |
 | `docs`            | everything below, see [Documentation](#documentation). |

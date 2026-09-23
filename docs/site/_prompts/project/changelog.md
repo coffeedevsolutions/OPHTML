@@ -92,7 +92,7 @@ Write links as `[text](page:<id>#<anchor>)`. Every id below must appear on the p
 - runtime/moving-and-hiding - offset
 - authoring/vram-budget - check budget and negative budget
 - runtime/integrating - vendor-runtime message
-- cli/ps2ui-fontgen - Raqm remedy
+- cli/ps2ui-fontgen - measuring through uharfbuzz (F47)
 - reference/compatibility - format
 
 ## Facts to emit

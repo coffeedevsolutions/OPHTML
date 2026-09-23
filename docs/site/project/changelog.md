@@ -10,13 +10,20 @@ sources: [CHANGELOG.md, tools/check-versions.py, docs/site/_facts/reference/comp
 
 # Changelog
 
-The 0.8.0 section of `CHANGELOG.md`, restated by category, one bullet
-here for each entry there. The file carries the reasoning; this page
-carries what changed.
+The open section of `CHANGELOG.md` and the 0.8.0 release, restated by
+category, one bullet here for each entry there.
 
 ## 0.9.0.dev0
 
-Nothing yet; 0.8.0, below, is what installs.
+Unreleased; 0.8.0, below, is what installs.
+
+### Changed
+
+- `ps2ui fontgen` measures kerning with HarfBuzz through the new
+  `uharfbuzz` dependency instead of Pillow's Raqm engine, so a stock
+  macOS or Windows install no longer refuses over a missing fribidi.
+  The metrics it writes are byte-identical. See
+  [ps2ui-fontgen](page:cli/ps2ui-fontgen#exit-codes).
 
 ## 0.8.0
 
@@ -191,9 +198,7 @@ ok - CHANGELOG's open section names format v7
 ok - CHANGELOG's 0.7.0 section records the format it shipped (v7)
 ```
 
-A v7 blob loads under any other v7 product, which is every release from
-0.3.0 on; the drift count above is how far back this section counts, not
-how far compatibility reaches. The pledge behind that guarantee is on
+A v7 blob loads under every release from 0.3.0 on; see
 [Compatibility](page:reference/compatibility#format-compatibility).
 
 ## Earlier releases

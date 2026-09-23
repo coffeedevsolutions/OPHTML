@@ -34,13 +34,14 @@ and `transparent`, and nothing else. Any other name, `orange` included, is
 a compile error naming the token. Hex and `rgb()`/`rgba()` forms cover
 every other colour a screen needs. See [CSS](page:authoring/css#colours).
 
-### fontgen refuses on macOS
+### fontgen refuses on macOS or Windows
 
-`ps2ui fontgen` checks `features.check("raqm")` before opening a font and
-refuses to write a metrics file without it. On macOS the remedy is
-`brew install fribidi` first, then rebuilding Pillow against `libraqm` if
-that does not clear it. Verify with `features.check('raqm')`, not pip's
-exit status. See
+That is 0.8.0, which checks `features.check("raqm")` before opening a
+font and refuses to write a metrics file without it. The next release
+measures through `uharfbuzz` and does not ask. With 0.8.0 on macOS the
+remedy is `brew install fribidi` first, then rebuilding Pillow against
+`libraqm` if that does not clear it; on Apple silicon it takes the
+rebuild. Verify with `features.check('raqm')`, not pip's exit status. See
 [Installation](page:getting-started/installation#if-fontgen-refuses).
 
 ### Text is boxes on the console

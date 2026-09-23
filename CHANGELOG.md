@@ -14,6 +14,57 @@ decays. It becomes one the moment a format move lands, and
 reading it back, so the check fails the change that moves the format
 without moving this line.
 
+### Changed
+
+- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no
+  longer asks Pillow to shape (F47).** It measured kerning through
+  Pillow's Raqm engine, and Raqm loads fribidi from the machine at run
+  time: no Pillow wheel bundles it. So the tutorial's first command
+  refused on every clean macOS and Windows install, over a bidi library
+  the default Latin charset never exercises, and the remedy was a
+  system package the reader had to find. `registry.yml` run 35809073289
+  measured how bad that was against the published 0.8.0: a plain
+  install refused on `macos-15`, `macos-15-intel` and `windows-2025`;
+  `brew install fribidi` cleared it on Intel but not on Apple silicon,
+  which needed a source rebuild of Pillow.
+
+  `fontgen` now shapes with HarfBuzz through `uharfbuzz`, a new
+  dependency (Apache-2.0) that ships as a wheel for macOS universal2,
+  x86_64 and arm64, Windows, manylinux and musllinux, with nothing
+  loaded from the system. **Every committed number stays put.** Driven
+  at the same 1000px em with the same six substitution features off, it
+  reproduces both DejaVu tables pair for pair -- 284 and 163 pairs, 115
+  advances each -- and `fonts/regen.sh` rewrites both metrics files
+  byte for byte. Checked wider than the row asked, against Pillow with
+  Raqm on the same machine: 45 other installed faces, two rebuilt to
+  carry their kerning only in a legacy `kern` table, and a Greek,
+  Cyrillic, Hebrew, Arabic, Thai and Japanese charset, with zero
+  differing advances or pairs, on uharfbuzz 0.56.2 and on 0.51.7, the
+  newest with Python 3.9 wheels and so the floor in `pyproject.toml`.
+
+  **This amends a design rule, deliberately.** CONTRIBUTING said the
+  baker stays Pillow-only. The rule exists to keep the baker
+  self-contained, and Pillow alone was not: it carried a system
+  requirement this project could not ship. The rule now reads "only
+  what installs as a self-contained wheel on every platform pip
+  serves", and a third dependency has to clear that bar here.
+
+  What it deletes: the refusal in `main`, `_raqm_remedy()`,
+  `_escalation()`, `_windows_fribidi_hint()` and `_rebuild_hint()`,
+  eight tests of their wording, `require_raqm`, and the contributor
+  suite's macOS-only fribidi step. `uharfbuzz` is imported only when a
+  font is measured, so a checkout without it loses `fontgen` alone,
+  with one line naming the package. A new `ci.yml` job runs
+  `ps2ui fontgen` on stock `macos-15`, `macos-15-intel` and
+  `windows-2025` runners for every pull request and requires the
+  committed tables, the first Mac or Windows job that runs against the
+  tree rather than the last release. `registry.yml`'s remedy steps and
+  `-plain` jobs ask the published wheel which it is: they keep proving
+  0.8.0's documented route while that is what PyPI serves, and flip to
+  requiring the committed tables once this ships. Documents that
+  describe the installable release keep 0.8.0's remedy, labelled as
+  0.8.0's.
+
 ## 0.8.0 — 2026-09-23
 
 `.uib` format **version 7**, unchanged from the release below.

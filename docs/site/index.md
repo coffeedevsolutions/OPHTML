@@ -51,6 +51,8 @@ the same opl-env library screen, the same blob, theme 0 then theme 1:
 | Node.js | 18 or newer | `ps2ui-layout`, `ps2ui-dev` |
 | Python | 3.9 or newer | `ps2ui`, `ps2ui-bake`, `ps2ui-check`, `ps2ui-fontgen` |
 | Pillow | 9 or newer | `ps2ui-bake`, `ps2ui-fontgen` |
+| uharfbuzz | 0.51.7 or newer, from the next release | `ps2ui-fontgen`; pip installs it |
+| Raqm and fribidi in Pillow | present, for 0.8.0 only | `ps2ui-fontgen` 0.8.0 refuses without Raqm; see [If fontgen refuses](page:getting-started/installation#if-fontgen-refuses). The next release does not need it |
 | a TTF | any | `ps2ui-fontgen` |
 | a C cross toolchain (ps2dev) | latest | the console half only, vendored by `ps2ui vendor-runtime` |
 

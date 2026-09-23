@@ -1,6 +1,6 @@
 """Baker test suite: numeric rules, GS encodings, atlases, nine-patches,
 quad flattening, the .uib round-trip, and the previewer's replay
-semantics. stdlib unittest + Pillow only, same as the package.
+semantics. stdlib unittest, Pillow and uharfbuzz, same as the package.
 
 Run:  cd packages/baker && python3 -m unittest discover -s tests -v
 """
@@ -51,7 +51,7 @@ REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
 # test_serve.py needs the same answer and two copies of it would
 # be the same defect this file has already fixed twice.
 from fonts_available import (  # noqa: E402
-    FONTS, TTF, METRICS, require_ttf, require_raqm,
+    FONTS, TTF, METRICS, require_ttf,
     _no_fonts)  # noqa: F401
 
 
@@ -154,282 +154,81 @@ class TestKerningExtraction(unittest.TestCase):
                 self.assertIn(cp, adv, key)
 
 
-class TestFontgenRefusesWithoutRaqm(unittest.TestCase):
-    """Without Raqm the advances come out identical and the kern table
-    comes out empty, so regenerating would produce a diff that deletes
-    every pair while every test still passes -- all three pens agree
-    perfectly on zero kerning. fontgen must refuse, before writing."""
+class TestFontgenNeedsNoRaqm(unittest.TestCase):
+    """F47: fontgen measures through uharfbuzz, not Pillow's Raqm.
 
-    def test_main_exits_nonzero_and_writes_nothing(self):
-        # NAMES A TTF THAT DOES NOT EXIST, ON PURPOSE. The claim is
-        # that fontgen refuses BEFORE writing, and the refusal is
-        # checked before anything opens the font -- so a path that
-        # could not be opened proves the ordering rather than relying
-        # on it. It also means this test needs no font, which is why it
-        # is the one test in this class that keeps running on a machine
-        # with none. It used to be handed the module-level TTF and pass
-        # while that was None.
+    It used to refuse outright on a Pillow without Raqm, which is every
+    stock macOS and Windows install, because Raqm needs a fribidi no
+    Pillow wheel bundles. The refusal was right -- without Raqm, Pillow
+    measured every pair as zero and the table came out empty -- and the
+    cure was to stop asking Pillow. These fence the three things that
+    replaced four functions of platform advice.
+    """
+
+    VENDORED = (("DejaVuSans.ttf", 400, "default.metrics.json"),
+                ("DejaVuSans-Bold.ttf", 700, "default-bold.metrics.json"))
+
+    def test_the_tables_come_out_whole_on_a_pillow_with_no_raqm(self):
+        """The machine the old code refused on, reproduced exactly.
+
+        Pillow is told it has no Raqm, which is what `features.check`
+        answers on a stock Mac or Windows box, and the vendored faces
+        must still produce the COMMITTED tables byte for byte -- not a
+        non-empty table, the table. That is the claim the swap rests
+        on: the metrics nobody regenerated are the metrics this code
+        writes, so no document and no committed number moves.
+        """
+        from unittest import mock
+        from PIL import features
+        from ps2ui_bake import fontgen
+        with tempfile.TemporaryDirectory() as td, \
+                mock.patch.object(features, "check", return_value=False):
+            for ttf, weight, committed in self.VENDORED:
+                out = os.path.join(td, committed)
+                rc = fontgen.main([os.path.join(FONTS, "vendor", ttf),
+                                   "DejaVu Sans", str(weight), out])
+                self.assertEqual(rc, 0, ttf)
+                with open(out, encoding="utf-8") as fh:
+                    got = json.load(fh)
+                with open(os.path.join(FONTS, committed),
+                          encoding="utf-8") as fh:
+                    want = json.load(fh)
+                self.assertTrue(got["kerning"], ttf)
+                for key in ("advances", "kerning", "ascent", "descent",
+                            "missing"):
+                    self.assertEqual(got[key], want[key],
+                                     "%s: %s" % (ttf, key))
+
+    def test_a_missing_uharfbuzz_is_a_sentence_and_writes_nothing(self):
+        """A checkout run with PYTHONPATH gets no dependencies installed.
+
+        So the one import this command needs and the rest of the baker
+        does not is made inside it, and its absence has to say what to
+        install rather than end in a traceback -- and has to do so
+        before the metrics file exists, for the same reason the old
+        refusal did: a half-written file is worse than none.
+        """
         from unittest import mock
         from ps2ui_bake import fontgen
-        with tempfile.TemporaryDirectory() as td:
+        with tempfile.TemporaryDirectory() as td, \
+                mock.patch.dict(sys.modules, {"uharfbuzz": None}):
             out = os.path.join(td, "m.json")
-            with mock.patch.object(fontgen.features, "check",
-                                   return_value=False):
-                rc = fontgen.main([os.path.join(td, "absent.ttf"),
-                                   "DejaVu Sans", "400", out])
-            self.assertEqual(rc, 2)
+            with self.assertRaises(SystemExit) as cm:
+                fontgen.main([os.path.join(FONTS, "vendor", "DejaVuSans.ttf"),
+                              "DejaVu Sans", "400", out])
+            self.assertIn("pip install uharfbuzz", str(cm.exception.code))
             self.assertFalse(os.path.exists(out))
 
-    def test_the_macos_remedy_is_prefix_relative_and_names_the_trap(self):
-        """Two things in that message fail silently if they rot back.
-
-        A LITERAL /opt/homebrew IS WRONG FOR HALF ITS READERS. Intel
-        Macs put Homebrew under /usr/local, and the failure mode is not
-        an error: pkg-config finds nothing at the named path and Pillow
-        builds WITHOUT Raqm, exit 0, so the person follows the
-        instructions, sees a successful build, and gets this same
-        refusal with no idea why.
-
-        AND `--no-binary :all:` IS ONE KEYSTROKE FROM THE FIX. It
-        scopes the source build to the entire dependency graph and goes
-        off bootstrapping CMake from C++ source; it cost roughly forty
-        minutes before anyone worked out what it was doing.
-        """
+    def test_version_needs_no_shaper(self):
+        # Asking a tool what it is must not depend on anything else
+        # being installed, which is why --version is answered first.
         from unittest import mock
         from ps2ui_bake import fontgen
-        with mock.patch.object(fontgen.sys, "platform", "darwin"):
-            msg = fontgen._raqm_remedy()
-        self.assertIn("brew install libraqm", msg)
-        self.assertIn("$(brew --prefix)", msg)
-        self.assertNotIn("/opt/homebrew", msg)
-        self.assertNotIn("/usr/local/", msg)
-        # The trap is named, not merely avoided: someone reaching for
-        # the bare form should meet the reason here rather than at
-        # minute forty.
-        self.assertIn(":all:", msg)
-
-        # AND THE COMMAND IS ASSERTED AS A COMMAND, NOT AS A SUBSTRING
-        # OF THE WHOLE MESSAGE.
-        #
-        # This used to read `assertIn("--no-binary pillow", msg)` and
-        # `assertIn(":all:", msg)` over the blob, and a sabotage walked
-        # straight through: change the copy-pasteable line to
-        # `--no-binary :all:` and BOTH still hold, because the sentence
-        # warning against `:all:` contains "--no-binary pillow" and
-        # ":all:" itself. The message would have handed the reader the
-        # forty-minute trap on the line they paste while the line under
-        # it told them not to, and the suite stayed green.
-        #
-        # An assertion has to land on the thing being claimed. The
-        # claim is about the command, so it is made about the line that
-        # IS the command.
-        pip = [ln for ln in msg.splitlines() if ln.strip().startswith("pip ")]
-        self.assertEqual(len(pip), 1, "expected exactly one pip command line")
-        self.assertIn("--no-binary pillow", pip[0])
-        self.assertNotIn(":all:", pip[0])
-
-    def test_it_reports_what_it_detected_and_asserts_no_platform_rule(self):
-        """The message may not claim what any platform's wheels contain.
-
-        It said "pip's macOS wheels are built without it" -- a rule, and
-        the rule is false. Both Pillow 12.3.0 macOS wheels were opened
-        and compared: each has Raqm compiled INTO _imagingft (the
-        linker breadcrumb `src/thirdparty/raqm/raqm.o` is in the
-        binary), neither bundles libraqm or fribidi, and both carry
-        `libfribidi.dylib` / `libfribidi.so.0` as dlopen candidates. The
-        wheels are the same. What differs is whether the machine has
-        fribidi -- which an Intel Mac with Homebrew on it does and a
-        clean macos-14 runner does not, and that is the whole reported
-        "architectural" split. Found in review of #126.
-
-        SO THE ASSERTION IS ABOUT THE CLASS, NOT THE SENTENCE. An
-        earlier version forbade the one string that had regressed, and
-        a rule of the same shape walked through it: "pip's macOS arm64
-        wheels never carry Raqm and the x86_64 ones always do" passed,
-        while being both a rule and false. The test's name promised the
-        class, so the assertion now covers it.
-
-        Asserted on every branch, because the linux/win32 branch carried
-        the same shape of claim about manylinux -- and handed a Windows
-        reader a fact about manylinux wheels as their remedy.
-        """
-        from unittest import mock
-        from ps2ui_bake import fontgen
-        import PIL, platform as _platform
-        for plat in ("darwin", "linux", "win32"):
-            for fribidi in (False, True):
-                with mock.patch.object(fontgen.sys, "platform", plat), \
-                     mock.patch.object(fontgen.features, "check",
-                                       lambda _n, v=fribidi: v):
-                    msg = fontgen._raqm_remedy()
-                where = "%s/fribidi=%s" % (plat, fribidi)
-                # What it detected.
-                self.assertIn(PIL.__version__, msg, where)
-                self.assertIn(_platform.machine(), msg, where)
-                self.assertIn(plat, msg, where)
-                # And no claim about what anybody's wheels hold. Phrases
-                # rather than one sentence: this is the assertion that
-                # the earlier version got wrong.
-                low = msg.lower()
-                for rule in ("wheels are", "wheels carry", "wheels never",
-                             "wheels always", "wheels do not", "wheels don't",
-                             "manylinux wheels"):
-                    self.assertNotIn(rule, low, "%s: %r" % (where, rule))
-
-    def test_a_missing_fribidi_is_named_and_gets_the_cheap_remedy_first(self):
-        """Raqm is in the binary; fribidi is dlopened from the system.
-
-        So "no Raqm" is usually "no fribidi", and Pillow can say which.
-        Before this, every reader was routed through a Pillow source
-        build to obtain something their wheel already had. The cheap
-        path has to come first and has to be named, or the message is
-        prescribing ten minutes of rebuild for a thirty-second install.
-        """
-        from unittest import mock
-        from ps2ui_bake import fontgen
-        with mock.patch.object(fontgen.features, "check", lambda _n: False):
-            msg = fontgen._raqm_remedy()
-        self.assertIn("fribidi", msg)
-        self.assertIn("no rebuild", msg)
-        # The cheap path is FIRST: the rebuild is offered only after it.
-        self.assertLess(msg.index("fribidi"), msg.index("--no-binary"))
-
-        # ...and when fribidi is present it is not blamed, because then
-        # it is not the cause and saying so sends the reader nowhere.
-        with mock.patch.object(fontgen.features, "check", lambda _n: True):
-            other = fontgen._raqm_remedy()
-        self.assertIn("not the usual cause", other)
-        self.assertNotIn("no rebuild", other)
-
-    def test_windows_is_told_to_supply_the_dll_and_not_to_rebuild(self):
-        """The one branch that was still handing out the general advice.
-
-        CHANGELOG 0.7.0 removed a FALSE CLAIM from this message -- it
-        told Windows readers a fact about manylinux wheels -- and left
-        them on the general branch, which prescribes
-        `pip install --no-binary pillow`. On Windows that wants MSVC
-        and Pillow's native dependencies present first, so the reader
-        is sent to start a different project than the one they are
-        trying to finish. The wheel says what the actual gap is:
-        `_imagingft.cp311-win_amd64.pyd` carries `HAVE_RAQM`, ships no
-        libraqm of its own, and names `fribidi-0` / `libfribidi-0` /
-        `fribidi` as run-time lookups -- the same shape as the macOS
-        and manylinux binaries.
-
-        Asserted per platform rather than once, because the defect was
-        a branch being MISSING and a test that only reads the win32
-        message cannot see the general one still catching it.
-        """
-        from unittest import mock
-        from ps2ui_bake import fontgen
-        with mock.patch.object(fontgen.features, "check", lambda _n: False):
-            with mock.patch.object(fontgen.sys, "platform", "win32"):
-                win = fontgen._raqm_remedy()
-            with mock.patch.object(fontgen.sys, "platform", "darwin"):
-                mac = fontgen._raqm_remedy()
-            with mock.patch.object(fontgen.sys, "platform", "linux"):
-                lin = fontgen._raqm_remedy()
-
-        # The DLL names come from the binary, so they are what a reader
-        # can search for. A message naming none of them describes the
-        # problem without handing over the string that solves it.
-        self.assertIn("fribidi-0.dll", win)
-        self.assertIn("PATH", win)
-        # AND NOT A SOURCE BUILD. This is the assertion the row is for:
-        # the general branch's spelling must not reach a Windows reader.
-        self.assertNotIn("--no-binary", win)
-
-        # The list stays a list on the platforms that have a one-liner:
-        # four lines of Windows DLL search order is somebody else's
-        # problem when you are on a Mac.
-        for other in (mac, lin):
-            self.assertNotIn("fribidi-0.dll", other)
-            self.assertIn("--no-binary", other)
-
-    def test_the_escalation_never_repeats_the_advice_it_escalates_from(self):
-        """A reader who followed the first fix and is still stuck has to
-        be given something ELSE.
-
-        THE DEFECT THIS EXISTS FOR, and why the test beside it did not
-        catch it. `_rebuild_hint()` is the source-build route and its
-        win32 arm declined the source build, so both callers promised a
-        rebuild and neither delivered one: with fribidi missing, "if it
-        is still false, rebuild Pillow against both" handed back the two
-        install commands the reader had just run; with fribidi present,
-        "fribidi is present, so this is not the usual cause" was
-        followed by an instruction to install fribidi.
-
-        `test_windows_is_told_to_supply_the_dll_and_not_to_rebuild`
-        fences the SPELLING -- the DLLs are named, `--no-binary` is
-        absent, the list stays a list -- and a message can satisfy all
-        of that while leading the reader in a circle. So this one
-        fences the SHAPE: what comes after the check is not what came
-        before it.
-        """
-        from unittest import mock
-        from ps2ui_bake import fontgen
-
-        FIRST_TRY = ("pacman -S mingw-w64-x86_64-fribidi",
-                     "conda install -c conda-forge fribidi")
-        CHECK = "print(features.check('raqm'))"
-
-        with mock.patch.object(fontgen.sys, "platform", "win32"):
-            with mock.patch.object(fontgen.features, "check",
-                                   lambda _n: False):
-                missing = fontgen._raqm_remedy()
-            with mock.patch.object(fontgen.features, "check",
-                                   lambda n: n == "fribidi"):
-                present = fontgen._raqm_remedy()
-
-        # fribidi missing: the first advice is allowed to name the
-        # installs; what follows the check must not name them again.
-        self.assertIn(CHECK, missing)
-        tail = missing.split(CHECK, 1)[1]
-        for cmd in FIRST_TRY:
-            self.assertNotIn(cmd, tail)
-        # ...and it has to say something, not merely not-repeat.
-        self.assertIn("PATH", tail)
-
-        # fribidi present: never tell them to install what they have.
-        for cmd in FIRST_TRY:
-            self.assertNotIn(cmd, present)
-        self.assertIn("pip install", present)
-
-        # The other two platforms keep the rebuild, which IS a different
-        # action from `apt install libfribidi0`, so their escalation is
-        # sound and this test must not start failing on them.
-        for plat in ("darwin", "linux"):
-            with mock.patch.object(fontgen.sys, "platform", plat):
-                with mock.patch.object(fontgen.features, "check",
-                                       lambda _n: False):
-                    msg = fontgen._raqm_remedy()
-            self.assertIn("--no-binary", msg.split(CHECK, 1)[1], plat)
-
-    def test_every_platform_says_a_clean_build_is_not_proof(self):
-        """Pillow builds and exits 0 without libraqm, omitting the
-        feature. So pip's return code answers a different question than
-        the one the reader has, and both branches have to say so."""
-        from unittest import mock
-        from ps2ui_bake import fontgen
-        for plat in ("darwin", "linux", "win32"):
-            with mock.patch.object(fontgen.sys, "platform", plat):
-                msg = fontgen._raqm_remedy()
-            self.assertIn("features.check('raqm')", msg, plat)
-
-    def test_and_succeeds_with_raqm_present(self):
-        # BOTH CONDITIONS. This is the arm that proves kerning is
-        # actually extracted, so it needs a font AND the layout engine;
-        # guarding it on the font alone turns a Pillow without Raqm
-        # into a failure that reads like a kerning bug. That is not
-        # hypothetical -- it is what pip's macOS wheel ships.
-        require_raqm()
-        from ps2ui_bake import fontgen
-        with tempfile.TemporaryDirectory() as td:
-            out = os.path.join(td, "m.json")
-            rc = fontgen.main([TTF, "DejaVu Sans", "400", out])
-            self.assertEqual(rc, 0)
-            with open(out, encoding="utf-8") as fh:
-                self.assertTrue(json.load(fh)["kerning"])
+        with mock.patch.dict(sys.modules, {"uharfbuzz": None}), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as so:
+            self.assertEqual(fontgen.main(["--version"]), 0)
+        self.assertEqual(so.getvalue().strip(),
+                         "ps2ui-fontgen %s" % fontgen.__version__)
 
 
 class TestAlphaDomain(unittest.TestCase):
@@ -4194,8 +3993,10 @@ class TestNewcomerPath(unittest.TestCase):
         fails if someone swaps the TTF for a different DejaVu build
         without running fonts/regen.sh, which is the one way this
         could go quietly wrong.
+
+        It used to skip wherever Pillow had no Raqm, which was every
+        stock Mac. Since F47 it needs nothing but the tree.
         """
-        require_raqm()
         from ps2ui_bake import fontgen
         for rel, weight, committed in (
                 ("vendor/DejaVuSans.ttf", 400, "default.metrics.json"),

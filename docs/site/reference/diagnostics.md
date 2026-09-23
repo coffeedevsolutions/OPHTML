@@ -112,7 +112,7 @@ pass stopped at the first.
 
 [box.js](repo:packages/layout/src/box.js), the flex solver and the
 display-list builder produce these. An error prints as `error: <message>` and
-exits 1. A warning prints as `warning: <message>`. Four rows are unreachable
+exits 1. A warning prints as `warning: <message>`. Two rows are unreachable
 from any sheet, and are listed so a search for them ends here.
 
 | message | severity | cause | fix | page |
@@ -147,7 +147,6 @@ from any sheet, and are listed so a search for them ends here.
 | `warning: unknown attribute: <tag> line <n>: <attr> is not read by anything`, then `— did you mean <known>?` or `— known: <sorted list>` | warning | a `data-` attribute outside the six the compiler reads; one line per typo | correct the spelling | [HTML](page:authoring/html#reference-table) |
 | `layout: <tag> line <n>: data-repeat="<n>" but no {i} or {n} anywhere inside, so every copy is identical. Add {i} to the ids and data-slot names, or the copies cannot be told apart.` | warning | a count above 1 with no index substitution in the subtree | add `{i}` to the ids and slot names | [Lists](page:authoring/lists#expansion) |
 | `focus: "<name>" is unreachable from the initial focus by D-pad` | warning | the breadth-first walk from `initial` never reaches that node | move the element, or pass `--focus-wrap` | [Focus and navigation](page:authoring/focus-and-navigation#limits-and-errors) |
-| `css: :focus styles matched <tag> line <n> but no enclosing element has the focusable attribute; the delta can never show` | warning | unreachable; a `:focus` compound never matches outside a focusable scope | nothing to fix | [Focus and navigation](page:authoring/focus-and-navigation#limits-and-errors) |
 
 ## Lints
 
@@ -263,6 +262,7 @@ exit 2.
 | `ps2ui: screens[<i>] has unknown key(s) '<k>'; a screen takes css, focusWrap, html` | error | a misspelt key on a screen entry | use one of the three | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: screens[<i>] has no "html"` | error | a screen object with no markup path | add `html` | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: screens[<i>] (<html>) has no stylesheet: set "css" at the top level for every screen, or on this one` | error | neither the project nor the screen names a stylesheet | set `css` | [The project file](page:authoring/project-file#reference-table) |
+| `ps2ui: no fonts for this project: <path> does not exist.` plus the `ps2ui fontgen` line that writes one | error, exit 1 | `ps2ui build` or `ps2ui dev` on a project whose font manifest does not exist, with no fallback beside the package | run `ps2ui fontgen <regular.ttf> <bold.ttf>`, or point `fonts` in `ps2ui.json` at a manifest you have | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
 | `ps2ui: cannot find ps2ui-layout, which compiles the HTML and CSS.` plus three remedy lines | error | no `PS2UI_LAYOUT`, no `ps2ui-layout` on PATH and no checkout beside the package | install `@ophtml/layout`, or set `PS2UI_LAYOUT` | [ps2ui](page:cli/ps2ui#how-build-finds-the-compiler) |
 | `ps2ui: ps2ui-layout failed on <html> (exit <n>)` | error | the compiler refused that screen and already said why | fix what the compiler printed | [ps2ui](page:cli/ps2ui#build) |
 | `` ps2ui: <path>: no blob to check. Run `ps2ui build` first -- this does not build, so that a check can never report on a blob it just made and nobody has seen. `` | error | `ps2ui check` ran before any build | run `ps2ui build` | [ps2ui](page:cli/ps2ui#check) |
@@ -271,9 +271,9 @@ exit 2.
 | `ps2ui: <files> in <dir> <differ\|differs> from the runtime this toolchain ships, so nothing was written.` plus the mixed-pair explanation | error | `ps2ui vendor-runtime` found an edited `ps2ui.c` or `ps2ui.h` in the destination | pass `--force`, or move your copy aside | [ps2ui](page:cli/ps2ui#vendor-runtime) |
 | `ps2ui: two copies of the runtime disagree, so this will not guess which one you meant.` plus the two paths and a rebuild line | error | a staged package-data runtime is out of date against the checkout | rebuild the package, or delete the staged directory | [ps2ui](page:cli/ps2ui#vendor-runtime) |
 | `ps2ui: no C runtime to vendor.` plus the two directories looked in and a packaging note | error | an installed wheel shipped without its runtime | install from the sdist | [ps2ui](page:cli/ps2ui#vendor-runtime) |
-| `ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.` plus a platform-specific remedy | error, exit 2 | `PIL.features.check("raqm")` is false | install libraqm and rebuild Pillow | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
+| `ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.` plus a platform-specific remedy | error, exit 2; 0.8.0 and earlier only | that release measures through Pillow's Raqm, and `PIL.features.check("raqm")` is false | follow the printed remedy, or upgrade: the next release has no such check | [Installation](page:getting-started/installation#if-fontgen-refuses) |
 | `usage: python -m ps2ui_bake.fontgen <font.ttf> <family> <weight> <out.metrics.json> [charset-file]` | error, exit 2 | fewer than four positional arguments | pass all four | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
-| `ps2ui-fontgen: no Raqm; kerning table will be empty` | warning | a Python caller reached `build_kerning` without Raqm; `main` refuses earlier | call `main` instead | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
+| ``ps2ui-fontgen: needs the uharfbuzz package, which `pip install ophtml` installs. From a checkout, install it yourself: pip install uharfbuzz`` | error, exit 1 | a checkout run without `uharfbuzz`; an installed `ophtml` always has it | `pip install uharfbuzz` | [ps2ui-fontgen](page:cli/ps2ui-fontgen#exit-codes) |
 | `usage: ps2ui-layout <page.html> <page.css> -o <ui.json> [--mode ntsc\|ntsc16x9\|pal\|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--version]` | error, exit 2 | a missing positional, a missing `-o`, an unknown `--mode`, or a `--canvas` that is not `WxH` | correct the command line | [ps2ui-layout](page:cli/ps2ui-layout#options) |
 | `ps2ui-layout: --min-font-size takes a positive integer` | error, exit 2 | `--min-font-size` given zero or a non-number | pass a positive integer | [CRT linter](page:authoring/crt-linter#reference-table) |
 | `ps2ui-layout: --strict: <n> warning(s)` | error, exit 1 | `--strict` and at least one warning in the IR | fix the warnings | [CRT linter](page:authoring/crt-linter#strict) |

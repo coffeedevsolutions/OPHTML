@@ -44,7 +44,7 @@ are the `order` field in the frontmatter.
 | id | title | one line |
 |---|---|---|
 | index | OPHTML | what it is, the pipeline, where to start |
-| getting-started/installation | Installation | install both packages, fonts, the Raqm refusal, checkout install |
+| getting-started/installation | Installation | install both packages, fonts, 0.8.0's Raqm refusal, checkout install |
 | getting-started/quickstart | Quick start | eight commands from a TTF to a served preview |
 | getting-started/tutorial-game-browser | Tutorial: a game browser | the CI-executed tutorial in the library voice |
 | getting-started/how-it-works | How it works | three stages, two seams, the rules the design rests on |
