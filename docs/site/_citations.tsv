@@ -397,7 +397,7 @@ _facts/authoring/lists	runtime/ps2ui.h	821	/* The item index displayed in row `r
 _facts/authoring/lists	runtime/ps2ui.h	822	 * the end of the data and should be blanked. This is the loop the app	/* The item index displayed in row `row`, or -1 when that row is past	 * runs after every move to refill the slots. */
 _facts/authoring/lists	runtime/ps2ui.h	826	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
 _facts/authoring/lists	runtime/ps2ui.h	830	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
-_facts/authoring/project-file	CHANGELOG.md	1401	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/project-file	CHANGELOG.md	1415	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/project-file	README.md	142	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
 _facts/authoring/project-file	README.md	663	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
@@ -586,7 +586,7 @@ _facts/authoring/video-modes	runtime/ps2ui.c	1493	uint32_t ps2ui_pixel_aspect_x1
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
-_facts/authoring/vram-budget	CHANGELOG.md	1401	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/vram-budget	CHANGELOG.md	1415	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	595	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	600	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	624	    if note and not ok:	    # look better tested than it is.	        for line in note:
@@ -631,7 +631,7 @@ _facts/cli/previewer	packages/baker/ps2ui_bake/serve_page.html	681	const KEYS = 
 _facts/cli/previewer	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 _facts/cli/ps2ui	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 _facts/cli/ps2ui	examples/memcard/build.sh	18	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.9.0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0.dev0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	203	    ir_suffix = ""	    # have to guess where the suffix goes.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	236	def _not_a_project(path):		    """Why this file is not a ps2ui.json, naming the blob case."""
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	270	    except UnicodeDecodeError:	            data = json.load(fh)	        # THE DOCSTRING ABOVE PROMISED THIS AND THE HANDLER DID NOT
@@ -717,7 +717,7 @@ _facts/cli/ps2ui-fontgen	README.md	313	./fonts/regen.sh	```sh	```
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	40	from ps2ui_bake.cli import load_font_manifest	import sys, os	from ps2ui_bake import fontgen
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	49	    rc = fontgen.main([ttf, "DejaVu Sans", str(weight),	    print("regen: %s = %s" % (face, ttf))	                       os.path.join(here, out)])
-_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.9.0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0.dev0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	82	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	19	# Latin-1 printable + the punctuation the example UI actually uses.		# chr(32) explicitly: an invisible U+00A0 once impersonated the space
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	23	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
@@ -836,32 +836,32 @@ _facts/examples/opl-env	tools/check-example-figures.py	1	#!/usr/bin/env python3	
 _facts/examples/opl-env	tools/check-example-figures.py	46	# 392 KiB footprint that P3b-6 had moved to 336, a Phase 2 record three	# read to decide what to build next. In one day it was found carrying a	# figures out of date, and a slot count of 127 against a blob holding
 _facts/examples/opl-env	tools/check-example-figures.py	111	    act = dict(act)	    text = open(path, encoding="utf-8").read()	    act["vram_kib"] = (
 _facts/getting-started/installation	.github/workflows/registry.yml	290	          python -m pip install ophtml	        run: |	          npm install -g @ophtml/layout
-_facts/getting-started/installation	CHANGELOG.md	19	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
-_facts/getting-started/installation	CHANGELOG.md	309	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/getting-started/installation	CHANGELOG.md	33	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
+_facts/getting-started/installation	CHANGELOG.md	323	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
 _facts/getting-started/installation	packages/baker/ps2ui_bake/ps2ui.py	37	def layout_command():		    """How to invoke ps2ui-layout, or a message saying how to get it."""
 _facts/getting-started/installation	packages/baker/ps2ui_bake/vendor.py	238	    print("runtime source: %s (%s)" % (src, label))		
 _facts/getting-started/installation	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9", "uharfbuzz>=0.51.7"]
 _facts/getting-started/installation	packages/baker/pyproject.toml	17	[project.scripts]		# One front door over a toolchain that had three. The three below stay:
-_facts/getting-started/installation	packages/layout/package.json	10	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
-_facts/getting-started/installation	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
+_facts/getting-started/installation	packages/layout/package.json	11	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
+_facts/getting-started/installation	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
 _facts/getting-started/quickstart	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        ps2ui_render(&ui, gs);	#else	#endif
-_facts/project/changelog	CHANGELOG.md	17	### Changed		
-_facts/project/changelog	CHANGELOG.md	19	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
-_facts/project/changelog	CHANGELOG.md	68	## 0.8.0 — 2026-09-23		
-_facts/project/changelog	CHANGELOG.md	84	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
-_facts/project/changelog	CHANGELOG.md	114	- **Three platforms had never run this toolchain, and the arm that		  covered the one non-Linux platform is now deprecated.**
-_facts/project/changelog	CHANGELOG.md	1028	## 0.7.0 — 2026-09-17		
-_facts/project/changelog	CHANGELOG.md	1044	- **`ps2ui vendor-runtime --starter` — the four files that build to a		  console binary, instead of the two that do not.** An install gave a
-_facts/project/changelog	CHANGELOG.md	1104	- **A `:focus` rule could bold a row that had been measured thin, and		  three other text properties it accepted did nothing at all.** The
-_facts/project/changelog	CHANGELOG.md	1149	- **Eight keyword-valued CSS properties accepted any string, and a typo		  bought you a different layout rather than an error.**
-_facts/project/changelog	CHANGELOG.md	1299	## 0.6.0 — 2026-09-12		
-_facts/project/changelog	CHANGELOG.md	1303	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/project/changelog	CHANGELOG.md	1401	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
-_facts/project/changelog	CHANGELOG.md	1491	## 0.5.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1541	## 0.4.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1631	## 0.3.0 — 2026-09-04		
+_facts/project/changelog	CHANGELOG.md	31	### Changed		
+_facts/project/changelog	CHANGELOG.md	33	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
+_facts/project/changelog	CHANGELOG.md	82	## 0.8.0 — 2026-09-23		
+_facts/project/changelog	CHANGELOG.md	98	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
+_facts/project/changelog	CHANGELOG.md	128	- **Three platforms had never run this toolchain, and the arm that		  covered the one non-Linux platform is now deprecated.**
+_facts/project/changelog	CHANGELOG.md	1042	## 0.7.0 — 2026-09-17		
+_facts/project/changelog	CHANGELOG.md	1058	- **`ps2ui vendor-runtime --starter` — the four files that build to a		  console binary, instead of the two that do not.** An install gave a
+_facts/project/changelog	CHANGELOG.md	1118	- **A `:focus` rule could bold a row that had been measured thin, and		  three other text properties it accepted did nothing at all.** The
+_facts/project/changelog	CHANGELOG.md	1163	- **Eight keyword-valued CSS properties accepted any string, and a typo		  bought you a different layout rather than an error.**
+_facts/project/changelog	CHANGELOG.md	1313	## 0.6.0 — 2026-09-12		
+_facts/project/changelog	CHANGELOG.md	1317	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/project/changelog	CHANGELOG.md	1415	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/project/changelog	CHANGELOG.md	1505	## 0.5.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1555	## 0.4.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1645	## 0.3.0 — 2026-09-04		
 _facts/project/internals	docs/PLAN.md	1	# ps2ui Foundation Plan		
 _facts/project/internals	docs/architecture.md	1	# ps2ui — architecture and decisions		
 _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the streaming sitting		
@@ -908,21 +908,21 @@ _facts/project/security-and-license	SECURITY.md	10	- **The C runtime parses `.ui
 _facts/project/security-and-license	SECURITY.md	15	- **The build tools run on your machine.** `ps2ui-layout` and	  planned (backlog S2).	  `ps2ui-bake` read HTML/CSS/IR you point them at. Resource-exhaustion
 _facts/project/security-and-license	fonts/vendor/LICENSE.txt	1	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/		Upstream-Name: DejaVu fonts
 _facts/project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-_facts/project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+_facts/project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 _facts/project/security-and-license	runtime/ps2ui.c	256	    uint32_t i;	    arena_layout L;	    memset(ctx, 0, sizeof *ctx);
 _facts/project/security-and-license	runtime/vendor/README.md	1	# Vendored gsKit headers		
 _facts/project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
 _facts/reference/compatibility	.github/workflows/hw.yml	47	  # re-measure the band. ghcr.io/ps2dev/ps2dev:latest stays deliberately	  # the calibration comment on the gated diff step and expect to	  # UNpinned: the TFX compile probe exists to notice gsKit changing, and
 _facts/reference/compatibility	.github/workflows/registry.yml	349	  macos-plain:	  # was the placeholder.	    name: a plain pip install on macOS, and nothing else (${{ matrix.os }})
 _facts/reference/compatibility	.github/workflows/registry.yml	483	  windows-plain:	  # out differently on this platform (the win32 branch is wrong).	    name: a plain pip install on Windows, and nothing else
-_facts/reference/compatibility	CHANGELOG.md	309	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
-_facts/reference/compatibility	CHANGELOG.md	1342	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
-_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.9.0"	# until the first real release was on PyPI.	
+_facts/reference/compatibility	CHANGELOG.md	323	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/reference/compatibility	CHANGELOG.md	1356	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
+_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0.dev0"	# until the first real release was on PyPI.	
 _facts/reference/compatibility	packages/baker/ps2ui_bake/vendor.py	15	the tree. Handing out a runtime fetched from anywhere else reintroduces	and check-versions.py holds the two together in the tree -- but only in	exactly the skew that fence exists to prevent, and it would do it at the
 _facts/reference/compatibility	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9", "uharfbuzz>=0.51.7"]
-_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.9.0",	  "name": "@ophtml/layout",	  "publishConfig": {
-_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.9.0",	    "access": "public"
-_facts/reference/compatibility	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
+_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.10.0-dev.0",	  "name": "@ophtml/layout",	  "publishConfig": {
+_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.10.0-dev.0",	    "access": "public",
+_facts/reference/compatibility	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
 _facts/reference/compatibility	packages/layout/src/index.js	49	export const IR_VERSION = 1;		
 _facts/reference/compatibility	runtime/Makefile	4	CC      ?= cc		CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2
 _facts/reference/compatibility	runtime/ps2ui.c	173	    if (h->magic != PS2UI_MAGIC || h->version != PS2UI_VERSION)	        return 0;	        return 0;
@@ -930,7 +930,7 @@ _facts/reference/compatibility	runtime/ps2ui.c	267	    if (ctx->hdr->version != 
 _facts/reference/compatibility	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/reference/compatibility	runtime/ps2ui.h	427	#define PS2UI_ERR_VERSION    -3	#define PS2UI_ERR_MAGIC      -2	#define PS2UI_ERR_BOUNDS     -4
 _facts/reference/compatibility	runtime/vendor/README.md	3	`gsKit/` contains verbatim copies of the public headers from		[ps2dev/gsKit](https://github.com/ps2dev/gsKit) at commit
-_facts/reference/diagnostics	CHANGELOG.md	1342	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
+_facts/reference/diagnostics	CHANGELOG.md	1356	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/caps.py	83	    if records is not None:		        # >= because the runtime's guard is `depth + 1 >= MAX`, so the
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	730	    try:		        uib = read_uib(args.uib)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	734	        return 2	        print(f"ps2ui-check: {exc}", file=sys.stderr)	
@@ -1397,8 +1397,8 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1303	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1837	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1317	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1851	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
 _facts/runtime/moving-and-hiding	README.md	441	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
@@ -1526,7 +1526,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	65	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	366	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	1387	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	1401	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	134	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -1600,7 +1600,7 @@ project/internals	docs/findings.md	1	<!-- GENERATED by tools/check-findings.py -
 project/internals	docs/method.md	1	# How this project tests itself, and the ways it has failed to		
 project/internals	docs/releasing.md	1	# Releasing		
 project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 project/security-and-license	runtime/vendor/README.md	7	Academic Free License version 2.0 — see the notice each file carries.	(`ee/gs/include/*.h` and `ee/dma/include/*.h`), licensed under the	
 project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
 reference/uib-format	docs/PLAN.md	92	**Format history:** v1 initial → v2 CRC-32 + feature bits + dynamic-text		tables → v3 multi-screen + images (0.2.0) → v4 display aspect (76-byte

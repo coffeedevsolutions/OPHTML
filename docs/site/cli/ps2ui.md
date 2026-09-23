@@ -625,15 +625,15 @@ Run these from the repository root.
 
 ```console
 $ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui --version
-ps2ui 0.9.0
+ps2ui 0.10.0.dev0
 $ node packages/layout/bin/ps2ui-layout.js --version
-ps2ui-layout 0.9.0
+ps2ui-layout 0.10.0-dev.0
 ```
 
-A plain release is spelled identically as a Python version and as an npm
-version, so these two read the same. They diverge on a prerelease, where
-PEP 440's `0.10.0.dev0` is semver `0.10.0-dev.0`; `tools/check-versions.py`
-holds the two spellings together either way.
+This tree is a prerelease, so the two read differently: PEP 440's
+`0.10.0.dev0` is semver `0.10.0-dev.0`. A plain release is spelled
+identically in both, so an installed 0.9.0 prints `0.9.0` twice;
+`tools/check-versions.py` holds the two spellings together either way.
 
 ## Related pages
 
