@@ -17,7 +17,7 @@ for what the keys mean. This page states where each key goes.
 
 ```console
 $ ps2ui --version
-ps2ui 0.7.0
+ps2ui 0.8.0
 ```
 
 ```console
@@ -625,13 +625,15 @@ Run these from the repository root.
 
 ```console
 $ PYTHONPATH=packages/baker python3 -m ps2ui_bake.ps2ui --version
-ps2ui 0.8.0.dev0
+ps2ui 0.8.0
 $ node packages/layout/bin/ps2ui-layout.js --version
-ps2ui-layout 0.8.0-dev.0
+ps2ui-layout 0.8.0
 ```
 
-The two numbers differ in spelling because one is a Python version and the
-other is an npm version. `tools/check-versions.py` holds them together.
+A plain release is spelled identically as a Python version and as an npm
+version, so these two read the same. They diverge on a prerelease, where
+PEP 440's `0.8.0.dev0` is semver `0.8.0-dev.0`; `tools/check-versions.py`
+holds the two spellings together either way.
 
 ## Related pages
 

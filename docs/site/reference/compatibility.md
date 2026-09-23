@@ -24,7 +24,7 @@ them.
 ```
 $ python3 tools/check-versions.py --except-tag
 ok - packages/baker derives its version from ps2ui_bake.__version__ and declares it nowhere else
-ok - @ophtml/layout 0.7.0 and ophtml 0.7.0 are the same version in the two spellings
+ok - @ophtml/layout 0.8.0 and ophtml 0.8.0 are the same version in the two spellings
 ok - PS2UI_VERSION and uib.VERSION are both 7
 ok - docs/format-uib.md's header table says version 7
 ok - docs/format-uib.md's Versioning list explains v7
@@ -61,8 +61,8 @@ skip - the tag rule, deferred to the full unflagged run at the end of this job (
 | `.uib` format | 7 | `VERSION` in `packages/baker/ps2ui_bake/uib.py` |
 | `PS2UI_VERSION` (runtime macro) | 7 | `runtime/ps2ui.h` |
 
-`ps2ui --version` prints `ps2ui 0.7.0`. `ps2ui-layout --version`
-prints `ps2ui-layout 0.7.0`. `PS2UI_VERSION` is the frozen
+`ps2ui --version` prints `ps2ui 0.8.0`. `ps2ui-layout --version`
+prints `ps2ui-layout 0.8.0`. `PS2UI_VERSION` is the frozen
 `.uib` format version, not a mechanism that stops the baker and the
 runtime drifting apart by itself. Baker and runtime agree because
 `ps2ui vendor-runtime` ships both files from one package in one

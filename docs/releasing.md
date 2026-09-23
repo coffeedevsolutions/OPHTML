@@ -485,6 +485,43 @@ written twice to avoid.
    - a fresh `## Unreleased — <next>.dev0` above the release section,
      carrying its own `.uib` format paragraph.
    - the README's Quick start note, which names both versions.
+   - **`tools/check-doc-versions.py --pin`, and read the next
+     paragraph before you believe its output.**
+
+   **THE VERSION RECORD COLLAPSES AT A CUT, AND IT IS THIS STEP THAT
+   PAYS FOR IT.** `_versions.tsv` records each banner as meaning the
+   tree or the last release, so a bump knows which way to move it.
+   `classify()` tests the tree first, and at a release cut the two
+   numbers are *the same string* — so every banner classifies as the
+   tree, and `--pin` at step 5 records it that way. Measured cutting
+   0.8.0: the record went from 18 tree and 10 release to **27 tree and
+   0 release**, and the ten that had meant "release" are
+
+       _facts/cli/ps2ui.md:17          cli/ps2ui.md:20
+       _facts/getting-started/installation.md:24   (two banners)
+       cli/ps2ui-fontgen.md:43         getting-started/installation.md:36
+       getting-started/installation.md:38
+       reference/compatibility.md:27, :64, :65
+
+   Simulating this step against that record turns **all 27 red at
+   once**: the tree moves to `<next>.dev0`, every banner still names
+   the release, and every row says it was pinned as the tree.
+
+   The trap is what you do next. Re-running `--pin` here makes all 27
+   "release" and goes green — and that is wrong for the seventeen that
+   genuinely show what the *checkout* prints, which are now stale
+   output nobody will look at again. So at this step, update the tree
+   banners to `<next>.dev0` FIRST, and only then `--pin`. The ten
+   listed above are the ones that should still name the release.
+
+   There is no hand-edit that avoids this. A row kept as "release"
+   fails at the cut, because `classify()` cannot see a distinction
+   between two identical strings; the tree cannot be both green at the
+   cut and correct here with the tool as it stands. Fixing that means
+   `--pin` preserving an existing row's kind when the two versions
+   coincide — a change to the tool, deliberately not folded into the
+   0.8.0 version bump, because folding an unrelated fix into a version
+   bump is how a version bump stops being reviewable.
 
    That paragraph's drift count is **zero** straight after a release —
    the section below it shipped the format the tree still writes — and

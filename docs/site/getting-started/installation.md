@@ -33,9 +33,9 @@ npm install -g @ophtml/layout
 
 ```sh
 $ ps2ui --version
-ps2ui 0.7.0
+ps2ui 0.8.0
 $ ps2ui-layout --version
-ps2ui-layout 0.7.0
+ps2ui-layout 0.8.0
 ```
 
 `ps2ui --version` proves the Python half; `ps2ui-layout --version` proves
