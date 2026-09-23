@@ -4,7 +4,7 @@ title: Installation
 description: Install both packages, prove them with --version, generate font metrics, and know when the console half needs ps2dev.
 section: getting-started
 order: 1
-version: 0.7.0
+version: 0.8.0
 sources: [packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/ps2ui.py, fonts/fonts.json, .github/workflows/registry.yml, docs/tutorial-uc3.md, docs/site/ARCHITECTURE.md]
 ---
 
@@ -202,12 +202,19 @@ fribidi is present, then a remedy that matches what it found.
 | macOS | `brew install fribidi` | `brew install libraqm`, set `PKG_CONFIG_PATH` from `brew --prefix`, `pip install --no-binary pillow --force-reinstall pillow` |
 | Debian, Ubuntu | `apt install libfribidi0` | `pip install --no-binary pillow --force-reinstall pillow` |
 | Fedora | `dnf install fribidi` | `pip install --no-binary pillow --force-reinstall pillow` |
+| Windows | a fribidi DLL (`fribidi-0.dll`, `libfribidi-0.dll` or `fribidi.dll`) from MSYS2 (`pacman -S mingw-w64-x86_64-fribidi`) or conda-forge (`conda install -c conda-forge fribidi`), in a directory on `PATH` before Python starts | if Raqm is still false with the DLL present, it is a search problem rather than a Pillow one: `PATH` was set after Python started, or the DLL and the interpreter disagree on bitness. If Pillow reports fribidi but no Raqm, it is not PyPI's wheel: `pip install --force-reinstall --only-binary :all: pillow` |
 
 The package-manager fix runs first only when Pillow reports fribidi
 missing. When fribidi is already present, the tool skips straight to the
 rebuild column. Verify with `features.check('raqm')`, not pip's exit
 status; a Pillow build without libraqm still exits 0 and silently omits
 the feature.
+
+The Windows row is read off the Windows wheel and the remedy `ps2ui
+fontgen` prints there, not off a Windows machine; no Windows run of this
+toolchain has been reported yet. It never sends a Windows reader to a
+source build: PyPI's Windows wheel already compiles Raqm in, so that
+row's second column is a diagnosis rather than a rebuild.
 
 Both macOS Pillow wheels compile Raqm into the binary and load fribidi
 from the system at run time. A Mac with Homebrew installed for a while

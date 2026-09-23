@@ -110,7 +110,9 @@ CLI answers `--version`. What is left of Phase 4's exit gate in
 Requirements:
 
 - Node 18+
-- Python 3 with Pillow
+- Python 3 with a Pillow that reports Raqm. On macOS or Windows that
+  usually means installing fribidi first; `ps2ui fontgen` refuses
+  without it and prints the remedy for your platform
 - A C compiler for the host tests
 - DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 

@@ -4,7 +4,7 @@ title: Security and license
 description: How to report a vulnerability, what the runtime and build tools do with untrusted input, CI's read-only posture, and the licences covering the code and vendored assets.
 section: project
 order: 72
-version: 0.7.0
+version: 0.8.0
 sources: [SECURITY.md, LICENSE, fonts/vendor/LICENSE.txt, runtime/vendor/README.md, runtime/vendor/gsKit/dmaCore.h, packages/baker/pyproject.toml, packages/layout/package.json, runtime/ps2ui.c, .github/workflows/ci.yml, .github/workflows/hw.yml, .github/workflows/registry.yml]
 ---
 

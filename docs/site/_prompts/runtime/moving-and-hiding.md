@@ -92,7 +92,7 @@ title: Moving and hiding
 description: <one sentence>
 section: runtime
 order: 45
-version: 0.7.0
+version: 0.8.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -4,7 +4,7 @@ title: How it works
 description: The three stages, the two file formats between them, and why the runtime never computes a layout.
 section: getting-started
 order: 4
-version: 0.7.0
+version: 0.8.0
 sources: [docs/site/ARCHITECTURE.md, docs/site/_facts/reference/ir-format.md, docs/site/_facts/reference/uib-format.md, docs/site/_facts/runtime/frame-loop.md, docs/site/_facts/cli/previewer.md, docs/site/_facts/authoring/text-and-fonts.md, docs/site/reference/ir-format.md, docs/site/reference/uib-format.md, docs/site/authoring/text-and-fonts.md, docs/site/cli/previewer.md, docs/site/runtime/frame-loop.md, docs/site/project/internals.md]
 ---
 

@@ -111,12 +111,13 @@ Source: ps2ui.py:89-105, 135-141, 161-166, 198-213, 292-319.
   exits 1 with a traceback. `build_server` calls `read_uib(args.uib)` outside the
   `ProjectError` handler (serve.py:698-701, 803-808). Every other missing-input
   path in this file prints one line.
-- `ps2ui serve --port <busy>` raises an uncaught `OSError: [Errno 98] Address
-  already in use` and exits 1 with a traceback. `bind` re-raises when `wander` is
-  false (serve.py:660-664). The docstring above it argues an explicit port should
-  fail hard, which it does, but the failure is a traceback rather than a message.
-  Verified by holding 127.0.0.1:8434 open and running `ps2ui serve --uib ...
-  --port 8434`.
+- **Fixed in 0.8.0 (B18):** `ps2ui serve --port <busy>` used to raise an
+  uncaught `OSError: [Errno 98] Address already in use` with a traceback. It
+  now refuses with a message and still does not move an explicit port.
+  Re-measured at the 0.8.0 cut by holding 127.0.0.1:8434 open and running
+  `ps2ui serve --uib ... --port 8434`, which printed `ps2ui serve: port 8434
+  is already in use.` and the two lines after it. The `--uib <missing file>`
+  finding above was re-run at the same time and still ends in a traceback.
 - A failing layout stage is reported as `ProjectError`, so `ps2ui build` exits 1
   even when `ps2ui-layout` exited 2. `ps2ui build <scratch>/memcard --mode vga`
   printed the compiler's usage line, then `ps2ui: ps2ui-layout failed on

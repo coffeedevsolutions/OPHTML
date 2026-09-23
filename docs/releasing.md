@@ -190,6 +190,16 @@ written twice to avoid.
    Not a follow-up and not a docs-team problem: a step, here, before
    the tag.
 
+   **First, the stamp.** `docs/site/ARCHITECTURE.md` carries
+   `Site version: <x.y.z>`, every page's front matter carries the same
+   value in `version:`, and `website/hooks.py` prints it in the footer of
+   every page as "OPHTML <x.y.z>. MIT License." Set all of them to the
+   version being cut. `check-site-pages.py` holds the pages to the
+   stamp, but nothing holds the stamp to the release, so a cut that
+   skips this stays green. The 0.7.0 cut did it and nothing wrote it
+   down; the 0.8.0 cut then skipped it, and was caught only by a
+   pre-publish audit reading the live footer.
+
    ```sh
    python3 tools/check-doc-impact.py <previous tag> --all
    ```

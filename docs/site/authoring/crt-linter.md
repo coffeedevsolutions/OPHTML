@@ -4,7 +4,7 @@ title: CRT linter
 description: Eight compile-time rules that catch what a desktop preview cannot show, and the three CRT warnings the blob validator adds.
 section: authoring
 order: 21
-version: 0.7.0
+version: 0.8.0
 sources: [packages/layout/src/lint.js, packages/layout/src/index.js, packages/layout/src/box.js, packages/layout/src/paint.js, packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, docs/tutorial-uc3.md, README.md, docs/site/assets/authoring/crt-linter/demo/ui/library.html, docs/site/assets/authoring/crt-linter/demo/ui/library.css, docs/site/assets/authoring/crt-linter/demo/ps2ui.json]
 ---
 
@@ -267,7 +267,7 @@ ps2ui-layout: 3 paint commands, 0 focusables -> build/theme.json
 
 ## Limits and errors
 
-`ps2ui dev` and `ps2ui-dev` accept `--strict` and `--min-font-size` and act on neither. The watch loop sets them on the wrong object. The compiler reads lint overrides from one field the flags never reach. This is a defect, queued as a separate change. Lint against `ps2ui build` until it lands.
+`ps2ui dev` and `ps2ui-dev` honour `--strict` and `--min-font-size` the way `ps2ui build` does. `--min-font-size` moves the floor, so `--min-font-size 8` silences a 9px warning, and `--strict` fails the rebuild on any warning with `ps2ui-dev: --strict: <n> warning(s)` and exit 1. Before 0.7.0 both flags were accepted and did nothing.
 
 The example project sets `strict: true` and `minFontSize: 11`. The build honours both and reports nothing.
 

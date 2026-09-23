@@ -4,7 +4,7 @@ title: Previewer
 description: ps2ui serve builds the project, serves one page on loopback, and drives the blob by arrow key.
 section: cli
 order: 35
-version: 0.7.0
+version: 0.8.0
 sources: [packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/preview.py, packages/baker/tests/test_serve.py, docs/tutorial-uc3.md, README.md]
 ---
 

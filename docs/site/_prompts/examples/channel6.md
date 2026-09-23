@@ -91,7 +91,7 @@ title: channel6
 description: <one sentence>
 section: examples
 order: 62
-version: 0.7.0
+version: 0.8.0
 sources: [<every repository path opened>]
 ---
 ```

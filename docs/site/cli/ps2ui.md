@@ -4,7 +4,7 @@ title: ps2ui
 description: The umbrella command over the toolchain: every subcommand, the project keys it forwards, what it writes and its exit codes.
 section: cli
 order: 30
-version: 0.7.0
+version: 0.8.0
 sources: [packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/__main__.py, packages/baker/pyproject.toml, packages/layout/package.json, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, packages/baker/tests/test_baker.py, packages/baker/tests/test_serve.py, examples/memcard/build.sh, examples/channel6/build.sh, README.md, CHANGELOG.md]
 ---
 

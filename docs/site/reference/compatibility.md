@@ -4,7 +4,7 @@ title: Compatibility
 description: The versions that ship together, the .uib format pledge across runtimes, registry prerelease rules, and the supported platforms.
 section: reference
 order: 53
-version: 0.7.0
+version: 0.8.0
 sources: [tools/check-versions.py, tools/check-format-frozen.py, CHANGELOG.md, docs/releasing.md, packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/__init__.py, packages/baker/ps2ui_bake/uib.py, packages/layout/src/index.js, runtime/ps2ui.h, runtime/ps2ui.c, runtime/Makefile, runtime/vendor/README.md, .github/workflows/hw.yml, .github/workflows/registry.yml, examples/memcard/build/library.json]
 ---
 
