@@ -84,18 +84,3 @@ def _no_fonts(why):
     raise unittest.SkipTest(
         "%s. fonts/fonts.json lists the paths that are looked in; install "
         "DejaVu Sans or add yours to that file." % why)
-
-
-def require_raqm():
-    """Both conditions, because the test needs both.
-
-    A TTF alone is not enough for the fontgen success path: without
-    Pillow's Raqm layout engine every advance comes out identical and
-    the kern table comes out empty, which is exactly the silent wrong
-    answer fontgen refuses to write. Guarding this on the TTF alone
-    would turn "no Raqm" into a failure that reads like a kerning bug.
-    """
-    require_ttf()
-    from PIL import features
-    if not features.check("raqm"):
-        _no_fonts("this Pillow has no Raqm layout engine")

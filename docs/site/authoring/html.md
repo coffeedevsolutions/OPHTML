@@ -22,7 +22,7 @@ Thirteen attributes reach the compiler. They are listed under [Reference table](
 
 ## Minimal example
 
-This is the screen from the [tutorial](repo:docs/tutorial-uc3.md#L78). `data-repeat` stamps out six rows. Each row holds two slots and one focus node.
+This is the screen from the [tutorial](repo:docs/tutorial-uc3.md#L77). `data-repeat` stamps out six rows. Each row holds two slots and one focus node.
 
 ```html
 <screen name="library">

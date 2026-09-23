@@ -15,6 +15,78 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # THE TUTORIAL'S FIRST COMMAND, ON THE MACHINES IT USED TO REFUSE ON.
+  #
+  # `ps2ui fontgen` measured through Pillow's Raqm engine, which loads
+  # fribidi from the machine, and no stock Mac or Windows box has it:
+  # registry.yml's `-plain` jobs asserted that refusal against every
+  # release up to 0.8.0. F47 moved the measurement to uharfbuzz, whose
+  # wheels carry HarfBuzz whole. This is where that claim is checked on
+  # every pull request, rather than once a week against whatever was
+  # last published -- the only jobs here that run a Mac or Windows
+  # against the TREE.
+  #
+  # NOTHING BUT THE PACKAGE IS INSTALLED, deliberately: no brew, no
+  # MSYS2, no font. The faces are the vendored ones, so the output has
+  # a known right answer -- the committed tables, byte for byte in
+  # every field a build reads -- and a green here means a stranger's
+  # machine gets exactly the numbers the tutorial prints.
+  #
+  # PYTHON 3.9 ON WINDOWS on purpose: it is the oldest this package
+  # supports, and pip resolves it to uharfbuzz 0.51.7, the floor in
+  # pyproject.toml, so the floor is exercised rather than asserted.
+  #
+  # ABOVE `toolchain` in this file, and not only for reading order:
+  # check-versions.py requires its unflagged run to be the LAST `run:`
+  # step in the workflow.
+  stock-machines:
+    name: ps2ui fontgen on a stock ${{ matrix.os }} (Python ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            python: "3.13"
+          - os: macos-15-intel
+            python: "3.11"
+          - os: windows-2025
+            python: "3.9"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: This tree's baker, installed the way a release installs
+        run: python -m pip install ./packages/baker
+      # PRINTED, NOT ASSERTED. Whether this image happens to have
+      # fribidi is a fact about the image; the job's claim is that the
+      # answer no longer matters, so it is logged for the next reader
+      # and nothing depends on it.
+      - name: What this machine has
+        run: |
+          python -c "import PIL, platform, sys, uharfbuzz; from PIL import features; print('measured: Python %s, Pillow %s, uharfbuzz %s, %s/%s, raqm=%s' % (platform.python_version(), PIL.__version__, uharfbuzz.__version__, sys.platform, platform.machine(), features.check('raqm')))"
+      - name: The committed tables, from nothing but the package
+        run: |
+          work="$RUNNER_TEMP/stranger"
+          mkdir -p "$work" && cd "$work"
+          ps2ui fontgen "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans.ttf" \
+                        "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans-Bold.ttf"
+          python - "$GITHUB_WORKSPACE/fonts" <<'PY'
+          import json, os, sys
+          committed = sys.argv[1]
+          for name in ("default.metrics.json", "default-bold.metrics.json"):
+              got = json.load(open(os.path.join("fonts", name), encoding="utf-8"))
+              want = json.load(open(os.path.join(committed, name), encoding="utf-8"))
+              for key in ("advances", "kerning", "ascent", "descent", "missing"):
+                  assert got[key] == want[key], "%s: %s differs from the committed table" % (name, key)
+              print("ok - %s: %d glyphs, %d kern pairs, identical to the committed table"
+                    % (name, len(got["advances"]), len(got["kerning"])))
+          PY
+
   toolchain:
     # Same pin as hw.yml, same reason in miniature: the suites' toolchains
     # (node, python) are version-pinned by actions, but the image's
@@ -62,7 +134,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fonts-dejavu-core
-          python3 -m pip install Pillow
+          python3 -m pip install Pillow uharfbuzz
 
       # The format stability pledge, made at v7 and enforced rather
       # than announced. It does not forbid a v8; it makes one a

@@ -43,7 +43,7 @@ ps2ui-fontgen --version
 ps2ui-fontgen 0.8.0
 ```
 
-The version check runs before every other check, so it cannot fail for a missing font or a missing Raqm. See [main](repo:packages/baker/ps2ui_bake/fontgen.py#L369).
+The version check runs before every other check, so it cannot fail for a missing font or a missing dependency. See [main](repo:packages/baker/ps2ui_bake/fontgen.py#L145).
 
 ### Options
 
@@ -58,7 +58,7 @@ All four required arguments are positional. Order matters.
 | (5th) | `[charset-file]` | built-in charset | a UTF-8 file whose whole contents replace the built-in charset |
 | `--version`, `-V` | none | off | print `ps2ui-fontgen <version>` to stdout and exit 0; only honoured as the first argument |
 
-The built-in charset is `DEFAULT_CHARSET` at [fontgen.py](repo:packages/baker/ps2ui_bake/fontgen.py#L26). It is the space, `string.printable` without its whitespace, and twenty extra characters. Print the extras by codepoint:
+The built-in charset is `DEFAULT_CHARSET` at [fontgen.py](repo:packages/baker/ps2ui_bake/fontgen.py#L23). It is the space, `string.printable` without its whitespace, and twenty extra characters. Print the extras by codepoint:
 
 ```sh
 python3 -c "from ps2ui_bake.fontgen import DEFAULT_CHARSET as C; s=sorted(set(C)); print(len(s), 'codepoints'); print([ord(c) for c in s if ord(c) > 126])"
@@ -131,43 +131,21 @@ python3 -c "import json; d=json.load(open('fonts/default.metrics.json')); print(
 
 Advances are measured at a 1000px em so hinting cannot perturb them differently at different sizes. Both stages then derive pixel advances with the same rounding, described on [Text and fonts](page:authoring/text-and-fonts#behaviour).
 
-Kerning is measured, not read from a `kern` or `GPOS` table. For every ordered pair the tool asks the shaper for `getlength(a + b) - getlength(a) - getlength(b)` and stores the rounded result when it is non-zero. Substitution features `liga`, `clig`, `dlig`, `hlig`, `rlig` and `calt` are turned off for those calls, so a ligature such as `ff` is not recorded as a kern. See [NO_SUBSTITUTION](repo:packages/baker/ps2ui_bake/fontgen.py#L42) and [build_kerning](repo:packages/baker/ps2ui_bake/fontgen.py#L51). The table is directional: `84,111` (`To`) is present and `111,84` is not.
+Kerning is measured, not read from a `kern` or `GPOS` table. For every ordered pair the tool shapes `a + b`, `a` and `b` with HarfBuzz, through the `uharfbuzz` package, and stores the rounded difference when it is non-zero; HarfBuzz applies whichever of the two tables the font carries. Substitution features `liga`, `clig`, `dlig`, `hlig`, `rlig` and `calt` are turned off for those calls, so a ligature such as `ff` is not recorded as a kern. See [NO_SUBSTITUTION](repo:packages/baker/ps2ui_bake/fontgen.py#L39) and [build_kerning](repo:packages/baker/ps2ui_bake/fontgen.py#L102). The table is directional: `84,111` (`To`) is present and `111,84` is not.
 
 ### Exit codes
 
 | code | triggered by | fix |
 |---|---|---|
 | 0 | metrics written | none |
-| 2 | Pillow reports no Raqm layout engine | follow the printed remedy, then rerun |
 | 2 | fewer than four positional arguments | supply `<font.ttf> <family> <weight> <out.metrics.json>` |
 | 1 | `<weight>` is not an integer (`ValueError` traceback) | pass a number such as `400` or `700` |
 | 1 | the TTF cannot be opened (`OSError: cannot open resource` traceback) | check the path |
+| 1 | `uharfbuzz` is not installed, which only a checkout can be | `pip install uharfbuzz` |
 
-The Raqm check runs before the argument count and before the font is opened. Without Raqm, Pillow applies no positioning, so every pair would measure zero and the file would silently un-kern the project. The tool refuses instead and writes nothing. `TestFontgenRefusesWithoutRaqm` at [test_baker.py](repo:packages/baker/tests/test_baker.py#L157) proves the ordering by naming a TTF that does not exist.
+There is no Raqm check. Up to 0.8.0 the tool measured through Pillow's Raqm layout engine, which loads fribidi from the machine, so a stock macOS or Windows install refused to write anything; that refusal and its remedies are on [Installation](page:getting-started/installation#if-fontgen-refuses) for as long as 0.8.0 is the published release. HarfBuzz reproduces the tables Raqm measured exactly, so no committed metrics file changed. `TestFontgenNeedsNoRaqm` at [test_baker.py](repo:packages/baker/tests/test_baker.py#L157) tells Pillow it has no Raqm and requires the committed tables byte for byte.
 
-This machine has Raqm, so the refusal below was produced by running `fontgen.main` with `PIL.features.check` patched to return `False`, the same patch the test applies:
-
-```
-ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.
-The Pillow you have (12.3.0, linux/x86_64) reports no Raqm, and no fribidi either.
-Raqm is compiled into Pillow's binary and fribidi is loaded from your system at run time, so the missing piece is probably fribidi alone. Try that first, it needs no rebuild:
-    brew install fribidi          # macOS
-    apt install libfribidi0       # Debian/Ubuntu
-    dnf install fribidi           # Fedora
-...
-If it is still false, rebuild Pillow against both:
-    pip install --no-binary pillow --force-reinstall pillow
-Use --no-binary pillow, not --no-binary :all: -- the bare form source-builds every dependency and spends tens of minutes bootstrapping CMake.
-```
-
-The remedy asks Pillow about `fribidi` separately, because Raqm is compiled into the Pillow binary and fribidi is loaded from the machine at run time. The trimmed line is a `python -c "from PIL import features; print(features.check('raqm'))"` check to confirm the fix took. See [_raqm_remedy](repo:packages/baker/ps2ui_bake/fontgen.py#L103).
-
-| fribidi reported | remedy printed first |
-|---|---|
-| absent | install fribidi with the system package manager; no rebuild |
-| present | rebuild Pillow from source with `--no-binary pillow` |
-
-On macOS the rebuild lines add `brew install libraqm` and a `PKG_CONFIG_PATH` derived from `$(brew --prefix)`. Installation steps are on [Installation](page:getting-started/installation#limits-and-errors).
+`uharfbuzz` is imported only when a font is measured, so a checkout without it loses this one command, with one line naming the package to install, and nothing is written.
 
 ### Files written
 
@@ -289,5 +267,5 @@ The wrapper stops at the first non-zero return and writes no manifest. It create
 |---|---|
 | [Text and fonts](page:authoring/text-and-fonts#behaviour) | how the compiler and baker consume advances, kerning and the charset |
 | [The project file](page:authoring/project-file#reference-table) | the `fonts` key that names the manifest |
-| [Installation](page:getting-started/installation#limits-and-errors) | getting a Pillow with Raqm |
+| [Installation](page:getting-started/installation#limits-and-errors) | installing both packages, and the 0.8.0 Raqm refusal |
 | [ps2ui](page:cli/ps2ui#from-a-checkout) | the umbrella command and the checkout spelling |

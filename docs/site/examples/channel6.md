@@ -111,13 +111,13 @@ check-blobs: 2 blob(s) validated
 
 CI runs this example across three separate steps: "Channel-6 browser end to
 end" runs `./examples/channel6/build.sh` and nothing else
-([ci.yml](repo:.github/workflows/ci.yml#L181-L192)); "Committed screenshots
+([ci.yml](repo:.github/workflows/ci.yml#L253-L264)); "Committed screenshots
 match the renderer" re-runs the `git diff --exit-code` above alongside
 memcard's and opl-env's screenshot directories
-([ci.yml](repo:.github/workflows/ci.yml#L360-L377)); "Validate every blob
+([ci.yml](repo:.github/workflows/ci.yml#L432-L449)); "Validate every blob
 against the runtime's assumptions" runs `tools/check-blobs.sh` by name
 against both channel6 blobs plus the other two examples'
-([ci.yml](repo:.github/workflows/ci.yml#L430-L451)).
+([ci.yml](repo:.github/workflows/ci.yml#L502-L523)).
 
 ## Numbers from the blob
 

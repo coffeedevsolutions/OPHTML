@@ -66,7 +66,7 @@ Each item is `claim -> how to prove it`. Run every command. Paste real output in
 1. Version table: ophtml, @ophtml/layout, IR 1, .uib 7, PS2UI_VERSION 7 -> run `python3 tools/check-versions.py --except-tag` and paste; run the two --version commands
 2. A 0.5.0 runtime loads a 0.6.0 blob and vice versa because zero format moves landed -> cite CHANGELOG 0.6.0 format paragraph and check-format-frozen
 3. Prerelease: npm `next` dist-tag; pip declines .dev once a stable exists -> cite releasing.md
-4. Platforms: Node 18+, Python 3.9+, Pillow 9+; macOS needs fribidi for Raqm; gcc and clang for host tests; gsKit pin; PS2SDK latest -> cite manifests and workflows
+4. Platforms: Node 18+, Python 3.9+, Pillow 9+, uharfbuzz 0.51.7+; 0.8.0 alone needs fribidi for Raqm on macOS and Windows; gcc and clang for host tests; gsKit pin; PS2SDK latest -> cite manifests and workflows
 
 ## Screenshots
 

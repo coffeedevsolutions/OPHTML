@@ -142,38 +142,39 @@ a prerelease refused `latest` and a release refused any other tag.
 | Node.js | 18 or newer | `packages/layout/package.json` |
 | Python | 3.9 or newer | `packages/baker/pyproject.toml` |
 | Pillow | 9 or newer | `packages/baker/pyproject.toml` |
-| macOS | fribidi installed, for `ps2ui-fontgen`'s Raqm text shaping | CHANGELOG.md Unreleased section |
-| Windows | a fribidi DLL on `PATH`, for the same reason | `packages/baker/ps2ui_bake/fontgen.py` `_windows_fribidi_hint()` |
+| uharfbuzz | 0.51.7 or newer, from the next release; pip installs it | `packages/baker/pyproject.toml` |
+| macOS | 0.8.0 only: fribidi installed, for `ps2ui-fontgen`'s Raqm text shaping | CHANGELOG.md 0.7.0 section |
+| Windows | 0.8.0 only: a fribidi DLL on `PATH`, for the same reason | CHANGELOG.md 0.8.0 section |
 | host C compiler | `cc` or clang, for `make -C runtime test` | `runtime/Makefile` |
 | gsKit (host tests) | vendored headers pinned to commit `43122eb96289167975b56caa45beb71eb8684fa2` | `runtime/vendor/README.md` |
 | PS2SDK / ps2dev toolchain | `ghcr.io/ps2dev/ps2dev:latest`, deliberately unpinned | `.github/workflows/hw.yml` |
 
 Install both packages per
 [installation](page:getting-started/installation#what-you-need).
-Both macOS Pillow wheels compile Raqm into `_imagingft`, but Pillow
-loads `fribidi` at run time through `dlopen`; a Mac or a runner without
-it makes `ps2ui-fontgen` refuse until `brew install fribidi` runs.
+**The macOS and Windows rows end with 0.8.0.** That release's
+`ps2ui-fontgen` measures through Pillow's Raqm engine, which Pillow
+compiles in and which loads `fribidi` from the machine at run time, so
+a stock Mac or Windows box refuses until fribidi is supplied. The
+first run on both, `registry.yml` run 35809073289, measured it: a
+plain install refused on all three; `brew install fribidi` alone
+cleared it on Intel but not on Apple silicon, which needed a Pillow
+rebuild; and the MSYS2 DLL on `PATH` cleared it on Windows.
 
-**The same is true on Windows, and the table row for it is read off
-the wheel rather than off a machine.** `_imagingft.cp311-win_amd64.pyd`
-carries `HAVE_RAQM`, ships no libraqm of its own, and names
-`fribidi-0`, `libfribidi-0` and `fribidi` as run-time lookups, the
-same shape as the macOS and manylinux binaries. So a stock Windows box
-should refuse exactly as a clean Mac does, and supplying the DLL should
-be the whole fix. **Should**: `registry.yml`'s `windows-plain` and
-`tutorial (windows-2025)` arms are the first things to ask a Windows
-machine, and until one has run this row is an inference from three
-binaries, not a measurement. The `.uib` format and the runtime are not
-involved either way; this is a property of the authoring host.
+The next release measures through `uharfbuzz`, whose wheels carry
+HarfBuzz whole, and reproduces 0.8.0's tables exactly. `ci.yml` runs
+this tree's `ps2ui fontgen` on stock macOS arm64, macOS x86_64 and
+Windows runners on every pull request, with nothing installed but the
+package. The `.uib` format and the runtime are not involved either
+way; this is a property of the authoring host.
 
 ### What each platform has actually been run on
 
 | platform | evidence |
 |---|---|
 | Linux (`ubuntu-24.04`) | every job in `ci.yml` and `hw.yml`, on every push |
-| macOS arm64 | `registry.yml`, weekly and on release |
-| macOS x86_64 | `registry.yml`, weekly and on release; and one stranger-path run recorded in `_raqm_remedy()`'s docstring |
-| Windows x86_64 | `registry.yml`, weekly and on release; added in 0.8.0 and not yet reported |
+| macOS arm64 | `registry.yml`, weekly and on release; `ci.yml`'s `ps2ui fontgen` job on every pull request |
+| macOS x86_64 | the same two |
+| Windows x86_64 | the same two; the first `registry.yml` run, 35809073289, passed every Windows leg |
 
 Nothing else has been tried. A platform missing from this table is not
 known to fail; it is not known at all.

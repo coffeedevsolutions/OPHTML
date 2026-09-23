@@ -290,8 +290,8 @@ single-face tool and its charset are on
 | code | when |
 |---|---|
 | 0 | both faces and the manifest were written |
-| 1 | a TTF cannot be read, or the weight is not an integer |
-| 2 | Pillow has no Raqm layout engine, or argparse rejected the command line |
+| 1 | a TTF cannot be read, the weight is not an integer, or `uharfbuzz` is not installed |
+| 2 | argparse rejected the command line; in 0.8.0, also Pillow having no Raqm layout engine |
 
 The first failing face returns its own code and no manifest is written.
 

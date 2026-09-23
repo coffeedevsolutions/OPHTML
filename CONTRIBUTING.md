@@ -2,30 +2,28 @@
 
 ## Setup
 
-Node ≥ 18, Python 3.9+ with Pillow, a C compiler, DejaVu Sans (or edit
-`fonts/fonts.json`). No other dependencies — that's a design rule, not
-an accident: the layout package must stay zero-dependency, the baker
-Pillow-only.
-
-**On macOS, one more piece, and it is not Pillow.** Both macOS Pillow
-wheels compile Raqm *into* the binary and neither bundles fribidi,
-which Pillow `dlopen`s from the machine at run time — so a Mac without
-it reports `raqm=False` and `ps2ui fontgen` refuses to write metrics.
-The two baker tests that need the layout engine then skip (they are the
-only two that call `require_raqm`; the other font tests run off the
-vendored faces and are unaffected). Ask for the feature, not for the
-install:
+Node ≥ 18, Python 3.9+ with Pillow and uharfbuzz, a C compiler,
+DejaVu Sans (or edit `fonts/fonts.json`):
 
 ```sh
-python3 -c "from PIL import features; print(features.check('raqm'))"
-brew install fribidi        # if that printed False
+python3 -m pip install Pillow uharfbuzz
 ```
 
-Check the feature again afterwards: Pillow builds and installs happily
-without these and simply omits them, so pip's exit status answers a
-different question. If it is *still* false, run `ps2ui fontgen` with no
-arguments — its refusal prints the rebuild route for the machine you
-are on.
+No other dependencies — that's a design rule, not an accident: the
+layout package must stay zero-dependency, and the baker takes only
+what installs as a self-contained wheel on every platform pip serves.
+
+**That rule used to read "the baker Pillow-only", and F47 amended it
+on purpose.** Pillow alone was never self-contained: `ps2ui fontgen`
+measured kerning through Pillow's Raqm engine, and Raqm loads fribidi
+from the machine at run time, which no Pillow wheel bundles. So a
+stock Mac or Windows box refused at the tutorial's first command, and
+a contributor on one had to install a system package — on Apple
+silicon, rebuild Pillow from source. `uharfbuzz` is HarfBuzz as a wheel
+(Apache-2.0), reproduces every table Raqm measured, and needs nothing
+from the system. Two self-contained wheels serve the rule's purpose;
+one wheel with a system half did not. A third dependency has to clear
+the same bar, and says so in the CHANGELOG when it does.
 
 ## Run the tests (all three, before every PR)
 

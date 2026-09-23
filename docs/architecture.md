@@ -8,7 +8,7 @@ Three stages joined by two documented formats. Any stage can be replaced by some
 
 ```
 ui/*.html,css ──▶ @ophtml/layout ──▶ ui.json (IR) ──▶ ps2ui-bake ──▶ ui.uib ──▶ runtime (C99 + gsKit)
-                  Node, zero deps                    Python, Pillow only
+                  Node, zero deps                    Python, Pillow + HarfBuzz
 ```
 
 * `packages/layout` (~3,000 lines) — HTML parser, CSS parser + cascade, flexbox solver, greedy text wrapping, spatial focus-graph solver, CRT linter.

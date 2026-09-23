@@ -10,10 +10,12 @@ sources: [docs/site/ARCHITECTURE.md, CONTRIBUTING.md, .github/workflows/ci.yml, 
 
 ## Setup
 
-Install Node 18 or newer, Python 3.9 or newer with Pillow 9 or newer, and a
-C compiler. Have DejaVu Sans on hand, or point `fonts/fonts.json` at a
-different TTF pair. Nothing else. Keep the layout package free of runtime
-dependencies and the baker limited to Pillow.
+Install Node 18 or newer, Python 3.9 or newer with Pillow 9 or newer and
+`uharfbuzz`, and a C compiler. Have DejaVu Sans on hand, or point
+`fonts/fonts.json` at a different TTF pair. Nothing else. Keep the layout
+package free of runtime dependencies, and the baker to dependencies that
+install as a self-contained wheel on every platform; F47 amended that rule
+from Pillow alone, because Pillow's Raqm needed fribidi from the system.
 
 ## Tests
 

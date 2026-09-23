@@ -58,7 +58,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fonts-dejavu-core
-          python3 -m pip install Pillow
+          python3 -m pip install Pillow uharfbuzz
       - name: Bake example + test card
         run: |
           ./examples/memcard/build.sh
@@ -799,7 +799,7 @@ jobs:
           sudo apt-get install -y \
             xvfb imagemagick fuse \
             libgl1 libopengl0 libegl1 libglx0 libgl1-mesa-dri
-          python3 -m pip install Pillow
+          python3 -m pip install Pillow uharfbuzz
 
           # Play! is distributed from purei.org, not from GitHub releases
           # (jpd002/Play- publishes none), so no asset name under

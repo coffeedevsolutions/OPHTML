@@ -60,17 +60,15 @@ Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively.
 [docs/deploying.md](https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/deploying.md)
 is the path from an ELF onto hardware.
 
-The authoring half needs none of that: `pip install ophtml`, a TTF,
-Node, and a Pillow that reports Raqm are enough to build, check and
-preview a real blob. **Raqm is not automatic on macOS or Windows.**
-`ps2ui fontgen` needs it to measure kerning, and Raqm loads fribidi from
-the system at run time; no Pillow wheel bundles fribidi. Most Linux
-systems already have it. On macOS it is `brew install fribidi`; on
-Windows it is a fribidi DLL on `PATH` before Python starts. `ps2ui
-fontgen` checks before writing anything and prints the remedy for the
-platform it finds, and the
+The authoring half needs none of that: `pip install ophtml`, a TTF and
+Node are enough to build, check and preview a real blob, on macOS,
+Windows and Linux alike. `ps2ui fontgen` measures kerning with HarfBuzz
+through `uharfbuzz`, which pip installs with this package as a wheel for
+every platform, so nothing has to come from the system. (0.8.0 and
+earlier measured through Pillow's Raqm engine, which needs a fribidi no
+Pillow wheel bundles; if you are pinned to one of those, the
 [installation guide](https://coffeedevsolutions.github.io/OPHTML/getting-started/installation/#if-fontgen-refuses)
-has the full table.
+has the remedy for each platform.)
 
 ## Working from a checkout
 

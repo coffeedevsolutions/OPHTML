@@ -49,7 +49,8 @@ only the second command exercises the compiler directly.
 | Python | 3.9 or newer | `requires-python` in `packages/baker/pyproject.toml` |
 | Pillow | 9 or newer | `dependencies` in `packages/baker/pyproject.toml`; the baker and `ps2ui-fontgen` both import it |
 | Node.js | 18 or newer | `engines.node` in `packages/layout/package.json` |
-| Raqm and fribidi in Pillow | present | `ps2ui fontgen` refuses to write metrics without Raqm |
+| Raqm and fribidi in Pillow | present, for 0.8.0 only | `ps2ui fontgen` 0.8.0 refuses to write metrics without Raqm; the next release does not need it |
+| uharfbuzz | 0.51.7 or newer, from the next release | `dependencies` in `packages/baker/pyproject.toml`; `pip install ophtml` installs it as a wheel on every platform |
 | ps2dev toolchain | only for the console half | the Python and Node halves never touch it |
 
 The full platform matrix, including the host C compiler and the pinned
@@ -186,14 +187,22 @@ ps2ui: ps2ui-layout failed on ui/library.html (exit 1)
 
 Generate font metrics before building a project. `ps2ui fontgen
 <regular.ttf> <bold.ttf> [-o DIR]` writes `default.metrics.json`,
-`default-bold.metrics.json` and `fonts.json` into `fonts/` by default. It
-needs Raqm to measure kerning and refuses to write anything without it. See
+`default-bold.metrics.json` and `fonts.json` into `fonts/` by default. In
+0.8.0 it needs Raqm to measure kerning and refuses to write anything
+without it; the next release measures through uharfbuzz instead. See
 [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) for every argument and
 output file.
 
 ### If fontgen refuses
 
-`ps2ui fontgen` checks `features.check("raqm")` before opening a font.
+**This section is about 0.8.0**, the release on PyPI today. The next
+release measures kerning through uharfbuzz, which `pip install ophtml`
+installs as a wheel on macOS, Windows and Linux alike, so it has
+nothing to refuse over and nothing below applies. This tree already
+works that way, and `ci.yml` runs `ps2ui fontgen` on stock macOS and
+Windows machines for every pull request.
+
+`ps2ui fontgen` 0.8.0 checks `features.check("raqm")` before opening a font.
 Without it, it prints the Pillow version, the platform, and whether
 fribidi is present, then a remedy that matches what it found.
 
@@ -210,15 +219,16 @@ rebuild column. Verify with `features.check('raqm')`, not pip's exit
 status; a Pillow build without libraqm still exits 0 and silently omits
 the feature.
 
-The Windows row is read off the Windows wheel and the remedy `ps2ui
-fontgen` prints there, not off a Windows machine; no Windows run of this
-toolchain has been reported yet. It never sends a Windows reader to a
+The Windows row was read off the Windows wheel and has since been run:
+on a stock `windows-2025` runner the refusal came out as predicted, and
+the MSYS2 DLL on `PATH` cleared it. It never sends a Windows reader to a
 source build: PyPI's Windows wheel already compiles Raqm in, so that
 row's second column is a diagnosis rather than a rebuild.
 
 Both macOS Pillow wheels compile Raqm into the binary and load fribidi
-from the system at run time. A Mac with Homebrew installed for a while
-usually clears this with the fribidi line alone. A clean runner does not.
+from the system at run time. The same run split the two Macs: on Intel
+the fribidi line alone cleared it; on Apple silicon it did not, and the
+rebuild did.
 This machine's Pillow reports Raqm and fribidi both present:
 
 ```sh
@@ -226,7 +236,7 @@ $ python3 -c "from PIL import features; print(features.check('raqm'), features.c
 True True
 ```
 
-so the refusal below is quoted from a mocked test run, not a live refusal.
+so 0.8.0's refusal below is quoted from a mocked run of that release's test, not a live refusal.
 
 ```
 ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.
@@ -274,8 +284,9 @@ setup, the cross-compile image, and the sample Makefile are on
 
 ## Limits and errors
 
-Without Raqm, `ps2ui fontgen` refuses outright and writes nothing; see
-[If fontgen refuses](#if-fontgen-refuses) for the remedy per platform.
+Without Raqm, `ps2ui fontgen` 0.8.0 refuses outright and writes nothing;
+see [If fontgen refuses](#if-fontgen-refuses) for the remedy per
+platform. The next release has no such refusal.
 
 `ps2ui-fontgen`'s usage line names the checkout spelling,
 `python -m ps2ui_bake.fontgen`, even when the installed `ps2ui-fontgen`
