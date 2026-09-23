@@ -529,21 +529,23 @@ written twice to avoid.
      `ps2ui-fontgen --version` at the top of `cli/ps2ui.md` and
      `cli/ps2ui-fontgen.md`; the two lines after the install commands
      on `getting-started/installation.md`, and the fact half of
-     `install.commands` that states them; the sentence under the
-     versions table on `reference/compatibility.md`; and
-     `compat.registries`' verified-by cell, which says "at the 0.8.0
-     cut".
+     `install.commands` that states them, and its verified-by half
+     once it is re-measured from the registries rather than the
+     checkout; the sentence under the versions table on
+     `reference/compatibility.md`; `compat.registries`' verified-by
+     cell, which says "at the 0.8.0 cut"; and the `## 0.8.0` section of
+     `project/changelog.md`, both its opening line and its pasted
+     `check-versions.py` block, because rule 14 now makes that page
+     carry an empty `## <next>.dev0` heading above the release's notes
+     rather than replacing them.
    - **Moves with the tree** — everything that is output of *this
      checkout*: the `--version` rows for `ps2ui-bake`, `ps2ui-check`,
      `ps2ui-layout` and `ps2ui-dev` under `_facts/cli/`; the session
      command list opening `_facts/reference/compatibility.md`, and
-     `compat.versions` in the same file; the verified-by half of
-     `install.commands`, which records what the checkout printed; the
-     "Running from a checkout" block on `cli/ps2ui.md`; the pasted
-     `check-versions.py` blocks on `reference/compatibility.md` and
-     `project/changelog.md` (regenerate those, do not edit them); the
-     line opening that page's release section, which restates whatever
-     section is open; and the wheel name on `runtime/integrating.md`.
+     `compat.versions` in the same file; the "Running from a checkout"
+     block on `cli/ps2ui.md`; the pasted `check-versions.py` block on
+     `reference/compatibility.md` (regenerate it, do not edit it); and
+     the wheel name on `runtime/integrating.md`.
    - **Collapsed at the cut and needing their other half back** —
      `cli.ps2ui.version` in `_facts/cli/ps2ui.md` and `fontgen.version`
      in `_facts/cli/ps2ui-fontgen.md` used to say "the released version
@@ -557,6 +559,13 @@ written twice to avoid.
    3 collapsed. If the record and the groups disagree when you run this
    step, a banner has been added or lost since and the list needs
    re-deriving before it is trusted.
+
+   Run at 0.9.0.dev0, it did disagree, and the list above is the
+   re-derived one: four banners the 0.8.0 list called tree are release
+   (the changelog page's two, and `install.commands`' verified-by pair
+   once measured from the registries), and restoring the collapsed
+   rows' halves added banners, so the record went from 29 to **31: 14
+   release and 17 tree**. Expect the next cut to collapse all 31 again.
 
    The first draft of this note listed ten banners copied from the
    record before the cut. Review of #170 found one of them no longer
