@@ -200,6 +200,27 @@ written twice to avoid.
    down; the 0.8.0 cut then skipped it, and was caught only by a
    pre-publish audit reading the live footer.
 
+   **Then the prose written relative to the release being cut.**
+   Between cuts, pages and facts rows about a change that has not
+   shipped say "from the next release", "0.8.0 only", "the published
+   0.8.0". At the cut every one of them is false: the next release is
+   this one. Nothing reads them. `check-doc-versions.py` reads the
+   recorded version banners and these are prose, and
+   `check-site-pages.py` pins citations, not whether a fact row still
+   agrees with the page it restates. So grep for them, in the pages
+   *and* the facts rows:
+
+   ```sh
+   git grep -n -E 'next release|<previous> only|published <previous>|<previous> and earlier' -- docs/ README.md packages/*/README.md
+   ```
+
+   with `<previous>` spelled out (`0.8.0`). Every hit either becomes a
+   statement about this version or is history that says so. This is
+   the gap three cuts running were reviewed for and missed until review:
+   #170's version table, #172's front-page requirements row, and at
+   0.9.0 four facts rows that still called 0.9.0 "the next release"
+   after every page beside them had moved.
+
    ```sh
    python3 tools/check-doc-impact.py <previous tag> --all
    ```
