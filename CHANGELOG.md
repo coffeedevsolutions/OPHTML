@@ -14,6 +14,30 @@ decays. It becomes one the moment a format move lands, and
 reading it back, so the check fails the change that moves the format
 without moving this line.
 
+### Added
+
+- **The OPHTML console: any ps2ui theme, driven as a game launcher
+  (`console/`).** Until now a baked UI could draw a game list and do
+  nothing with it: the runtime is display-only by design, and device
+  I/O and launching were the app's to write, so nobody's UI could list
+  or start a game. `ophtml.elf` loads USB, exFAT HDD, MX4SIO and MMCE
+  drivers, scans each drive for ISOs in OPL's `DVD/` and `CD/` layout
+  (title IDs from the name or the disc's `SYSTEM.CNF`), fills whatever
+  theme it finds — `theme.uib` beside the ELF, then `OPHTML/theme.uib`
+  on a drive, then the built-in `examples/console` — and hands the
+  selected game to Neutrino with `-qb` through elf-loader's no-reset
+  entry point, so Neutrino reads it through the drivers the console
+  loaded. A theme opts in by using names (`game-{i}` rows,
+  `game-{i}-title`, `sel-title`, `status` and the rest in
+  `console/README.md`), every one optional; nothing in C is the
+  author's to write. Proven so far: `console/tests` on the host (file
+  names, ISO9660, `SYSTEM.CNF`, the directory scan, Neutrino's command
+  line), and `hw.yml` booting a MOCK build in Play! and diffing its
+  filled list against the previewer drawing the same games. Not yet:
+  no drive has been mounted and no game started on a console. Bench
+  cases C1–C8 in `console/README.md` are that evidence, and each is
+  open.
+
 ### Changed
 
 - **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0

@@ -35,6 +35,10 @@ known_flags() {
         # Phase 2 measurements are taken from, and an exemption here
         # would be an exemption on the numbers.
         echo "--strict" ;;
+    examples/console/build/ui.uib)
+        # The console ELF's built-in theme (console/README.md). It is
+        # what a stranger sees first, so it carries no exemption.
+        echo "--strict" ;;
     examples/memcard/build/testcard.uib)
         # The alignment card is made of 1px quads: four edge rules and
         # the step 8 interlace pair. The shimmer is the measurement.
@@ -52,6 +56,7 @@ known_flags() {
 
 ALL="examples/memcard/build/ui.uib
 examples/opl-env/build/ui.uib
+examples/console/build/ui.uib
 examples/memcard/build/testcard.uib
 examples/channel6/build/ui.uib
 examples/channel6/build/ui-16x9.uib"

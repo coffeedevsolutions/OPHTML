@@ -302,6 +302,18 @@ jobs:
       - name: OPL environment end to end
         run: ./examples/opl-env/build.sh
 
+      # The console (console/README.md) in two halves this job can run:
+      # the built-in theme the ELF links in, and the portable C that
+      # parses file names, walks ISOs and builds Neutrino's command
+      # line. The IOP half -- modules, mounts, the launch -- only builds
+      # in the ps2dev container (hw.yml's elf job) and only runs on a
+      # console.
+      - name: Console theme end to end
+        run: ./examples/console/build.sh
+
+      - name: Console library tests
+        run: make -C console/tests test
+
       # A shipped example's README opens "Taken from the blob, not
       # estimated". They were, once. Then a slot was added and three
       # figures drifted through two pull requests and a phase lock,
@@ -439,7 +451,8 @@ jobs:
         run: |
           git diff --exit-code examples/memcard/screenshots \
                                examples/channel6/screenshots \
-                               examples/opl-env/screenshots
+                               examples/opl-env/screenshots \
+                               examples/console/screenshots
 
       # The documentation site embeds its own renders under
       # docs/site/assets/, each registered with the command that made
@@ -507,17 +520,18 @@ jobs:
         #
         # Named, not bare. A bare call skips blobs that are absent,
         # which is right for hw.yml (it does not bake the 16:9 one) and
-        # wrong here: this job bakes all three, so a missing one is a
+        # wrong here: this job bakes all four, so a missing one is a
         # build failure, and skipping it would leave "3 blob(s)
         # validated" as the only trace of a blob that stopped existing.
         # Naming them makes absence an error.
         #
-        # Three, not four: the test card is baked by hw.yml. Here
+        # Four, not five: the test card is baked by hw.yml. Here
         # make_testcard.py only runs --self-test, which writes no blob.
         run: |
           ./tools/check-blobs.sh \
             examples/memcard/build/ui.uib \
             examples/opl-env/build/ui.uib \
+            examples/console/build/ui.uib \
             examples/channel6/build/ui.uib \
             examples/channel6/build/ui-16x9.uib
 

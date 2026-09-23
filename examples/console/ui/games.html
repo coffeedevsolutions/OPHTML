@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<body>
+<!-- The console's built-in theme, and the smallest complete example of
+     the contract console/README.md defines. Every name below that
+     starts with game-, sel-, status or game-count is one the console
+     ELF looks up and fills; nothing else here is special. Replace any
+     of it with your own markup and keep the names, and the console
+     drives your UI instead of this one. -->
+<div class="screen">
+
+  <div class="topbar">
+    <h1>GAMES</h1>
+    <p class="status" data-slot="status" data-slot-capacity="48">Looking for games…</p>
+    <p class="counts" data-slot="game-count" data-slot-capacity="16">0 games</p>
+  </div>
+
+  <div class="body">
+    <div class="rows">
+      <div class="row" data-repeat="10" id="game-{i}" focusable>
+        <p class="title" data-slot="game-{i}-title" data-slot-capacity="64">Game Title {n}</p>
+        <p class="media" data-slot="game-{i}-media" data-slot-capacity="3">DVD</p>
+        <p class="dev" data-slot="game-{i}-device" data-slot-capacity="4">USB</p>
+      </div>
+    </div>
+
+    <div class="side">
+      <p class="side-h">SELECTED</p>
+      <p class="sel-title" data-slot="sel-title" data-slot-capacity="64">Game Title 1</p>
+      <p class="sel-k">ID</p>
+      <p class="sel-v" data-slot="sel-id" data-slot-capacity="11">SLUS_200.02</p>
+      <p class="sel-k">FROM</p>
+      <p class="sel-v" data-slot="sel-device" data-slot-capacity="4">USB</p>
+      <p class="sel-k">DISC</p>
+      <p class="sel-v" data-slot="sel-media" data-slot-capacity="3">DVD</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="hint">✕ PLAY</p>
+    <p class="hint">L1 / R1 PAGE</p>
+  </div>
+
+</div>
+</body>
+</html>

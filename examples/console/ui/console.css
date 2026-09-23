@@ -1,0 +1,102 @@
+/* The console's built-in theme. Colours are roles, as in opl-env, so a
+ * @theme block can recolour the whole screen; this one ships a single
+ * theme because the console does not yet offer a way to pick another. */
+:root {
+  --bg-page: #0b0f16;
+  --bg-panel: #101623;
+  --bg-tile: #0e131d;
+  --bg-focus: #1a2740;
+  --edge-soft: #1a2233;
+  --accent: #7c9be0;
+  --ink-title: #f2f5fa;
+  --ink-strong: #dbe2ee;
+  --ink-muted: #8b94a7;
+  --ink-dim: #6b7488;
+  --ink-max: #ffffff;
+}
+
+.screen {
+  flex-direction: column;
+  background: var(--bg-page);
+  padding: 26px 34px 30px;
+  gap: 8px;
+}
+
+.topbar { flex-direction: row; align-items: center; gap: 16px; }
+
+h1 {
+  font-size: 22px;
+  font-weight: bold;
+  color: var(--ink-title);
+  letter-spacing: 2px;
+}
+
+.status {
+  flex-grow: 1;
+  font-size: 14px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.counts { font-size: 14px; color: var(--ink-muted); }
+
+.body { flex-direction: row; flex-grow: 1; gap: 14px; }
+
+.rows { flex-direction: column; flex-grow: 1; gap: 3px; }
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-panel);
+  border: 2px solid var(--edge-soft);
+  border-radius: 3px;
+  padding: 2px 8px;
+}
+
+.row:focus { background: var(--bg-focus); border-color: var(--accent); }
+
+.title {
+  flex-grow: 1;
+  font-size: 16px;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.row:focus .title { color: var(--ink-max); }
+
+.media { font-size: 14px; color: var(--ink-dim); width: 30px; }
+
+.dev { font-size: 14px; color: var(--ink-muted); width: 40px; }
+
+.side {
+  flex-direction: column;
+  width: 170px;
+  gap: 4px;
+  background: var(--bg-tile);
+  border: 2px solid var(--edge-soft);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.side-h { font-size: 14px; color: var(--ink-muted); letter-spacing: 2px; }
+
+.sel-title {
+  font-size: 16px;
+  color: var(--ink-title);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.sel-k { font-size: 14px; color: var(--ink-dim); }
+
+.sel-v { font-size: 14px; color: var(--ink-strong); }
+
+.footer { flex-direction: row; gap: 18px; }
+
+.hint { font-size: 14px; color: var(--ink-dim); }

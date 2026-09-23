@@ -18,6 +18,14 @@ measurements; this page carries what changed.
 
 Unreleased; 0.9.0, below, is what installs.
 
+### Added
+
+- The OPHTML console (`console/`): a PS2 program that lists the ISOs on
+  USB, an exFAT HDD, MX4SIO or MMCE through any theme that uses its
+  names (`game-{i}`, `sel-title`, `status`, ...) and starts the chosen
+  one with Neutrino. It boots in the emulator; no console has run it
+  yet. See `console/README.md`.
+
 ### Changed
 
 - `registry.yml` no longer runs 0.8.0's fribidi remedy steps or asserts

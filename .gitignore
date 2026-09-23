@@ -32,3 +32,13 @@ packages/baker/ps2ui_bake/runtime/
 # not source: the starter it contains is committed at
 # packages/baker/ps2ui_bake/starter/.
 starter-project/
+
+# console/Makefile copies the runtime beside main.c, as the sample's
+# does, and generates the embedded theme and IOP module table.
+console/ps2ui.c
+console/ps2ui.h
+console/theme_uib.c
+console/irx_table.c
+console/irx_table.h
+console/*.o
+console/*.elf

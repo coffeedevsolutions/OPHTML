@@ -1,0 +1,6 @@
+{
+  "screens": ["ui/games.html"],
+  "css": "ui/console.css",
+  "strict": true,
+  "preview": "build/preview.png"
+}
