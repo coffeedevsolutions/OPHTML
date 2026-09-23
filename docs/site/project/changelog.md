@@ -18,6 +18,14 @@ measurements; this page carries what changed.
 
 Unreleased; 0.9.0, below, is what installs.
 
+### Changed
+
+- `registry.yml` no longer runs 0.8.0's fribidi remedy steps or asserts
+  that a plain macOS or Windows install refuses; it requires the
+  committed tables from one instead, and fails by name when pip is served
+  a release from before 0.9.0. See
+  [Compatibility](page:reference/compatibility#what-each-platform-has-actually-been-run-on).
+
 ## 0.9.0
 
 `ophtml` 0.9.0, `@ophtml/layout` 0.9.0, tagged `v0.9.0`. `pip install
