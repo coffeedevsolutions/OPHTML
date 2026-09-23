@@ -92,19 +92,19 @@ Three ways in, depending on what you want:
 tagged `v0.9.0` — the first release a stock Mac or Windows box can run
 from end to end: `ps2ui fontgen` measures kerning with HarfBuzz through
 `uharfbuzz`, which pip installs with the package, where 0.8.0 asked
-Pillow's Raqm engine and refused without a fribidi no wheel ships. The
-tables it writes are byte for byte the ones 0.8.0 wrote. It includes
-`ps2ui vendor-runtime`, which writes `ps2ui.c` and `ps2ui.h` out of the
-installed package — so the console half needs no clone, and the runtime
-you compile is the one matching the baker that wrote your blob — and
+Pillow's Raqm engine and refused without a fribidi no wheel ships. It
+includes `ps2ui vendor-runtime`, which writes `ps2ui.c` and `ps2ui.h`
+out of the installed package, so the console half needs no clone, and
 `ps2ui_offset_set`, the first call that changes *where* the runtime
-draws rather than what. CI now runs `ps2ui fontgen` on stock macOS
-arm64, macOS x86_64 and Windows runners for every pull request, and
-the blobs it bakes are format **v7**:
-zero moves of the `.uib` format have landed since 0.8.0: that is
+draws rather than what. CI runs `ps2ui fontgen` on stock macOS and
+Windows runners for every pull request. This tree has since moved on to
+`0.10.0.dev0` (`0.10.0-dev.0` on npm), a prerelease that is on neither
+registry and is not meant to be. The two still understand each other,
+because the blobs baked here are format **v7** and
+zero moves of the `.uib` format have landed since 0.9.0: that is
 the stability pledge, made at v7 and enforced by
 `tools/check-format-frozen.py` rather than announced, so a blob this
-tree writes loads under a 0.8.0 runtime and the other way round. Every
+tree writes loads under a 0.9.0 runtime and the other way round. Every
 CLI answers `--version`. What is left of Phase 4's exit gate in
 [docs/PLAN.md](docs/PLAN.md) is the half that always needed a console;
 [docs/releasing.md](docs/releasing.md) is the procedure, and

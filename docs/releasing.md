@@ -594,6 +594,12 @@ written twice to avoid.
    `reference/compatibility.md`. Step 9 after 0.9.0 starts from that
    record and re-derives the groups before it trusts them.
 
+   Step 9 after 0.9.0 did, and this time the list held: the 14 banners
+   that went back to naming the release were exactly the release group
+   above, and the record ended at **32: 14 release and 18 tree**, the
+   extra tree banners being the changelog page's `compat.versions` row,
+   which now names both spellings of `0.10.0.dev0`.
+
    The first draft of this note listed ten banners copied from the
    record before the cut. Review of #170 found one of them no longer
    existed -- `cli.ps2ui.version` had been collapsed, above -- and a

@@ -213,7 +213,7 @@ any checkout.
 
 ```sh
 $ python3 tools/check-runtime-shipped.py
-ok - built one wheel: ophtml-0.9.0-py3-none-any.whl
+ok - built one wheel: ophtml-0.10.0.dev0-py3-none-any.whl
 ok - the wheel carries ps2ui_bake/runtime/ps2ui.c
 ...
 ok - `ps2ui vendor-runtime` runs from an installed wheel
