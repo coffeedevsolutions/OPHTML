@@ -14,6 +14,23 @@ decays. It becomes one the moment a format move lands, and
 reading it back, so the check fails the change that moves the format
 without moving this line.
 
+### Changed
+
+- **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0
+  is what a stranger installs.** It kept the macOS and Windows remedy
+  steps, and the `-plain` jobs' assertion that fontgen refuses, while the
+  published release still needed Raqm, switching on whether the wheel
+  carried `_raqm_remedy`. 0.9.0 published, and run 35817721457 passed
+  every arm against it: the tutorial on all four with the remedies
+  skipped, and the committed tables from a plain install on macOS arm64,
+  macOS x86_64 and Windows. The remedies, the switch and the refusal
+  assertions are deleted. What replaces the switch is a guard: the
+  first run after the publish, 35817387412, was served 0.8.0 on both
+  Macs by an index that had not caught up, and the old refusal passed
+  there, measuring nothing. The `-plain` jobs now fail by name when pip
+  hands them a release from before F47, rather than later in fontgen
+  with a message that blames the machine.
+
 ## 0.9.0 — 2026-09-23
 
 `.uib` format **version 7**, unchanged from the release below.
