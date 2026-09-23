@@ -249,6 +249,18 @@ written twice to avoid.
    set it to `latest`) only when the version stops being a prerelease.
    The check requires the two to agree in both directions.
 
+   **And the pages that describe it.** The check reads `package.json`,
+   not the prose about it, and cutting 0.8.0 left four places saying
+   the tree was pinned to `next`: two passages on
+   `getting-started/installation.md`, `compat.registries` in
+   `_facts/reference/compatibility.md`, and the pasted
+   `check-versions.py` block on `reference/compatibility.md`. Every one
+   was true the commit before and false after, and none was red. They
+   now state the rule, "`next` exactly while the version is a
+   prerelease", which is true on both sides of a cut; keep them that
+   way rather than describing the tree's current state. The pasted
+   block is real output, so regenerate it rather than editing lines.
+
 7. **Tag it**, `0.3.0` or `v0.3.0` — `check-versions.py` accepts
    either, and it is the rule that fails until you do. CI checks out
    with `fetch-depth: 0` so the tag is visible to it.
@@ -494,25 +506,55 @@ written twice to avoid.
    `classify()` tests the tree first, and at a release cut the two
    numbers are *the same string* — so every banner classifies as the
    tree, and `--pin` at step 5 records it that way. Measured cutting
-   0.8.0: the record went from 18 tree and 10 release to **27 tree and
-   0 release**, and the ten that had meant "release" are
+   0.8.0: the record went from 18 tree and 10 release to **every banner
+   tree and none release**.
 
-       _facts/cli/ps2ui.md:17          cli/ps2ui.md:20
-       _facts/getting-started/installation.md:24   (two banners)
-       cli/ps2ui-fontgen.md:43         getting-started/installation.md:36
-       getting-started/installation.md:38
-       reference/compatibility.md:27, :64, :65
+   So the record cannot say which banners should keep naming the
+   release; this list does, derived from what each banner *shows* on
+   the tree 0.8.0 left, and named by content rather than line number
+   because line numbers in prose are exactly what F48 says nobody pins:
 
-   Simulating this step against that record turns **all 27 red at
-   once**: the tree moves to `<next>.dev0`, every banner still names
-   the release, and every row says it was pinned as the tree.
+   - **Still the release** — output of an *installed* package, or a
+     record dated to the cut. `ps2ui --version` and
+     `ps2ui-fontgen --version` at the top of `cli/ps2ui.md` and
+     `cli/ps2ui-fontgen.md`; the two lines after the install commands
+     on `getting-started/installation.md`, and the fact half of
+     `install.commands` that states them; the sentence under the
+     versions table on `reference/compatibility.md`; and
+     `compat.registries`' verified-by cell, which says "at the 0.8.0
+     cut".
+   - **Moves with the tree** — everything that is output of *this
+     checkout*: the six `--version` rows under `_facts/cli/`, the
+     "Running from a checkout" block on `cli/ps2ui.md`, the pasted
+     `check-versions.py` blocks on `reference/compatibility.md` and
+     `project/changelog.md` (regenerate those, do not edit them), the
+     wheel name on `runtime/integrating.md`, and `compat.versions`.
+   - **Collapsed at the cut and needing their other half back** —
+     `cli.ps2ui.version` in `_facts/cli/ps2ui.md` and `fontgen.version`
+     in `_facts/cli/ps2ui-fontgen.md` used to say "the released version
+     prints X; this tree prints Y". At a cut X and Y are one string, so
+     0.8.0 rewrote each to a single claim about the tree. After this
+     step they diverge again, and each wants both halves restored.
 
-   The trap is what you do next. Re-running `--pin` here makes all 27
-   "release" and goes green — and that is wrong for the seventeen that
-   genuinely show what the *checkout* prints, which are now stale
-   output nobody will look at again. So at this step, update the tree
-   banners to `<next>.dev0` FIRST, and only then `--pin`. The ten
-   listed above are the ones that should still name the release.
+   The first draft of this note listed ten banners copied from the
+   record before the cut. Review of #170 found one of them no longer
+   existed -- `cli.ps2ui.version` had been collapsed, above -- and a
+   second had been "release" only because the block it sat in was
+   stale output from 0.7.0; regenerated, it is tree output. A list
+   copied from a record describes the record, not the tree.
+
+   Simulating this step against that record turns **every banner red
+   at once** -- 29 of 29 on the tree 0.8.0 left: the tree moves to
+   `<next>.dev0`, every banner still names the release, and every row
+   says it was pinned as the tree.
+
+   The trap is what you do next. Re-running `--pin` here makes every
+   one "release" and goes green -- and that is wrong for everything in
+   the second list above, which is output of the checkout and is now
+   stale output nobody will look at again. So at this step, move those
+   banners to `<next>.dev0` and restore the two collapsed rows FIRST,
+   and only then `--pin`. The first list is what should still name the
+   release.
 
    There is no hand-edit that avoids this. A row kept as "release"
    fails at the cut, because `classify()` cannot see a distinction

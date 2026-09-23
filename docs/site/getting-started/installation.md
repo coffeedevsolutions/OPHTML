@@ -63,8 +63,9 @@ gsKit headers, is in
 The two installs are independent and order does not matter. `pip install
 ophtml` resolves against PyPI's stable releases; `npm install -g
 @ophtml/layout` resolves against npm's `latest` dist-tag. A prerelease publishes under
-`next` on npm, never `latest`; this tree carries `0.8.0.dev0`, a
-prerelease, so it is pinned to `next` and would not take `latest`. Pip excludes a prerelease from a plain install while a
+`next` on npm, never `latest`: `publishConfig.tag` is `"next"` exactly while
+the version is a prerelease, and `check-versions.py` holds that in both
+directions. Pip excludes a prerelease from a plain install while a
 stable release exists. A plain install of either command therefore always
 lands on a released version, not a prerelease.
 
@@ -277,8 +278,8 @@ one-line message. Neither blocks installation; both are worth knowing
 before scripting around either command's exit code.
 
 A plain `npm install -g @ophtml/layout` never installs a prerelease by
-accident: this tree's version publishes to the `next` dist-tag, and
-`latest` stays on the newest stable release. The same protection holds on
+accident: a prerelease publishes to the `next` dist-tag, and `latest`
+stays on the newest stable release. The same protection holds on
 PyPI for as long as a stable `ophtml` release exists.
 
 ## Related pages
