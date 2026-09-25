@@ -108,6 +108,22 @@ without moving this line.
   *"takes imagePixels=N with N a positive integer"* -- a complaint
   about the 5.
 
+- **The console launcher can be downloaded, and the docs site says how
+  to run it.** Until now `ophtml.elf` existed only as a CI artifact,
+  which needs a GitHub login and expires after fourteen days, or as a
+  Docker build of this repository. `console-release.yml` now runs when
+  a version is tagged: it bakes the built-in theme, builds `ophtml.elf`
+  and `ophtml-mock.elf` from the tag, and attaches both with
+  `SHA256SUMS` to that tag's GitHub Release. A tag with no release gets
+  a draft, and a person publishes it (`docs/releasing.md` step 8b).
+
+  The new site page, *Console launcher*, covers the drive layout,
+  installing Neutrino, putting your own `theme.uib` beside the ELF,
+  the names the launcher fills, the controls, and what each status
+  line and start-up colour means. It opens by saying the launcher has
+  booted only in an emulator, and it points at the bench cases that
+  are still open.
+
 ### Changed
 
 - **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0

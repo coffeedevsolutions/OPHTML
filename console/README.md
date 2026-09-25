@@ -11,7 +11,10 @@ and the console runs your UI. Nothing in C is yours to write.
 
 **Status: booted in an emulator, not yet on a console.**
 - CI builds `ophtml.elf` in the ps2dev container and publishes it as
-  the `ophtml-console-elf` artifact of `hw.yml`.
+  the `ophtml-console-elf` artifact of `hw.yml`. Tagging a version
+  attaches it, with `ophtml-mock.elf` and `SHA256SUMS`, to that
+  version's GitHub Release (`console-release.yml`, as a draft that a
+  person publishes).
 - `console/tests` runs the portable half (file names, ISO9660,
   SYSTEM.CNF, Neutrino's command line, the directory scan) on the host.
 - `hw.yml` boots the MOCK build in the Play! emulator and diffs its

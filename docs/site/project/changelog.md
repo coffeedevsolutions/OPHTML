@@ -30,11 +30,14 @@ Unreleased; 0.9.0, below, is what installs.
   for what it writes), and `ps2ui serve --console` fills a theme with
   mock games and walks its list the way the console does. See
   [ps2ui-check](page:cli/ps2ui-check#options).
-
 - Hard caps on what a theme may ask the compilers for: canvas
   dimensions, element count, nesting depth and source-image pixels.
   Each is derived from the shipped examples, each fails rather than
   warns, and each is overridable in `ps2ui.json` beside `vramBudget`.
+- `ophtml.elf` is attached to each tagged version's GitHub Release, with
+  its mock build and checksums, and a new page covers running it with
+  Neutrino and your own theme. It has not yet run on a console. See
+  [Console launcher](page:runtime/console-launcher).
 
 ### Changed
 

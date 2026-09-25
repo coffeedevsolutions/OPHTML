@@ -26,6 +26,7 @@ docs/site/
                              34 ps2ui-fontgen  35 previewer
   runtime/                   40 integrating  41 frame-loop  42 api-reference  43 errors-and-constants
                              44 streaming-art  45 moving-and-hiding  46 telemetry  47 deploying  48 first-boot
+                             49 console-launcher
   reference/                 50 ir-format  51 uib-format  52 diagnostics  53 compatibility
   examples/                  60 memcard  61 opl-env  62 channel6
   project/                   70 changelog  71 contributing  72 security-and-license  73 faq
@@ -77,6 +78,7 @@ are the `order` field in the frontmatter.
 | runtime/telemetry | Telemetry | ps2ui_stats and the sample's readout |
 | runtime/deploying | Deploying | from an ELF to a console |
 | runtime/first-boot | First boot | the ten-step checklist |
+| runtime/console-launcher | Console launcher | ophtml.elf, Neutrino and a drive: a theme as a game launcher |
 | reference/ir-format | ui.json | the IR as emitted today |
 | reference/uib-format | .uib | the blob format and the v7 pledge |
 | reference/diagnostics | Diagnostics | every message, its cause and fix |
@@ -251,7 +253,7 @@ reads exists and carries no unresolved dispute.
 | 0 | authoring/project-file · cli/ps2ui-layout · cli/ps2ui-bake · cli/ps2ui-check · cli/ps2ui-fontgen · runtime/api-reference · runtime/errors-and-constants · reference/ir-format · reference/uib-format | code only |
 | 1 | cli/ps2ui · authoring/html · authoring/css · authoring/text-and-fonts · authoring/images · authoring/dynamic-text · authoring/lists · authoring/focus-and-navigation · authoring/theming · authoring/screens-and-overlays · authoring/video-modes · authoring/crt-linter · authoring/vram-budget · runtime/frame-loop | wave 0 |
 | 2 | cli/previewer · runtime/integrating · runtime/streaming-art · runtime/moving-and-hiding · runtime/telemetry · reference/diagnostics · reference/compatibility | waves 0 to 1 |
-| 3 | getting-started/installation · getting-started/quickstart · getting-started/tutorial-game-browser · runtime/deploying · runtime/first-boot · examples/memcard · examples/opl-env · examples/channel6 · project/faq · project/glossary | waves 0 to 2 |
+| 3 | getting-started/installation · getting-started/quickstart · getting-started/tutorial-game-browser · runtime/deploying · runtime/first-boot · runtime/console-launcher · examples/memcard · examples/opl-env · examples/channel6 · project/faq · project/glossary | waves 0 to 2 |
 | 4 | index · getting-started/how-it-works · project/changelog · project/contributing · project/security-and-license · project/internals | everything |
 
 Running a wave: spawn one agent per brief with the brief's path as its only
@@ -268,7 +270,7 @@ Each brief names the model tier the orchestrator spawns it on. The rule:
 | tier | when | pages |
 |---|---|---|
 | opus | the page's claims are derived from source and proved by running code | every wave-0 page; every `authoring/*` page; cli/ps2ui; cli/previewer; runtime/frame-loop; runtime/integrating; runtime/streaming-art; runtime/moving-and-hiding; reference/diagnostics |
-| sonnet | the page consolidates facts its parents already verified, follows a CI-executed script, or restates repository documents | runtime/telemetry; reference/compatibility; every `getting-started/*`, `examples/*`, `project/*` page; index; runtime/deploying; runtime/first-boot |
+| sonnet | the page consolidates facts its parents already verified, follows a CI-executed script, or restates repository documents | runtime/telemetry; reference/compatibility; every `getting-started/*`, `examples/*`, `project/*` page; index; runtime/deploying; runtime/first-boot; runtime/console-launcher |
 
 A sonnet page that finds a parent fact wrong writes a `## disputes` section like
 any other page; the rerun of the disputed parent is on opus.

@@ -1,0 +1,136 @@
+name: console-release
+
+# Puts the console launcher (console/, `ophtml.elf`) where a stranger can
+# download it: on the GitHub Release for the tag being pushed.
+#
+# Before this, the ELF existed only as hw.yml's `ophtml-console-elf`
+# artifact, which needs a GitHub login to download and expires after
+# fourteen days. So nothing but a Docker build of this repository put
+# the launcher on a console.
+#
+# THE RELEASE IS A DRAFT, AND A PERSON PUBLISHES IT. Pushing the tag is
+# docs/releasing.md step 7, done by hand, and so is publishing the
+# release: this workflow creates a draft when the tag has no release
+# yet, and adds files to the release when it has one. It never publishes
+# and never edits notes a person wrote. Re-running it for the same tag
+# replaces the files (`--clobber`), so a failed run can simply be run
+# again.
+#
+# workflow_dispatch takes an existing tag, for a tag pushed before this
+# workflow existed or a run that failed partway.
+
+on:
+  push:
+    tags: ['v[0-9]*', '[0-9]*.[0-9]*.[0-9]*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An existing tag to build the launcher from and attach it to
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: console-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  theme:
+    # The ELF links in the built-in theme (examples/console), so the blob
+    # is baked first, from the tag, by the baker in the tag.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install baker deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-dejavu-core
+          python3 -m pip install Pillow uharfbuzz
+      - name: Bake the built-in theme
+        run: ./examples/console/build.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: console-theme
+          retention-days: 7
+          path: examples/console/build/ui.uib
+
+  elf:
+    needs: theme
+    runs-on: ubuntu-24.04
+    container: ghcr.io/ps2dev/ps2dev:latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: console-theme
+          path: examples/console/build
+      - name: Build the launcher and its mock build
+        run: |
+          apk add --no-cache make
+          mips64r5900el-ps2-elf-gcc --version | head -1
+          test -f examples/console/build/ui.uib
+          # The same build lines hw.yml runs on every push. Not
+          # necessarily the same binary: the ps2dev image is unpinned in
+          # both workflows, and this runs at tag time, so gsKit or the
+          # SDK can differ from the image hw.yml booted in Play!. The
+          # "Initialize containers" step logs the image digest, and the
+          # compiler's version is printed below, so docs/releasing.md
+          # step 8b can say which toolchain built the release.
+          # ophtml-nav.elf is left
+          # out: it loads the ROM's pad modules for the emulator, which
+          # costs the memory card, MMCE and MX4SIO drivers, and
+          # console/README.md says never to ship it.
+          make -C console
+          make -C console objclean
+          make -C console MOCK=1 EE_BIN=ophtml-mock.elf
+          mkdir -p dist
+          cp console/ophtml.elf console/ophtml-mock.elf dist/
+          cd dist && sha256sum ophtml.elf ophtml-mock.elf > SHA256SUMS
+          cat SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: console-release
+          retention-days: 7
+          path: dist/
+
+  attach:
+    needs: elf
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: console-release
+          path: dist
+      - name: Attach to the tag's release, creating a draft if it has none
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG exists; adding the launcher to it"
+          else
+            # --verify-tag: refuse rather than create a tag. A typo in
+            # the dispatch input must not mint a new tag on main.
+            gh release create "$TAG" --draft --verify-tag --title "$TAG" \
+              --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
+
+          ophtml.elf is the console launcher: copy it to a memory card or USB stick and start it from your launcher. https://coffeedevsolutions.github.io/OPHTML/runtime/console-launcher/ covers the drive layout, Neutrino and your own theme, and console/README.md lists the bench cases that have and have not been run on a console.
+
+          ophtml-mock.elf lists invented games without reading a drive, to see a theme filled in an emulator."
+          fi
+          gh release upload "$TAG" dist/ophtml.elf dist/ophtml-mock.elf \
+            dist/SHA256SUMS --clobber
+          gh release view "$TAG" --json assets --jq '.assets[].name'

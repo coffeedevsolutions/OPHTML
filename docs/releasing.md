@@ -517,6 +517,34 @@ written twice to avoid.
    done by someone who is not us, the gate is not met — uploading is
    necessary for it and not sufficient.
 
+8b. **The console launcher is on the GitHub Release, as a draft.**
+   Pushing the tag in step 7 starts `.github/workflows/console-release.yml`.
+   It bakes `examples/console` from the tag, builds `ophtml.elf` and
+   `ophtml-mock.elf` in the ps2dev container, and attaches both with a
+   `SHA256SUMS` to the tag's GitHub Release. If the tag has no release
+   yet, it creates one **as a draft**, with placeholder notes.
+
+   So this step is a person's, in the same sitting as step 8:
+
+   - open the draft, check the three files are there, and read the run
+     log's `SHA256SUMS` against the files;
+   - replace the placeholder notes with the CHANGELOG section for this
+     version, and say which `console/README.md` bench cases have been
+     run on a console;
+   - note which toolchain built it: the run's "Initialize containers"
+     step logs the ps2dev image digest, and the build step prints the
+     compiler version. The image is unpinned, so this can differ from
+     the one `hw.yml` booted in Play! on the same commit;
+   - publish it only after `pip index versions ophtml` lists the new
+     version. Publishing fires `registry.yml`'s `release: published`
+     trigger, which installs the release from PyPI and goes red if the
+     index does not serve it yet.
+
+   The workflow never publishes and never edits a release's notes, so a
+   release you already wrote is safe from it. If it failed, or the tag
+   predates it, run it by hand: **Actions → console-release → Run
+   workflow**, with the tag. It replaces the files it attached before.
+
 9. **Back to development**, once the tag is pushed. This is the other
    half of the old step 4, and it is four edits that move together:
 
@@ -713,7 +741,10 @@ and its tooling are ps2ui, and the two names are doing different jobs.
 
 ## What is still not automated
 
-There is no release workflow, no build-and-upload job, and no
+The packages have no release workflow and no build-and-upload job.
+The one release job there is attaches the console launcher to a draft
+GitHub Release (step 8b); it publishes nothing to npm or PyPI and
+publishes no release. There is no
 provenance in the blob — a `.uib` does not record which baker version
 wrote it, and adding a field for it is a format change, so it waits for
 whatever version comes after the pledge. Steps 2 through 6 and step 9
