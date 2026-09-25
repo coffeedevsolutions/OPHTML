@@ -29,7 +29,7 @@ Output of `ps2ui-check --help`:
 
 ```
 usage: ps2ui-check [-h] [--version] [--vram-budget BYTES] [--allow-dead N]
-                   [--allow-hairline N] [--strict] [--tints]
+                   [--allow-hairline N] [--strict] [--console] [--tints]
                    uib
 
 Validate a baked .uib against what the C runtime assumes.
@@ -46,6 +46,9 @@ options:
   --allow-hairline N   N 1px quads are deliberate (the test card's edge rules
                        and interlace pair); more than N still warns
   --strict             treat CRT warnings as failures
+  --console            hold the blob to the OPHTML console's theme contract
+                       (console/README.md) even with no game-N row; a blob
+                       with one is held to it anyway
   --tints              print the tint table, one row per entry and one column
                        per theme, then exit
 ```
@@ -58,6 +61,7 @@ options:
 | `--allow-dead` | `N` | 0 | declare that exactly N commands fall outside their clip on purpose |
 | `--allow-hairline` | `N` | 0 | declare that exactly N quads are 1px wide or tall on purpose |
 | `--strict` | none | off | count failed warnings as failures in the exit code |
+| `--console` | none | off | run the console-contract checks on a blob with no numbered `game-N` row or slot; one with any gets them without the flag |
 | `--tints` | none | off | print the tint table and exit 0 without running any check |
 
 ## Output
@@ -112,7 +116,7 @@ The figure belongs to that blob. The channel6 blob prints `10624 bytes on the EE
 
 ### The catalogue
 
-Checks run in nine groups, in the order below. A label pattern in braces is filled from the blob. A bracketed suffix appears only on failure and names the first five offenders. Groups are the functions in [check.py](repo:packages/baker/ps2ui_bake/check.py#L629).
+Checks run in nine groups, in the order below. A label pattern in braces is filled from the blob. A bracketed suffix appears only on failure and names the first five offenders. Groups are the functions in [check.py](repo:packages/baker/ps2ui_bake/check.py#L630).
 
 | label pattern | severity | meaning | change |
 |---|---|---|---|

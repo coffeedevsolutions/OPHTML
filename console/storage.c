@@ -34,6 +34,7 @@
 /* What a module is for decides what its failure means. */
 enum {
     NEED,   /* nothing works without it: fail the bring-up */
+    SIO,    /* the SDK's SIO2 stack: NEED, unless ROMPAD swaps it out */
     USB,    /* each of these only takes its device away */
     ATA,
     MX4SIO,
@@ -52,10 +53,10 @@ static const struct {
      * SDK's sio2man; loading one sio2man and building both the pad and
      * the card-slot devices on it is the only arrangement that works
      * for all three. */
-    { "sio2man",         NEED },
-    { "mcman",           NEED },
-    { "mcserv",          NEED },
-    { "freepad",         NEED },
+    { "sio2man",         SIO },
+    { "mcman",           SIO },
+    { "mcserv",          SIO },
+    { "freepad",         SIO },
     { "mmceman",         MMCE },
     /* DEV9 powers the expansion bay the HDD sits in. It is refused on
      * a console with nothing there, which only costs the HDD. */
@@ -107,10 +108,32 @@ int console_storage_start(int mx4sio, const char **failed)
     sbv_patch_disable_prefix_check();
     sbv_patch_fileio();
 
+#ifdef CONSOLE_ROMPAD
+    /* `make ROMPAD=1`: the ROM's SIO2MAN and PADMAN instead of the
+     * SDK's sio2man and freepad, and so no memory card, MMCE or MX4SIO
+     * driver, since those need the SDK's sio2man. This build exists for
+     * one reason: Play! answers pad reads from its own stand-in for the
+     * ROM pair, and the SDK drivers get no input under it (measured
+     * 2026-09-24: IOP reset + rom0 pair, focus moves; IOP reset + SDK
+     * sio2man + freepad or padman, nothing). So the emulator can drive
+     * the console's list with a pad only through the ROM pair. The
+     * shipped ELF never takes this path: freepad is what NHDDL runs on
+     * consoles, and the one thing this build cannot vouch for. */
+    if (SifLoadModule("rom0:SIO2MAN", 0, NULL) < 0 ||
+        SifLoadModule("rom0:PADMAN", 0, NULL) < 0) {
+        if (failed) *failed = "rom0:PADMAN";
+        return -1;
+    }
+    have &= ~(CONSOLE_HAVE_MMCE | CONSOLE_HAVE_MX4SIO);
+#endif
+
     for (i = 0; i < sizeof modules / sizeof modules[0]; i++) {
         const irx_module *m;
         int role = modules[i].role;
 
+#ifdef CONSOLE_ROMPAD
+        if (role == SIO || role == MMCE || role == MX4SIO) continue;
+#endif
         if (role == MMCE && mx4sio) continue;
         if (role == MX4SIO && !mx4sio) continue;
         /* ata_bd without ps2dev9 cannot find the bay; do not ask. */
@@ -118,7 +141,7 @@ int console_storage_start(int mx4sio, const char **failed)
 
         m = irx_find(modules[i].name);
         if (m == NULL || load(m) != 0) {
-            if (role == NEED) {
+            if (role == NEED || role == SIO) {
                 if (failed) *failed = modules[i].name;
                 return -1;
             }
