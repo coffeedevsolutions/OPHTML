@@ -102,7 +102,7 @@ The controls:
 
 The launcher waits for the drives before it draws anything, because the
 theme may be on one of them. The wait ends once the drives stop changing,
-and is capped at 300 frames, about five seconds. The screen stays plain
+and is capped at 300 frames: five seconds at 60 Hz, six on a PAL console. The screen stays plain
 dark while it waits. The wait is
 [wait_for_drives](repo:console/main.c#L303).
 
@@ -132,8 +132,9 @@ When ✕ is pressed, it looks for Neutrino in this order:
 | 3 | `mc0:/APPS/neutrino/neutrino.elf`, then the same on `mc1:` |
 
 MX4SIO and MMCE both drive the memory card port, so only one is loaded. MMCE
-is the default. Rename the ELF so its name contains `m4s`, such as
-`ophtml-m4s.elf`, to load MX4SIO instead:
+is the default. To load MX4SIO instead, rename the ELF so its name contains
+`m4s` or `M4S`, such as `ophtml-m4s.elf`, or start it with the argument
+`-mx4sio`:
 [wants_mx4sio](repo:console/main.c#L428).
 
 ## Limits and errors
@@ -145,6 +146,8 @@ A problem the launcher can report goes to the `status` slot in words.
 | `No drives found` | no drive mounted within the wait | attach a drive, and check the label table above for the formats read |
 | `No ISOs in DVD/ or CD/` | drives mounted, none with ISOs in those folders | move the ISOs into `DVD/` or `CD/` at the drive's root |
 | `Neutrino not found: put neutrino/ at a drive's root` | ✕ pressed, Neutrino in none of the places above | unzip Neutrino's `neutrino/` folder at a drive's root |
+| `Could not start Neutrino (<code>)` | Neutrino was found, and the loader returned instead of starting it | check that `neutrino/` is Neutrino's release folder unzipped as-is, with its modules beside `neutrino.elf` |
+| `This theme has no game-0 row to list games in` | games were found, and the theme has no `game-0` row to show them in | add rows with `id="game-{i}"` under `data-repeat`, and run `ps2ui check --console` on the blob |
 | `<path> refused (<code>); built-in theme` | your `theme.uib` failed to load | run `ps2ui check` on it, and read the code on [Errors and constants](page:runtime/errors-and-constants) |
 
 Before a theme draws, a solid colour is the only signal:
@@ -154,7 +157,7 @@ Before a theme draws, a solid colour is the only signal:
 |---|---|
 | grey | a required IOP module failed to load |
 | red, before any theme | the built-in theme failed to load, so the ELF is broken |
-| yellow | the theme did not fit in video memory |
+| yellow | the theme did not fit in video memory; the launcher holds this screen and does not fall back to the built-in theme, so run `ps2ui check` on your theme first and read its VRAM line |
 
 After ✕, the PS2SDK loader that starts Neutrino paints its own colours. Red
 at that point is the loader refusing its arguments, not the launcher. The

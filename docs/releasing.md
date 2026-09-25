@@ -531,7 +531,14 @@ written twice to avoid.
    - replace the placeholder notes with the CHANGELOG section for this
      version, and say which `console/README.md` bench cases have been
      run on a console;
-   - publish it.
+   - note which toolchain built it: the run's "Initialize containers"
+     step logs the ps2dev image digest, and the build step prints the
+     compiler version. The image is unpinned, so this can differ from
+     the one `hw.yml` booted in Play! on the same commit;
+   - publish it only after `pip index versions ophtml` lists the new
+     version. Publishing fires `registry.yml`'s `release: published`
+     trigger, which installs the release from PyPI and goes red if the
+     index does not serve it yet.
 
    The workflow never publishes and never edits a release's notes, so a
    release you already wrote is safe from it. If it failed, or the tag

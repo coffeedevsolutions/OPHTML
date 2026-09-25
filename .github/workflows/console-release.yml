@@ -78,9 +78,16 @@ jobs:
       - name: Build the launcher and its mock build
         run: |
           apk add --no-cache make
+          mips64r5900el-ps2-elf-gcc --version | head -1
           test -f examples/console/build/ui.uib
-          # The same two builds hw.yml makes on every push, so what is
-          # released is what CI booted in Play!. ophtml-nav.elf is left
+          # The same build lines hw.yml runs on every push. Not
+          # necessarily the same binary: the ps2dev image is unpinned in
+          # both workflows, and this runs at tag time, so gsKit or the
+          # SDK can differ from the image hw.yml booted in Play!. The
+          # "Initialize containers" step logs the image digest, and the
+          # compiler's version is printed below, so docs/releasing.md
+          # step 8b can say which toolchain built the release.
+          # ophtml-nav.elf is left
           # out: it loads the ROM's pad modules for the emulator, which
           # costs the memory card, MMCE and MX4SIO drivers, and
           # console/README.md says never to ship it.

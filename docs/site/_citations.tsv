@@ -403,8 +403,8 @@ _facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	65	def default_fo
 _facts/authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/authoring/project-file	packages/baker/ps2ui_bake/ps2ui.py	336	    argv = [rel(proj, proj.out_path)]	    # written; nothing passed it.	    if proj.vram_budget is not None:
 _facts/authoring/project-file	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
-_facts/authoring/screens-and-overlays	BACKLOG.md	573	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
-_facts/authoring/screens-and-overlays	BACKLOG.md	596	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
+_facts/authoring/screens-and-overlays	BACKLOG.md	574	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
+_facts/authoring/screens-and-overlays	BACKLOG.md	597	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
 _facts/authoring/screens-and-overlays	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
 _facts/authoring/screens-and-overlays	examples/opl-env/ps2ui.json	2	  "screens": [	{	    "ui/landing.html", "ui/library.html", "ui/detail.html",
 _facts/authoring/screens-and-overlays	examples/opl-env/ui/confirm.html	24	    <!-- The readout. On EVERY screen, not only on library: slots are	    </div>	         per-screen (render_slots walks the current screen's slot range),
@@ -1193,11 +1193,13 @@ _facts/runtime/api-reference	runtime/ps2ui.h	832	 * as an empty row rather than 
 _facts/runtime/api-reference	runtime/ps2ui.h	835	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list);	 * focus names to match the list's prefix. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	838	 * for tests. */	/* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed	uint32_t ps2ui_crc32(const void *data, size_t len);
 _facts/runtime/console-launcher	.github/workflows/console-release.yml	24	    tags: ['v[0-9]*', '[0-9]*.[0-9]*.[0-9]*']	  push:	  workflow_dispatch:
-_facts/runtime/console-launcher	.github/workflows/console-release.yml	91	          cp console/ophtml.elf console/ophtml-mock.elf dist/	          mkdir -p dist	          cd dist && sha256sum ophtml.elf ophtml-mock.elf > SHA256SUMS
-_facts/runtime/console-launcher	.github/workflows/console-release.yml	120	            gh release create "$TAG" --draft --verify-tag --title "$TAG" \\	            # the dispatch input must not mint a new tag on main.	              --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
-_facts/runtime/console-launcher	.github/workflows/console-release.yml	127	          gh release upload "$TAG" dist/ophtml.elf dist/ophtml-mock.elf \\	          fi	            dist/SHA256SUMS --clobber
+_facts/runtime/console-launcher	.github/workflows/console-release.yml	98	          cp console/ophtml.elf console/ophtml-mock.elf dist/	          mkdir -p dist	          cd dist && sha256sum ophtml.elf ophtml-mock.elf > SHA256SUMS
+_facts/runtime/console-launcher	.github/workflows/console-release.yml	127	            gh release create "$TAG" --draft --verify-tag --title "$TAG" \\	            # the dispatch input must not mint a new tag on main.	              --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
+_facts/runtime/console-launcher	.github/workflows/console-release.yml	134	          gh release upload "$TAG" dist/ophtml.elf dist/ophtml-mock.elf \\	          fi	            dist/SHA256SUMS --clobber
 _facts/runtime/console-launcher	console/README.md	225	## Bench cases		
 _facts/runtime/console-launcher	console/launch.c	52	int console_find_neutrino(const char *launch_dir,		                          const console_device *devs, int n_devs,
+_facts/runtime/console-launcher	console/launch.c	67	    for (d = 0; d < n_devs; d++)	    }	        if (try_path(out, cap, devs[d].mount, "/neutrino/neutrino.elf"))
+_facts/runtime/console-launcher	console/launch.c	70	    for (i = 0; i < sizeof cards / sizeof cards[0]; i++)	            return 1;	        if (try_path(out, cap, cards[i], "")) return 1;
 _facts/runtime/console-launcher	console/library.c	9	console_bsd console_bsd_from_driver(const char *driver)		{
 _facts/runtime/console-launcher	console/library.c	33	const char *console_bsd_label(console_bsd bsd)		{
 _facts/runtime/console-launcher	console/main.c	200	static void choose_theme(char *note, size_t cap)	 * status line can say why the built-in one is showing. */	{
@@ -1205,14 +1207,18 @@ _facts/runtime/console-launcher	console/main.c	222	        hold(0x80, 0x00, 0x00
 _facts/runtime/console-launcher	console/main.c	255	        set("game-%d-title", r, g ? g->title : "");	        const console_game *g = item >= 0 ? &games[item] : NULL;	        set("game-%d-id", r, g ? g->id : "");
 _facts/runtime/console-launcher	console/main.c	286	static int count_rows(void)	 * rows it has by having them. */	{
 _facts/runtime/console-launcher	console/main.c	303	static void wait_for_drives(int have)	 * it will settle for what it has; the whole wait is capped at 5 s. */	{
+_facts/runtime/console-launcher	console/main.c	308	    for (f = 0; f < 300; f++) {		        blank();
 _facts/runtime/console-launcher	console/main.c	339	    console_sort(games, (size_t)n_games);	    }	
 _facts/runtime/console-launcher	console/main.c	342	    ps2ui_slot_set(&ui, "game-count", line);	    snprintf(line, sizeof line, n_games == 1 ? "%d game" : "%d games", n_games);	
 _facts/runtime/console-launcher	console/main.c	347	        status("No drives found");	    else if (n_devs == 0)	    else if (n_games == 0)
+_facts/runtime/console-launcher	console/main.c	349	        status("No ISOs in DVD/ or CD/");	    else if (n_games == 0)	    else
 _facts/runtime/console-launcher	console/main.c	393	        status("Neutrino not found: put neutrino/ at a drive's root");	    if (!console_find_neutrino(launch_dir, devs, n_devs, path, sizeof path)) {	        return;
+_facts/runtime/console-launcher	console/main.c	405	    snprintf(line, sizeof line, "Could not start Neutrino (%d)", rc);	    input_init();	    status(line);
 _facts/runtime/console-launcher	console/main.c	428	static int wants_mx4sio(int argc, char *argv[])	 * NHDDL uses, for launchers that cannot pass arguments. */	{
 _facts/runtime/console-launcher	console/main.c	453	    if (have < 0) hold(0x40, 0x40, 0x40);	    have = console_storage_start(wants_mx4sio(argc, argv), &failed);	    input_init();
 _facts/runtime/console-launcher	console/main.c	459	    if (ps2ui_upload(&ui, gs) != 0) hold(0x80, 0x80, 0x00);	    gs->PrimAlphaEnable = GS_SETTING_ON;	
 _facts/runtime/console-launcher	console/main.c	463	    ps2ui_screen_set(&ui, "games");	     * the list is wherever the theme starts. */	    rows = count_rows();
+_facts/runtime/console-launcher	console/main.c	474	        status("This theme has no game-0 row to list games in");	    if (rows == 0 && n_games > 0)	
 _facts/runtime/console-launcher	console/main.c	483	        if (e & (PAD_UP | PAD_DOWN)) {		            int d = (e & PAD_UP) ? -1 : 1;
 _facts/runtime/console-launcher	console/scan.c	29	    if (!console_iso_id(read_sector, &fd, g->id, sizeof g->id))	    if (fd < 0) return;	        g->id[0] = '\\0';
 _facts/runtime/console-launcher	console/scan.c	50	        if (!console_iso_name(e->d_name, g->title, sizeof g->title,		                              g->id, sizeof g->id))
