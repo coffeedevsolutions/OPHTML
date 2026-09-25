@@ -244,7 +244,7 @@ your project needs it.
 
 ### Keys that reach the checker
 
-New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1546). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
+New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1562). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
 
 ```sh
 cd packages/baker/tests && python3 -m unittest \
