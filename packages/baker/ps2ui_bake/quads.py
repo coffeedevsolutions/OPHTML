@@ -111,7 +111,8 @@ class BakedTexture:
 
 
 class Flattener:
-    def __init__(self, ir: dict, font_paths: dict, palettize_all: bool = False):
+    def __init__(self, ir: dict, font_paths: dict, palettize_all: bool = False,
+                 max_image_pixels: int = None):
         """font_paths: {"regular": {"ttf": ..., "metrics": ...},
                         "bold":    {"ttf": ..., "metrics": ...}}
         palettize_all: quantize every image to PSMT8+CLUT regardless of
@@ -119,6 +120,9 @@ class Flattener:
         self.ir = ir
         self.font_paths = font_paths
         self.palettize_all = palettize_all
+        self.max_image_pixels = (self.MAX_IMAGE_PIXELS
+                                 if max_image_pixels is None
+                                 else max_image_pixels)
         self.textures: list[BakedTexture] = []
         self.cluts: list[bytes] = []
         self.records: list[DrawRecord] = []
@@ -286,6 +290,27 @@ class Flattener:
 
     # -------------------------------------------------------------- images
 
+    # WHAT A SOURCE IMAGE MAY DECODE TO (S3).
+    #
+    # The BAKED bytes were already bounded -- an image is pre-scaled to
+    # its laid-out size, so 40 distinct 1024x1024 PNGs bake to 40 KiB.
+    # The cost is the DECODE, and nothing bounded that. Measured on main
+    # at 3053962: a 439 KiB PNG holding 12000x12000 pixels decoded to
+    # 432 MB and baked clean in 11.0 seconds, exit 0, producing 4 KiB of
+    # texture. A theme is a file somebody else wrote.
+    #
+    # And just past it the failure was a traceback rather than an error:
+    # Pillow's own guard raises DecompressionBombError above 178 Mpx, so
+    # a 597 KiB file holding 14000x14000 ended the bake with a PIL stack
+    # trace, which is the one shape this baker refuses everywhere else.
+    #
+    # 32 Mpx is 5657x5657, and 11x the largest source image shipped in
+    # this repository (1984x1408 = 2.79 Mpx, a screenshot montage rather
+    # than UI art). The check runs on the HEADER, before any decode, so
+    # a bomb costs a stat and a read of the first few bytes.
+    MAX_IMAGE_PIXELS = 32_000_000
+
+
     @staticmethod
     def _clut_from_palette(pal) -> bytes:
         """RGBA palette bytes -> a full 256-entry GS CLUT.
@@ -312,11 +337,39 @@ class Flattener:
         survives a palette (opt in via the `palettize` attribute on
         <img>, or --palettize-images for the whole bake)."""
         from PIL import Image  # deferred so text-only bakes never import it twice
+        import warnings
 
         key = (src, w, h, palettize, strict)
         if key not in self._images:
             try:
-                raw = Image.open(src)
+                # Pillow warns between 1x and 2x its own guard. Our
+                # limit is well under that, so anything that would
+                # trigger the warning is refused below anyway -- and a
+                # DecompressionBombWarning printed ahead of our own
+                # error just makes the real message harder to find.
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+                    raw = Image.open(src)
+            except Image.DecompressionBombError as err:
+                # Pillow's guard, wearing this baker's voice instead of
+                # a traceback.
+                raise ValueError(
+                    f"image: {src!r} is too large to decode: {err}"
+                ) from err
+            except OSError as err:
+                raise ValueError(f"image: cannot decode {src!r}: {err}") from err
+            src_w, src_h = raw.size
+            limit = self.max_image_pixels
+            if src_w * src_h > limit:
+                raise ValueError(
+                    f"image: {src!r} is {src_w}x{src_h} = "
+                    f"{src_w * src_h} pixels, past the limit of {limit}. "
+                    f"It is drawn at {w}x{h}, so the pixels past that are "
+                    f"decoded and thrown away -- the largest source image "
+                    f"shipped with ps2ui is 1984x1408. Scale the asset "
+                    f"down, or raise \"limits\": {{\"imagePixels\": N}} "
+                    f"in the project file.")
+            try:
                 raw.load()
             except OSError as err:
                 raise ValueError(f"image: cannot decode {src!r}: {err}") from err

@@ -18,6 +18,7 @@ sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/__main__.p
 ps2ui-bake [-h] [--version] -o OUT [--fonts FONTS] [--preview PREVIEW]
            [--montage MONTAGE] [--preview-display PNG]
            [--palettize-images] [--tints] [--vram-budget BYTES]
+           [--limit NAME=N]
            ir [ir ...]
 ```
 
@@ -49,6 +50,7 @@ The list below is the whole option set, from `ps2ui-bake --help` in this session
 | `--palettize-images` | none | off | Quantize every `<img>` to PSMT8 with a CLUT. Per-image opt-in is the `palettize` attribute; see [images](page:authoring/images#reference-table). |
 | `--tints` | none | off | Print the tint table as it is written, with the `var()` name behind each entry. See [theming](page:authoring/theming#behaviour). |
 | `--vram-budget` | bytes | 4 MiB minus two framebuffers and a Z buffer at canvas size | Texture VRAM ceiling the bake refuses past. See [VRAM budget](page:authoring/vram-budget#reference-table). |
+| `--limit` | `imagePixels=N`, repeatable | 32000000 | Raises the pixel count a source image may decode to, read from the PNG header before any decode. This tool enforces `imagePixels` only; the other three caps belong to [ps2ui-layout](page:cli/ps2ui-layout#options), and passing one here is a usage error that says so. See [resource caps](page:authoring/project-file#resource-caps). |
 | `--version` | none | | Print `ps2ui-bake` and the package version, then exit 0. |
 | `-h`, `--help` | none | | Print the usage above and exit 0. |
 
@@ -128,6 +130,9 @@ The bake exits 0 after the last line above. Every refusal exits 1 before `write_
 
 | code | value | triggered by | fix |
 |---|---|---|---|
+| `error: image: <src> is <w>x<h> = <n> pixels, past the limit of <m>. ...` naming the drawn size and the `imagePixels` override | 1 | A source image past the cap; read from the PNG header, so a 12000x12000 file fails in 0.08s rather than decoding 432 MB. | Scale the asset down, or raise `"limits": {"imagePixels": N}`. |
+| the framebuffer arithmetic, then `error: canvas <w>x<h> cannot be scanned out of GS VRAM` | 1 | A canvas whose framebuffers alone exceed VRAM. Checked apart from the budget, because the budget charges textures and a framebuffer is not a texture, so no `--vram-budget` reaches it. | Use a canvas the GS can scan out. |
+| `error: --limit ...`, four different messages for four different faults | 2 | A `--limit` that is not `NAME=N`, names no cap, names a cap this tool does not enforce, or carries a value below 1. | Read the message; each names its own fix. |
 | `error: <path>: IR version 2, expected 1` | 1 | An IR whose `version` is not 1; reproduced by editing memcard's `library.json`. | Recompile with the `ps2ui-layout` this package ships beside. |
 | `error: duplicate screen name 'library' (file stems must be unique)` | 1 | Two IR arguments with the same file stem; reproduced with a copy of `library.json` in another directory. | Rename one file; the stem is the screen name. |
 | `ps2ui-bake: no font manifest. ...` followed by a two-face JSON template | 1 | No `--fonts` and no `fonts/fonts.json` three directories above the package, which is every install outside a checkout. | Write the template with your TTF paths, generate metrics with `ps2ui-fontgen`, pass `--fonts`. |

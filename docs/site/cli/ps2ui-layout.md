@@ -15,7 +15,7 @@ sources: [packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js,
 ## Synopsis
 
 ```
-usage: ps2ui-layout <page.html> <page.css> -o <ui.json> [--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--version]
+usage: ps2ui-layout <page.html> <page.css> -o <ui.json> [--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--version]
 ```
 
 The usage line above is what `ps2ui-layout --help` prints. Run it on one screen of the memcard example:
@@ -41,6 +41,7 @@ Every flag is optional except `-o`. The two positionals are the HTML file and th
 | `--focus-wrap` | none | off | Adds wrap-around edges to the focus graph. See [focus and navigation](page:authoring/focus-and-navigation#wrap). |
 | `--strict` | none | off | Exits 1 when the compile produced any warning. See [CRT linter](page:authoring/crt-linter#strict). |
 | `--min-font-size` | positive integer, px | `14` | Replaces the floor the `min-font-size` lint checks against. See [CRT linter](page:authoring/crt-linter#reference-table). |
+| `--limit` | `NAME=N`, repeatable | see [resource caps](page:authoring/project-file#resource-caps) | Raises one cap: `canvasDim`, `nodes` or `depth`. `ps2ui build` sends the project file's `limits` here, so this is the same escape hatch on the command line. An unknown name or a value below 1 is a usage error. |
 | `-h`, `--help` | none | | Prints the usage line and exits 0. |
 | `-V`, `--version` | none | | Prints `ps2ui-layout <version>` on stdout and exits 0. |
 
@@ -136,7 +137,7 @@ There is no default. CSS's initial value is row, ps2ui once used column, so eith
 |---|---|
 | 0 | the IR was written, with or without warnings |
 | 1 | a compile error, or `--strict` with one or more warnings |
-| 2 | wrong positional count, no `-o`, unknown `--mode`, malformed `--canvas`, or `--min-font-size` not a positive integer |
+| 2 | wrong positional count, no `-o`, unknown `--mode`, malformed `--canvas`, `--min-font-size` not a positive integer, or a `--limit` that is not `NAME=N` for a cap this compiler has |
 
 Usage errors print the usage line. Each row above was produced in this session; the facts file lists the runs.
 
@@ -164,7 +165,7 @@ Missing parent directories are created first, so `-o build/library.json` works i
 ## Synopsis
 
 ```
-usage: ps2ui-dev <page.html> <page.css> -o <outdir> [--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--montage] [--palettize-images] [--once] [--version]
+usage: ps2ui-dev <page.html> <page.css> -o <outdir> [--mode ntsc|pal] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--montage] [--palettize-images] [--once] [--version]
 ```
 
 That is the `ps2ui-dev --help` output. The usage line is short by two facts: `--mode` accepts all four modes from the table above, and `--display-aspect W:H` is accepted too. Build the memcard library screen once:
@@ -190,6 +191,7 @@ The baker is spawned as `python3 -m ps2ui_bake` with `PYTHONPATH` pointing at th
 | `--focus-wrap` | none | off | As for `ps2ui-layout`. |
 | `--strict` | none | off | A compile with any warning fails before the bake; `--once` exits 1. See below. |
 | `--min-font-size` | positive integer, px | `14` | Replaces the floor the `min-font-size` lint checks against, as for `ps2ui-layout`. |
+| `--limit` | `NAME=N`, repeatable | see [resource caps](page:authoring/project-file#resource-caps) | The same three caps, read by the same parser as `ps2ui-layout`, because `ps2ui dev` forwards the project file's `limits` here too. |
 | `--montage` | none | off | Adds `--montage states.png` to the bake. |
 | `--palettize-images` | none | off | Forwarded to the bake as `--palettize-images`. See [ps2ui-bake](page:cli/ps2ui-bake#options). |
 | `--once` | none | off | Build one time and exit with the build status. |

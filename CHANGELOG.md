@@ -60,6 +60,53 @@ without moving this line.
   contract, the mock list and the list window now live in
   `ps2ui_bake/console.py`, which the check, the server and CI's
   reference frames all read.
+- **Hard caps on what an untrusted theme may ask the compilers for.** A
+  theme is a file somebody else wrote, and the compilers accepted
+  whatever it asked for. Four caps now, each measured before it was
+  chosen: canvas dimensions at 2048, elements at 10000, nesting at 64,
+  and a source image at 32 megapixels. Every one is overridable in
+  `ps2ui.json` beside `vramBudget` -- `{"limits": {"nodes": 40000}}` --
+  because a cap with no escape gets edited out of the source by the
+  first person it blocks.
+
+  The numbers come from the shipped corpus rather than from taste.
+  Across all 17 screens in `examples/` and `fixtures/`, counted with the
+  compiler's own walk after `data-repeat` expands, the largest is 93
+  elements at depth 5, every supported mode is 640x448 or 640x512, and
+  the largest source image is 1984x1408. The headroom is each cap's
+  own: about 108x for elements, about 13x for depth, and for the canvas
+  none of that kind at all, because 2048 is the widest framebuffer the
+  hardware scans out rather than a multiple of anything the corpus
+  says. *"An order of magnitude above the biggest real thing"* stood
+  here until it was read back against the three.
+
+  They fail rather than warn, which is the opposite of what
+  `check-doc-impact.py` argues for itself and right for the same reason:
+  a warning is correct where the work might be fine, and a PlayStation 2
+  cannot display a 30000px canvas under any circumstances.
+
+  The escape hatch broke two verbs before it worked. `ps2ui check` was
+  sent a `--limit` it does not take, and `ps2ui dev` was sent one it
+  did not take either -- the project-file page had listed `limits` as
+  reaching dev the whole time -- so a project declaring any cap got
+  `unrecognized arguments` from the first and a bare usage line from
+  the second, while `ps2ui build` on the same file was fine. Both are
+  fixed, and the fence is a test that reads the spawned tool's own
+  parser rather than a list maintained beside it. And the flag reached
+  both `--help` outputs before it reached any page that quotes one: the
+  two CLI pages and the diagnostics catalogue now carry `--limit`, the
+  three layout caps, the header-read image refusal and the scan-out
+  refusal, and a test holds each quoted usage line to the line its bin
+  prints, because nothing tied the two together. Re-running every
+  sabotage after that found one more: each cap has a test that its
+  check fires, and the image cap was the one whose *number* nothing
+  read, so raising it to ten billion left the whole suite green. It is
+  held to the corpus, to the default an ordinary bake gets, and to the
+  figure the project-file page prints. `ps2ui-bake --limit
+  nodes=5` says so too now: a real cap, correctly spelled, handed to
+  the tool that does not enforce it, answered until now by
+  *"takes imagePixels=N with N a positive integer"* -- a complaint
+  about the 5.
 
 ### Changed
 
@@ -77,6 +124,40 @@ without moving this line.
   there, measuring nothing. The `-plain` jobs now fail by name when pip
   hands them a release from before F47, rather than later in fontgen
   with a message that blames the machine.
+
+### Fixed
+
+- **A raised VRAM budget bought room for a framebuffer, which no budget
+  can.** `--vram-budget` exists to let a project declare the texture
+  space it really has. The refusal for a canvas too large to scan out
+  lived inside the advice printed only when no budget was given, so
+  passing one silenced the sentence and the failure together: a
+  30000x30000 canvas baked to a 17760-byte blob with exit 0, past a
+  message whose own last line reads "a narrower canvas is the only fix".
+  The budget charges textures and a framebuffer is not a texture, so the
+  check is now separate from the one a flag can reach.
+
+- **A 439 KiB image could cost 432 MB and eleven seconds, or end the
+  bake in a traceback.** An image is pre-scaled to its laid-out size, so
+  the baked bytes were already bounded: 40 distinct 1024x1024 sources
+  bake to 40 KiB. Nothing bounded the decode. A 12000x12000 PNG baked
+  clean in 11.0 seconds to produce 4 KiB of texture, and one step larger
+  Pillow's own `DecompressionBombError` reached the terminal raw. The
+  size is read from the header now, before any decode, so the same file
+  fails in 0.08 seconds with one error line.
+
+- **Nesting deep enough reported `Maximum call stack size
+  exceeded`.** That is V8's stack rather than a decision, so the real
+  limit moved with the machine and the message named neither the
+  element nor a number. How far it moves, bisected on one checkout:
+  1842 on node v22.22.2's default stack, 889 under `--stack-size=500`,
+  7781 under `--stack-size=4000`. The first version of this entry said
+  *"deeper than about 1500"*, which was the midpoint of the
+  1000-compiled / 2000-died bracket written as though it were a
+  reading; review of #166 asked for the reading. The refusal is the compiler's now, at 64, and
+  names the line the deepest element sits on. The check is iterative,
+  because a recursive walk to find the depth that breaks a recursive
+  walk overflows before it can report anything.
 
 ## 0.9.0 — 2026-09-23
 

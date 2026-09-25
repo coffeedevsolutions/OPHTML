@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // ps2ui-layout <page.html> <page.css> -o ui.json [--canvas 640x448]
 //              [--font-dir DIR | --fonts fonts.json] [--strict] [--min-font-size PX]
+//              [--limit canvasDim=N|nodes=N|depth=N]
 //
 // --strict promotes warnings (including CRT lints) to a non-zero exit.
 
@@ -8,6 +9,7 @@ import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { compileFiles } from '../src/index.js';
 import { MODES, parseAspect } from '../src/aspect.js';
+import { parseLimitSpec } from '../src/limits.js';
 
 // THE VERSION HAS TO REACH A PERSON, and it comes from the manifest
 // rather than a second literal here. package.json is this package's one
@@ -20,7 +22,7 @@ const VERSION = JSON.parse(
 
 function usage(code) {
   console.error('usage: ps2ui-layout <page.html> <page.css> -o <ui.json> '
-    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--version]');
+    + '[--mode ntsc|ntsc16x9|pal|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--version]');
   process.exit(code);
 }
 
@@ -36,6 +38,7 @@ let fontManifest;
 let strict = false;
 let minFontSize = null;
 let focusWrap = false;
+const limits = {};
 
 for (let i = 0; i < args.length; i++) {
   switch (args[i]) {
@@ -54,6 +57,18 @@ for (let i = 0; i < args.length; i++) {
     // rule; a document that means to go below it has to say so here
     // rather than have the rule quietly not reach its text.
     case '--min-font-size': minFontSize = parseInt(args[++i], 10); break;
+    // A CAP, RAISED ON PURPOSE AND IN THE OPEN (S3). Repeatable:
+    // --limit nodes=40000 --limit depth=128. `ps2ui build` forwards
+    // whatever the project file's "limits" object says.
+    case '--limit': {
+      const got = parseLimitSpec(args[++i]);
+      if (got.error) {
+        console.error(`ps2ui-layout: ${got.error}`);
+        process.exit(2);
+      }
+      limits[got.name] = got.value;
+      break;
+    }
     case '-h': case '--help': usage(0); break;
     case '-V': case '--version':
       console.log(`ps2ui-layout ${VERSION}`); process.exit(0); break;
@@ -63,6 +78,7 @@ for (let i = 0; i < args.length; i++) {
 if (positional.length !== 2 || !out) usage(2);
 
 const options = { fontDir, fontManifest, focusWrap };
+if (Object.keys(limits).length) options.limits = limits;
 if (mode) {
   if (!(mode in MODES)) usage(2);
   options.canvasW = MODES[mode].w;

@@ -16,6 +16,7 @@ from . import preview as preview_mod
 from . import arena
 from . import vram
 from . import caps as caps_mod
+from . import project
 
 
 def check_font_agreement(ir, font_paths):
@@ -159,7 +160,49 @@ def main(argv=None) -> int:
     ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",
                     help="texture VRAM budget (default: 4 MiB minus a "
                          "double-buffered framebuffer pair + Z at canvas size)")
+    # A CAP, RAISED ON PURPOSE AND IN THE OPEN (S3). Only imagePixels
+    # is this tool's; the other three belong to the layout compiler, and
+    # `ps2ui build` sends each one where it is enforced.
+    ap.add_argument("--limit", action="append", default=[], metavar="NAME=N",
+                    help="raise a resource cap, e.g. --limit "
+                         "imagePixels=64000000 (this tool enforces "
+                         "imagePixels)")
     args = ap.parse_args(argv)
+    limits = {}
+    for spec in args.limit:
+        # FOUR DIFFERENT MISTAKES SHARED ONE MESSAGE, AND IT DESCRIBED
+        # ONE OF THEM. `--limit nodes=5` is a correctly spelled cap
+        # with a correct positive integer, sent to the tool that does
+        # not enforce it, and the answer was "--limit takes
+        # imagePixels=N with N a positive integer" -- which names
+        # neither the mistake nor the fix, and reads as though 5 were
+        # not an integer. Review of #166 found it. project.LIMIT_KEYS
+        # already knows which tool enforces each cap, so the refusal
+        # can say where the cap belongs instead of restating the one
+        # spelling this tool accepts.
+        name, eq, raw = spec.partition("=")
+        if not eq or not name:
+            print("error: --limit takes NAME=N, got %r" % spec,
+                  file=sys.stderr)
+            return 2
+        if name not in project.LIMIT_KEYS:
+            print("error: --limit: unknown cap %r. Known: %s"
+                  % (name, ", ".join(sorted(project.LIMIT_KEYS))),
+                  file=sys.stderr)
+            return 2
+        if project.LIMIT_KEYS[name] != "bake":
+            print("error: --limit %s is a layout cap and ps2ui-layout "
+                  "enforces it; this tool enforces imagePixels. "
+                  "`ps2ui build` reads \"limits\" from the project file "
+                  "and sends each cap to the tool that enforces it, so "
+                  "set it there rather than here." % name,
+                  file=sys.stderr)
+            return 2
+        if not raw.isdigit() or int(raw) < 1:
+            print("error: --limit %s takes a positive integer, got %r"
+                  % (name, raw), file=sys.stderr)
+            return 2
+        limits[name] = int(raw)
 
     named_irs = []
     for path in args.ir:
@@ -225,7 +268,8 @@ def main(argv=None) -> int:
               "and ps2ui-bake.", file=sys.stderr)
         return 1
 
-    flat = Flattener(ir, font_paths, palettize_all=args.palettize_images)
+    flat = Flattener(ir, font_paths, palettize_all=args.palettize_images,
+                     max_image_pixels=limits.get("imagePixels"))
     try:
         flat.run_screens(named_irs)
     except ValueError as exc:
@@ -251,6 +295,18 @@ def main(argv=None) -> int:
     if cap_errors:
         for e in cap_errors:
             print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    # CAN THE GS SCAN THIS CANVAS OUT AT ALL? Asked before the budget,
+    # and separately from it, because the budget charges textures and a
+    # framebuffer is not a texture -- so --vram-budget used to walk
+    # straight past the one canvas failure that no budget can fix (S3).
+    fits, fit_lines = vram.canvas_fits(ir["canvas"]["w"], ir["canvas"]["h"])
+    if not fits:
+        for line in fit_lines:
+            print(line, file=sys.stderr)
+        print("error: canvas %dx%d cannot be scanned out of GS VRAM"
+              % (ir["canvas"]["w"], ir["canvas"]["h"]), file=sys.stderr)
         return 1
 
     # VRAM accounting before writing anything: an over-budget UI should

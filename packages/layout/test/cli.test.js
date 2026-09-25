@@ -133,3 +133,135 @@ test('the bins print every CSS error, one `error: ` line each', () => {
     assert.match(lines[2], /line 9: display: only "flex" and "none"/);
   }
 });
+
+
+test('both bins screen --limit the same way, and answer with exit 2', () => {
+  // TWO FINDINGS FROM REVIEW OF #166, AND THEY ARE THE SAME FINDING.
+  //
+  // `ps2ui-layout --limit noodles=5` printed
+  // `error: limits: unknown limit "noodles"` and exited 1: the name
+  // was never screened here, so it fell through to resolveLimits and
+  // reached the terminal through the generic handler, while
+  // `--limit depth=0` one line away exited 2. diagnostics.cli.usage
+  // says this family answers a malformed command line with exit 2 and
+  // no `error:` prefix, and a misspelt cap was the one argument in
+  // either bin that did neither.
+  //
+  // `ps2ui-dev` did not take `--limit` at all, so the flag `ps2ui dev`
+  // forwards from a project's "limits" object landed in positional and
+  // every such project got a bare usage dump. That is the defect that
+  // broke `ps2ui check` in this same change, one command over.
+  //
+  // Both bins now read one parser, and this asserts them TOGETHER
+  // rather than once each, so a fix that reaches one of them fails.
+  const dir = mkdtempSync(join(tmpdir(), 'ps2ui-limit-'));
+  const html = join(dir, 'page.html');
+  const css = join(dir, 'page.css');
+  writeFileSync(html, '<screen><div class="b">x</div></screen>\n');
+  writeFileSync(css,
+    'screen { background: #000000; }\n'
+    + '.b { width: 200px; height: 60px; color: #ffffff; }\n');
+  const fontDir = fileURLToPath(new URL('../../../fonts', import.meta.url));
+
+  for (const [name, prog] of [['ps2ui-layout.js', 'ps2ui-layout'],
+                              ['ps2ui-dev.js', 'ps2ui-dev']]) {
+    const dev = name === 'ps2ui-dev.js';
+    const run = (...extra) => {
+      const r = spawnSync(process.execPath,
+        [bin(name), html, css, '-o', join(dir, dev ? 'out' : 'out.json'),
+         '--font-dir', fontDir, ...(dev ? ['--once'] : []), ...extra],
+        { encoding: 'utf8' });
+      return { status: r.status, err: r.stderr.replace(/\x1b\[[0-9;]*m/g, '') };
+    };
+
+    // A cap this compiler does not have. The name, not the value.
+    const unknown = run('--limit', 'noodles=5');
+    assert.equal(unknown.status, 2,
+      `${prog} --limit noodles=5 exited ${unknown.status}: ${unknown.err}`);
+    assert.match(unknown.err, new RegExp(`^${prog}: --limit: unknown cap`, 'm'));
+    assert.doesNotMatch(unknown.err, /^error: /m,
+      `${prog} used the library's error: prefix for a command-line fault`);
+
+    // A cap this compiler does have, with a value it cannot.
+    const zero = run('--limit', 'depth=0');
+    assert.equal(zero.status, 2, zero.err);
+    assert.match(zero.err,
+      new RegExp(`^${prog}: --limit depth takes a positive integer`, 'm'));
+
+    // Not name=value at all.
+    const shapeless = run('--limit', 'depth');
+    assert.equal(shapeless.status, 2, shapeless.err);
+    assert.match(shapeless.err, new RegExp(`^${prog}: --limit takes NAME=N`, 'm'));
+
+    // AND THE ACCEPTING CASE, which is what ps2ui dev forwards. Without
+    // it the three refusals above would all pass on a bin that refuses
+    // every --limit, which is what ps2ui-dev used to do.
+    const ok = run('--limit', 'nodes=40000', '--limit', 'depth=128');
+    assert.equal(ok.status, 0,
+      `${prog} refused a valid --limit: ${ok.err}`);
+
+    // AND THE VALUE REACHES THE COMPILER, which accepting it does not
+    // prove. Falsification found this hole in the first version of
+    // this test: deleting `options.limits = limits` from ps2ui-dev
+    // left every assertion above green, because a flag parsed into a
+    // variable nothing reads is still parsed. That is the shape D9
+    // named in this same bin, where --strict and --min-font-size were
+    // accepted and inert. A cap of 1 on a screen with two elements has
+    // to be refused BY THE CAP.
+    const tight = run('--limit', 'nodes=1');
+    assert.equal(tight.status, 1,
+      `${prog} ignored --limit nodes=1: ${tight.err}`);
+    assert.match(tight.err, /more than 1 elements after data-repeat/);
+  }
+});
+
+
+test('every page that quotes a usage line quotes the one the bin prints', () => {
+  // THE FLAG REACHED --help AND NOT THE PAGES THAT QUOTE --help.
+  // `--limit` went into ps2ui-layout's usage line in 48f1884 and
+  // ps2ui-dev's in a9e24d4. Two pages copy those lines verbatim --
+  // cli/ps2ui-layout.md as the synopsis, reference/diagnostics.md as the
+  // exit-2 row -- and both kept the older string for a release and a
+  // half. check-site-pages could not see it: it pins CITATIONS to line
+  // numbers and has nothing that ties a quoted string to the program
+  // that prints it. Review of #166 found the layout half, having missed
+  // it once itself, and the dev half was new.
+  //
+  // So the quote is held to the output. Any future flag that reaches a
+  // usage line fails here until the pages that reproduce it are updated,
+  // which is the only direction that matters: a page can be behind the
+  // tool, never ahead of it.
+  const pages = [
+    'docs/site/cli/ps2ui-layout.md',
+    'docs/site/reference/diagnostics.md',
+  ];
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  // A usage line inside a markdown table has its pipes escaped as `\|`,
+  // which is a faithful quote in a different spelling. Unescaping is the
+  // one difference this allows; a missing flag still fails.
+  const text = pages.map((p) => readFileSync(join(root, p), 'utf8')
+    .replace(/\\\|/g, '|'));
+  let quoted = 0;
+  for (const [name, prog] of [['ps2ui-layout.js', 'ps2ui-layout'],
+                              ['ps2ui-dev.js', 'ps2ui-dev']]) {
+    // No arguments is the usage path for both, and it exits 2.
+    const r = spawnSync(process.execPath, [bin(name)], { encoding: 'utf8' });
+    assert.equal(r.status, 2, r.stderr);
+    const line = r.stderr.split('\n').find((l) => l.startsWith(`usage: ${prog} `));
+    assert.ok(line, `${prog} printed no usage line: ${r.stderr}`);
+    // The flags the line names, which is the part a page gets wrong.
+    const flags = line.match(/--[a-z][a-z-]*/g);
+    assert.ok(flags.includes('--limit'),
+      `${prog}'s usage line has no --limit, so this test would pass vacuously`);
+    for (const [i, p] of pages.entries()) {
+      if (!text[i].includes(`usage: ${prog} `)) continue;
+      quoted += 1;
+      assert.ok(text[i].includes(line.trim()),
+        `${p} quotes a ${prog} usage line that is not the one ${prog} prints.\n`
+        + `  prints: ${line.trim()}\n`
+        + `  the page has a different string; paste this one over it.`);
+    }
+  }
+  // Not vacuous: both pages really do quote at least one of the two.
+  assert.ok(quoted >= 3, `only ${quoted} quoted usage line(s) were checked`);
+});

@@ -174,7 +174,7 @@ git diff --exit-code fonts/; echo $?
 0
 ```
 
-The script reads [fonts/fonts.json](repo:fonts/fonts.json) through `load_font_manifest` in [cli.py](repo:packages/baker/ps2ui_bake/cli.py#L82), which takes the first candidate path that exists. It passes the family `DejaVu Sans`. The vendored copy under `fonts/vendor/` yields the same bytes as the system DejaVu.
+The script reads [fonts/fonts.json](repo:fonts/fonts.json) through `load_font_manifest` in [cli.py](repo:packages/baker/ps2ui_bake/cli.py#L83), which takes the first candidate path that exists. It passes the family `DejaVu Sans`. The vendored copy under `fonts/vendor/` yields the same bytes as the system DejaVu.
 
 ## ps2ui fontgen
 
@@ -196,7 +196,7 @@ ps2ui-fontgen: 115 glyphs, 163 kern pairs -> out/default-bold.metrics.json
 ps2ui-fontgen: manifest -> out/fonts.json
 ```
 
-All three lines go to stderr. The implementation is `cmd_fontgen` at [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L345).
+All three lines go to stderr. The implementation is `cmd_fontgen` at [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L370).
 
 ### Options
 

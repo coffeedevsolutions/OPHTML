@@ -4577,6 +4577,26 @@ class TestProjectFile(unittest.TestCase):
               "canvas": "640x448"}
 
     @staticmethod
+    def _checker_flags():
+        """Every long option ps2ui-check accepts, read from its --help.
+
+        Shared by the two directions rather than computed twice: one
+        test asks whether every checker flag with a project key is
+        forwarded, the other whether every flag forwarded is one the
+        checker takes. Two copies of this could disagree about what
+        "accepted" means, which is the shape both tests exist for.
+        """
+        import re
+        import subprocess
+        import sys
+        help_text = subprocess.run(
+            [sys.executable, "-m", "ps2ui_bake.check", "--help"],
+            capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        ).stdout
+        return set(re.findall(r"--[a-z][a-z-]+", help_text))
+
+    @staticmethod
     def _kebab(key):
         out = ""
         for ch in key:
@@ -4600,13 +4620,7 @@ class TestProjectFile(unittest.TestCase):
         and not forwarded, rather than when somebody remembers to write
         a test for it. `strict` was found by exactly this, in review.
         """
-        import re, subprocess, sys, tempfile
-        help_text = subprocess.run(
-            [sys.executable, "-m", "ps2ui_bake.check", "--help"],
-            capture_output=True, text=True,
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        ).stdout
-        accepted = set(re.findall(r"--[a-z][a-z-]+", help_text))
+        accepted = self._checker_flags()
         from ps2ui_bake import project
         shared = [k for k in sorted(project.DEFAULTS)
                   if self._kebab(k) in accepted]
@@ -4632,6 +4646,48 @@ class TestProjectFile(unittest.TestCase):
             "argv was %r"
             % (", ".join(self._kebab(k) for k in not_forwarded),
                ", ".join(sorted(accepted)), argv))
+
+    def test_every_flag_ps2ui_check_sends_is_one_the_checker_accepts(self):
+        """The converse of the test above, and it cost a broken verb.
+
+        That test asks: for each project key the checker accepts, is it
+        forwarded? It derives `shared` from the checker's --help, so a
+        flag `ps2ui check` sends that the checker does NOT accept is
+        never in the population and cannot fail it. S3 forwarded the
+        bake caps here beside the budget, and every project using the
+        documented escape hatch got
+
+            ps2ui-check: error: unrecognized arguments:
+                --limit imagePixels=64000000        rc 2
+
+        while `ps2ui build` on the same file worked. Two tests were
+        written to catch exactly this shape and neither faced this way.
+
+        `_check_argv` mocks check.main, so argparse never sees the argv
+        either -- which is why this compares against --help rather than
+        running the checker.
+        """
+        from ps2ui_bake import project
+
+        accepted = self._checker_flags()
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._check_argv(tmp, {
+                "vramBudget": 1212416,
+                "strict": True,
+                "limits": {"imagePixels": 64000000, "nodes": 40000},
+            })
+        sent = [a for a in argv if a.startswith("--")]
+        unknown = [f for f in sent if f not in accepted]
+        self.assertFalse(
+            unknown,
+            "`ps2ui check` sends %s, which ps2ui-check does not accept. "
+            "It takes %s. A project that sets one of these makes `ps2ui "
+            "check` fail with rc 2 while `ps2ui build` succeeds. argv "
+            "was %r" % (", ".join(unknown), ", ".join(sorted(accepted)),
+                        argv))
+        # Not vacuous: the budget and strict really are forwarded, so
+        # `sent` is non-empty and the assertion has something to check.
+        self.assertIn("--vram-budget", sent)
 
     def test_check_is_given_the_budget_the_build_was_given(self):
         """One project, one number, two commands that must agree.
@@ -5170,3 +5226,364 @@ class TestProjectFile(unittest.TestCase):
                 [s["name"] for s in read_uib(b("ui-16x9.uib")).screens],
                 ["games-16x9"])
 
+
+    # ---- the other direction, for the other two spawned tools ----
+
+    @staticmethod
+    def _bin_flags(name):
+        """Every long option a layout bin accepts, from its own switch.
+
+        `_checker_flags` asks argparse through `--help`. These two are
+        node scripts, and the population that matters is the set of
+        `case '--flag':` arms the switch actually has: the usage line
+        is prose beside them and has been wrong before. Reading the
+        arms means a flag added to the usage line and not to the
+        switch cannot make this test pass.
+        """
+        import re
+        with open(os.path.join(REPO, "packages", "layout", "bin", name),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        return set(re.findall(r"case '(--[a-z][a-z-]+)'", src))
+
+    def _dev_argv(self, tmp, extra):
+        """What `ps2ui dev` hands ps2ui-dev for this project."""
+        import json as _json
+        from unittest import mock
+        from ps2ui_bake import ps2ui as front
+        path = self.dev_project(tmp, ["library"])
+        with open(path) as fh:
+            data = _json.load(fh)
+        data.update(extra)
+        with open(path, "w") as fh:
+            _json.dump(data, fh)
+        seen = []
+        with mock.patch.object(front, "layout_command",
+                               lambda: ["ps2ui-layout"]), \
+                mock.patch.object(front.subprocess, "call",
+                                  lambda cmd, *a, **k: (seen.append(list(cmd)),
+                                                        0)[1]):
+            front.main(["dev", path, "--once"])
+        self.assertTrue(seen, "`ps2ui dev` spawned nothing to inspect")
+        return seen[0]
+
+    def test_every_flag_ps2ui_dev_is_sent_is_one_ps2ui_dev_accepts(self):
+        """The check test's rule, applied to the command beside it.
+
+        `test_every_flag_ps2ui_check_sends_is_one_the_checker_accepts`
+        was written because S3 sent the bake caps to a checker with no
+        `--limit`. It asks that question of ONE of the three tools the
+        front door spawns. The same change sent the LAYOUT caps to
+        `ps2ui-dev`, which had no `--limit` either, so every project
+        carrying a "limits" object answered `ps2ui dev` with a bare
+        usage line and exit 2 -- the identical defect, one command
+        over, and outside that test's population. Review of #166 found
+        it by reading the forwarding sites next to each other.
+
+        So the rule is asked of this tool too, from its own switch.
+        """
+        import tempfile
+        accepted = self._bin_flags("ps2ui-dev.js")
+        self.assertIn("--once", accepted,
+                      "the switch could not be read; this test would pass "
+                      "vacuously")
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._dev_argv(tmp, {
+                "limits": {"nodes": 40000, "depth": 128,
+                           "imagePixels": 64000000},
+                "minFontSize": 12,
+                "focusWrap": True,
+            })
+        sent = [a for a in argv if a.startswith("--")]
+        unknown = [f for f in sent if f not in accepted]
+        self.assertFalse(
+            unknown,
+            "`ps2ui dev` sends %s, which ps2ui-dev does not accept. It "
+            "takes %s. A project that sets one of these gets a usage dump "
+            "from `ps2ui dev` while `ps2ui build` succeeds. argv was %r"
+            % (", ".join(unknown), ", ".join(sorted(accepted)), argv))
+        # Not vacuous: the caps really are forwarded, so the assertion
+        # above has the flag it was written for in front of it.
+        self.assertIn("--limit", sent)
+        self.assertIn("nodes=40000", argv)
+        # And imagePixels is NOT sent here: it is the baker's cap, and
+        # sending it would be the same fault in the other direction.
+        self.assertNotIn("imagePixels=64000000", argv)
+
+
+class TestResourceLimits(unittest.TestCase):
+    """S3: what an untrusted theme may ask the baker for.
+
+    Each assertion here is a measurement taken before the cap existed,
+    on main at 3053962. A theme is a file somebody else wrote.
+    """
+
+    def test_limit_says_which_of_four_mistakes_was_made(self):
+        """ONE MESSAGE FOR FOUR FAULTS, AND IT DESCRIBED ONE.
+
+        `ps2ui-bake --limit nodes=5` answered
+
+            error: --limit takes imagePixels=N with N a positive
+            integer, got 'nodes=5'
+
+        which reads as a complaint about 5. 5 is a positive integer;
+        `nodes` is a real cap, spelled correctly, belonging to the
+        other compiler. The remedy the message implies -- write a
+        positive integer -- was already done, so the reader had
+        nothing to act on. Review of #166 found it.
+
+        project.LIMIT_KEYS already knows which tool enforces each cap,
+        so each fault gets the sentence that names it. All four still
+        exit 2, which is what this family answers a bad command line
+        with.
+        """
+        from ps2ui_bake import cli
+        cases = [
+            ("nodes=5", "layout cap"),
+            ("noodles=5", "unknown cap"),
+            ("imagePixels=0", "positive integer"),
+            ("imagePixels", "takes NAME=N"),
+        ]
+        seen = set()
+        for spec, wanted in cases:
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = cli.main(["--limit", spec, "-o", "/dev/null",
+                               "/nonexistent-ir.json"])
+            text = err.getvalue()
+            self.assertEqual(rc, 2, "%s: %r" % (spec, text))
+            self.assertIn(wanted, text,
+                          "--limit %s does not say %r: %r"
+                          % (spec, wanted, text))
+            seen.add(text)
+        # FOUR DISTINCT SENTENCES, not four spellings of one. The
+        # defect was that they WERE one, so a test that only asserted
+        # rc 2 four times would have passed on it.
+        self.assertEqual(len(seen), 4, "two of the four faults still "
+                                       "share a message: %r" % sorted(seen))
+        # And the cap this tool DOES enforce gets past the parser --
+        # otherwise all four refusals above would pass on a tool that
+        # refuses every --limit. The proof is that the run gets far
+        # enough to open the IR path and fail on THAT, which is the
+        # next thing main does after the loop.
+        with self.assertRaises(FileNotFoundError):
+            cli.main(["--limit", "imagePixels=64000000", "-o",
+                      "/dev/null", "/nonexistent-ir.json"])
+
+    def test_no_budget_can_buy_room_for_a_framebuffer(self):
+        """A canvas the GS cannot scan out fails whatever --vram-budget says.
+
+        MEASURED: a 30000x30000 canvas baked to a 17760-byte blob with
+        exit 0 under `--vram-budget 999999999`. The refusal lived in
+        `budget_note`, which report() appends only when NO budget was
+        given, so passing one silenced the sentence and the failure
+        together -- past a message whose own last line read "a narrower
+        canvas is the only fix".
+
+        The budget charges textures. A framebuffer is not a texture, so
+        no budget can make this true, and the check is separate from the
+        one a flag can reach.
+        """
+        from ps2ui_bake import vram
+
+        ok, lines = vram.canvas_fits(30000, 30000)
+        self.assertFalse(ok)
+        joined = "\n".join(lines)
+        self.assertIn("cannot be displayed", joined)
+        # And it says why raising the budget is not the fix, because
+        # that is exactly what the old message invited.
+        self.assertIn("--vram-budget cannot buy room", joined)
+        # Every shipped mode is fine, and so is the widest canvas the
+        # layout compiler will now accept a single framebuffer of.
+        for w, h in ((640, 448), (640, 512)):
+            self.assertEqual(vram.canvas_fits(w, h), (True, []))
+
+    def test_an_oversized_source_image_is_refused_before_it_is_decoded(self):
+        """A 439 KiB file decoding to 432 MB used to bake clean in 11s.
+
+        MEASURED: a 12000x12000 PNG (144 Mpx, 439 KiB on disk) baked
+        with exit 0 in 11.0 seconds, producing 4 KiB of texture, because
+        an image is pre-scaled to its laid-out size and nothing bounded
+        the DECODE. After the cap the same file fails in 0.08s.
+
+        And just past it the failure was a traceback: Pillow raises
+        DecompressionBombError above 178 Mpx, so a 14000x14000 file
+        ended the bake with a PIL stack trace rather than an error line.
+        """
+        from ps2ui_bake.quads import Flattener
+
+        # The check reads the HEADER, so the fixture never has to hold
+        # 432 MB: a tiny image against a tiny cap proves the same rule.
+        flat = Flattener.__new__(Flattener)
+        flat._images = {}
+        flat.textures, flat.cluts = [], []
+        flat.max_image_pixels = 16
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "a.png")
+            try:
+                from PIL import Image
+            except ImportError:
+                self.skipTest("Pillow not installed")
+            Image.new("RGB", (8, 8), (1, 2, 3)).save(path)
+            with self.assertRaises(ValueError) as cm:
+                flat._image_texture(path, 4, 4, False)
+        msg = str(cm.exception)
+        self.assertIn("8x8 = 64 pixels, past the limit of 16", msg)
+        # It names the drawn size, because that is the argument: the
+        # pixels past it are decoded and thrown away.
+        self.assertIn("drawn at 4x4", msg)
+        self.assertIn("imagePixels", msg)
+
+    def test_the_image_cap_is_the_number_the_corpus_and_the_docs_name(self):
+        """THE CAP'S VALUE WAS THE ONE THING NOTHING READ.
+
+        The test above writes `max_image_pixels = 16` on purpose, so
+        the header check runs against an 8x8 fixture instead of a
+        432 MB one. That leaves the DEFAULT outside its population.
+        Falsification found it while the whole set was re-run after
+        the merge: raising `Flattener.MAX_IMAGE_PIXELS` to
+        10_000_000_000 left all 309 tests green. Every cap in S3 has a
+        test that its check FIRES, and this was the one whose NUMBER
+        nothing read -- the configured-but-unread shape this
+        repository keeps finding, and the same defect as the layout
+        derivation test one package over, where asserting the
+        measurement and not the sentence citing it left the sentence
+        free to drift.
+
+        So the number is held to the three things that already claim
+        it: the corpus it was derived from, the default a Flattener
+        actually gets, and the page that documents the override.
+        """
+        from ps2ui_bake.quads import Flattener
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+
+        cap = Flattener.MAX_IMAGE_PIXELS
+        self.assertEqual(cap, 32_000_000)
+
+        # THE DEFAULT REACHES AN INSTANCE, which is the half the test
+        # above steps around by assigning the attribute directly.
+        flat = Flattener({"canvas": {"w": 640, "h": 448}, "commands": [],
+                          "focus": {"nodes": []}}, {})
+        self.assertEqual(flat.max_image_pixels, cap)
+
+        # THE CORPUS, measured here rather than quoted.
+        biggest, seen = (0, None, 0, 0), 0
+        for top in ("examples", "fixtures"):
+            for dirpath, _dirs, names in os.walk(os.path.join(REPO, top)):
+                for name in names:
+                    if not name.lower().endswith((".png", ".jpg", ".jpeg")):
+                        continue
+                    path = os.path.join(dirpath, name)
+                    try:
+                        with Image.open(path) as im:
+                            w, h = im.size
+                    except Exception:
+                        continue
+                    seen += 1
+                    if w * h > biggest[0]:
+                        biggest = (w * h, path, w, h)
+        self.assertGreaterEqual(seen, 30, "the corpus walk found almost "
+                                "nothing, so this test would pass vacuously")
+        self.assertEqual(
+            (biggest[2], biggest[3]), (1984, 1408),
+            "the largest shipped image is no longer 1984x1408 (%r). "
+            "BACKLOG.md, the CHANGELOG and the project-file page all quote "
+            "that figure as what this cap is derived from" % (biggest,))
+        self.assertGreater(
+            cap, biggest[0] * 10,
+            "the image cap is no longer 10x the largest shipped image")
+
+        # AND THE PAGE DOCUMENTING THE HATCH NAMES THE SAME DEFAULT.
+        # A reader raising the cap reads that page, not this class.
+        with open(os.path.join(REPO, "docs", "site", "authoring",
+                               "project-file.md"), encoding="utf-8") as fh:
+            page = fh.read()
+        self.assertIn('"imagePixels": %d' % cap, page)
+
+    def test_the_project_file_validates_a_raised_cap(self):
+        """The escape hatch is real, and a typo in it is not a cap of 0.
+
+        A cap with no override gets edited out of the source by the
+        first person it blocks. A cap that accepts 0 refuses every
+        screen and reads as the override working.
+        """
+        from ps2ui_bake import project
+
+        with tempfile.TemporaryDirectory() as d:
+            for name in ("a.html", "a.css"):
+                with open(os.path.join(d, name), "w") as fh:
+                    fh.write("")
+            path = os.path.join(d, "ps2ui.json")
+
+            def write(limits):
+                with open(path, "w") as fh:
+                    json.dump({"screens": ["a.html"], "css": "a.css",
+                               "limits": limits}, fh)
+
+            write({"nodes": 40000, "imagePixels": 64000000})
+            proj = project.load(path)
+            self.assertEqual(proj.limits["nodes"], 40000)
+
+            write({"nodes": 0})
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("must be a positive integer", str(cm.exception))
+
+            write({"noodles": 5})
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("unknown limit", str(cm.exception))
+            # The message lists what it does take, so the fix is in it.
+            self.assertIn("canvasDim", str(cm.exception))
+
+            write([])
+            with self.assertRaises(project.ProjectError) as cm:
+                project.load(path)
+            self.assertIn("must be an object", str(cm.exception))
+
+    def test_the_bake_ITSELF_refuses_the_canvas_under_a_raised_budget(self):
+        """END TO END, BECAUSE THE UNIT TEST ABOVE LEFT A HOLE.
+
+        `test_no_budget_can_buy_room_for_a_framebuffer` exercises
+        vram.canvas_fits() and nothing exercised the CALL to it.
+        Falsification found that immediately: commenting out cli.py's
+        `if not fits:` left all 303 tests passing and handed the
+        --vram-budget bypass straight back. A check that is configured
+        but unexecuted is the shape this repository keeps catching, and
+        this is the version of it that lives one line from the fix.
+        """
+        require_ttf()
+        import json as _json
+        from ps2ui_bake import cli
+
+        ir = TestDynamicText().slot_ir()
+        ir = copy.deepcopy(ir)
+        ir["canvas"] = {"w": 30000, "h": 30000}
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "ui.json")
+            with open(src, "w", encoding="utf-8") as fh:
+                _json.dump(ir, fh)
+            out = os.path.join(tmp, "ui.uib")
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = cli.main([src, "-o", out,
+                               "--fonts", os.path.join(FONTS, "fonts.json"),
+                               "--vram-budget", "999999999"])
+            self.assertEqual(rc, 1, "a raised budget bought a framebuffer")
+            self.assertIn("cannot be scanned out of GS VRAM", err.getvalue())
+            self.assertFalse(os.path.exists(out),
+                             "the bake wrote a blob it had refused")
+
+    def test_each_cap_is_forwarded_to_the_tool_that_enforces_it(self):
+        """imagePixels is the baker's; the other three are the layout
+        compiler's. Sending one to the wrong tool is an unknown-limit
+        error, so the split is data rather than two lists that drift.
+        """
+        from ps2ui_bake.project import LIMIT_KEYS
+
+        self.assertEqual(LIMIT_KEYS["imagePixels"], "bake")
+        for key in ("canvasDim", "nodes", "depth"):
+            self.assertEqual(LIMIT_KEYS[key], "layout")

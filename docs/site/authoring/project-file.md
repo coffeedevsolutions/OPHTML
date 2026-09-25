@@ -80,6 +80,7 @@ The reaches column names the tool under [ps2ui](page:cli/ps2ui#synopsis) that re
 | `focusWrap` | boolean | `false` | [layout](page:cli/ps2ui-layout#options) · dev, per screen |
 | `palettizeImages` | boolean | `false` | [bake](page:cli/ps2ui-bake#options) · dev |
 | `vramBudget` | integer bytes | none | [bake](page:cli/ps2ui-bake#options) · [check](page:cli/ps2ui-check#options), see [VRAM budget](page:authoring/vram-budget#what-it-is) |
+| `limits` | object | see below | [layout](page:cli/ps2ui-layout#options) · [bake](page:cli/ps2ui-bake#options) · dev, one key per cap |
 
 The test class behind the table ran in this session:
 
@@ -153,7 +154,7 @@ PASS: 63 checks, 0 error(s), 0 warning(s)
 
 ### The output path moves the intermediates
 
-`ps2ui build -o NEW` writes the blob at NEW and moves the per-screen IR files with it. The IR files land in NEW's directory. Their stems take a suffix derived from the two blob stems, `set_out_override` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L209):
+`ps2ui build -o NEW` writes the blob at NEW and moves the per-screen IR files with it. The IR files land in NEW's directory. Their stems take a suffix derived from the two blob stems, `set_out_override` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L223):
 
 | override | intermediate for screen `games` | rule |
 |---|---|---|
@@ -216,9 +217,34 @@ saves.json
 ui.uib
 ```
 
+### Resource caps
+
+`limits` is an object, one key per cap, and every value is a positive
+integer:
+
+```json
+{ "limits": { "canvasDim": 2048, "nodes": 10000, "depth": 64,
+              "imagePixels": 32000000 } }
+```
+
+Those are the defaults. `canvasDim` bounds each canvas dimension,
+`nodes` the elements on a screen after `data-repeat` expands, `depth`
+how far they nest, and `imagePixels` what a source image may decode to.
+The first three are enforced by the layout compiler and the fourth by
+the baker; `ps2ui build` sends each one to the tool that checks it, and
+each takes a `--limit NAME=N` on that tool's own command line.
+
+A theme is a file somebody else wrote, so the caps refuse rather than
+warn: a PlayStation 2 cannot display a 30000px canvas, and there is no
+version of that request worth an exemption. The numbers come from the
+examples in this repository, where the largest screen is 93 elements at
+depth 5 and the largest source image is 1984x1408, so each sits well
+above the biggest real one. Raise a cap here when
+your project needs it.
+
 ### Keys that reach the checker
 
-New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1465). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
+New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1546). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
 
 ```sh
 cd packages/baker/tests && python3 -m unittest \
@@ -248,7 +274,7 @@ ps2ui build ps2ui.json
 
 ```text
 ps2ui: ps2ui.json: unknown key(s) 'colour'.
-  A project takes: canvas, css, displayAspect, focusWrap, fonts, minFontSize, mode, montage, out, palettizeImages, preview, previewDisplay, screens, strict, vramBudget
+  A project takes: canvas, css, displayAspect, focusWrap, fonts, limits, minFontSize, mode, montage, out, palettizeImages, preview, previewDisplay, screens, strict, vramBudget
 ```
 
 The full list, each message produced in this session by `ps2ui build` over a project written to trigger it:

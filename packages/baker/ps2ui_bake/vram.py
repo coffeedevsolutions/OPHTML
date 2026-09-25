@@ -200,6 +200,34 @@ def budget_note(canvas_w: int, canvas_h: int):
     ]
 
 
+def canvas_fits(canvas_w: int, canvas_h: int):
+    """(ok, lines) for whether the GS can scan this canvas out at all.
+
+    A PROPERTY OF THE CANVAS, NOT OF THE BUDGET, and it used to be
+    reported as the latter. The two-framebuffers-do-not-fit advice in
+    `budget_note` above is appended only when no budget was given, so
+    `--vram-budget 999999999` silenced the sentence AND the refusal:
+    measured on main at 3053962, a 30000x30000 canvas baked to a
+    17760-byte blob with exit 0, past a message whose own last line
+    reads "a narrower canvas is the only fix".
+
+    The budget charges TEXTURES. A framebuffer is not a texture, so no
+    budget can buy room for one, and raising the budget cannot make
+    this true. Hence a separate check that a flag cannot reach (S3).
+    """
+    fb = framebuffer_size(canvas_w, canvas_h)
+    if VRAM_TOTAL - 2 * fb > 0:
+        return True, []
+    return False, [
+        f"  two framebuffers at {canvas_w}x{canvas_h} need {2 * fb} B of "
+        f"{VRAM_TOTAL} B total VRAM, so this canvas cannot be displayed "
+        f"from GS VRAM under any Z setting",
+        f"  the VRAM budget charges textures and a framebuffer is not a "
+        f"texture, so --vram-budget cannot buy room for this: a narrower "
+        f"canvas is the only fix",
+    ]
+
+
 def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):
     """Compute the footprint. Returns (lines, total_bytes, budget, ok);
     lines is a printable per-texture breakdown."""

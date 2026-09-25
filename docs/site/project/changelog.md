@@ -31,6 +31,11 @@ Unreleased; 0.9.0, below, is what installs.
   mock games and walks its list the way the console does. See
   [ps2ui-check](page:cli/ps2ui-check#options).
 
+- Hard caps on what a theme may ask the compilers for: canvas
+  dimensions, element count, nesting depth and source-image pixels.
+  Each is derived from the shipped examples, each fails rather than
+  warns, and each is overridable in `ps2ui.json` beside `vramBudget`.
+
 ### Changed
 
 - `registry.yml` no longer runs 0.8.0's fribidi remedy steps or asserts
@@ -38,6 +43,21 @@ Unreleased; 0.9.0, below, is what installs.
   committed tables from one instead, and fails by name when pip is served
   a release from before 0.9.0. See
   [Compatibility](page:reference/compatibility#what-each-platform-has-actually-been-run-on).
+
+### Fixed
+
+- A raised `--vram-budget` bought room for a framebuffer, which no
+  budget can. A 30000x30000 canvas baked to a blob with exit 0, past a
+  message saying a narrower canvas was the only fix.
+
+- A 439 KiB image could cost 432 MB and eleven seconds of bake time, or
+  end the bake in a Pillow traceback. The size is read from the header
+  now, before any decode.
+
+- Nesting deep enough reported `Maximum call stack size exceeded`,
+  which is the interpreter's stack rather than a decision: it gives out
+  at 1842 here and at 889 or 7781 with the stack sized down or up. The
+  refusal is the compiler's now, at 64, and names the line.
 
 ## 0.9.0
 

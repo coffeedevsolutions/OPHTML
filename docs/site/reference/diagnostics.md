@@ -148,6 +148,10 @@ from any sheet, and are listed so a search for them ends here.
 | `layout: <tag> line <n>: data-repeat="<n>" but no {i} or {n} anywhere inside, so every copy is identical. Add {i} to the ids and data-slot names, or the copies cannot be told apart.` | warning | a count above 1 with no index substitution in the subtree | add `{i}` to the ids and slot names | [Lists](page:authoring/lists#expansion) |
 | `focus: "<name>" is unreachable from the initial focus by D-pad` | warning | the breadth-first walk from `initial` never reaches that node | move the element, or pass `--focus-wrap` | [Focus and navigation](page:authoring/focus-and-navigation#limits-and-errors) |
 
+| `layout: canvas <axis> <n> exceeds 2048, the largest framebuffer dimension the GS can scan out.` plus the mode list and the `canvasDim` override | error, exit 1 | `--canvas` or a project `canvas` past 2048 on either axis | pick a real mode, or raise `"limits": {"canvasDim": N}` | [The project file](page:authoring/project-file#resource-caps) |
+| `layout: more than <n> elements after data-repeat expansion.` plus the largest shipped screen and the `nodes` override | error, exit 1 | a screen with more elements than the cap **after** `data-repeat` expands, so a runaway repeat or a generated file | fix the repeat, or raise `"limits": {"nodes": N}` | [The project file](page:authoring/project-file#resource-caps) |
+| `layout: elements nested <n> deep (deepest at line <l>), past the limit of <m>.` plus the deepest shipped screen and the `depth` override | error, exit 1 | nesting past the cap; the line names the deepest element, and the check is iterative so it reports instead of overflowing | flatten the nesting, or raise `"limits": {"depth": N}` | [The project file](page:authoring/project-file#resource-caps) |
+
 ## Lints
 
 [lint.js](repo:packages/layout/src/lint.js) pushes ten warnings over eight
@@ -212,6 +216,10 @@ $ echo $?
 | `channel <n> outside 0..255` | error | a host-side colour crossing was handed a value outside the sRGB byte range | nothing to fix | [ps2ui-bake](page:cli/ps2ui-bake#output) |
 | `GS alpha <n> outside 0..128` | error | the inverse crossing was handed a value outside the GS alpha domain | nothing to fix | [Previewer](page:cli/previewer#the-inspector) |
 
+| `error: image: <src> is <w>x<h> = <n> pixels, past the limit of <m>.` plus the drawn size and the `imagePixels` override | error, exit 1 | a source image whose pixel count is past the cap. Read from the PNG header, before any decode, so a decompression bomb costs a stat | scale the asset down, or raise `"limits": {"imagePixels": N}` | [The project file](page:authoring/project-file#resource-caps) |
+| `error: image: <src> is too large to decode: <detail>` | error, exit 1 | Pillow's own decompression-bomb guard, reported in the baker's voice instead of a traceback | scale the asset down | [Images](page:authoring/images#what-it-is) |
+| the two framebuffer-arithmetic lines, then `error: canvas <w>x<h> cannot be scanned out of GS VRAM` | error, exit 1 | a canvas whose framebuffers alone exceed VRAM. Checked separately from the budget, because the budget charges textures and a framebuffer is not a texture, so no `--vram-budget` reaches this | use a canvas the GS can scan out | [VRAM budget](page:authoring/vram-budget#what-it-is) |
+
 ## Check
 
 `ps2ui-check` writes TAP on stdout. A passed check is `ok <n> - <label>`.
@@ -274,13 +282,21 @@ exit 2.
 | `ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.` plus a platform-specific remedy | error, exit 2; 0.8.0 and earlier only | those releases measured through Pillow's Raqm, and `PIL.features.check("raqm")` is false | `pip install --upgrade ophtml`: 0.9.0 has no such check | [Installation](page:getting-started/installation#if-fontgen-refuses) |
 | `usage: python -m ps2ui_bake.fontgen <font.ttf> <family> <weight> <out.metrics.json> [charset-file]` | error, exit 2 | fewer than four positional arguments | pass all four | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
 | ``ps2ui-fontgen: needs the uharfbuzz package, which `pip install ophtml` installs. From a checkout, install it yourself: pip install uharfbuzz`` | error, exit 1 | a checkout run without `uharfbuzz`; an installed `ophtml` always has it | `pip install uharfbuzz` | [ps2ui-fontgen](page:cli/ps2ui-fontgen#exit-codes) |
-| `usage: ps2ui-layout <page.html> <page.css> -o <ui.json> [--mode ntsc\|ntsc16x9\|pal\|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--version]` | error, exit 2 | a missing positional, a missing `-o`, an unknown `--mode`, or a `--canvas` that is not `WxH` | correct the command line | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| `usage: ps2ui-layout <page.html> <page.css> -o <ui.json> [--mode ntsc\|ntsc16x9\|pal\|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--version]` | error, exit 2 | a missing positional, a missing `-o`, an unknown `--mode`, a `--canvas` that is not `WxH`, or a `--limit` that is not `NAME=N` for a cap this compiler has | correct the command line | [ps2ui-layout](page:cli/ps2ui-layout#options) |
 | `ps2ui-layout: --min-font-size takes a positive integer` | error, exit 2 | `--min-font-size` given zero or a non-number | pass a positive integer | [CRT linter](page:authoring/crt-linter#reference-table) |
 | `ps2ui-layout: --strict: <n> warning(s)` | error, exit 1 | `--strict` and at least one warning in the IR | fix the warnings | [CRT linter](page:authoring/crt-linter#strict) |
-| `usage: ps2ui-dev <page.html> <page.css> -o <outdir> [--mode ntsc\|pal] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--montage] [--palettize-images] [--once] [--version]` | error, exit 2 | the same argument faults, in the watcher | correct the command line | [ps2ui-dev](page:cli/ps2ui-layout#options) |
+| `usage: ps2ui-dev <page.html> <page.css> -o <outdir> [--mode ntsc\|pal] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--montage] [--palettize-images] [--once] [--version]` | error, exit 2 | the same argument faults, in the watcher | correct the command line | [ps2ui-dev](page:cli/ps2ui-layout#options) |
 | `bake failed` | error, exit 1 under `--once` | `ps2ui-dev` compiled the screen and the bake step returned non-zero | read the baker's own line above it | [ps2ui-dev](page:cli/ps2ui-layout#output) |
 | `aspect: "<text>" is not a ratio like 4:3 or 16:9` | error, exit 1 | `--display-aspect` given anything but `<digits>:<digits>`; printed as a Node stack trace, not an `error:` line | write `4:3` or `16:9` | [Video modes](page:authoring/video-modes#reference-table) |
 | `aspect: "<text>" has a zero term` | error, exit 1 | `--display-aspect` given a zero numerator or denominator; also a stack trace | write a non-zero ratio | [Video modes](page:authoring/video-modes#reference-table) |
+
+| `ps2ui-layout: --limit takes NAME=N, got "<text>"` (and the same from `ps2ui-dev`) | error, exit 2 | a `--limit` argument with no `=`, or nothing before it | write `NAME=N` | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| `ps2ui-layout: --limit: unknown cap "<name>". Known: canvasDim, nodes, depth` (and the same from `ps2ui-dev`) | error, exit 2 | a cap name this compiler does not have, including a misspelling | use a name from the list | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| `ps2ui-layout: --limit <name> takes a positive integer, got "<text>"` (and the same from `ps2ui-dev`) | error, exit 2 | a value that is not an integer, or is below 1. A cap of 0 is a typo rather than "no limit" | pass a positive integer | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| `error: --limit takes NAME=N, got '<text>'` | error, exit 2 | the same shape fault, on `ps2ui-bake` | write `NAME=N` | [ps2ui-bake](page:cli/ps2ui-bake#options) |
+| `error: --limit: unknown cap '<name>'. Known: canvasDim, depth, imagePixels, nodes` | error, exit 2 | a cap name no tool has. The list is every cap the project file takes, not just this tool's | use a name from the list | [ps2ui-bake](page:cli/ps2ui-bake#options) |
+| `error: --limit <name> is a layout cap and ps2ui-layout enforces it; this tool enforces imagePixels.` plus the `ps2ui build` route | error, exit 2 | a real cap, spelled correctly, passed to the tool that does not enforce it | set it in the project file, or pass it to `ps2ui-layout` | [The project file](page:authoring/project-file#resource-caps) |
+| `error: --limit imagePixels takes a positive integer, got '<text>'` | error, exit 2 | a bad value for the one cap `ps2ui-bake` enforces | pass a positive integer | [ps2ui-bake](page:cli/ps2ui-bake#options) |
 
 ## Previewer
 
