@@ -1,0 +1,75 @@
+name: fuzz
+
+# BACKLOG S2's long runs. ci.yml gives the .uib loader sixty seconds on
+# every push; this gives it half an hour a night, starting from the
+# corpus the previous night kept, so coverage accumulates rather than
+# restarting from the seed blobs each time.
+#
+# A crash fails the run and uploads the input that caused it. Reproduce
+# with `make -C runtime build/fuzz_load` and `./runtime/build/fuzz_load
+# <file>`, then fix it with a deterministic test in test_runtime.c, as
+# the first finding was.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: How long to fuzz, in seconds
+        required: false
+        default: '1800'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz
+  cancel-in-progress: false
+
+jobs:
+  uib-loader:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install baker deps and libFuzzer
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-dejavu-core libclang-rt-18-dev
+          python3 -m pip install Pillow uharfbuzz
+      # The seeds: every blob the repository builds. memcard's build.sh
+      # also runs the runtime tests, which build runtime/build's fixtures.
+      - name: Build the seed blobs
+        run: |
+          ./examples/memcard/build.sh
+          ./examples/channel6/build.sh
+          ./examples/opl-env/build.sh
+          ./examples/console/build.sh
+          ./fixtures/bench-stream/build.sh
+      - name: Restore the corpus the last run kept
+        uses: actions/cache/restore@v6
+        with:
+          path: runtime/build/fuzz-corpus
+          key: fuzz-corpus-${{ github.run_id }}
+          restore-keys: fuzz-corpus-
+      - name: Fuzz
+        env:
+          SECONDS_TO_RUN: ${{ inputs.seconds || '1800' }}
+        run: make -C runtime fuzz FUZZ_CC=clang-18 FUZZ_TIME="$SECONDS_TO_RUN"
+      - name: Keep the corpus for the next run
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: runtime/build/fuzz-corpus
+          key: fuzz-corpus-${{ github.run_id }}
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: fuzz-crashes
+          retention-days: 30
+          path: runtime/build/fuzz-crashes/
+          if-no-files-found: ignore

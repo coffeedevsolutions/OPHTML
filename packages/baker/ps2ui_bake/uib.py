@@ -515,6 +515,29 @@ def read_uib(path) -> UibFile:
         raise ValueError(
             f"{path}: {n_theme} themes without FEAT_ROLE_TINTS -- tints keyed on "
             "the resolved colour cannot diverge between themes")
+    # EVERY TABLE INSIDE THE FILE, AND WHERE A 32-BIT FIELD LOADS, which
+    # is what ps2ui_load checks before it reads one (PS2UI_ERR_TRUNCATED,
+    # PS2UI_ERR_ALIGN). Without it a table that ran off the end raised
+    # struct.error from an unpack below: not the ValueError this reader
+    # promises, so `ps2ui check` printed a traceback for a malformed
+    # file. The S2 fuzz pass found it in its first thousand inputs.
+    for name, off, count, size in (
+            ("texture", off_tex, n_tex, _TEX.size),
+            ("CLUT", off_clut, n_clut, _CLUT.size),
+            ("command", off_cmd, n_cmd, _CMD.size),
+            ("focus", off_focus, n_focus, _FOCUS.size),
+            ("font", off_font, n_font, _FONT.size),
+            ("slot", off_slot, n_slot, _SLOT.size),
+            ("screen", off_screen, n_screen, _SCREEN.size),
+            ("tint", off_tint, n_theme * n_tint, _TINT.size)):
+        if off + count * size > len(data):
+            raise ValueError(f"{path}: the {name} table ({count} entries at "
+                             f"offset {off}) runs past the end of the "
+                             f"{len(data)}-byte file")
+        if off % 4:
+            raise ValueError(f"{path}: the {name} table is at offset {off}, "
+                             "not a multiple of 4; the runtime refuses it "
+                             "(PS2UI_ERR_ALIGN)")
     blob = data[off_blob:off_blob + blob_len]
 
     # Rows first: everything below resolves indices through them, so
@@ -551,6 +574,12 @@ def read_uib(path) -> UibFile:
     for i in range(n_tex):
         (fmt, kind, w, h, clut, doff, dlen,
          noff) = _TEX.unpack_from(data, off_tex + i * _TEX.size)
+        # ps2ui_load refuses any other format (PS2UI_ERR_BOUNDS), and
+        # the VRAM model has no page size for one, so a reader that let
+        # it through raised KeyError in `ps2ui check` (S2).
+        if fmt not in (gs.PSMCT32, gs.PSMT8):
+            raise ValueError(f"{path}: texture {i} has format {fmt}; the "
+                             "runtime reads only PSMCT32 and PSMT8")
         streamed = kind == TEXKIND_STREAMED
         out.textures.append(BakedTexture(
             fmt, w, h, None if clut == TEX_NONE else clut,
@@ -602,6 +631,16 @@ def read_uib(path) -> UibFile:
         (tex, size, weight, ascent, line_height, glyph_count, glyphs_off,
          kern_count, kerns_off) = _FONT.unpack_from(
             data, off_font + i * _FONT.size)
+        for what, off, count, size in (("glyph", glyphs_off, glyph_count, _GLYF.size),
+                                       ("kern", kerns_off, kern_count, _KERN.size)):
+            if count and off + count * size > blob_len:
+                raise ValueError(f"{path}: font {i}'s {what} table ({count} "
+                                 f"entries at blob offset {off}) runs past "
+                                 f"the {blob_len}-byte blob")
+            if count and off % 4:
+                raise ValueError(f"{path}: font {i}'s {what} table is at blob "
+                                 f"offset {off}, not a multiple of 4; the "
+                                 "runtime refuses it (PS2UI_ERR_ALIGN)")
         glyphs = {}
         for j in range(glyph_count):
             (cp, u, v, w, h, bx, by, adv) = _GLYF.unpack_from(

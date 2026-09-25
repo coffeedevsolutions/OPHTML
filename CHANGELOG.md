@@ -134,6 +134,18 @@ without moving this line.
   reason and pinned by hash, so it excuses that text and nothing else.
   The rule runs on pull requests too, which is where that merge was.
 
+- **The `.uib` loader is fuzzed (S2).** `runtime/tests/fuzz_load.c`
+  runs libFuzzer over `ps2ui_arena_size`, `ps2ui_load` and everything a
+  program does with a blob that loaded, under ASan and UBSan, seeded
+  from every blob the repository builds, with each mutation's CRC
+  rewritten the way a hostile file would carry one. `ci.yml` gives it
+  60 seconds on every change, and `fuzz.yml` gives it half an hour
+  nightly, keeping its corpus between nights. `make -C runtime fuzz`
+  runs it locally. The Python half, `test_fuzz_uib.py`, mutates the
+  example blobs and requires `read_uib` to raise only ValueError and
+  `ps2ui check` never to raise. Both found real faults, listed under
+  Fixed.
+
 ### Changed
 
 - **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0
@@ -152,6 +164,30 @@ without moving this line.
   with a message that blames the machine.
 
 ### Fixed
+
+- **A crafted `.uib` could crash the console before anything drew.**
+  Nothing checked where a table sat, only that it fit, and every table
+  is read in place through a struct pointer. On the EE a misaligned
+  32-bit load is an address error. The fuzzer's first run found
+  `ps2ui_arena_size`, the first call a program makes on a blob, reading
+  the slot table at an odd address. The console launcher makes that
+  call on any `theme.uib` it finds on a drive. `ps2ui_load` now refuses
+  a blob address, a table, or a font's glyph or kern table that is not
+  4-byte aligned, with `PS2UI_ERR_ALIGN`, and `ps2ui_arena_size`
+  returns 0 for one. Every blob the baker writes passes: its header is
+  84 bytes, every entry a multiple of 4, and glyph and kern tables are
+  16-aligned.
+
+- **`ps2ui check` printed a Python traceback for a malformed blob.**
+  `read_uib` promises ValueError on a bad file, and `ps2ui check`
+  catches that and prints the message. A table running past the end,
+  an unknown texture format or a glyph table outside the blob raised
+  `struct.error` or `KeyError` instead. A blob that read cleanly but
+  referenced past a table got `IndexError` from whichever later check
+  subscripted it. The reader now checks every table's extent and
+  alignment as the runtime does and refuses unknown formats. The
+  checker stops after its table, index and screen checks when those
+  failed, as its own `Report` docstring said callers could.
 
 - **A raised VRAM budget bought room for a framebuffer, which no budget
   can.** `--vram-budget` exists to let a project declare the texture

@@ -77,7 +77,7 @@ Four conventions cover every function. The returns column of each table names th
 | `int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)` | 1 / 0 | blob | Copies `text`, truncated at the slot's baked capacity without splitting a UTF-8 sequence. `NULL` restores the placeholder. `""` blanks the slot. |
 | `const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)` | runtime text, else the placeholder, or `NULL` for an unknown name | blob | |
 
-Slot lookup walks every slot in the blob, at [ps2ui.c](repo:runtime/ps2ui.c#L1397). Two screens cannot share a slot name and stay distinguishable. Focus and visibility lookups walk only the current screen's range, at [ps2ui.c](repo:runtime/ps2ui.c#L1557).
+Slot lookup walks every slot in the blob, at [ps2ui.c](repo:runtime/ps2ui.c#L1436). Two screens cannot share a slot name and stay distinguishable. Focus and visibility lookups walk only the current screen's range, at [ps2ui.c](repo:runtime/ps2ui.c#L1596).
 
 ### Textures and palettes
 
@@ -119,7 +119,7 @@ Visibility and the offset are worked through on [Moving and hiding](page:runtime
 | `int ps2ui_list_selected_row(const ps2ui_list *list)` | row 0..rows-1, or -1 for an empty list | none | |
 | `void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)` | none | screen | Hides rows whose `item_at` is -1 and shows the rest, by row name. |
 
-The row-name convention is `prefix` followed by the decimal row index, built at [ps2ui.c](repo:runtime/ps2ui.c#L1646). Row focus names come from `data-repeat`, described on [Lists](page:authoring/lists#runtime-window).
+The row-name convention is `prefix` followed by the decimal row index, built at [ps2ui.c](repo:runtime/ps2ui.c#L1685). Row focus names come from `data-repeat`, described on [Lists](page:authoring/lists#runtime-window).
 
 ### Queries
 

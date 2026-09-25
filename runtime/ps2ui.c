@@ -151,6 +151,30 @@ static int arena_add(uint64_t *off, uint64_t n)
     return 1;
 }
 
+/* Every table is read in place through a struct pointer, so the
+ * header and each table must sit where a 32-bit field loads. On the EE
+ * a misaligned 32-bit load is an address error: the console stops with
+ * nothing on screen to say why. The baker writes an 84-byte header and
+ * tables whose entries are multiples of four bytes, so every blob it
+ * writes passes. A blob that fails was written by something else.
+ *
+ * Found by the S2 fuzzer (runtime/tests/fuzz_load.c) in its first
+ * seconds: arena_compute read the slot table at an odd offset, and
+ * ps2ui_arena_size is the first call a program makes on a blob. The
+ * launcher makes that call on any theme.uib it finds on a drive. */
+static int tables_aligned(const uint8_t *data, const ps2ui_header *h)
+{
+    const uint32_t offs[] = {
+        h->off_tex, h->off_clut, h->off_cmd, h->off_focus,
+        h->off_font, h->off_slot, h->off_screen, h->off_tint
+    };
+    size_t i;
+    for (i = 0; i < sizeof offs / sizeof offs[0]; i++)
+        if (((uintptr_t)data + offs[i]) & 3u)
+            return 0;
+    return 1;
+}
+
 /* Compute the carve for a header whose tables fit inside `size`.
  * Reads the texture and slot tables (they decide the CLUT count and
  * the text bytes) but validates nothing else -- ps2ui_load owns
@@ -168,9 +192,11 @@ static int arena_compute(const uint8_t *data, size_t size, arena_layout *L)
     uint64_t off = 0, n_cluts = 0, text = 0;
     uint32_t i;
 
-    if (size < sizeof(ps2ui_header))
+    if (size < sizeof(ps2ui_header) || ((uintptr_t)data & 3u))
         return 0;
     if (h->magic != PS2UI_MAGIC || h->version != PS2UI_VERSION)
+        return 0;
+    if (!tables_aligned(data, h))
         return 0;
     if ((uint64_t)h->off_tex + (uint64_t)h->n_tex * sizeof(ps2ui_tex_entry) > size
         || (uint64_t)h->off_slot + (uint64_t)h->n_slot * sizeof(ps2ui_slot_entry) > size)
@@ -257,6 +283,10 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
     memset(ctx, 0, sizeof *ctx);
     if (size < sizeof(ps2ui_header))
         return PS2UI_ERR_TRUNCATED;
+    /* Before the header is read through a struct pointer, for the
+     * reason tables_aligned gives. */
+    if ((uintptr_t)data & 3u)
+        return PS2UI_ERR_ALIGN;
 
     ctx->data = (const uint8_t *)data;
     ctx->size = size;
@@ -266,6 +296,8 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
         return PS2UI_ERR_MAGIC;
     if (ctx->hdr->version != PS2UI_VERSION)
         return PS2UI_ERR_VERSION;
+    if (!tables_aligned(ctx->data, ctx->hdr))
+        return PS2UI_ERR_ALIGN;
     if (ctx->hdr->feature_flags & ~PS2UI_FEAT_KNOWN)
         return PS2UI_ERR_FEATURES;
     /* A UI with no screens has nothing to draw and no initial focus to
@@ -432,6 +464,13 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
         if (!in_blob(ctx, f->kerns_off,
                      (uint32_t)f->kern_count * (uint32_t)sizeof(ps2ui_kern)))
             return PS2UI_ERR_BOUNDS;
+        /* Both arrays are read in place as structs that open with a
+         * uint32_t, so they need what tables_aligned asks of the
+         * tables. The blob itself is 16-aligned (checked above), so
+         * the offset alone decides it. The baker 16-aligns both. */
+        if ((f->glyph_count && (f->glyphs_off & 3u))
+            || (f->kern_count && (f->kerns_off & 3u)))
+            return PS2UI_ERR_ALIGN;
     }
     for (i = 0; i < ctx->hdr->n_slot; i++) {
         const ps2ui_slot_entry *s = &ctx->slots[i];

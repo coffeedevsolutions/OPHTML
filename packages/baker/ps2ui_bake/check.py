@@ -171,7 +171,10 @@ def check_tables(uib, rep: Report) -> None:
               "texture names are unique, so a name identifies one slot")
     # A font atlas is produced at bake time by definition, and the slot
     # pen binds it without checking for texels.
-    rep.error(all(uib.textures[f["tex"]].kind != TEXKIND_STREAMED
+    # A font whose index is out of range is check_fonts' finding, not
+    # this one's; subscripting with it raised IndexError (S2).
+    rep.error(all(not 0 <= f["tex"] < len(uib.textures)
+                  or uib.textures[f["tex"]].kind != TEXKIND_STREAMED
                   for f in uib.fonts),
               "no font points at a streamed texture")
 
@@ -256,6 +259,7 @@ def check_screens(uib, rep: Report) -> None:
     if not rep.error(len(uib.screens) >= 1, "at least one screen"):
         return
 
+    partitioned = {}
     for first, count, total, what in (
         ("cmd_first", "cmd_count", len(uib.records), "command"),
         ("focus_first", "focus_count", len(uib.focus), "focus"),
@@ -268,15 +272,20 @@ def check_screens(uib, rep: Report) -> None:
                 ok = False
                 break
             cursor += sc[count]
-        rep.error(ok and cursor == total,
-                  f"screens partition the {what} table contiguously "
-                  f"({cursor}/{total})")
+        partitioned[what] = rep.error(
+            ok and cursor == total,
+            f"screens partition the {what} table contiguously "
+            f"({cursor}/{total})")
 
     names = [sc["name"] for sc in uib.screens]
     rep.error(len(set(names)) == len(names),
               f"screen names are unique: {names}")
 
-    for sc in uib.screens:
+    # The per-screen focus checks index the focus table by each screen's
+    # range, so they run only when those ranges were just shown to tile
+    # it. On a blob where they do not, the partition failure above is
+    # the finding, and subscripting past it raised IndexError (S2).
+    for sc in (uib.screens if partitioned["focus"] else []):
         lo, hi = sc["focus_first"], sc["focus_first"] + sc["focus_count"]
         if sc["focus_count"] == 0:
             rep.error(sc["initial"] == FOCUS_NONE,
@@ -640,6 +649,13 @@ def check_blob(uib, budget=None, allow_dead: int = 0,
     check_tables(uib, rep)
     check_indices(uib, rep)
     check_screens(uib, rep)
+    # EVERY CHECK BELOW INDEXES THROUGH THE TABLES AND SCREEN RANGES
+    # THESE THREE VALIDATED, so a blob that failed them stops here with
+    # those failures as its verdict. Before this, a readable blob with
+    # one out-of-range reference got a traceback from whichever later
+    # check subscripted it first. The S2 fuzz pass found five such sites.
+    if rep.errors:
+        return rep
     check_scissors(uib, rep)
     check_gs_domains(uib, rep)
     check_tints(uib, rep)

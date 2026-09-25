@@ -6,7 +6,7 @@ comes directly from code and repository documents opened in this session.
 | id | fact | source | verified by | status |
 |---|---|---|---|---|
 | security.reporting | Report a vulnerability privately via GitHub's "Report a vulnerability" (Security tab) rather than a public issue | SECURITY.md:5-6 | read the file | code-only |
-| security.load.validates | ps2ui_load checks size against the header before touching the buffer, checks the magic, and rejects any version not equal to PS2UI_VERSION | runtime/ps2ui.c:256-269 | read the function; matches runtime/errors-and-constants Error codes and Load check order | verified |
+| security.load.validates | ps2ui_load checks size against the header before touching the buffer, checks the magic, and rejects any version not equal to PS2UI_VERSION | runtime/ps2ui.c:282-295 | read the function; matches runtime/errors-and-constants Error codes and Load check order | verified |
 | security.load.untrusted | SECURITY.md states blobs from strangers are untrusted input even though the loader validates offsets, counts and terminators, and names a fuzz harness as backlog item S2 | SECURITY.md:10-14 | read the file | code-only |
 | security.build.tools.caps | SECURITY.md states resource-exhaustion caps for hostile HTML/CSS/IR input to ps2ui-layout and ps2ui-bake are planned as backlog item S3 and do not exist yet | SECURITY.md:15-18 | read the file | code-only |
 | ci.permissions.readonly | ci.yml's top-level permissions block grants only contents: read | .github/workflows/ci.yml:9-10 | read the file | verified |

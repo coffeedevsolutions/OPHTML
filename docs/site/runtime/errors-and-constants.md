@@ -15,52 +15,54 @@ The runtime reports failure through fifteen integer codes declared in [runtime/p
 | code | value | triggered by | fix |
 |---|---|---|---|
 | `PS2UI_OK` | 0 | The call succeeded. | None. |
-| `PS2UI_ERR_TRUNCATED` | -1 | `ps2ui_load`: `size` is below the 84-byte header, or a table or the string blob extends past `size` ([ps2ui.c](repo:runtime/ps2ui.c#L259), [ps2ui.c](repo:runtime/ps2ui.c#L316)). | Pass the whole file. Check the length the loader read. |
-| `PS2UI_ERR_MAGIC` | -2 | `ps2ui_load`: the first four bytes are not `UIB1` ([ps2ui.c](repo:runtime/ps2ui.c#L266)). | The buffer is not a `.uib`. Check the path and the embedding step. |
-| `PS2UI_ERR_VERSION` | -3 | `ps2ui_load`: the header version is not 7 ([ps2ui.c](repo:runtime/ps2ui.c#L268)). | Rebake with the toolchain that shipped this runtime. |
-| `PS2UI_ERR_BOUNDS` | -4 | `ps2ui_load`: `n_screen` or `n_theme` is 0, or any table entry indexes past another table or past the string blob ([ps2ui.c](repo:runtime/ps2ui.c#L276) to [L472](repo:runtime/ps2ui.c#L472)). Also the answer to a NULL context from `ps2ui_clut_set`, `ps2ui_theme_set` and `ps2ui_offset_set`. | Run [cli/ps2ui-check](page:cli/ps2ui-check#the-catalogue) on the blob. A blob the baker wrote never trips this. |
-| `PS2UI_ERR_TOO_MANY` | -5 | `ps2ui_load`: the counts are legal but the arena they add up to exceeds the target's address space ([ps2ui.c](repo:runtime/ps2ui.c#L485)). | The blob cannot load on a 32-bit target. Reduce slot capacities or slot count. |
-| `PS2UI_ERR_CRC` | -6 | `ps2ui_load`: the CRC-32 over the file, with the `crc32` field read as zero, differs from the header ([ps2ui.c](repo:runtime/ps2ui.c#L320)). | The bytes changed after the bake. Recopy the file. |
-| `PS2UI_ERR_FEATURES` | -7 | `ps2ui_load`: a feature bit outside `PS2UI_FEAT_KNOWN` ([ps2ui.c](repo:runtime/ps2ui.c#L270)), or a streamed texture in a blob without bit 3 ([ps2ui.c](repo:runtime/ps2ui.c#L357)). | Vendor the runtime that matches the baker. |
-| `PS2UI_ERR_ALIGN` | -8 | `ps2ui_load`: the string blob address, a baked texture's `data_off`, or the arena is not 16-byte aligned ([ps2ui.c](repo:runtime/ps2ui.c#L342), [L365](repo:runtime/ps2ui.c#L365), [L489](repo:runtime/ps2ui.c#L489)). `ps2ui_tex_set`: the texel buffer is not 16-byte aligned ([L704](repo:runtime/ps2ui.c#L704)). | Declare the blob and the arena with `__attribute__((aligned(PS2UI_ARENA_ALIGN)))`. |
-| `PS2UI_ERR_ARENA` | -9 | `ps2ui_load`: `arena` is NULL or `arena_size` is below `ps2ui_arena_size()` ([ps2ui.c](repo:runtime/ps2ui.c#L487)). | Size the arena from the bake transcript or from `ps2ui_arena_size`. |
-| `PS2UI_ERR_NOT_STREAMED` | -10 | `ps2ui_tex_set`: a NULL argument, a name no texture carries, or a baked texture ([ps2ui.c](repo:runtime/ps2ui.c#L683) to [L693](repo:runtime/ps2ui.c#L693)). | Name a texture the bake marked streamed. |
-| `PS2UI_ERR_SIZE` | -11 | `ps2ui_tex_set`: `len` differs from the entry's `data_len` ([ps2ui.c](repo:runtime/ps2ui.c#L698)). `ps2ui_clut_set`: `ncolors` exceeds the baked palette width ([L762](repo:runtime/ps2ui.c#L762)). | Pass exactly the reserved byte count. Read it from the texture table. |
-| `PS2UI_ERR_RANGE` | -12 | `ps2ui_clut_set`: index at or past `n_clut` ([ps2ui.c](repo:runtime/ps2ui.c#L755)). `ps2ui_theme_set`: index at or past `n_theme` ([L791](repo:runtime/ps2ui.c#L791)). `ps2ui_offset_set`: a value outside -32768..32767 ([L1581](repo:runtime/ps2ui.c#L1581)). | Bound the argument by the header count or the int16 range. |
-| `PS2UI_ERR_STATE` | -13 | `ps2ui_clut_set` before `ps2ui_upload` ([ps2ui.c](repo:runtime/ps2ui.c#L753)). | Call `ps2ui_upload` first. |
-| `PS2UI_ERR_TINTS` | -14 | `ps2ui_load`: `n_theme` above 1 in a blob without `PS2UI_FEAT_ROLE_TINTS` ([ps2ui.c](repo:runtime/ps2ui.c#L294)). | Rebake. A themed blob must declare bit 4. |
+| `PS2UI_ERR_TRUNCATED` | -1 | `ps2ui_load`: `size` is below the 84-byte header, or a table or the string blob extends past `size` ([ps2ui.c](repo:runtime/ps2ui.c#L285), [ps2ui.c](repo:runtime/ps2ui.c#L348)). | Pass the whole file. Check the length the loader read. |
+| `PS2UI_ERR_MAGIC` | -2 | `ps2ui_load`: the first four bytes are not `UIB1` ([ps2ui.c](repo:runtime/ps2ui.c#L296)). | The buffer is not a `.uib`. Check the path and the embedding step. |
+| `PS2UI_ERR_VERSION` | -3 | `ps2ui_load`: the header version is not 7 ([ps2ui.c](repo:runtime/ps2ui.c#L298)). | Rebake with the toolchain that shipped this runtime. |
+| `PS2UI_ERR_BOUNDS` | -4 | `ps2ui_load`: `n_screen` or `n_theme` is 0, or any table entry indexes past another table or past the string blob ([ps2ui.c](repo:runtime/ps2ui.c#L308) to [L472](repo:runtime/ps2ui.c#L511)). Also the answer to a NULL context from `ps2ui_clut_set`, `ps2ui_theme_set` and `ps2ui_offset_set`. | Run [cli/ps2ui-check](page:cli/ps2ui-check#the-catalogue) on the blob. A blob the baker wrote never trips this. |
+| `PS2UI_ERR_TOO_MANY` | -5 | `ps2ui_load`: the counts are legal but the arena they add up to exceeds the target's address space ([ps2ui.c](repo:runtime/ps2ui.c#L524)). | The blob cannot load on a 32-bit target. Reduce slot capacities or slot count. |
+| `PS2UI_ERR_CRC` | -6 | `ps2ui_load`: the CRC-32 over the file, with the `crc32` field read as zero, differs from the header ([ps2ui.c](repo:runtime/ps2ui.c#L352)). | The bytes changed after the bake. Recopy the file. |
+| `PS2UI_ERR_FEATURES` | -7 | `ps2ui_load`: a feature bit outside `PS2UI_FEAT_KNOWN` ([ps2ui.c](repo:runtime/ps2ui.c#L302)), or a streamed texture in a blob without bit 3 ([ps2ui.c](repo:runtime/ps2ui.c#L389)). | Vendor the runtime that matches the baker. |
+| `PS2UI_ERR_ALIGN` | -8 | `ps2ui_load`: the blob address or a table is not 4-byte aligned, or a font's glyph or kern table is not at a multiple of 4 ([tables_aligned](repo:runtime/ps2ui.c#L165)); the string blob address, a baked texture's `data_off`, or the arena is not 16-byte aligned ([ps2ui.c](repo:runtime/ps2ui.c#L374), [L365](repo:runtime/ps2ui.c#L397), [L489](repo:runtime/ps2ui.c#L528)). `ps2ui_tex_set`: the texel buffer is not 16-byte aligned ([L704](repo:runtime/ps2ui.c#L743)). | Declare the blob and the arena with `__attribute__((aligned(PS2UI_ARENA_ALIGN)))`. |
+| `PS2UI_ERR_ARENA` | -9 | `ps2ui_load`: `arena` is NULL or `arena_size` is below `ps2ui_arena_size()` ([ps2ui.c](repo:runtime/ps2ui.c#L526)). | Size the arena from the bake transcript or from `ps2ui_arena_size`. |
+| `PS2UI_ERR_NOT_STREAMED` | -10 | `ps2ui_tex_set`: a NULL argument, a name no texture carries, or a baked texture ([ps2ui.c](repo:runtime/ps2ui.c#L722) to [L693](repo:runtime/ps2ui.c#L732)). | Name a texture the bake marked streamed. |
+| `PS2UI_ERR_SIZE` | -11 | `ps2ui_tex_set`: `len` differs from the entry's `data_len` ([ps2ui.c](repo:runtime/ps2ui.c#L737)). `ps2ui_clut_set`: `ncolors` exceeds the baked palette width ([L762](repo:runtime/ps2ui.c#L801)). | Pass exactly the reserved byte count. Read it from the texture table. |
+| `PS2UI_ERR_RANGE` | -12 | `ps2ui_clut_set`: index at or past `n_clut` ([ps2ui.c](repo:runtime/ps2ui.c#L794)). `ps2ui_theme_set`: index at or past `n_theme` ([L791](repo:runtime/ps2ui.c#L830)). `ps2ui_offset_set`: a value outside -32768..32767 ([L1581](repo:runtime/ps2ui.c#L1620)). | Bound the argument by the header count or the int16 range. |
+| `PS2UI_ERR_STATE` | -13 | `ps2ui_clut_set` before `ps2ui_upload` ([ps2ui.c](repo:runtime/ps2ui.c#L792)). | Call `ps2ui_upload` first. |
+| `PS2UI_ERR_TINTS` | -14 | `ps2ui_load`: `n_theme` above 1 in a blob without `PS2UI_FEAT_ROLE_TINTS` ([ps2ui.c](repo:runtime/ps2ui.c#L326)). | Rebake. A themed blob must declare bit 4. |
 
-`ps2ui_upload` does not use this table. It returns -1 when the texture footprint would pass 4 MiB of VRAM, and 0 otherwise ([ps2ui.c](repo:runtime/ps2ui.c#L597)). `ps2ui_arena_size` returns 0 for a blob it cannot size ([ps2ui.h](repo:runtime/ps2ui.h#L448)). The list queries `ps2ui_list_item_at` and `ps2ui_list_selected_row` return -1 for an empty or out-of-range row ([ps2ui.c](repo:runtime/ps2ui.c#L1707)).
+`ps2ui_upload` does not use this table. It returns -1 when the texture footprint would pass 4 MiB of VRAM, and 0 otherwise ([ps2ui.c](repo:runtime/ps2ui.c#L636)). `ps2ui_arena_size` returns 0 for a blob it cannot size ([ps2ui.h](repo:runtime/ps2ui.h#L448)). The list queries `ps2ui_list_item_at` and `ps2ui_list_selected_row` return -1 for an empty or out-of-range row ([ps2ui.c](repo:runtime/ps2ui.c#L1746)).
 
 The sample treats both entry points as fatal: a red screen for any load code, a yellow screen for an upload failure ([runtime/sample/main.c](repo:runtime/sample/main.c#L1673)).
 
 ## Load check order
 
-`ps2ui_load` runs its checks in this order and returns at the first failure ([ps2ui.c](repo:runtime/ps2ui.c#L252)). The format side of each check is on [reference/uib-format](page:reference/uib-format#invariants).
+`ps2ui_load` runs its checks in this order and returns at the first failure ([ps2ui.c](repo:runtime/ps2ui.c#L278)). The format side of each check is on [reference/uib-format](page:reference/uib-format#invariants).
 
 1. `size` holds a header, else `PS2UI_ERR_TRUNCATED`.
-2. Magic, else `PS2UI_ERR_MAGIC`.
-3. Version, else `PS2UI_ERR_VERSION`.
-4. No feature bit outside `PS2UI_FEAT_KNOWN`, else `PS2UI_ERR_FEATURES`.
-5. `n_screen` is not 0, else `PS2UI_ERR_BOUNDS`.
-6. `n_theme` is not 0, else `PS2UI_ERR_BOUNDS`.
-7. `n_theme` above 1 requires bit 4, else `PS2UI_ERR_TINTS`.
-8. Every table and the string blob end inside `size`, else `PS2UI_ERR_TRUNCATED`.
-9. CRC-32, else `PS2UI_ERR_CRC`.
-10. The string blob address is 16-aligned, else `PS2UI_ERR_ALIGN`.
-11. Texture table: kind, format, CLUT index, name, data range and data alignment.
-12. CLUT table: data range.
-13. Command table: op, texture index, focus index, tint indices.
-14. Focus table: the four links and the name.
-15. Font table: texture index, baked kind, glyph and kern ranges.
-16. Slot table: font, focus, tint indices, name and placeholder.
-17. Screen table: command, focus and slot ranges, initial focus, name.
-18. Screen 0's initial focus is in range.
-19. The arena carve fits the address space, else `PS2UI_ERR_TOO_MANY`.
-20. The arena is present and large enough, else `PS2UI_ERR_ARENA`.
-21. The arena is 16-aligned, else `PS2UI_ERR_ALIGN`.
+2. The blob address is 4-aligned, so the header can be read in place, else `PS2UI_ERR_ALIGN`.
+3. Magic, else `PS2UI_ERR_MAGIC`.
+4. Version, else `PS2UI_ERR_VERSION`.
+5. Every table offset puts its table on a 4-aligned address, else `PS2UI_ERR_ALIGN`.
+6. No feature bit outside `PS2UI_FEAT_KNOWN`, else `PS2UI_ERR_FEATURES`.
+7. `n_screen` is not 0, else `PS2UI_ERR_BOUNDS`.
+8. `n_theme` is not 0, else `PS2UI_ERR_BOUNDS`.
+9. `n_theme` above 1 requires bit 4, else `PS2UI_ERR_TINTS`.
+10. Every table and the string blob end inside `size`, else `PS2UI_ERR_TRUNCATED`.
+11. CRC-32, else `PS2UI_ERR_CRC`.
+12. The string blob address is 16-aligned, else `PS2UI_ERR_ALIGN`.
+13. Texture table: kind, format, CLUT index, name, data range and data alignment.
+14. CLUT table: data range.
+15. Command table: op, texture index, focus index, tint indices.
+16. Focus table: the four links and the name.
+17. Font table: texture index, baked kind, glyph and kern ranges and their 4-byte alignment.
+18. Slot table: font, focus, tint indices, name and placeholder.
+19. Screen table: command, focus and slot ranges, initial focus, name.
+20. Screen 0's initial focus is in range.
+21. The arena carve fits the address space, else `PS2UI_ERR_TOO_MANY`.
+22. The arena is present and large enough, else `PS2UI_ERR_ARENA`.
+23. The arena is 16-aligned, else `PS2UI_ERR_ALIGN`.
 
-Steps 11 to 18 return `PS2UI_ERR_BOUNDS`, except a streamed texture without bit 3 in step 11, which returns `PS2UI_ERR_FEATURES`, and an unaligned baked texture, which returns `PS2UI_ERR_ALIGN`. The arena is written only after step 21, so a refused blob leaves it untouched ([test_runtime.c](repo:runtime/tests/test_runtime.c#L604)).
+Steps 13 to 20 return `PS2UI_ERR_BOUNDS`, except a streamed texture without bit 3 in step 13, which returns `PS2UI_ERR_FEATURES`, and an unaligned baked texture or glyph or kern table, which returns `PS2UI_ERR_ALIGN`. The arena is written only after step 23, so a refused blob leaves it untouched ([test_runtime.c](repo:runtime/tests/test_runtime.c#L604)).
 
 The CRC check sits before every per-table check. A blob with one corrupted field therefore reads as `PS2UI_ERR_CRC`, not as the code that field would earn. The test suite restamps the CRC with its `recrc` helper before every such check ([test_runtime.c](repo:runtime/tests/test_runtime.c#L52)).
 
@@ -136,7 +138,7 @@ grep -n '#define PS2UI_' runtime/ps2ui.h
 420:#define PS2UI_ERR_TOO_MANY   -5
 421:#define PS2UI_ERR_CRC        -6
 422:#define PS2UI_ERR_FEATURES   -7
-423:#define PS2UI_ERR_ALIGN      -8  /* texture bytes or arena not 16-aligned */
+423:#define PS2UI_ERR_ALIGN      -8  /* blob, a table, texture bytes or arena misaligned */
 424:#define PS2UI_ERR_ARENA      -9  /* arena smaller than ps2ui_arena_size() */
 425:#define PS2UI_ERR_NOT_STREAMED -10 /* tex_set on a baked or unknown slot  */
 426:#define PS2UI_ERR_SIZE       -11 /* tex_set payload is not the reservation */
@@ -173,7 +175,7 @@ grep -n '#define PS2UI_' runtime/ps2ui.h
 | `PS2UI_SLOT_ALIGN_RIGHT` | 2 | Slot text alignment. |
 | `PS2UI_SLOT_FLAG_ELLIPSIS` | 1 | Slot flag bit 0: overflow ends in an ellipsis. |
 
-`PS2UI_MAX_SCISSOR_DEPTH` is the only fixed-size limit in the runtime ([ps2ui.h](repo:runtime/ps2ui.h#L283)). Table counts are bounded by the header's `uint16` fields, and the context is sized from the blob through the arena. Two comments in `ps2ui.c` still name table caps that no longer exist ([ps2ui.c](repo:runtime/ps2ui.c#L658), [L1646](repo:runtime/ps2ui.c#L1646)); no such macro is defined.
+`PS2UI_MAX_SCISSOR_DEPTH` is the only fixed-size limit in the runtime ([ps2ui.h](repo:runtime/ps2ui.h#L283)). Table counts are bounded by the header's `uint16` fields, and the context is sized from the blob through the arena. Two comments in `ps2ui.c` still name table caps that no longer exist ([ps2ui.c](repo:runtime/ps2ui.c#L697), [L1646](repo:runtime/ps2ui.c#L1685)); no such macro is defined.
 
 ```sh
 grep -n 'define PS2UI_MAX' runtime/ps2ui.h runtime/ps2ui.c
@@ -194,9 +196,9 @@ A feature bit in the header names a capability the reader must have. `ps2ui_load
 | `PS2UI_FEAT_DYNAMIC_TEXT` | 1 | The blob has a font table or a slot table. | None beyond `FEAT_KNOWN`. |
 | `PS2UI_FEAT_KERNING` | 2 | Any font carries kern pairs. | None beyond `FEAT_KNOWN`. |
 | `PS2UI_FEAT_SLOT_SPACING` | 4 | Any slot has non-zero `letter_spacing`. | None beyond `FEAT_KNOWN`. |
-| `PS2UI_FEAT_STREAMED_TEX` | 8 | Any texture has kind `STREAMED`. | Required by every streamed entry, else `PS2UI_ERR_FEATURES` ([ps2ui.c](repo:runtime/ps2ui.c#L357)). |
-| `PS2UI_FEAT_ROLE_TINTS` | 16 | The blob carries more than one theme row ([uib.py](repo:packages/baker/ps2ui_bake/uib.py#L377)). | Required when `n_theme` exceeds 1, else `PS2UI_ERR_TINTS` ([ps2ui.c](repo:runtime/ps2ui.c#L294)). |
-| `PS2UI_FEAT_KNOWN` | 31 | The OR of the five bits above. | Any other bit set returns `PS2UI_ERR_FEATURES` ([ps2ui.c](repo:runtime/ps2ui.c#L270)). |
+| `PS2UI_FEAT_STREAMED_TEX` | 8 | Any texture has kind `STREAMED`. | Required by every streamed entry, else `PS2UI_ERR_FEATURES` ([ps2ui.c](repo:runtime/ps2ui.c#L389)). |
+| `PS2UI_FEAT_ROLE_TINTS` | 16 | The blob carries more than one theme row ([uib.py](repo:packages/baker/ps2ui_bake/uib.py#L377)). | Required when `n_theme` exceeds 1, else `PS2UI_ERR_TINTS` ([ps2ui.c](repo:runtime/ps2ui.c#L326)). |
+| `PS2UI_FEAT_KNOWN` | 31 | The OR of the five bits above. | Any other bit set returns `PS2UI_ERR_FEATURES` ([ps2ui.c](repo:runtime/ps2ui.c#L302)). |
 
 ## Build-time switches
 
@@ -204,10 +206,10 @@ Four macros change how `ps2ui.c` compiles. Pass them with `-D`. Three are falsif
 
 | macro | default | effect | exercised by |
 |---|---|---|---|
-| `PS2UI_CLUT_PERMUTE` | 1 | 0 uploads every CLUT in linear order instead of CSM1 order ([ps2ui.c](repo:runtime/ps2ui.c#L537)). | `make -C runtime test` syntax-check compiles `-DPS2UI_CLUT_PERMUTE=0` ([Makefile](repo:runtime/Makefile#L170)). |
+| `PS2UI_CLUT_PERMUTE` | 1 | 0 uploads every CLUT in linear order instead of CSM1 order ([ps2ui.c](repo:runtime/ps2ui.c#L576)). | `make -C runtime test` syntax-check compiles `-DPS2UI_CLUT_PERMUTE=0` ([Makefile](repo:runtime/Makefile#L170)). |
 | `PS2UI_ARENA_LIMIT` | `SIZE_MAX` of the target | Caps the arena carve. The build fails if the value is wider than `size_t` ([ps2ui.c](repo:runtime/ps2ui.c#L117)). Narrow only. | `make -C runtime test-narrow` compiles `-DPS2UI_ARENA_LIMIT=0xFFFFFFFFull` ([Makefile](repo:runtime/Makefile#L317)). |
-| `PS2UI_PRIMALPHA_OFF` | undefined | Defined: `ps2ui_render` sets `PrimAlphaEnable` off, so glyph alpha is ignored ([ps2ui.c](repo:runtime/ps2ui.c#L1051)). | syntax-check compiles `-DPS2UI_PRIMALPHA_OFF` ([Makefile](repo:runtime/Makefile#L174)). |
-| `PS2UI_SKIP_SYNCDCACHE` | undefined | Defined: `ps2ui_tex_set` skips the data-cache writeback, so the GIF may read stale texels ([ps2ui.c](repo:runtime/ps2ui.c#L717)). | syntax-check compiles `-DPS2UI_SKIP_SYNCDCACHE` ([Makefile](repo:runtime/Makefile#L181)). |
+| `PS2UI_PRIMALPHA_OFF` | undefined | Defined: `ps2ui_render` sets `PrimAlphaEnable` off, so glyph alpha is ignored ([ps2ui.c](repo:runtime/ps2ui.c#L1090)). | syntax-check compiles `-DPS2UI_PRIMALPHA_OFF` ([Makefile](repo:runtime/Makefile#L174)). |
+| `PS2UI_SKIP_SYNCDCACHE` | undefined | Defined: `ps2ui_tex_set` skips the data-cache writeback, so the GIF may read stale texels ([ps2ui.c](repo:runtime/ps2ui.c#L756)). | syntax-check compiles `-DPS2UI_SKIP_SYNCDCACHE` ([Makefile](repo:runtime/Makefile#L181)). |
 
 `PS2UI_ARENA_LIMIT` exists so the 64-bit host suite can model the 32-bit EE. The narrow build feeds the runtime a well-formed blob whose carve passes 4 GiB and the memcard example blob, and expects one refusal and one load.
 

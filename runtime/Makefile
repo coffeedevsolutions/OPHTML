@@ -347,7 +347,46 @@ build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h \
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Istub -Ivendor/gsKit -Ivendor/host-shim ps2ui.c stub/gskit_stub.c tests/test_runtime.c build/gsKit_texture_size.o -o $@
 
+# S2: libFuzzer over ps2ui_load and everything a program does with a
+# blob that loaded (tests/fuzz_load.c says what, and what not). Needs
+# clang with its libFuzzer runtime: Ubuntu's libclang-rt-18-dev.
+#
+# The seeds are every blob this Makefile and the examples build, so a
+# mutation starts from a real layout rather than from nothing. Run
+# after `make test` and the examples' build.sh; a missing seed is
+# skipped, and the target fails only when there is none at all.
+#
+# `make fuzz` is CI's short pass. `make fuzz FUZZ_TIME=3600` is a long
+# one, and keeps what it finds in build/fuzz-corpus for the next run.
+FUZZ_CC   ?= clang
+FUZZ_TIME ?= 60
+FUZZ_SEEDS = $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) \
+             $(wildcard ../examples/*/build/*.uib) \
+             $(wildcard ../fixtures/*/build/*.uib)
+
+build/fuzz_load: ps2ui.c ps2ui.h stub/gskit_stub.c stub/gskit_stub.h \
+                 tests/fuzz_load.c build/gsKit_texture_size.o
+	@mkdir -p build
+	$(FUZZ_CC) -std=c11 -g -O1 -Wall -Wextra -Werror \
+		-fsanitize=fuzzer,address,undefined -fno-sanitize-recover=undefined \
+		-Istub -Ivendor/gsKit -Ivendor/host-shim \
+		ps2ui.c stub/gskit_stub.c tests/fuzz_load.c \
+		build/gsKit_texture_size.o -o $@
+
+fuzz: build/fuzz_load
+	@mkdir -p build/fuzz-corpus build/fuzz-seeds build/fuzz-crashes
+	@n=0; for f in $(FUZZ_SEEDS); do \
+		if [ -f "$$f" ]; then \
+			cp "$$f" "build/fuzz-seeds/$$(echo "$$f" | tr '/.' '__')"; n=$$((n+1)); \
+		fi; \
+	done; \
+	if [ $$n -eq 0 ]; then echo "fuzz: no seed blobs; run make test and the examples' build.sh first" >&2; exit 1; fi; \
+	echo "fuzz: $$n seed blob(s), $(FUZZ_TIME) s"
+	./build/fuzz_load build/fuzz-corpus build/fuzz-seeds \
+		-max_total_time=$(FUZZ_TIME) -max_len=262144 \
+		-artifact_prefix=build/fuzz-crashes/ -print_final_stats=1
+
 clean:
 	rm -rf build
 
-.PHONY: test test-narrow syntax-check timing-check clean
+.PHONY: test test-narrow syntax-check timing-check clean fuzz

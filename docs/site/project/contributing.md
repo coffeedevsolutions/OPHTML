@@ -29,6 +29,8 @@ Run all five before every pull request, from the repository root.
 | `make -C runtime test` | the C runtime suite: `syntax-check`, `timing-check`, `test-narrow`, then the runtime test binary over five blobs. |
 | `make -C runtime syntax-check CC=clang` | the same 27 sample and runtime compiles, under a second compiler. |
 
+For a change to the loader in `runtime/ps2ui.c`, also run `make -C runtime fuzz`. It fuzzes `ps2ui_load` for 60 seconds from the blobs the commands above build, and needs clang's libFuzzer runtime (`libclang-rt-18-dev` on Ubuntu). CI runs it on every change and for half an hour nightly.
+
 Tails from this session:
 
 ```sh
