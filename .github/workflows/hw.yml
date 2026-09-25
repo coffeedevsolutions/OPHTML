@@ -68,6 +68,7 @@ jobs:
           # four steps had nothing to run at the bench.
           ./examples/channel6/build.sh
           ./examples/opl-env/build.sh
+          ./examples/console/build.sh
           # main.c carries a fixed static arena. If opl-env outgrows it
           # the driver boots to solid red -- a correct signal, but one
           # that costs a bench sitting to receive, so fail here instead.
@@ -167,6 +168,7 @@ jobs:
             examples/memcard/build/preview.png
             examples/memcard/build/testcard.uib
             examples/opl-env/build/ui.uib
+            examples/console/build/ui.uib
             examples/memcard/build/testcard-expected.png
             examples/channel6/build/ui.uib
       - uses: actions/upload-artifact@v7
@@ -214,6 +216,7 @@ jobs:
           test -f examples/memcard/build/testcard.uib
           test -f examples/channel6/build/ui.uib
           test -f examples/opl-env/build/ui.uib
+          test -f examples/console/build/ui.uib
           test -f fixtures/bench-stream/build/bench.uib
       - name: gsKit still has no per-texture TFX field
         continue-on-error: true
@@ -691,6 +694,31 @@ jobs:
           make clean
           make NOPAD=1 UIB=ui.uib
           test -f ps2ui_app.elf
+      - name: The console builds, with every IOP module it loads
+        run: |
+          # console/README.md is the whole story. What this step proves
+          # is that the ELF links: the embedded theme, all fourteen IOP
+          # modules (embed_irx.sh fails the build naming any this SDK
+          # lacks, since a console without exFAT or MX4SIO is not the
+          # one the README describes), and the elf-loader symbol the
+          # launch needs. It is COMPILED, NOT BOOTED -- nothing here
+          # mounts a drive or starts Neutrino. Those are bench cases.
+          apk add --no-cache make
+          make -C console
+          test -f console/ophtml.elf
+          # And the MOCK build, which the emulator job boots: the same
+          # ELF with console/mock_library.h's games listed as if a
+          # drive held them, because Play! has no drive to offer.
+          make -C console objclean
+          make -C console MOCK=1 EE_BIN=ophtml-mock.elf
+          test -f console/ophtml-mock.elf
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ophtml-console-elf
+          retention-days: 14
+          path: |
+            console/ophtml.elf
+            console/ophtml-mock.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-starter-elf
@@ -780,6 +808,10 @@ jobs:
         with:
           name: ps2ui-sample-elf
           path: elf
+      - uses: actions/download-artifact@v8
+        with:
+          name: ophtml-console-elf
+          path: console-elf
       # Keyed on the pinned build AND its digest, so bumping either
       # misses the cache rather than serving the old binary under a new
       # name. No restore-keys, deliberately: a partial-prefix hit is
@@ -1251,6 +1283,56 @@ jobs:
           # it, so it will always look like the tolerance is too tight.
           python3 tools/framediff.py "$PREVIEW" captured.png \
             --out framediff.png --rmse 6.5 --tile-rmse 24 --stats
+
+      - name: The console fills its list the way the previewer draws it
+        if: always()
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
+        run: |
+          # ophtml-mock.elf is the console with console/mock_library.h's
+          # fourteen games listed as if a drive held them. It still does
+          # the real boot -- IOP reset, all fourteen modules, the wait
+          # for drives, the theme choice -- and then fills the built-in
+          # theme's rows. mock_expected.py draws the same list into the
+          # same theme with the previewer, so this diffs the console's
+          # binding of games to rows, labels and the sel-* panel
+          # against the previewer's reading of one list. A module that
+          # fails to load holds solid grey and fails here too.
+          #
+          # CALIBRATED LOCALLY against this pinned Play! (2026-09-23):
+          # the correct frame scores RMSE 6.0, worst tile 14.3. The
+          # tile gate is the one that discriminates -- one row's device
+          # label wrong scores 28.3, the rows shifted by one game 68.2,
+          # the wrong game in the sel-* panel 68.2. The global
+          # tolerance is 8, not the UI step's 6.5, because this frame
+          # is mostly text: the previewer PNG round-tripped through the
+          # same two resizes, with no renderer involved, already scores
+          # 8.0 on it.
+          python3 console/tests/mock_expected.py \
+            baked/console/build/ui.uib console-expected.png
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf console-elf/ophtml-mock.elf \
+              >console-play.log 2>&1 &
+            PLAY_PID=$!
+            sleep 25
+            if ! kill -0 $PLAY_PID 2>/dev/null; then
+              echo "Play! exited before the capture; its output:"
+              cat console-play.log
+              exit 1
+            fi
+            import -window root console_raw.png
+            kill $PLAY_PID 2>/dev/null || true
+            sleep 2
+            kill -9 $PLAY_PID 2>/dev/null || true
+          '
+          convert console_raw.png -fuzz 5% -trim +repage console_trim.png
+          echo "console capture trimmed to $(identify -format '%wx%h' console_trim.png)"
+          convert console_trim.png -resize 640x448\! console.png
+          python3 tools/framediff.py console-expected.png console.png \
+            --out console-diff.png --rmse 8 --tile-rmse 24 --stats
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -1258,6 +1340,9 @@ jobs:
           retention-days: 14
           path: |
             captured.png
+            console.png
+            console-expected.png
+            console-diff.png
             framediff.png
             probe.png
             probe6.png

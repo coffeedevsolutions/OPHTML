@@ -21,7 +21,7 @@ ps2ui-check build/ui.uib --allow-dead 1 --strict
 ps2ui-check build/ui.uib --tints
 ```
 
-`ps2ui check` runs the same code on a project's output blob and forwards the project's `vramBudget` and `strict` keys. See [ps2ui](page:cli/ps2ui#synopsis). The checkout spelling is `PYTHONPATH=packages/baker python3 -m ps2ui_bake.check`, which is what [tools/check-blobs.sh](repo:tools/check-blobs.sh#L83) uses.
+`ps2ui check` runs the same code on a project's output blob and forwards the project's `vramBudget` and `strict` keys. See [ps2ui](page:cli/ps2ui#synopsis). The checkout spelling is `PYTHONPATH=packages/baker python3 -m ps2ui_bake.check`, which is what [tools/check-blobs.sh](repo:tools/check-blobs.sh#L88) uses.
 
 ## Options
 

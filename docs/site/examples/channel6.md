@@ -114,10 +114,10 @@ end" runs `./examples/channel6/build.sh` and nothing else
 ([ci.yml](repo:.github/workflows/ci.yml#L253-L264)); "Committed screenshots
 match the renderer" re-runs the `git diff --exit-code` above alongside
 memcard's and opl-env's screenshot directories
-([ci.yml](repo:.github/workflows/ci.yml#L432-L449)); "Validate every blob
+([ci.yml](repo:.github/workflows/ci.yml#L450-L467)); "Validate every blob
 against the runtime's assumptions" runs `tools/check-blobs.sh` by name
 against both channel6 blobs plus the other two examples'
-([ci.yml](repo:.github/workflows/ci.yml#L502-L523)).
+([ci.yml](repo:.github/workflows/ci.yml#L521-L542)).
 
 ## Numbers from the blob
 
