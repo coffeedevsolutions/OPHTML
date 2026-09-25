@@ -38,6 +38,9 @@ Unreleased; 0.9.0, below, is what installs.
   its mock build and checksums, and a new page covers running it with
   Neutrino and your own theme. It has not yet run on a console. See
   [Console launcher](page:runtime/console-launcher).
+- `check-versions.py` fails when a released CHANGELOG section differs
+  from the same section at its tag, so a merge can no longer add entries
+  to a release that already shipped.
 
 ### Changed
 

@@ -26,6 +26,8 @@ makes. It also cannot see a tag that was never fetched -- a shallow
 clone without tags makes rule 8 unprovable, so rule 8 says so out loud
 rather than passing.
 """
+import difflib
+import hashlib
 import os
 import re
 import subprocess
@@ -94,6 +96,29 @@ EXPECTED_PYPI = "ophtml"
 # forbids. Found before publishing this time, by reading rule 10 while
 # planning step 8 rather than by hitting it.
 PUBLISHED = True
+
+# THE EDITS A RELEASED CHANGELOG SECTION MAY CARRY THAT ITS TAG DOES NOT
+# (rule 23). One entry per edit: the tag, how the paragraph at the tag
+# begins, how it begins now, the first 16 hex digits of the SHA-256 of
+# the whole paragraph as it reads now, and why the edit is right. The
+# hash is what makes the allowance cover one text rather than any
+# paragraph with that opening: without it, the paragraph could keep
+# growing after its tag and nothing would say so. Each allowance covers
+# exactly one paragraph, and an allowance nothing uses any more fails,
+# so it cannot sit waiting to excuse a later edit. After a deliberate
+# edit to an allowed paragraph, the failure prints the new hash.
+#
+# v0.3.0's is docs/releasing.md step 8's edit. The tag names the commit
+# that cut the release and the upload came after it, so the paragraph
+# that said nothing had been uploaded was rewritten once the upload
+# happened. Rule 20 holds that paragraph to PUBLISHED.
+RELEASED_SECTION_EDITS = [
+    ("v0.3.0", "**Tagged is not published.**", "**Tagged and published.**",
+     "cfa985523a88e4cd",
+     "docs/releasing.md step 8: the upload follows the tag, so the "
+     "sentence saying nothing was uploaded changed after it"),
+]
+
 
 # "zero" is not padding. The section opened straight after a release
 # counts its drift from a release that shipped the CURRENT format, so
@@ -802,6 +827,155 @@ def main(argv=None):
                       "readme = \"README.md\"",
                  "", "The registry page would be blank, and neither "
                      "packager calls that an error -- " + what))
+
+    # 23. A RELEASED SECTION SAYS WHAT IT SAID WHEN IT WAS TAGGED.
+    #
+    #     The notes for a release are what shipped with it: 0.8.0 is on
+    #     PyPI with the 0.8.0 section as it stood at `v0.8.0`. Nothing
+    #     compared the two, and #166 showed what that costs. Its entries
+    #     sat under `## Unreleased — 0.8.0.dev0`, main cut 0.8.0 and 0.9.0
+    #     above them, and `git merge` followed the hunk context into the
+    #     released `## 0.8.0` section with NO CONFLICT MARKER. All 17
+    #     tools/check-*.py passed on that state, so the file said a
+    #     published release contained four caps it never had (F53).
+    #
+    #     A conflict marker is the only thing that makes a merge
+    #     readable, and this class of merge produces none. So for every
+    #     release tag, the section with that version is compared, heading
+    #     and body, with the same section in `git show <tag>:CHANGELOG.md`.
+    #     A difference fails unless RELEASED_SECTION_EDITS records it.
+    #
+    #     NOT UNDER --except-tag. The tags compared here already exist,
+    #     on a branch as on main, so a pull request can satisfy this and
+    #     should be stopped by it. That is where the #166 merge was.
+    def _paragraphs(body):
+        return [p.strip("\n") for p in re.split(r"\n[ \t]*\n", body)
+                if p.strip()]
+
+    def _first_line(par):
+        return par.splitlines()[0][:100] if par else ""
+
+    def rule_23():
+        # A function so its names cannot reach the rules below it.
+        released_tags = git_tags()
+        if released_tags is None:
+            check(False, "", "check-versions cannot run `git tag`, so it cannot "
+                             "compare the released CHANGELOG sections with their "
+                             "tags (rule 23)")
+        else:
+            by_version = {}
+            for t in sorted(released_tags):
+                v = t[1:] if t.startswith("v") else t
+                m = _PEP440.match(v)
+                if m and m.group(4) is None:
+                    by_version.setdefault(v, t)
+            if not by_version:
+                check(False, "", "this checkout has no release tags, so rule 23 "
+                                 "has nothing to compare the released CHANGELOG "
+                                 "sections with. A shallow clone fetches none: "
+                                 "`git fetch --tags`, or check out with "
+                                 "fetch-depth 0 as ci.yml does.")
+            now = {}
+            for sec_head, sec_body in changelog_sections():
+                now.setdefault(sec_head.split()[0], (sec_head, sec_body))
+            used = set()
+            compared = 0
+            for v in sorted(by_version, key=lambda x: [int(n) for n in x.split(".")]):
+                tag = by_version[v]
+                try:
+                    old_text = subprocess.run(
+                        ["git", "show", "%s:CHANGELOG.md" % tag], cwd=ROOT,
+                        check=True, capture_output=True, text=True).stdout
+                except (OSError, subprocess.CalledProcessError):
+                    check(False, "", "%s exists but `git show %s:CHANGELOG.md` "
+                                     "fails, so its section cannot be compared "
+                                     "(rule 23)" % (tag, tag))
+                    continue
+                old = {}
+                parts = re.split(r"^## +(.*)$", old_text, flags=re.M)[1:]
+                for sec_head, sec_body in zip(parts[0::2], parts[1::2]):
+                    old.setdefault(sec_head.split()[0], (sec_head, sec_body))
+                if v not in old:
+                    # A tag whose own CHANGELOG has no section for it names
+                    # nothing to hold the file to; none exists here today.
+                    check(False, "", "%s's CHANGELOG.md has no `## %s` section, "
+                                     "so rule 23 has nothing to hold the file "
+                                     "to for it" % (tag, v))
+                    continue
+                if v not in now:
+                    check(False, "", "CHANGELOG.md has no `## %s` section, but "
+                                     "%s shipped one. A released section is "
+                                     "never removed (rule 23)." % (v, tag))
+                    continue
+                compared += 1
+                (h_old, b_old), (h_now, b_now) = old[v], now[v]
+                problems = []
+                if h_old != h_now:
+                    problems.append("its heading reads `## %s`, and at %s it read "
+                                    "`## %s`" % (h_now, tag, h_old))
+                p_old, p_now = _paragraphs(b_old), _paragraphs(b_now)
+                sm = difflib.SequenceMatcher(None, p_old, p_now, autojunk=False)
+                for op, i1, i2, j1, j2 in sm.get_opcodes():
+                    if op == "equal":
+                        continue
+                    gone, came = p_old[i1:i2], p_now[j1:j2]
+                    if op == "replace" and len(gone) == len(came):
+                        rest = []
+                        for a, b in zip(gone, came):
+                            hit = next((k for k, e in enumerate(RELEASED_SECTION_EDITS)
+                                        if e[0] == tag and a.startswith(e[1])
+                                        and b.startswith(e[2])), None)
+                            digest = hashlib.sha256(
+                                b.encode("utf-8")).hexdigest()[:16]
+                            if hit is None:
+                                rest.append((a, b))
+                                continue
+                            used.add(hit)
+                            if digest != RELEASED_SECTION_EDITS[hit][3]:
+                                problems.append(
+                                    "the recorded edit's paragraph %r has "
+                                    "changed since it was recorded (hash %s, "
+                                    "recorded %s)" % (_first_line(b), digest,
+                                                      RELEASED_SECTION_EDITS[hit][3]))
+                        gone = [a for a, _ in rest]
+                        came = [b for _, b in rest]
+                    if came:
+                        problems.append("%d paragraph(s) %s does not have, the "
+                                        "first beginning %r"
+                                        % (len(came), tag, _first_line(came[0])))
+                    if gone:
+                        problems.append("%d paragraph(s) %s has are gone or "
+                                        "changed, the first beginning %r"
+                                        % (len(gone), tag, _first_line(gone[0])))
+                check(not problems,
+                      "CHANGELOG's %s section is the one %s shipped%s"
+                      % (v, tag, " with its recorded edit" if any(
+                          RELEASED_SECTION_EDITS[k][0] == tag for k in used)
+                         else ""),
+                      "CHANGELOG's %s section differs from `git show "
+                      "%s:CHANGELOG.md`: %s. A released section is what shipped "
+                      "with the release. If a merge put this here, move the "
+                      "entries to the open section. If the edit is right, "
+                      "record it in RELEASED_SECTION_EDITS with the reason "
+                      "(rule 23, F53)." % (v, tag, "; ".join(problems)))
+            # With no tags at all, the failure above already says why
+            # nothing was compared, and an unused allowance is noise.
+            if not by_version:
+                return
+            for k, (tag, was, is_, _hash, why) in enumerate(RELEASED_SECTION_EDITS):
+                check(k in used,
+                      "the recorded %s edit (%r -> %r) is still the one "
+                      "difference it excuses" % (tag, was, is_),
+                      "RELEASED_SECTION_EDITS records an edit to %s's section "
+                      "(%r -> %r) that no paragraph carries any more. Remove "
+                      "it, so it cannot excuse a later edit (rule 23)."
+                      % (tag, was, is_))
+            # A tally, not a verdict: a section that was not compared has
+            # already failed above with the reason.
+            print("# rule 23 compared %d of %d released section(s) with "
+                  "their tags" % (compared, len(by_version)))
+
+    rule_23()
 
     # 20. THE RELEASE NOTES DO NOT OUTLIVE THEIR OWN CLAIM.
     #

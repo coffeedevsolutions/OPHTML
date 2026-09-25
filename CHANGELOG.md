@@ -124,6 +124,16 @@ without moving this line.
   booted only in an emulator, and it points at the bench cases that
   are still open.
 
+- **A released CHANGELOG section is held to its tag.** A merge in #166
+  put four entries into the released `## 0.8.0` section with no conflict
+  marker, and every `tools/check-*.py` passed on that state (F53).
+  `check-versions.py` rule 23 now compares each release tag's section,
+  heading and body, with `git show <tag>:CHANGELOG.md`, and fails on a
+  difference. The one legitimate difference, v0.3.0's "Tagged and
+  published" paragraph written after its tag, is recorded with its
+  reason and pinned by hash, so it excuses that text and nothing else.
+  The rule runs on pull requests too, which is where that merge was.
+
 ### Changed
 
 - **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0
