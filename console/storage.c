@@ -119,8 +119,11 @@ int console_storage_start(int mx4sio, const char **failed)
      * the console's list with a pad only through the ROM pair. The
      * shipped ELF never takes this path: freepad is what NHDDL runs on
      * consoles, and the one thing this build cannot vouch for. */
-    if (SifLoadModule("rom0:SIO2MAN", 0, NULL) < 0 ||
-        SifLoadModule("rom0:PADMAN", 0, NULL) < 0) {
+    if (SifLoadModule("rom0:SIO2MAN", 0, NULL) < 0) {
+        if (failed) *failed = "rom0:SIO2MAN";
+        return -1;
+    }
+    if (SifLoadModule("rom0:PADMAN", 0, NULL) < 0) {
         if (failed) *failed = "rom0:PADMAN";
         return -1;
     }

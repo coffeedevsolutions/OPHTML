@@ -270,12 +270,27 @@ class ConsoleMock:
         m = console.ROW.match(state.focus_name or "")
         return int(m.group(1)) if m and int(m.group(1)) < self.window.rows else -1
 
+    def press(self, uib, state, key):
+        """One button, as main.c's loop handles it."""
+        if not self.key(uib, state, key):
+            state.move(uib, key)
+            self.follow(uib, state)
+
     def key(self, uib, state, key):
         """True if the list took the key; False to fall through to an
-        ordinary ps2ui_move, as main.c does."""
+        ordinary ps2ui_move, as main.c does.
+
+        FOCUS IS SYNCED EVEN WHEN NOTHING MOVED. ps2ui_list_select calls
+        list_sync_focus whether or not the selection changed, so L1 at
+        the top of the list -- with focus on a button beside it -- pulls
+        focus back to the selected row while ps2ui_list_move returns 0.
+        The first version of this pushed only on a change and left focus
+        on the button (the #180 review, confirmed against a host build of
+        runtime/ps2ui.c)."""
         if key in ("l1", "r1"):
-            if self.window.move(-self.window.rows if key == "l1"
-                                else self.window.rows):
+            self.window.move(-self.window.rows if key == "l1"
+                             else self.window.rows)
+            if self.window.count:
                 self.push(uib, state)
             return True
         if key in console.KEYS and self._row(uib, state) >= 0:
@@ -597,10 +612,10 @@ class Server:
             uib, st = self.uib, self.state
             if "key" in body:
                 key = str(body["key"])
-                if not (self.console and self.console.key(uib, st, key)):
+                if self.console:
+                    self.console.press(uib, st, key)
+                else:
                     st.move(uib, key)
-                    if self.console:
-                        self.console.follow(uib, st)
             elif "screen" in body:
                 st.set_screen(uib, str(body["screen"]))
             elif "theme" in body:

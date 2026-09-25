@@ -116,7 +116,7 @@ The figure belongs to that blob. The channel6 blob prints `10624 bytes on the EE
 
 ### The catalogue
 
-Checks run in nine groups, in the order below. A label pattern in braces is filled from the blob. A bracketed suffix appears only on failure and names the first five offenders. Groups are the functions in [check.py](repo:packages/baker/ps2ui_bake/check.py#L630).
+Checks run in ten groups, in the order below. The tenth, the console contract, runs only on a blob with a numbered `game-N` row or slot, or under `--console`. A label pattern in braces is filled from the blob. A bracketed suffix appears only on failure and names the first five offenders. Groups are the functions in [check.py](repo:packages/baker/ps2ui_bake/check.py#L630).
 
 | label pattern | severity | meaning | change |
 |---|---|---|---|
@@ -167,6 +167,13 @@ Checks run in nine groups, in the order below. A label pattern in braces is fill
 | `no 1px quads to shimmer on an interlaced CRT` / `{n} 1px quad(s) will shimmer on an interlaced CRT[; {N} declared deliberate]` | warning | a quad 1px wide or tall flickers on an interlaced field | make rules 2px, or declare the count |
 | `every command can produce a pixel` / `{n} command(s) fall entirely outside their clip and are submitted every frame for nothing (from command {i}); usually the tail of a nowrap run inside overflow:hidden[; {N} declared deliberate]` | warning | a command outside its clip and the canvas, submitted every frame | shorten the text, or declare the count |
 | `every texture is drawn or belongs to a font` / `textures [...] are never drawn but still cost VRAM` | warning | an image no command references | remove the `<img>` |
+| `console: the theme has a game-0 row on the screen the console opens ({screen})` | error | only under `--console`: the theme has no list for the console to fill | add `game-{i}` rows; see [console/README.md](repo:console/README.md) |
+| `console: every game-N row is reachable from game-0 without a gap[; the console stops at game-{n}: ...]` | error | the console counts rows until the first missing name, so rows past a gap keep their placeholder | number the rows without a gap |
+| `console: game-N rows are all on the screen the console opens ({screen})[; elsewhere: ...]` | error | rows on a screen the console never shows | move them to `games`, or to the first screen |
+| `console: every game-N-field slot belongs to a row the console fills[; never filled: ...]` | error | a `game-N-*` slot for a row that does not exist | add the row, or remove the slot |
+| `console: every game-N-* and sel-* slot is a name the console fills[; unknown: ...]` | warning | a name the console never looks up, usually a typo; the suffix suggests the nearest real one | rename it |
+| `console: slots are long enough for what the console writes[; short: {slot} ({have} of {need}), ...]` | warning | a slot shorter than the longest value the console writes there; an ID is always 11 | raise `data-slot-capacity` |
+| `console: the rows carry a game-N-title slot, so a row shows which game it is` | warning | rows that never say which game they are | add `game-{i}-title` |
 
 Three notes join the arena note. Each font prints its inked glyph count and how many are not power-of-two sized, because the GS drops the last texel row of such a quad. A blob under 100 painting commands prints the tint ratio instead of asserting it. The VRAM check prints two explanatory lines when the default budget cannot exist at the canvas.
 

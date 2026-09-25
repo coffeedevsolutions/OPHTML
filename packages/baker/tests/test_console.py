@@ -25,6 +25,7 @@ from ps2ui_bake.check import Report, check_blob                # noqa: E402
 from test_serve import ROOT, MEMCARD, blob                     # noqa: E402
 
 CONSOLE = os.path.join(ROOT, "examples", "console", "build", "ui.uib")
+CONSOLE_SRC = os.path.join(ROOT, "console")
 CHANNEL6 = os.path.join(ROOT, "examples", "channel6", "build", "ui.uib")
 MOCK_HEADER = os.path.join(ROOT, "console", "mock_library.h")
 
@@ -98,15 +99,71 @@ class TestMockLibrary(unittest.TestCase):
         m = re.search(r'#define CONSOLE_MOCK_STATUS "([^"]*)"', self.header())
         self.assertEqual(m.group(1), console.MOCK_STATUS)
 
+
+def c_source(name):
+    """A console/ source file, or a skip -- unless CI says otherwise."""
+    path = os.path.join(CONSOLE_SRC, name)
+    if not os.path.exists(path):
+        if os.environ.get("PS2UI_REQUIRE_EXAMPLES"):
+            raise AssertionError("no %s in a checkout run" % path)
+        raise unittest.SkipTest("no console/ beside this install")
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def c_function(src, name):
+    """The body of one C function, by its name, up to the closing brace
+    at column 0 -- which is how every function in console/ ends."""
+    m = re.search(r"^[^\n]*\b%s\(.*?^\}" % re.escape(name), src, re.M | re.S)
+    if m is None:
+        raise AssertionError("no function %s in the C source" % name)
+    return m.group(0)
+
+
+class TestRestatedFromC(unittest.TestCase):
+    """console.py restates strings the C writes. Each is read out of the
+    C here, so changing it there without changing it here fails. The
+    first version compared console.py to literals typed into this file,
+    which a change to library.c or main.c passed straight through (the
+    #180 review: `return "SD"` -> `return "MX4SIO"` left all 29 green)."""
+
+    def switch(self, src, name):
+        body = c_function(src, name)
+        return dict(re.findall(r'case (CONSOLE_BSD_\w+):\s*return "([^"]*)";',
+                               body))
+
     def test_the_labels_are_library_cs(self):
-        self.assertEqual(sorted(console.LABELS.values()),
-                         ["HDD", "MMCE", "SD", "USB"])
-        self.assertTrue(all(len(v) <= console.LONGEST["device"]
-                            for v in console.LABELS.values()))
+        src = c_source("library.c")
+        labels = self.switch(src, "console_bsd_label")
+        args = self.switch(src, "console_bsd_arg")
+        self.assertEqual({args[e]: labels[e] for e in args}, console.LABELS)
+
+    def test_the_longest_values_are_the_cs(self):
+        """LONGEST is what the slot-length warning compares against; it
+        has to be the longest thing the C can actually write."""
+        labels = self.switch(c_source("library.c"), "console_bsd_label")
+        self.assertEqual(console.LONGEST["device"],
+                         max(len(v) for v in labels.values()))
+        idmax = re.search(r"#define CONSOLE_ID_MAX\s+(\d+)",
+                          c_source("library.h"))
+        self.assertEqual(console.LONGEST["id"], int(idmax.group(1)) - 1)
+        media = re.search(r'media == CONSOLE_MEDIA_CD \? "([^"]*)" : "([^"]*)"',
+                          c_function(c_source("main.c"), "media"))
+        self.assertEqual(console.LONGEST["media"],
+                         max(len(w) for w in media.groups()))
 
     def test_the_count_reads_the_way_main_c_writes_it(self):
-        self.assertEqual(console.count_text(1), "1 game")
-        self.assertEqual(console.count_text(14), "14 games")
+        """Both of main.c's count lines: scan_all's singular/plural, and
+        add_mock's plural, which is the only one the emulator draws."""
+        src = c_source("main.c")
+        one, many = re.search(r'n_games == 1 \? "([^"]*)" : "([^"]*)"',
+                              c_function(src, "scan_all")).groups()
+        self.assertEqual(console.count_text(1), one % 1)
+        self.assertEqual(console.count_text(14), many % 14)
+        mock = re.search(r'snprintf\(line, sizeof line, "([^"]*)", n_games\)',
+                         c_function(src, "add_mock")).group(1)
+        self.assertEqual(console.count_text(len(console.MOCK_GAMES)),
+                         mock % len(console.MOCK_GAMES))
 
 
 def fake(screens, slots=()):
@@ -169,7 +226,7 @@ class TestContractCheck(unittest.TestCase):
         uib = fake([("games", ["game-0", "game-1", "game-3"])], row_slots(2))
         (sev, label), = findings(uib)
         self.assertEqual(sev, "error")
-        self.assertIn("stops at game-2", label)
+        self.assertIn("the console stops at game-2: game-3", label)
         self.assertIn("game-3", label)
 
     def test_rows_on_a_screen_the_console_never_opens(self):
@@ -203,8 +260,7 @@ class TestContractCheck(unittest.TestCase):
                    row_slots(1) + [("game-0-id", 8), ("sel-device", 3)])
         (sev, label), = findings(uib)
         self.assertEqual(sev, "warning")
-        self.assertIn("game-0-id holds 8, needs 11", label)
-        self.assertIn("sel-device holds 3, needs 4", label)
+        self.assertIn("short: game-0-id (8 of 11), sel-device (3 of 4)", label)
 
     def test_rows_with_no_title_say_nothing_about_their_game(self):
         uib = fake([("games", rows(2))], [("game-0-id", 11)])
@@ -252,6 +308,85 @@ class TestFill(unittest.TestCase):
         self.assertEqual(text["sel-title"], "Kite Season")
         self.assertEqual(text["game-9-title"], "Kite Season")
         self.assertEqual(focus, "game-9")
+
+
+def beside():
+    """A theme the built-in one cannot stand in for: ten rows with a
+    focusable `options` to the right of every one. The built-in theme
+    has nothing but rows, so focus can never be off the list in it, and
+    the two paths below -- L1/R1 pulling focus back, and focus landing
+    on a row pulling the selection -- were unreachable (the #180
+    review). The neighbours are what the compiler bakes for a column of
+    rows with one control beside it."""
+    NONE = serve.PS2UI_NONE
+    focus = []
+    for i in range(10):
+        focus.append({"index": i, "name": "game-%d" % i,
+                      "up": i - 1 if i else NONE,
+                      "down": i + 1 if i < 9 else NONE,
+                      "left": NONE, "right": 10})
+    focus.append({"index": 10, "name": "options", "up": NONE,
+                  "down": NONE, "left": 0, "right": NONE})
+    return SimpleNamespace(
+        screens=[{"name": "games", "focus_first": 0, "focus_count": 11,
+                  "initial": 0, "slot_first": 0, "slot_count": 0}],
+        focus=focus, slots=[], themes=())
+
+
+class TestConsoleBesideTheList(unittest.TestCase):
+    """main.c's loop, with focus able to leave the list."""
+
+    def setUp(self):
+        self.uib = beside()
+        self.st = serve.PreviewState()
+        self.cm = serve.ConsoleMock()
+        self.cm.attach(self.uib, self.st)
+
+    def press(self, *keys):
+        for k in keys:
+            self.cm.press(self.uib, self.st, k)
+
+    def sel(self):
+        return self.st.slots_for(self.st.screen_name)["sel-title"]
+
+    def test_l1_at_the_top_pulls_focus_back_to_the_selected_row(self):
+        """The review's table, row for row: right leaves the list, and
+        L1 -- which moves nothing at the top -- still puts focus on the
+        selected row, because ps2ui_list_select syncs focus either way."""
+        self.press("right")
+        self.assertEqual((self.st.focus_name, self.cm.window.sel), ("options", 0))
+        self.press("l1")
+        self.assertEqual((self.st.focus_name, self.cm.window.sel), ("game-0", 0))
+
+    def test_r1_at_the_bottom_does_the_same(self):
+        self.press("r1", "right")
+        self.assertEqual(self.st.focus_name, "options")
+        self.press("r1")
+        self.assertEqual((self.st.focus_name, self.cm.window.sel), ("game-9", 13))
+
+    def test_focus_arriving_on_a_row_pulls_the_selection_after_it(self):
+        """Down x3 selects Deep Orchard on row 3; right and left come
+        back onto row 0 by the D-pad graph, and the selection follows to
+        row 0 rather than staying on a row that no longer looks selected."""
+        self.press("down", "down", "down")
+        self.assertEqual(self.sel(), "Deep Orchard")
+        self.press("right", "left")
+        self.assertEqual(self.st.focus_name, "game-0")
+        self.assertEqual((self.cm.window.sel, self.sel()), (0, "Aurora Circuit"))
+
+    def test_following_counts_from_the_window_not_from_the_top(self):
+        """R1 from item 0 selects item 10 on row 9, and the window slides
+        to start at item 1 -- so row 0 is item 1, not item 0."""
+        self.press("r1")
+        self.assertEqual((self.cm.window.top, self.cm.window.sel), (1, 10))
+        self.press("right", "left")
+        self.assertEqual((self.cm.window.top, self.cm.window.sel), (1, 1))
+        self.assertEqual(self.sel(), "Brass Lantern")
+
+    def test_up_and_down_off_the_list_are_ordinary_moves(self):
+        self.press("right", "down")
+        self.assertEqual(self.st.focus_name, "options")
+        self.assertEqual(self.cm.window.sel, 0)
 
 
 class TestServeConsole(unittest.TestCase):

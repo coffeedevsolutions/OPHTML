@@ -13,14 +13,20 @@ place they read it from:
 * console/tests/mock_expected.py, which draws the frames hw.yml diffs the
   emulator against.
 
-WHAT IS RESTATED FROM C, AND WHAT HOLDS IT THERE. The list window
-(`ListWindow`) is runtime/ps2ui.c's ps2ui_list_* arithmetic, line for
-line. The labels and the count text are console/library.c's and
-console/main.c's. The mock list is console/mock_library.h's. None of
-those can be imported from Python, so tests/test_baker.py's
-TestConsoleContract reads mock_library.h and compares, and hw.yml's
-emulator steps diff frames the console drew against frames this module
-drew: a drift in any of them is a failing check, not a quiet difference.
+WHAT IS RESTATED FROM C, AND WHAT HOLDS IT THERE. None of it can be
+imported from Python, so each piece is fenced where it can be:
+
+* the mock list is console/mock_library.h's, and tests/test_console.py's
+  TestMockLibrary parses the header and compares;
+* the four device labels are library.c's console_bsd_label, the media
+  words and both count strings are main.c's, and TestRestatedFromC
+  parses those out of the C source and compares;
+* the list window (`ListWindow`) is runtime/ps2ui.c's ps2ui_list_*
+  arithmetic, line for line, and is held to it by frames: hw.yml boots
+  the console in Play!, presses keys, and diffs what it drew against
+  what this module draws. That is the one piece held by behaviour
+  rather than by text, so a change to ps2ui.c's list that keeps its
+  frames for Down x3 / R1 / L1 is not caught here.
 """
 from __future__ import annotations
 
@@ -45,7 +51,8 @@ LONGEST = {"id": 11, "media": 3, "device": 4}
 LABELS = {"usb": "USB", "ata": "HDD", "mx4sio": "SD", "mmce": "MMCE"}
 
 # console/mock_library.h, in the same order and with the same labels.
-# TestConsoleContract parses the header and fails if these drift.
+# test_console.py's TestMockLibrary parses the header and fails if
+# these drift.
 MOCK_STATUS = "MOCK build: sample games, no drive read"
 MOCK_GAMES = (
     ("Aurora Circuit", "SLUS_900.01", "DVD", "USB"),
@@ -242,6 +249,12 @@ def check(uib, rep, force: bool = False) -> None:
                   "console: the theme has a game-0 row on the screen the "
                   "console opens (%r)" % sc["name"])
 
+    # Offender suffixes follow the rest of the catalogue: "; <what>:
+    # <first five>", present only on failure (ps2ui-check.md, "The
+    # catalogue").
+    def first5(names):
+        return ", ".join(names[:5])
+
     # Rows past a gap are drawn with their placeholder forever: the
     # console stops counting at the first missing name.
     here = {n["name"] for n in _nodes(uib, sc)}
@@ -249,9 +262,8 @@ def check(uib, rep, force: bool = False) -> None:
                       (ROW.match(n) for n in here) if m and int(m.group(1)) >= rows)
     rep.error(not stranded,
               "console: every game-N row is reachable from game-0 without a gap"
-              + ("" if not stranded else
-                 "; the console stops at game-%d, so %s keep their "
-                 "placeholder" % (rows, ", ".join("game-%d" % i for i in stranded))))
+              + ("" if not stranded else "; the console stops at game-%d: %s"
+                 % (rows, first5(["game-%d" % i for i in stranded]))))
 
     # Rows on another screen: the console never opens that screen.
     elsewhere = sorted({n["name"] for s in uib.screens if s is not sc
@@ -259,7 +271,7 @@ def check(uib, rep, force: bool = False) -> None:
     rep.error(not elsewhere,
               "console: game-N rows are all on the screen the console opens (%r)"
               % sc["name"] + ("" if not elsewhere else
-                              "; %s are on another screen" % ", ".join(elsewhere[:4])))
+                              "; elsewhere: " + first5(elsewhere)))
 
     fields = set()
     unreached, unknown, short = [], [], []
@@ -274,27 +286,25 @@ def check(uib, rep, force: bool = False) -> None:
             fields.add(field)
             if i >= rows:
                 unreached.append(name)
-            if s["capacity"] < LONGEST.get(field, 0):
-                short.append("%s holds %d, needs %d" % (name, s["capacity"],
-                                                        LONGEST[field]))
         elif name.startswith("sel-"):
             if name not in SEL_SLOTS:
                 unknown.append(name + _suggest(name, SEL_SLOTS))
                 continue
             field = name[4:]
-            if s["capacity"] < LONGEST.get(field, 0):
-                short.append("%s holds %d, needs %d" % (name, s["capacity"],
-                                                        LONGEST[field]))
+        else:
+            continue
+        if s["capacity"] < LONGEST.get(field, 0):
+            short.append("%s (%d of %d)" % (name, s["capacity"], LONGEST[field]))
 
     rep.error(not unreached,
               "console: every game-N-field slot belongs to a row the console fills"
-              + ("" if not unreached else "; never filled: " + ", ".join(unreached[:4])))
+              + ("" if not unreached else "; never filled: " + first5(unreached)))
     rep.warn(not unknown,
              "console: every game-N-* and sel-* slot is a name the console fills"
-             + ("" if not unknown else "; unknown: " + ", ".join(unknown[:4])))
+             + ("" if not unknown else "; unknown: " + first5(unknown)))
     rep.warn(not short,
              "console: slots are long enough for what the console writes"
-             + ("" if not short else "; " + "; ".join(short[:4])))
+             + ("" if not short else "; short: " + first5(short)))
     rep.warn(rows == 0 or "title" in fields,
              "console: the rows carry a game-N-title slot, so a row shows "
              "which game it is")

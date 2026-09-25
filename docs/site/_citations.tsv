@@ -9,7 +9,7 @@ _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	762	    failed = 
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/project.py	51	    "minFontSize": None,	    "strict": False,	    "focusWrap": False,
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/ps2ui.py	224	        if proj.min_font_size is not None:	            cmd += ["--strict"]	            cmd += ["--min-font-size", str(proj.min_font_size)]
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/ps2ui.py	456	        if proj.strict:	            cmd += ["--display-aspect", proj.display_aspect]	            cmd += ["--strict"]
-_facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve.py	440	        warnings = []		        for screen in proj.screens:
+_facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve.py	455	        warnings = []		        for screen in proj.screens:
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	136	    <button id="btnSafe" title="Title-safe area — 10% inset, the CRT overscan budget">Safe area</button>	    <button id="btnGrid" title="8px grid">Grid</button>	    <button id="btnFull" title="Screen only (F, Esc to leave)">Full screen</button>
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	320	  if (S.safe) {	  }	    const ix = Math.round(w * 0.1), iy = Math.round(h * 0.1);
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/serve_page.html	517	function buildWarnings() {		  const d = $('diags'), ws = S.st.warnings || [];
@@ -180,7 +180,7 @@ _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/quads.py	667	           
 _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/quads.py	669	                # Not clamped. This was min(capacity, 95) -- 95 being	                "ellipsis": bool(sl["ellipsis"]),	                # PS2UI_SLOT_BUFSZ - 1, the runtime's old fixed per-slot
 _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/quads.py	701	    @staticmethod		    def _slot_spacing(sl):
 _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/serve.py	210	    def set_slots(self, mapping):		        per = self.slot_text.setdefault(self.screen_name, {})
-_facts/authoring/dynamic-text	packages/baker/ps2ui_bake/serve.py	585	            "slots": [	                for i, r in enumerate(recs)],	                {"name": s["name"],
+_facts/authoring/dynamic-text	packages/baker/ps2ui_bake/serve.py	600	            "slots": [	                for i, r in enumerate(recs)],	                {"name": s["name"],
 _facts/authoring/dynamic-text	packages/baker/ps2ui_bake/serve_page.html	610	      if (s.capacity) inp.maxLength = s.capacity;	      inp.dataset.slot = s.name;	      inp.title = 'capacity ' + s.capacity;
 _facts/authoring/dynamic-text	packages/layout/src/box.js	202	  if ('data-slot' in el.attrs) {	  box.nocontrast = 'data-nocontrast' in el.attrs;	    // Dynamic text (backlog F2): the element's text is a build-time
 _facts/authoring/dynamic-text	packages/layout/src/box.js	207	    const name = el.attrs['data-slot'];	    // are still all compile-time.	    if (!name) {
@@ -489,7 +489,7 @@ _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	749	    if args.tint
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	289	    if args.tints:		        names = ir.get("themes") or ["root"]
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	337	            preview_mod.render(uib).save(args.preview)	        if args.preview:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)
 _facts/authoring/theming	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
-_facts/authoring/theming	packages/baker/ps2ui_bake/serve.py	827	    parser.add_argument("--theme", type=int, default=0, help="the theme row")	    parser.add_argument("--screen", metavar="NAME", help="the screen to open")	    parser.add_argument("--console", action="store_true",
+_facts/authoring/theming	packages/baker/ps2ui_bake/serve.py	842	    parser.add_argument("--theme", type=int, default=0, help="the theme row")	    parser.add_argument("--screen", metavar="NAME", help="the screen to open")	    parser.add_argument("--console", action="store_true",
 _facts/authoring/theming	packages/baker/ps2ui_bake/serve_page.html	123	    <label for="themeSel">Theme</label><select id="themeSel"></select>	    <label for="screenSel">Screen</label><select id="screenSel"></select>	    <label for="aspectSel">Aspect</label><select id="aspectSel"></select>
 _facts/authoring/theming	packages/baker/ps2ui_bake/serve_page.html	586	    fillSelect($('themeSel'), themes, themes.map((i) => 'theme ' + i), st.theme);	  if (!prev || prev.themes !== st.themes || prev.theme !== st.theme)	  $('themeSel').disabled = (st.themes || 1) < 2;
 _facts/authoring/theming	packages/baker/ps2ui_bake/uib.py	197	    def _vector(rgba, themes):		        """One tuple per theme, index 0 being this colour's own value.
@@ -561,7 +561,7 @@ _facts/authoring/video-modes	packages/baker/ps2ui_bake/quads.py	523	    def run_
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	67	ASPECTS = ("framebuffer", "authored", "force-4:3", "force-16:9")	OPS = {0: "quad", 1: "texquad", 2: "scissor_push", 3: "scissor_pop"}	
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	120	        self.aspect = "authored"	        self.theme = 0	        # Keyed per screen, for the same reason focus is: two screens
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	204	    def set_aspect(self, mode):		        if mode not in ASPECTS:
-_facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	298	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
+_facts/authoring/video-modes	packages/baker/ps2ui_bake/serve.py	313	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/serve_page.html	543	  /* Pixel aspect: how much wider a framebuffer pixel is drawn than it is	  for (const cmd of (st.commands || [])) counts[cmd.op] = (counts[cmd.op] || 0) + 1;	   * stored. The one number the old previewer never showed. */
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/vram.py	203	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
@@ -636,8 +636,8 @@ _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	203	    ir_suffix = ""	   
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	236	def _not_a_project(path):		    """Why this file is not a ps2ui.json, naming the blob case."""
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	270	    except UnicodeDecodeError:	            data = json.load(fh)	        # THE DOCSTRING ABOVE PROMISED THIS AND THE HANDLER DID NOT
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/ps2ui.py	486	    ap.add_argument("--version", action="version",	        description="Compile, bake and check a ps2ui project.")	                    version="ps2ui %s" % __version__)
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	397	        proj.set_out_override(os.path.join(proj.build_dir, "serve", "ui.uib"))	        self.proj = proj	        # The server renders its own frames; the build does not need to
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	956	def main(argv=None):		    ap = add_arguments(argparse.ArgumentParser(
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	412	        proj.set_out_override(os.path.join(proj.build_dir, "serve", "ui.uib"))	        self.proj = proj	        # The server renders its own frames; the build does not need to
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/serve.py	971	def main(argv=None):		    ap = add_arguments(argparse.ArgumentParser(
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	131	            drifted = _differ(_PACKAGED, _CHECKOUT)	        if packaged:	            if drifted:
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/vendor.py	198	    # disagreeing inside the toolchain exit 1, and two copies	    # It is also the asymmetry find_source() already refuses: two copies	    # disagreeing in somebody's project used to get "already there" and
 _facts/cli/ps2ui	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
@@ -960,8 +960,8 @@ _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	400	        the 
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/quads.py	575	                    raise ValueError(f"unknown IR command op: {op}")	                else:	            self.dropped += self._trim_dead_geometry(cmd_first, canvas)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/rounding.py	52	    if not 0 <= v255 <= 255:	    """	        raise ValueError(f"channel {v255} outside 0..255")
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/rounding.py	64	    """Inverse mapping, used only by the previewer."""	def gs_alpha_to_css(a128: int) -> int:	    if not 0 <= a128 <= 128:
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	790	        result = srv.rebuild()	        srv = Server(pipeline=BuildPipeline(proj))	        if srv.uib is None:
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	914	    except ProjectError as exc:	        srv = build_server(args)	        print("ps2ui serve: %s" % exc, file=sys.stderr)
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	805	        result = srv.rebuild()	        srv = Server(pipeline=BuildPipeline(proj))	        if srv.uib is None:
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/serve.py	929	    except ProjectError as exc:	        srv = build_server(args)	        print("ps2ui serve: %s" % exc, file=sys.stderr)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	209	        out = tuple(tuple(int(v) & 0xFF for v in c) for c in themes)	            return (base,) * n_theme	        if len(out) != n_theme:
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	262	            # n_tint is a u16, so 65535 entries is the ceiling and the	            i = len(tint_entries)	            # highest reachable index is 65534. A UI with more distinct
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/uib.py	489	def read_uib(path) -> UibFile:		    with open(path, "rb") as fh:
@@ -1409,9 +1409,9 @@ _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def re
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	171	    # The canvas rect, and it does NOT take the offset: it is the screen	    tex_cache = {}	    # edge, the same role stack[0] has in ps2ui_render. Content pushed
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES NOT DO. It replays the command list faithfully, so it		cannot catch the console diverging from that list. F-048 -- the GS
-_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	298	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
-_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	867	        ok += 1	        print("ok - an unknown route is 404", file=sys.stderr)	
-_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	884	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
+_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	313	def render_png(uib, state):		    """One frame, as PNG bytes, in the state's aspect mode."""
+_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	882	        ok += 1	        print("ok - an unknown route is 404", file=sys.stderr)	
+_facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	899	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
 _facts/runtime/moving-and-hiding	packages/layout/src/box.js	176	  if (style.display === 'none') return null;	  );	
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	866	/* THE OFFSET IS APPLIED HERE, AT THE SINK, AND NOT BY THE CALLERS.	 * defect would come back. */	 *
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	883	    x += ctx->off_x;	{	    y += ctx->off_y;
