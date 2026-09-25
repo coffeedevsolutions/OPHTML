@@ -575,6 +575,10 @@ def main(argv=None):
                          "named here is used or the command fails")
     sv.add_argument("--screen", metavar="NAME", help="the screen to open")
     sv.add_argument("--theme", type=int, default=0, help="the theme row")
+    sv.add_argument("--console", action="store_true",
+                    help="fill the theme with the OPHTML console's mock "
+                         "games, and drive its game-N list the way the "
+                         "console does")
     sv.add_argument("--no-watch", action="store_true",
                     help="do not rebuild on edits")
     sv.add_argument("--selftest", action="store_true",

@@ -38,6 +38,28 @@ without moving this line.
   cases C1–C8 in `console/README.md` are that evidence, and each is
   open.
 
+- **A console theme can be checked, previewed and navigated before it
+  reaches a console.** `ps2ui check` holds any blob with numbered
+  `game-N` rows or slots to the console's contract: an error for a row the console would
+  leave on its placeholder (a gap in `game-N`, rows on a screen it never
+  opens, a slot for a row that doesn't exist), a warning for a name it
+  never fills (`game-0-titel`, with "did you mean 'title'?"), a slot too
+  short for what it writes, or rows with no title; `ps2ui-check
+  --console` forces it on a blob with none. `sel-*` and `status` alone
+  do not opt a blob in, because other UIs use them for their own panels
+  (channel-6 has five sel-* slots); a blob with no numbered row gets
+  none of these results, so every other blob's count is unchanged. `ps2ui serve --console` fills a theme with the mock games
+  and walks its list the way the console does. And `hw.yml` now presses
+  buttons at the console in Play! — Down three times, R1, L1 — and
+  diffs each frame against the previewer replaying the same keys
+  (worst tile 14.4-15.1 correct, 62-72 for a selection or window one
+  step off). That build runs on the ROM's pad modules, because Play!
+  gives the SDK's `sio2man`+`freepad` no input after an IOP reset
+  (measured against the ROM pair, which it does answer); so it proves
+  the console's navigation, and `freepad` stays bench case C8. The
+  contract, the mock list and the list window now live in
+  `ps2ui_bake/console.py`, which the check, the server and CI's
+  reference frames all read.
 - **Hard caps on what an untrusted theme may ask the compilers for.** A
   theme is a file somebody else wrote, and the compilers accepted
   whatever it asked for. Four caps now, each measured before it was

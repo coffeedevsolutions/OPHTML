@@ -95,7 +95,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - uses: actions/setup-node@v7
@@ -213,7 +213,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: A plain pip install, and nothing else
@@ -270,7 +270,7 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: A plain pip install, and nothing else
@@ -393,7 +393,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Deps, the way CONTRIBUTING.md describes them

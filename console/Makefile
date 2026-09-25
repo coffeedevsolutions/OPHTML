@@ -40,6 +40,13 @@ ifdef MOCK
 EE_CFLAGS += -DCONSOLE_MOCK
 endif
 
+# `make MOCK=1 ROMPAD=1 EE_BIN=ophtml-nav.elf`: the MOCK build on the
+# ROM's pad driver, so the emulator can press buttons at it. Emulator
+# only -- storage.c says why, and what it gives up.
+ifdef ROMPAD
+EE_CFLAGS += -DCONSOLE_ROMPAD
+endif
+
 all: $(EE_BIN)
 
 ps2ui.c: ../runtime/ps2ui.c ../runtime/ps2ui.h

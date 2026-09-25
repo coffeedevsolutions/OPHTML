@@ -25,6 +25,11 @@ Unreleased; 0.9.0, below, is what installs.
   names (`game-{i}`, `sel-title`, `status`, ...) and starts the chosen
   one with Neutrino. It boots in the emulator; no console has run it
   yet. See `console/README.md`.
+- `ps2ui check` checks a console theme's names (gaps in the rows, rows
+  on the wrong screen, slots the console never fills, slots too short
+  for what it writes), and `ps2ui serve --console` fills a theme with
+  mock games and walks its list the way the console does. See
+  [ps2ui-check](page:cli/ps2ui-check#options).
 
 - Hard caps on what a theme may ask the compilers for: canvas
   dimensions, element count, nesting depth and source-image pixels.

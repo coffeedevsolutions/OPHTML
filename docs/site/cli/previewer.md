@@ -26,7 +26,7 @@ and the title-safe box are chrome drawn over the top.
 
 ```sh
 ps2ui serve [project] [--uib BLOB] [--port PORT] [--screen NAME]
-            [--theme THEME] [--no-watch] [--selftest]
+            [--theme THEME] [--console] [--no-watch] [--selftest]
 ```
 
 `serve` is a subcommand of [ps2ui](page:cli/ps2ui#serve). No `ps2ui-serve`
@@ -45,13 +45,14 @@ project file inside it. Paths print relative to that file, as they do for
 | `--port` | `PORT` | 8080, walking up to 8099 | bind this port once, and say which port is busy and fail |
 | `--screen` | `NAME` | the blob's first screen | open on this screen |
 | `--theme` | `THEME` | `0` | open on this theme row |
+| `--console` | none | off | fill the theme with the console's mock games; up and down walk its `game-N` list as `ophtml.elf` does |
 | `--no-watch` | none | off | serve the first build and never rebuild |
 | `--selftest` | none | off | fetch every route on an ephemeral port, assert the frame, exit |
 
 ```console
 $ ps2ui serve --help
 usage: ps2ui serve [-h] [--uib BLOB] [--port PORT] [--screen NAME]
-                   [--theme THEME] [--no-watch] [--selftest]
+                   [--theme THEME] [--console] [--no-watch] [--selftest]
                    [project]
 
 positional arguments:
@@ -64,6 +65,8 @@ options:
                  used or the command fails
   --screen NAME  the screen to open
   --theme THEME  the theme row
+  --console      fill the theme with the OPHTML console's mock games, and
+                 drive its game-N list the way the console does
   --no-watch     do not rebuild on edits
   --selftest     build, serve one of every route, and exit
 ```

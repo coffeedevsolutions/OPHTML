@@ -311,7 +311,7 @@ Build the project, then answer a localhost page that draws the baked frame.
 
 ```sh
 ps2ui serve [project] [--uib BLOB] [--port PORT] [--screen NAME]
-            [--theme N] [--no-watch] [--selftest]
+            [--theme N] [--console] [--no-watch] [--selftest]
 ```
 
 ### Options
@@ -322,6 +322,7 @@ ps2ui serve [project] [--uib BLOB] [--port PORT] [--screen NAME]
 | `--port` | `PORT` | 8080, walking up | Binds this port only. A busy explicit port is not retried. |
 | `--screen` | `NAME` | screen 0 | The screen the page opens on. |
 | `--theme` | `N` | 0 | The theme row the page opens on. |
+| `--console` | | off | Fills the theme with the console's mock games, and walks its `game-N` list the way the console does. |
 | `--no-watch` | | off | Builds once and serves, without rebuilding on edits. |
 | `--selftest` | | off | Requests one of every route, asserts the frame, and exits. |
 
