@@ -4,7 +4,7 @@ title: Text and fonts
 description: How fonts reach the toolchain, what glyphs exist, and how the shared pen measures, kerns, wraps and truncates a string.
 section: authoring
 order: 13
-version: 0.7.0
+version: 0.9.0
 sources: [packages/layout/src/text.js, packages/layout/src/index.js, packages/layout/src/values.js, packages/layout/src/css.js, packages/layout/src/flex.js, packages/layout/src/paint.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/rounding.py, packages/baker/ps2ui_bake/pen.py, packages/baker/ps2ui_bake/atlas.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, fonts/fonts.json, fonts/regen.sh, fonts/default.metrics.json]
 ---
 
@@ -62,7 +62,7 @@ ps2ui-bake build/library.json --fonts fonts/fonts.json -o build/ui.uib
 
 ## Reference table
 
-Fields of a metrics JSON, from `build_metrics` in [fontgen.py](repo:packages/baker/ps2ui_bake/fontgen.py#L79):
+Fields of a metrics JSON, from `build_metrics` in [fontgen.py](repo:packages/baker/ps2ui_bake/fontgen.py#L121):
 
 | field | type | meaning |
 |---|---|---|
@@ -270,11 +270,9 @@ Further limits:
 | Spaces only | No hyphenation, no CJK breaking, no soft hyphen. |
 | `~` in `metrics` | The baker expands it, the compiler does not. A manifest using `~` for a metrics path loads in `ps2ui-bake` and fails in `ps2ui-layout` with an `ENOENT` naming a literal `~` directory. |
 | Checked keywords | New in 0.7.0. `white-space` takes `normal` or `nowrap` and `text-overflow` takes `clip` or `ellipsis`; anything else is an error. `pre` and its relatives are named as real CSS this target does not implement. Before it, any other value behaved as the default. |
-| Raqm | `ps2ui-fontgen` refuses to write metrics from a Pillow without the Raqm layout engine, because kerning cannot be extracted. See [installation](page:getting-started/installation#limits-and-errors). |
 
 ## Related pages
 
 - [ps2ui-fontgen](page:cli/ps2ui-fontgen#synopsis) generates a metrics JSON and a `fonts.json`.
 - [CSS](page:authoring/css#reference-table) lists every text property, its values and its default.
 - [Dynamic text](page:authoring/dynamic-text#behaviour) covers slot text, which walks this pen at runtime.
-- [Installation](page:getting-started/installation#limits-and-errors) covers the Raqm requirement.

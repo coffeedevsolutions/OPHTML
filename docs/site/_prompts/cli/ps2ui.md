@@ -91,7 +91,7 @@ title: ps2ui
 description: <one sentence>
 section: cli
 order: 30
-version: 0.7.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

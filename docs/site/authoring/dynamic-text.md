@@ -4,7 +4,7 @@ title: Dynamic text
 description: Mark an element with data-slot so the console replaces its text at runtime, with geometry, font, colours and ellipsis fixed at compile time.
 section: authoring
 order: 15
-version: 0.7.0
+version: 0.9.0
 sources: [packages/layout/src/box.js, packages/layout/src/paint.js, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, packages/baker/tests/test_baker.py, runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/sample/main.c, examples/memcard/ui/library.html, examples/memcard/ui/saves.html, docs/tutorial-uc3.md]
 ---
 

@@ -82,7 +82,7 @@ title: Diagnostics
 description: <one sentence>
 section: reference
 order: 52
-version: 0.7.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

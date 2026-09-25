@@ -91,7 +91,7 @@ title: C API reference
 description: <one sentence>
 section: runtime
 order: 42
-version: 0.7.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

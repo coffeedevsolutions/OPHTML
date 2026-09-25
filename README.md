@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ophtml-logo-releaseVersion070-plain-white-darkbg.png"
+  <img src="docs/assets/ophtml-logo-releaseVersion090-plain-white-darkbg.png"
        alt="OPHTML" width="600">
 </p>
 
@@ -14,7 +14,7 @@ the console is a single `.uib` blob that a small C99 runtime replays through
 
 ```
 ui/*.html,css -> @ophtml/layout -> ui.json (IR) -> ps2ui-bake -> ui.uib -> runtime (C99 + gsKit)
-                 Node, zero deps                  Python, Pillow only
+                 Node, zero deps                  Python, Pillow + HarfBuzz
 ```
 
 Originally built for UIs shipped on an SD2PSX / PSxMemCard GEN2 virtual
@@ -88,28 +88,34 @@ Three ways in, depending on what you want:
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 **Both packages are published**, so `pip install ophtml` and
-`npm install -g @ophtml/layout` are the way in. Those give you `0.7.0`,
-tagged `v0.7.0`, including `ps2ui vendor-runtime`, which writes
-`ps2ui.c` and `ps2ui.h` out of the installed package — so the console
-half needs no clone, and the runtime you compile is the one matching the
-baker that wrote your blob, and `ps2ui_offset_set`, the first call that
-changes *where* the runtime draws rather than what. This tree has since
-moved on to `0.8.0.dev0` (`0.8.0-dev.0` on npm), a prerelease that is on
-neither registry and is not meant to be. The two still understand each
-other, because the blobs baked here are format **v7** and zero moves of
-the `.uib` format have landed since 0.7.0: that is the stability
-pledge, made at v7 and enforced by `tools/check-format-frozen.py`
-rather than announced, so a blob this tree writes loads under a 0.7.0
-runtime and the other way round. Every CLI answers `--version`. What is
-left of Phase 4's exit gate in [docs/PLAN.md](docs/PLAN.md) is the half
-that always needed a console; [docs/releasing.md](docs/releasing.md) is
-the procedure, and `tools/check-versions.py` keeps this paragraph
-honest.
+`npm install -g @ophtml/layout` are the way in. Those give you `0.9.0`,
+tagged `v0.9.0` — the first release a stock Mac or Windows box can run
+from end to end: `ps2ui fontgen` measures kerning with HarfBuzz through
+`uharfbuzz`, which pip installs with the package, where 0.8.0 asked
+Pillow's Raqm engine and refused without a fribidi no wheel ships. It
+includes `ps2ui vendor-runtime`, which writes `ps2ui.c` and `ps2ui.h`
+out of the installed package, so the console half needs no clone, and
+`ps2ui_offset_set`, the first call that changes *where* the runtime
+draws rather than what. CI runs `ps2ui fontgen` on stock macOS and
+Windows runners for every pull request. This tree has since moved on to
+`0.10.0.dev0` (`0.10.0-dev.0` on npm), a prerelease that is on neither
+registry and is not meant to be. The two still understand each other,
+because the blobs baked here are format **v7** and
+zero moves of the `.uib` format have landed since 0.9.0: that is
+the stability pledge, made at v7 and enforced by
+`tools/check-format-frozen.py` rather than announced, so a blob this
+tree writes loads under a 0.9.0 runtime and the other way round. Every
+CLI answers `--version`. What is left of Phase 4's exit gate in
+[docs/PLAN.md](docs/PLAN.md) is the half that always needed a console;
+[docs/releasing.md](docs/releasing.md) is the procedure, and
+`tools/check-versions.py` keeps this paragraph honest.
 
 Requirements:
 
 - Node 18+
-- Python 3 with Pillow
+- Python 3.9+ with Pillow and uharfbuzz; `pip install ophtml` brings both,
+  on macOS, Windows and Linux alike. 0.8.0 and earlier also needed fribidi
+  on macOS or Windows; upgrade rather than install it
 - A C compiler for the host tests
 - DejaVu Sans, or point `fonts/fonts.json` at your own TTF
 
@@ -579,7 +585,7 @@ It prints one line per elapsed second on stdout: measured frame rate, missed vsy
 | path | what |
 |------|------|
 | `packages/layout` | HTML/CSS to `ui.json`. Node, zero dependencies. |
-| `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow only. |
+| `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow and uharfbuzz. |
 | `runtime`         | `.uib` loader, gsKit replay, D-pad nav. C99, no allocation. |
 | `fonts`           | metrics JSON (the layout/baker seam) and `ps2ui-fontgen`. |
 | `docs`            | everything below, see [Documentation](#documentation). |
@@ -774,7 +780,7 @@ sequencing is [docs/PLAN.md](docs/PLAN.md) §6.
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame
 - [ ] `position: absolute` for overlays and dialogs
 - [ ] Localization workflow (per-locale builds)
-- [ ] npm / PyPI releases
+- [x] npm / PyPI releases (`ophtml` and `@ophtml/layout`, since 0.3.0)
 - [x] A draw-time offset for sliding, scrolling and parallax, `ps2ui_offset_set` (no format change)
 - [x] CLUT-swap theming and a tint table `ps2ui_theme_set` selects (`.uib` v7)
 - [x] Streamed textures the app fills on the console, `ps2ui_tex_set` (`.uib` v6)

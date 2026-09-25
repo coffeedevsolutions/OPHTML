@@ -58,16 +58,14 @@ jobs:
   # spelling of "Intel" is the easy mistake here, and it is a paid
   # one.
   #
-  # WHAT EACH NEW ARM IS FOR, because "more platforms" is not a
-  # reason. Intel settles a claim this repository has hedged for a
-  # cycle: `_raqm_remedy()` leads with "the missing piece is probably
-  # fribidi alone", and BOTH macOS wheels name `/usr/local/lib/
-  # libfribidi.dylib` -- the INTEL Homebrew prefix -- as their only
-  # absolute dlopen candidate. So `brew install fribidi` is more
-  # likely to be sufficient on Intel than on the arm64 runner the
-  # hedge was written against, and this arm is where that stops being
-  # an inference. Windows settles whether the authoring half runs
-  # there at all, which nothing has ever asked.
+  # WHAT THE ARMS SETTLED. Intel and Apple silicon split on 0.8.0's
+  # fribidi remedy -- `brew install fribidi` alone was enough on Intel
+  # and not on arm64 (run 35809073289) -- and Windows refused until an
+  # MSYS2 DLL was on PATH. 0.9.0 (F47) measures through uharfbuzz and
+  # needs none of it, and run 35817721457 passed all four arms with
+  # nothing but pip and npm. The arms stay because each platform's
+  # wheels are separate binaries, and this is where a stranger's
+  # install of each is proved.
   #
   # A RED WINDOWS ARM ON THE FIRST DISPATCH IS THE POINT, NOT A
   # REGRESSION. This workflow is schedule/release/dispatch only and
@@ -176,92 +174,6 @@ jobs:
                       face, cand, "EXISTS" if os.path.exists(full) else "-"))
           PY
 
-      # THE DOCUMENTED macOS REMEDY, RUN AS DOCUMENTED.
-      #
-      # pip's macOS Pillow wheel ships no Raqm, so ps2ui-fontgen refuses
-      # and the tutorial stops at its first command. fontgen prints this
-      # remedy; running it here is what keeps the printed remedy true.
-      # If Pillow, Homebrew or libraqm move under it, this goes red and
-      # the message in fontgen.py is wrong -- which is the only way we
-      # would find out, since every other runner in this repository is
-      # Linux and never takes that branch.
-      #
-      # --no-binary pillow, NOT :all:. The bare form source-builds the
-      # whole dependency graph, CMake included.
-      - name: macOS only, the remedy fontgen prints
-        if: runner.os == 'macOS'
-        run: |
-          brew install libraqm
-          export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:$(brew --prefix libraqm)/lib/pkgconfig"
-          python3 -m pip install --no-binary pillow --force-reinstall pillow
-          # A CLEAN BUILD IS NOT PROOF: Pillow builds and exits 0
-          # without libraqm and simply omits the feature.
-          python3 -c "from PIL import features; assert features.check('raqm'), 'Pillow built without Raqm'"
-          # WHICH INTERPRETER THIS LANDED IN, PRINTED RATHER THAN
-          # ASSUMED. Run 1 rebuilt Pillow here and then `pip install
-          # ophtml` reported it "already satisfied" from
-          # /Library/Frameworks/Python.framework/..., which is not this
-          # step's own pythonLocation, while check-tutorial resolved the
-          # console scripts under hostedtoolcache.
-          #
-          # RUN 2 ANSWERED IT: one interpreter under two names. `python3`
-          # here is the framework Python and NOT the hostedtoolcache one
-          # despite pythonLocation naming it, and PATH still resolves
-          # ps2ui-fontgen under hostedtoolcache/.../bin. The shebang says
-          # one name, PATH says the other, nothing is wrong. Kept because
-          # the day that stops being true is the day this line earns its
-          # place -- see the consumer half in the install step.
-          #
-          # THIS IS A DIAGNOSTIC, NOT A FENCE. The fence is block 1,
-          # which cannot pass without Raqm in whichever interpreter runs
-          # fontgen. If these ever do diverge, the tutorial goes red on
-          # its first command and these two lines are what turn a
-          # confusing failure into a one-glance one.
-          python3 -c "import sys, PIL; print('interpreter:', sys.executable); print('PIL:', PIL.__file__)"
-
-      # WINDOWS ONLY, AND THE FIRST TIME THIS ADVICE HAS BEEN RUN
-      # ANYWHERE. `_raqm_remedy()`'s win32 branch was written off the
-      # wheel: `_imagingft.cp311-win_amd64.pyd` carries `HAVE_RAQM`,
-      # ships no libraqm, and names `fribidi-0` / `libfribidi-0` /
-      # `fribidi` as run-time lookups. That is the same shape as the
-      # macOS and manylinux binaries, so the same remedy should apply
-      # -- SHOULD, from structure, with no Windows box behind it. This
-      # step is where that becomes a measurement.
-      #
-      # MSYS2 rather than conda, of the two routes the message names,
-      # because the runner image already carries it and this job is
-      # about what a person can reach rather than what we can install.
-      # The message names both; a red here means the branch is wrong
-      # and the message needs rewriting, which is the good outcome of
-      # a job like this one.
-      #
-      # GITHUB_PATH, not export: the DLL has to be on PATH for the
-      # STEPS BELOW, which is where fontgen actually runs. The inline
-      # PATH on the check is the same directory, so the diagnostic and
-      # the later steps are asking about one file.
-      - name: Windows only, the remedy fontgen prints
-        if: runner.os == 'Windows'
-        run: |
-          C:/msys64/usr/bin/pacman -S --noconfirm --needed mingw-w64-x86_64-fribidi
-          echo "C:/msys64/mingw64/bin" >> "$GITHUB_PATH"
-          ls -l C:/msys64/mingw64/bin/*fribidi* || true
-          # A SUCCESSFUL INSTALL IS NOT PROOF, the same rule the macOS
-          # branch above is built on: the question is whether Pillow
-          # reports the FEATURE, not whether pacman exited 0.
-          #
-          # ASKED IN THE STEP BELOW RATHER THAN HERE, and the first
-          # version of this job got that wrong and went red on it:
-          # `ModuleNotFoundError: No module named 'PIL'`. The macOS
-          # branch above can measure in place because its remedy
-          # INSTALLS Pillow on the way past; this one only lays down a
-          # DLL, and Pillow does not arrive until `pip install ophtml`
-          # in the next step. So the reading lives with the consumer,
-          # where the interpreter that will actually run fontgen is
-          # the one being asked.
-          #
-          # The fence either way is block 1 of the tutorial, which
-          # cannot pass without Raqm.
-
       # No version pin, on purpose. The question this job asks is what
       # a person gets today, not what we last tested.
       - name: Install what a stranger installs
@@ -270,63 +182,30 @@ jobs:
           npm install -g @ophtml/layout
           ps2ui --version
           ps2ui-layout --version
-          # THE CONSUMER SIDE OF THE ANOMALY THE REMEDY STEP PRINTS.
-          #
-          # That step reports the interpreter that REBUILT Pillow. The
-          # mismatch run 1 recorded is between that one and the
-          # interpreter behind the console scripts, and it is the second
-          # whose Pillow decides whether block 1 passes. Printing only
-          # the first shows one side of a two-sided comparison, so here
-          # is the other -- added in review, before it ever ran, because
-          # the first version would have answered the wrong half.
-          #
-          # Run 2 printed both and they agreed: same interpreter, its
-          # raqm True. That is the answer for now, not for good, which
-          # is why both halves stay.
-          #
-          # `|| true` on purpose: still a diagnostic, still not a fence.
-          # The fence is block 1.
-          #
-          # SKIPPED ON WINDOWS, because there is no shebang to read: pip
-          # lays console scripts down as `.exe` launchers there, so
-          # `head -1` would print the first line of a binary and `sed`
-          # would hand the `if` a nonsense path. The QUESTION still has
-          # an answer on Windows -- which interpreter is behind
-          # ps2ui-fontgen -- and the `-m ps2ui_bake.fontgen` line below
-          # is that answer, asked of the module rather than the shim.
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            python -c "import sys, PIL; from PIL import features; print('interpreter:', sys.executable); print('  its PIL: ', PIL.__file__); print('  its raqm:', features.check('raqm'), 'fribidi:', features.check('fribidi'))" || true
-          else
-            fontgen_bin="$(command -v ps2ui-fontgen)"
-            echo "ps2ui-fontgen shebang: $(head -1 "$fontgen_bin")"
-            its_python="$(head -1 "$fontgen_bin" | sed 's|^#!||')"
-            if [ -x "$its_python" ]; then
-              "$its_python" -c "import PIL; from PIL import features; print('  its PIL: ', PIL.__file__); print('  its raqm:', features.check('raqm'))" || true
-            fi
-          fi
+          # WHAT WAS INSTALLED, PRINTED, because the index a runner is
+          # served can lag a publish: run 35817387412 started minutes
+          # after 0.9.0 went up and two of its jobs were handed 0.8.0.
+          # The version lines above say which release this run tested.
+          python -c "import PIL, uharfbuzz; print('Pillow', PIL.__version__, 'uharfbuzz', uharfbuzz.__version__)"
 
       - name: The tutorial, against the installed commands
         run: python tools/check-tutorial.py --from-registry
 
-  # THE OTHER DIRECTION: IS THE DOCUMENTED FAILURE STILL THE FAILURE?
+  # A PLAIN PIP INSTALL, AND NOTHING ELSE, ON EACH MAC.
   #
-  # fontgen.py and docs/tutorial-uc3.md both tell a macOS reader that a
-  # plain `pip install ophtml` cannot generate metrics. That is a claim
-  # about somebody else's build, and the day Pillow ships a macOS wheel
-  # with Raqm in it, the claim becomes false and two documents start
-  # sending people to fix a problem they do not have.
+  # Through 0.8.0 this job asserted the opposite: that a plain install
+  # on macOS could not generate metrics, because Pillow's Raqm engine
+  # needed a fribidi the runner does not have. 0.9.0 (F47) measures
+  # through uharfbuzz, and this job now holds the published package to
+  # what ci.yml's stock-machines job holds the tree to: the committed
+  # tables, from the vendored faces, with nothing else installed.
+  # Run 35817721457 was the first to pass it, on both architectures.
   #
-  # So the absence is asserted rather than assumed. A red here is good
-  # news that needs a documentation change, and the message says so.
-  #
-  # AND IT NOW RUNS ON BOTH ARCHITECTURES, which is the correction the
-  # step below has been asking for in prose since it was written. It
-  # said "a reading from one runner generalised to a platform, the
-  # same defect as in the documents it guards" -- and then kept doing
-  # it, because there was one arm. Two arms is the fix; the paragraph
-  # was the placeholder.
+  # Both architectures, because their wheels are separate binaries --
+  # Pillow's and uharfbuzz's alike -- and a stranger has one or the
+  # other.
   macos-plain:
-    name: the documented macOS failure is still the failure (${{ matrix.os }})
+    name: a plain pip install on macOS, and nothing else (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -339,90 +218,52 @@ jobs:
           python-version: "3.11"
       - name: A plain pip install, and nothing else
         run: python3 -m pip install ophtml
-      - name: Raqm is absent on this runner's arch, and fontgen refuses
+      # A RELEASE FROM BEFORE F47 IS A STALE INDEX, NOT A RESULT. Run
+      # 35817387412 began minutes after 0.9.0 was published and pip was
+      # served 0.8.0 on both Macs; the old refusal then passed, which
+      # measured nothing about 0.9.0. Every release since measures
+      # through uharfbuzz, so a module still carrying `_raqm_remedy` is
+      # the index lagging, and the job says so rather than failing
+      # later in fontgen with a message that blames the machine.
+      - name: The installed release measures through uharfbuzz
         run: |
-          # SAY WHAT THIS MEASURED, AND DO NOT GENERALISE IT. Each arm
-          # tests one machine, and `platform.machine()` is printed
-          # below so the log says which -- the failure mode this
-          # guards against is a reading from one runner generalised to
-          # a platform, the same defect as in the documents it guards.
-          #
-          # THE TWO ARMS ARE NOT REDUNDANT, and the reason is specific:
-          # both macOS wheels name `/usr/local/lib/libfribidi.dylib`
-          # as their only ABSOLUTE dlopen candidate, which is the
-          # INTEL Homebrew prefix. On Apple silicon that path misses
-          # and resolution falls through to the bare name; on Intel it
-          # is a direct hit. So the two arms can legitimately disagree
-          # about whether a developer Mac has fribidi, and a single
-          # arm cannot tell which side it measured.
-          #
-          # And the thing that varies is not the wheel. Both macOS
-          # wheels compile Raqm in and neither bundles fribidi, which
-          # Pillow dlopens from the system; this runner has no fribidi
-          # and a developer Mac usually does. So fribidi is reported
-          # beside raqm -- if this job ever flips, that line says which
-          # of the two changed.
-          python3 -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
-          if python3 -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; then
-            echo "::error::a plain pip install on ${{ matrix.os }} ($(python3 -c 'import platform; print(platform.machine())')) now HAS Raqm."
-            echo "That is good news and it makes two documents wrong:"
-            echo "  packages/baker/ps2ui_bake/fontgen.py  _raqm_remedy()"
-            echo "  docs/tutorial-uc3.md                  the macOS blockquote in section 1"
-            echo "Both tell a Mac reader to install fribidi or rebuild Pillow."
-            echo "Check the OTHER arm before editing either: if only one flipped,"
-            echo "the cause is the runner image's fribidi and not the wheel."
-            exit 1
-          fi
-          echo "ok - no Raqm on ${{ matrix.os }}, as documented"
-          # And the refusal is the refusal: exit 2, nothing written.
-          set +e
-          out=$(ps2ui fontgen /System/Library/Fonts/Helvetica.ttc /System/Library/Fonts/Helvetica.ttc 2>&1)
-          rc=$?
-          set -e
-          echo "$out"
-          [ "$rc" -ne 0 ] || { echo "::error::fontgen succeeded without Raqm"; exit 1; }
-          case "$out" in
-            *"no Raqm layout engine"*) echo "ok - refused, naming Raqm" ;;
-            *) echo "::error::refused for some other reason"; exit 1 ;;
-          esac
-          # AND NOT THE WORDING OF THE REMEDY, DELIBERATELY.
-          #
-          # The first draft of this job asserted the message contains
-          # `brew install libraqm`. That string lands in 0.4.0 and this
-          # job installs whatever is PUBLISHED, which is 0.3.0 and says
-          # something else -- so the assertion would have failed from
-          # the day it merged, on a schedule, for a reason that is not
-          # a defect.
-          #
-          # It is the division of labour this whole file is about, and
-          # it caught its own author. The remedy's WORDING is a fact
-          # about the tree and is fenced in the tree, by
-          # TestFontgenRefusesWithoutRaqm in packages/baker/tests. Its
-          # PREMISE -- that a plain pip install on macOS has no Raqm --
-          # is a fact about somebody else's build and can only be
-          # checked here. Each claim is asserted where it can be true.
+          ps2ui --version
+          python3 -c "import sys, ps2ui_bake.fontgen as f; sys.exit('pip installed a release from before F47 (it still carries _raqm_remedy): the index this runner was served lags the latest publish. Re-run later.' if hasattr(f, '_raqm_remedy') else 0)"
+          python3 -c "import PIL, platform, sys, uharfbuzz; from PIL import features; print('measured: Pillow %s, uharfbuzz %s, %s/%s, raqm=%s' % (PIL.__version__, uharfbuzz.__version__, sys.platform, platform.machine(), features.check('raqm')))"
+      # The committed tables from the vendored faces, byte for byte in
+      # every field a build reads: the claim ci.yml's stock-machines
+      # job makes about the tree, made here about what a stranger
+      # actually downloads.
+      - name: A plain pip install runs fontgen, and gets the committed tables
+        shell: bash
+        run: |
+          work="$RUNNER_TEMP/stranger"
+          mkdir -p "$work" && cd "$work"
+          ps2ui fontgen "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans.ttf" \
+                        "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans-Bold.ttf"
+          python3 - "$GITHUB_WORKSPACE/fonts" <<'PY'
+          import json, os, sys
+          for name in ("default.metrics.json", "default-bold.metrics.json"):
+              got = json.load(open(os.path.join("fonts", name), encoding="utf-8"))
+              want = json.load(open(os.path.join(sys.argv[1], name), encoding="utf-8"))
+              for key in ("advances", "kerning", "ascent", "descent", "missing"):
+                  assert got[key] == want[key], "%s: %s differs from the committed table" % (name, key)
+              print("ok - %s on ${{ matrix.os }}: %d glyphs, %d kern pairs, as committed"
+                    % (name, len(got["advances"]), len(got["kerning"])))
+          PY
 
-  # THE SAME QUESTION, ASKED OF WINDOWS FOR THE FIRST TIME.
+  # THE SAME, ON WINDOWS.
   #
-  # `_raqm_remedy()` has a win32 branch as of 0.8.0 and it was written
-  # off the wheel rather than off a machine: the Windows
-  # `_imagingft` carries `HAVE_RAQM`, ships no libraqm, and names
-  # `fribidi-0` / `libfribidi-0` / `fribidi` as run-time lookups. From
-  # that, a plain `pip install ophtml` on a box with no fribidi DLL
-  # should refuse exactly as macOS does.
-  #
-  # SHOULD. Nobody has run it. This job is the difference between a
-  # documented failure and an assumed one, and it is deliberately the
-  # weaker of the two Windows arms: the tutorial arm needs a chain of
-  # things to work, while this one needs a single refusal, so if both
-  # go red this one says which half is broken.
-  #
-  # A RED HERE MEANS ONE OF TWO THINGS and the message says both,
-  # because they need opposite fixes: either Windows Pillow now finds
-  # fribidi (documentation is wrong, good news), or the refusal comes
-  # out differently on this platform (the win32 branch is wrong).
+  # Through 0.8.0 this job asserted that a stock windows-2025 refused:
+  # Pillow's Windows wheel compiles Raqm in and loads fribidi by name at
+  # run time, and run 35809073289 measured the refusal. 0.9.0 needs no
+  # DLL, and run 35817721457 produced the committed tables here with
+  # nothing else installed. It stays the weaker of the two Windows arms
+  # on purpose: the tutorial arm needs a chain of things to work, this
+  # one needs a single command, so if both go red this one says which
+  # half is broken.
   windows-plain:
-    name: the Windows failure nobody has measured
+    name: a plain pip install on Windows, and nothing else
     runs-on: windows-2025
     defaults:
       run:
@@ -434,43 +275,36 @@ jobs:
           python-version: "3.11"
       - name: A plain pip install, and nothing else
         run: python -m pip install ophtml
-      - name: What this machine actually reports
+      # A RELEASE FROM BEFORE F47 IS A STALE INDEX, NOT A RESULT. Run
+      # 35817387412 began minutes after 0.9.0 was published and pip was
+      # served 0.8.0 on both Macs; the old refusal then passed, which
+      # measured nothing about 0.9.0. Every release since measures
+      # through uharfbuzz, so a module still carrying `_raqm_remedy` is
+      # the index lagging, and the job says so rather than failing
+      # later in fontgen with a message that blames the machine.
+      - name: The installed release measures through uharfbuzz
         run: |
-          # PRINTED BEFORE ANYTHING IS ASSERTED, because this is the
-          # first run and the reading is the deliverable even if the
-          # assertion below turns out to be the wrong one to make.
-          python -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
-      - name: Raqm is absent on a stock Windows box, and fontgen refuses
+          ps2ui --version
+          python -c "import sys, ps2ui_bake.fontgen as f; sys.exit('pip installed a release from before F47 (it still carries _raqm_remedy): the index this runner was served lags the latest publish. Re-run later.' if hasattr(f, '_raqm_remedy') else 0)"
+          python -c "import PIL, platform, sys, uharfbuzz; from PIL import features; print('measured: Pillow %s, uharfbuzz %s, %s/%s, raqm=%s' % (PIL.__version__, uharfbuzz.__version__, sys.platform, platform.machine(), features.check('raqm')))"
+      # The committed tables, as on the Macs above.
+      - name: A plain pip install runs fontgen, and gets the committed tables
+        shell: bash
         run: |
-          if python -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; then
-            echo "::error::a plain pip install on windows-2025 HAS Raqm."
-            echo "Nothing in this repository predicted that. It makes two things wrong:"
-            echo "  packages/baker/ps2ui_bake/fontgen.py  _raqm_remedy()'s win32 branch"
-            echo "  docs/site/reference/compatibility.md  the Windows row"
-            echo "Both say a Windows reader has to supply fribidi themselves."
-            exit 1
-          fi
-          echo "ok - no Raqm on a stock windows-2025, as the win32 branch assumes"
-          # The refusal is the refusal, and it has to name Raqm rather
-          # than fail for some unrelated Windows reason -- a traceback
-          # out of a path or an encoding would satisfy a bare `rc != 0`
-          # and tell the reader nothing.
-          set +e
-          out=$(ps2ui fontgen fonts/vendor/DejaVuSans.ttf fonts/vendor/DejaVuSans-Bold.ttf 2>&1)
-          rc=$?
-          set -e
-          echo "$out"
-          [ "$rc" -ne 0 ] || { echo "::error::fontgen succeeded without Raqm"; exit 1; }
-          case "$out" in
-            *"no Raqm layout engine"*) echo "ok - refused, naming Raqm" ;;
-            *) echo "::error::refused for some other reason"; exit 1 ;;
-          esac
-          # AND NOT THE WORDING, for the reason the macOS job above
-          # records at length: this installs what is PUBLISHED, the
-          # win32 branch ships in 0.8.0, and asserting 0.8.0's wording
-          # against a 0.7.0 install would go red on merge for a reason
-          # that is not a defect. The wording is fenced in the tree by
-          # test_windows_is_told_to_supply_the_dll_and_not_to_rebuild.
+          work="$RUNNER_TEMP/stranger"
+          mkdir -p "$work" && cd "$work"
+          ps2ui fontgen "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans.ttf" \
+                        "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans-Bold.ttf"
+          python - "$GITHUB_WORKSPACE/fonts" <<'PY'
+          import json, os, sys
+          for name in ("default.metrics.json", "default-bold.metrics.json"):
+              got = json.load(open(os.path.join("fonts", name), encoding="utf-8"))
+              want = json.load(open(os.path.join(sys.argv[1], name), encoding="utf-8"))
+              for key in ("advances", "kerning", "ascent", "descent", "missing"):
+                  assert got[key] == want[key], "%s: %s differs from the committed table" % (name, key)
+              print("ok - %s on windows-2025: %d glyphs, %d kern pairs, as committed"
+                    % (name, len(got["advances"]), len(got["kerning"])))
+          PY
 
   # THE CONTRIBUTOR SUITE, ON THE PLATFORM THAT NEVER RAN IT.
   #
@@ -529,7 +363,7 @@ jobs:
   # AND A THIRD, WHICH ONLY THIS JOB COULD FIND: the other two failures
   # were PS2UI_REQUIRE_FONTS turning "no Raqm" into an error, on a
   # runner where CONTRIBUTING's `pip install Pillow` is all that ran.
-  # macos-plain above already knew why -- Raqm is compiled into the
+  # macos-plain (through 0.8.0) already knew why -- Raqm is compiled into the
   # wheel and fribidi is not, and this image has no fribidi -- so the
   # gap was in the instructions, which said nothing about it to a Mac
   # reader. The step below is that missing instruction, and it now sits
@@ -539,15 +373,14 @@ jobs:
   # macos-plain already sits, which is this repository's existing
   # answer to what a macOS runner costs.
   #
-  # BOTH ARCHITECTURES, for one concrete reason rather than symmetry.
-  # The `...including the piece only a Mac needs` step below branches
-  # on whether `brew install fribidi` ALONE flips the feature, and
-  # logs which branch it took because `_raqm_remedy()` says "probably"
-  # there. The two arms are the two sides of that probably: the wheels
-  # name `/usr/local/lib/libfribidi.dylib` -- Intel's Homebrew prefix
-  # -- as their only absolute candidate, so Intel is where the cheap
-  # path is most likely to hold and arm64 is where it is most likely
-  # to need the rebuild. One arm could only ever have answered half.
+  # BOTH ARCHITECTURES. They were added to settle whether `brew install
+  # fribidi` alone enabled Raqm on each, and run 35809073289 split
+  # them: on macos-15-intel it was enough; on macos-15 (arm64) it was
+  # not, and only the source rebuild of Pillow got there -- the worst
+  # of the documented routes, on the most common Mac. F47 made the
+  # question moot. The arms stay because Pillow, uharfbuzz and clang
+  # all ship per-architecture binaries, and a contributor on either
+  # kind of Mac runs these instructions.
   macos-contributor-suite:
     name: the contributor instructions, on macOS (${{ matrix.os }})
     strategy:
@@ -564,33 +397,16 @@ jobs:
         with:
           python-version: "3.11"
       - name: Deps, the way CONTRIBUTING.md describes them
-        run: python3 -m pip install Pillow
+        run: python3 -m pip install Pillow uharfbuzz
 
-      # THE macOS HALF OF THAT SAME SECTION, AND THE FIRST TIME ANYONE
-      # HAS RUN IT. fontgen's _raqm_remedy() leads with "the missing
-      # piece is probably fribidi alone", and says "probably" because
-      # it was inferred from two opened wheels with no Mac to try it
-      # on. This runs it on a Mac. Whichever branch it takes, the log
-      # says which -- an inference that is never executed stays an
-      # inference no matter how many documents repeat it.
-      - name: ...including the piece only a Mac needs
-        run: |
-          brew install fribidi
-          raqm() { python3 -c "from PIL import features; raise SystemExit(0 if features.check('raqm') else 1)"; }
-          if raqm; then
-            echo "ok - fribidi alone was enough. fontgen.py's \"probably\" is now measured, on $(uname -m)."
-          else
-            echo "::warning::fribidi alone did NOT enable Raqm on this runner."
-            echo "That is the advice _raqm_remedy() leads with, so it needs revisiting."
-            brew install libraqm
-            export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:$(brew --prefix libraqm)/lib/pkgconfig"
-            python3 -m pip install --no-binary pillow --force-reinstall pillow
-            raqm || { echo "::error::no Raqm even after the rebuild"; exit 1; }
-            echo "ok - needed the rebuild, not fribidi"
-          fi
-          # A SUCCESSFUL INSTALL IS NOT PROOF, which is why every check
-          # above asks features.check and not pip's exit status.
-          python3 -c "import PIL, platform, sys; from PIL import features; print('measured: Pillow %s, %s/%s, raqm=%s, fribidi=%s' % (PIL.__version__, sys.platform, platform.machine(), features.check('raqm'), features.check('fribidi')))"
+      # NO macOS-ONLY STEP ANY MORE. There was one here, `brew install
+      # fribidi`, with a source rebuild of Pillow behind it, because
+      # fontgen measured through Pillow's Raqm engine and a Mac has no
+      # fribidi. F47 moved the measurement to uharfbuzz, whose wheels
+      # carry HarfBuzz whole, so CONTRIBUTING's install line above is
+      # the whole of the setup on every platform. With
+      # PS2UI_REQUIRE_FONTS=1 below, a font test that skipped would be
+      # a failure, so the baker suite's green is the proof.
       # NO FONT INSTALL, and that is a measured decision rather than an
       # omission. fonts/fonts.json ends both candidate lists with
       # `vendor/DejaVuSans[-Bold].ttf`, load_font_manifest resolves a

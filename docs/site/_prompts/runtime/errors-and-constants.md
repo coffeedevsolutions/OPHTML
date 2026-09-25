@@ -88,7 +88,7 @@ title: Errors and constants
 description: <one sentence>
 section: runtime
 order: 43
-version: 0.7.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -15,6 +15,78 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # THE TUTORIAL'S FIRST COMMAND, ON THE MACHINES IT USED TO REFUSE ON.
+  #
+  # `ps2ui fontgen` measured through Pillow's Raqm engine, which loads
+  # fribidi from the machine, and no stock Mac or Windows box has it:
+  # registry.yml's `-plain` jobs asserted that refusal against every
+  # release up to 0.8.0. F47 moved the measurement to uharfbuzz, whose
+  # wheels carry HarfBuzz whole. This is where that claim is checked on
+  # every pull request, rather than once a week against whatever was
+  # last published -- the only jobs here that run a Mac or Windows
+  # against the TREE.
+  #
+  # NOTHING BUT THE PACKAGE IS INSTALLED, deliberately: no brew, no
+  # MSYS2, no font. The faces are the vendored ones, so the output has
+  # a known right answer -- the committed tables, byte for byte in
+  # every field a build reads -- and a green here means a stranger's
+  # machine gets exactly the numbers the tutorial prints.
+  #
+  # PYTHON 3.9 ON WINDOWS on purpose: it is the oldest this package
+  # supports, and pip resolves it to uharfbuzz 0.51.7, the floor in
+  # pyproject.toml, so the floor is exercised rather than asserted.
+  #
+  # ABOVE `toolchain` in this file, and not only for reading order:
+  # check-versions.py requires its unflagged run to be the LAST `run:`
+  # step in the workflow.
+  stock-machines:
+    name: ps2ui fontgen on a stock ${{ matrix.os }} (Python ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            python: "3.13"
+          - os: macos-15-intel
+            python: "3.11"
+          - os: windows-2025
+            python: "3.9"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: This tree's baker, installed the way a release installs
+        run: python -m pip install ./packages/baker
+      # PRINTED, NOT ASSERTED. Whether this image happens to have
+      # fribidi is a fact about the image; the job's claim is that the
+      # answer no longer matters, so it is logged for the next reader
+      # and nothing depends on it.
+      - name: What this machine has
+        run: |
+          python -c "import PIL, platform, sys, uharfbuzz; from PIL import features; print('measured: Python %s, Pillow %s, uharfbuzz %s, %s/%s, raqm=%s' % (platform.python_version(), PIL.__version__, uharfbuzz.__version__, sys.platform, platform.machine(), features.check('raqm')))"
+      - name: The committed tables, from nothing but the package
+        run: |
+          work="$RUNNER_TEMP/stranger"
+          mkdir -p "$work" && cd "$work"
+          ps2ui fontgen "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans.ttf" \
+                        "$GITHUB_WORKSPACE/fonts/vendor/DejaVuSans-Bold.ttf"
+          python - "$GITHUB_WORKSPACE/fonts" <<'PY'
+          import json, os, sys
+          committed = sys.argv[1]
+          for name in ("default.metrics.json", "default-bold.metrics.json"):
+              got = json.load(open(os.path.join("fonts", name), encoding="utf-8"))
+              want = json.load(open(os.path.join(committed, name), encoding="utf-8"))
+              for key in ("advances", "kerning", "ascent", "descent", "missing"):
+                  assert got[key] == want[key], "%s: %s differs from the committed table" % (name, key)
+              print("ok - %s: %d glyphs, %d kern pairs, identical to the committed table"
+                    % (name, len(got["advances"]), len(got["kerning"])))
+          PY
+
   toolchain:
     # Same pin as hw.yml, same reason in miniature: the suites' toolchains
     # (node, python) are version-pinned by actions, but the image's
@@ -62,7 +134,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fonts-dejavu-core
-          python3 -m pip install Pillow
+          python3 -m pip install Pillow uharfbuzz
 
       # The format stability pledge, made at v7 and enforced rather
       # than announced. It does not forbid a v8; it makes one a
@@ -230,6 +302,24 @@ jobs:
       - name: OPL environment end to end
         run: ./examples/opl-env/build.sh
 
+      # The console (console/README.md) in two halves this job can run:
+      # the built-in theme the ELF links in, and the portable C that
+      # parses file names, walks ISOs and builds Neutrino's command
+      # line. The IOP half -- modules, mounts, the launch -- only builds
+      # in the ps2dev container (hw.yml's elf job) and only runs on a
+      # console.
+      - name: Console theme end to end
+        run: ./examples/console/build.sh
+
+      - name: Console library tests
+        run: make -C console/tests test
+
+      # Again under ASan and UBSan. The console parses file names, ISO9660
+      # records and SYSTEM.CNF off a user's drive; a clean sanitizer run
+      # is only evidence if it runs on every change (the #179 review).
+      - name: Console library tests, sanitized
+        run: make -C console/tests test-sanitize
+
       # A shipped example's README opens "Taken from the blob, not
       # estimated". They were, once. Then a slot was added and three
       # figures drifted through two pull requests and a phase lock,
@@ -332,6 +422,18 @@ jobs:
       - name: The deployment guide matches the source it describes
         run: python3 tools/check-deploying.py
 
+      # BEFORE the tutorial run, not after, and the order is the point.
+      # This checks what the checker SAYS WHEN A BLOCK FAILS, which is
+      # the one path a green tutorial never exercises: the report that
+      # a reader gets is only ever produced when something is already
+      # wrong. Reverting `tail()` to `splitlines()[-1]` -- which is how
+      # the Windows build failure arrived with its diagnosis already
+      # deleted -- would leave every job in this repository green.
+      # Running it first also means a broken reporter is named as such
+      # rather than showing up as a confusing tutorial failure.
+      - name: The tutorial checker still reports what it saw
+        run: python3 tools/check-tutorial.py --selftest
+
       - name: The tutorial still works from an empty directory
         run: python3 tools/check-tutorial.py
 
@@ -355,7 +457,8 @@ jobs:
         run: |
           git diff --exit-code examples/memcard/screenshots \
                                examples/channel6/screenshots \
-                               examples/opl-env/screenshots
+                               examples/opl-env/screenshots \
+                               examples/console/screenshots
 
       # The documentation site embeds its own renders under
       # docs/site/assets/, each registered with the command that made
@@ -423,17 +526,18 @@ jobs:
         #
         # Named, not bare. A bare call skips blobs that are absent,
         # which is right for hw.yml (it does not bake the 16:9 one) and
-        # wrong here: this job bakes all three, so a missing one is a
+        # wrong here: this job bakes all four, so a missing one is a
         # build failure, and skipping it would leave "3 blob(s)
         # validated" as the only trace of a blob that stopped existing.
         # Naming them makes absence an error.
         #
-        # Three, not four: the test card is baked by hw.yml. Here
+        # Four, not five: the test card is baked by hw.yml. Here
         # make_testcard.py only runs --self-test, which writes no blob.
         run: |
           ./tools/check-blobs.sh \
             examples/memcard/build/ui.uib \
             examples/opl-env/build/ui.uib \
+            examples/console/build/ui.uib \
             examples/channel6/build/ui.uib \
             examples/channel6/build/ui-16x9.uib
 

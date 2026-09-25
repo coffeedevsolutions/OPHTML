@@ -4,7 +4,7 @@ title: Diagnostics
 description: Every message the compiler, baker, checker, previewer and runtime can produce, with its cause, its fix and the page that explains it.
 section: reference
 order: 52
-version: 0.7.0
+version: 0.9.0
 sources: [packages/layout/src/aspect.js, packages/layout/src/box.js, packages/layout/src/css.js, packages/layout/src/flex.js, packages/layout/src/focus.js, packages/layout/src/html.js, packages/layout/src/image.js, packages/layout/src/index.js, packages/layout/src/lint.js, packages/layout/src/paint.js, packages/layout/src/repeat.js, packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/rounding.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/vendor.py, packages/baker/ps2ui_bake/vram.py, runtime/ps2ui.h]
 ---
 
@@ -112,7 +112,7 @@ pass stopped at the first.
 
 [box.js](repo:packages/layout/src/box.js), the flex solver and the
 display-list builder produce these. An error prints as `error: <message>` and
-exits 1. A warning prints as `warning: <message>`. Four rows are unreachable
+exits 1. A warning prints as `warning: <message>`. Two rows are unreachable
 from any sheet, and are listed so a search for them ends here.
 
 | message | severity | cause | fix | page |
@@ -147,7 +147,10 @@ from any sheet, and are listed so a search for them ends here.
 | `warning: unknown attribute: <tag> line <n>: <attr> is not read by anything`, then `— did you mean <known>?` or `— known: <sorted list>` | warning | a `data-` attribute outside the six the compiler reads; one line per typo | correct the spelling | [HTML](page:authoring/html#reference-table) |
 | `layout: <tag> line <n>: data-repeat="<n>" but no {i} or {n} anywhere inside, so every copy is identical. Add {i} to the ids and data-slot names, or the copies cannot be told apart.` | warning | a count above 1 with no index substitution in the subtree | add `{i}` to the ids and slot names | [Lists](page:authoring/lists#expansion) |
 | `focus: "<name>" is unreachable from the initial focus by D-pad` | warning | the breadth-first walk from `initial` never reaches that node | move the element, or pass `--focus-wrap` | [Focus and navigation](page:authoring/focus-and-navigation#limits-and-errors) |
-| `css: :focus styles matched <tag> line <n> but no enclosing element has the focusable attribute; the delta can never show` | warning | unreachable; a `:focus` compound never matches outside a focusable scope | nothing to fix | [Focus and navigation](page:authoring/focus-and-navigation#limits-and-errors) |
+
+| `layout: canvas <axis> <n> exceeds 2048, the largest framebuffer dimension the GS can scan out.` plus the mode list and the `canvasDim` override | error, exit 1 | `--canvas` or a project `canvas` past 2048 on either axis | pick a real mode, or raise `"limits": {"canvasDim": N}` | [The project file](page:authoring/project-file#resource-caps) |
+| `layout: more than <n> elements after data-repeat expansion.` plus the largest shipped screen and the `nodes` override | error, exit 1 | a screen with more elements than the cap **after** `data-repeat` expands, so a runaway repeat or a generated file | fix the repeat, or raise `"limits": {"nodes": N}` | [The project file](page:authoring/project-file#resource-caps) |
+| `layout: elements nested <n> deep (deepest at line <l>), past the limit of <m>.` plus the deepest shipped screen and the `depth` override | error, exit 1 | nesting past the cap; the line names the deepest element, and the check is iterative so it reports instead of overflowing | flatten the nesting, or raise `"limits": {"depth": N}` | [The project file](page:authoring/project-file#resource-caps) |
 
 ## Lints
 
@@ -213,6 +216,10 @@ $ echo $?
 | `channel <n> outside 0..255` | error | a host-side colour crossing was handed a value outside the sRGB byte range | nothing to fix | [ps2ui-bake](page:cli/ps2ui-bake#output) |
 | `GS alpha <n> outside 0..128` | error | the inverse crossing was handed a value outside the GS alpha domain | nothing to fix | [Previewer](page:cli/previewer#the-inspector) |
 
+| `error: image: <src> is <w>x<h> = <n> pixels, past the limit of <m>.` plus the drawn size and the `imagePixels` override | error, exit 1 | a source image whose pixel count is past the cap. Read from the PNG header, before any decode, so a decompression bomb costs a stat | scale the asset down, or raise `"limits": {"imagePixels": N}` | [The project file](page:authoring/project-file#resource-caps) |
+| `error: image: <src> is too large to decode: <detail>` | error, exit 1 | Pillow's own decompression-bomb guard, reported in the baker's voice instead of a traceback | scale the asset down | [Images](page:authoring/images#what-it-is) |
+| the two framebuffer-arithmetic lines, then `error: canvas <w>x<h> cannot be scanned out of GS VRAM` | error, exit 1 | a canvas whose framebuffers alone exceed VRAM. Checked separately from the budget, because the budget charges textures and a framebuffer is not a texture, so no `--vram-budget` reaches this | use a canvas the GS can scan out | [VRAM budget](page:authoring/vram-budget#what-it-is) |
+
 ## Check
 
 `ps2ui-check` writes TAP on stdout. A passed check is `ok <n> - <label>`.
@@ -263,6 +270,7 @@ exit 2.
 | `ps2ui: screens[<i>] has unknown key(s) '<k>'; a screen takes css, focusWrap, html` | error | a misspelt key on a screen entry | use one of the three | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: screens[<i>] has no "html"` | error | a screen object with no markup path | add `html` | [The project file](page:authoring/project-file#reference-table) |
 | `ps2ui: screens[<i>] (<html>) has no stylesheet: set "css" at the top level for every screen, or on this one` | error | neither the project nor the screen names a stylesheet | set `css` | [The project file](page:authoring/project-file#reference-table) |
+| `ps2ui: no fonts for this project: <path> does not exist.` plus the `ps2ui fontgen` line that writes one | error, exit 1 | `ps2ui build` or `ps2ui dev` on a project whose font manifest does not exist, with no fallback beside the package | run `ps2ui fontgen <regular.ttf> <bold.ttf>`, or point `fonts` in `ps2ui.json` at a manifest you have | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
 | `ps2ui: cannot find ps2ui-layout, which compiles the HTML and CSS.` plus three remedy lines | error | no `PS2UI_LAYOUT`, no `ps2ui-layout` on PATH and no checkout beside the package | install `@ophtml/layout`, or set `PS2UI_LAYOUT` | [ps2ui](page:cli/ps2ui#how-build-finds-the-compiler) |
 | `ps2ui: ps2ui-layout failed on <html> (exit <n>)` | error | the compiler refused that screen and already said why | fix what the compiler printed | [ps2ui](page:cli/ps2ui#build) |
 | `` ps2ui: <path>: no blob to check. Run `ps2ui build` first -- this does not build, so that a check can never report on a blob it just made and nobody has seen. `` | error | `ps2ui check` ran before any build | run `ps2ui build` | [ps2ui](page:cli/ps2ui#check) |
@@ -271,16 +279,24 @@ exit 2.
 | `ps2ui: <files> in <dir> <differ\|differs> from the runtime this toolchain ships, so nothing was written.` plus the mixed-pair explanation | error | `ps2ui vendor-runtime` found an edited `ps2ui.c` or `ps2ui.h` in the destination | pass `--force`, or move your copy aside | [ps2ui](page:cli/ps2ui#vendor-runtime) |
 | `ps2ui: two copies of the runtime disagree, so this will not guess which one you meant.` plus the two paths and a rebuild line | error | a staged package-data runtime is out of date against the checkout | rebuild the package, or delete the staged directory | [ps2ui](page:cli/ps2ui#vendor-runtime) |
 | `ps2ui: no C runtime to vendor.` plus the two directories looked in and a packaging note | error | an installed wheel shipped without its runtime | install from the sdist | [ps2ui](page:cli/ps2ui#vendor-runtime) |
-| `ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.` plus a platform-specific remedy | error, exit 2 | `PIL.features.check("raqm")` is false | install libraqm and rebuild Pillow | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
+| `ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.` plus a platform-specific remedy | error, exit 2; 0.8.0 and earlier only | those releases measured through Pillow's Raqm, and `PIL.features.check("raqm")` is false | `pip install --upgrade ophtml`: 0.9.0 has no such check | [Installation](page:getting-started/installation#if-fontgen-refuses) |
 | `usage: python -m ps2ui_bake.fontgen <font.ttf> <family> <weight> <out.metrics.json> [charset-file]` | error, exit 2 | fewer than four positional arguments | pass all four | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
-| `ps2ui-fontgen: no Raqm; kerning table will be empty` | warning | a Python caller reached `build_kerning` without Raqm; `main` refuses earlier | call `main` instead | [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) |
-| `usage: ps2ui-layout <page.html> <page.css> -o <ui.json> [--mode ntsc\|ntsc16x9\|pal\|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--version]` | error, exit 2 | a missing positional, a missing `-o`, an unknown `--mode`, or a `--canvas` that is not `WxH` | correct the command line | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| ``ps2ui-fontgen: needs the uharfbuzz package, which `pip install ophtml` installs. From a checkout, install it yourself: pip install uharfbuzz`` | error, exit 1 | a checkout run without `uharfbuzz`; an installed `ophtml` always has it | `pip install uharfbuzz` | [ps2ui-fontgen](page:cli/ps2ui-fontgen#exit-codes) |
+| `usage: ps2ui-layout <page.html> <page.css> -o <ui.json> [--mode ntsc\|ntsc16x9\|pal\|pal16x9] [--display-aspect W:H] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--version]` | error, exit 2 | a missing positional, a missing `-o`, an unknown `--mode`, a `--canvas` that is not `WxH`, or a `--limit` that is not `NAME=N` for a cap this compiler has | correct the command line | [ps2ui-layout](page:cli/ps2ui-layout#options) |
 | `ps2ui-layout: --min-font-size takes a positive integer` | error, exit 2 | `--min-font-size` given zero or a non-number | pass a positive integer | [CRT linter](page:authoring/crt-linter#reference-table) |
 | `ps2ui-layout: --strict: <n> warning(s)` | error, exit 1 | `--strict` and at least one warning in the IR | fix the warnings | [CRT linter](page:authoring/crt-linter#strict) |
-| `usage: ps2ui-dev <page.html> <page.css> -o <outdir> [--mode ntsc\|pal] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--montage] [--palettize-images] [--once] [--version]` | error, exit 2 | the same argument faults, in the watcher | correct the command line | [ps2ui-dev](page:cli/ps2ui-layout#options) |
+| `usage: ps2ui-dev <page.html> <page.css> -o <outdir> [--mode ntsc\|pal] [--canvas WxH] [--font-dir DIR] [--fonts fonts.json] [--focus-wrap] [--strict] [--min-font-size PX] [--limit NAME=N] [--montage] [--palettize-images] [--once] [--version]` | error, exit 2 | the same argument faults, in the watcher | correct the command line | [ps2ui-dev](page:cli/ps2ui-layout#options) |
 | `bake failed` | error, exit 1 under `--once` | `ps2ui-dev` compiled the screen and the bake step returned non-zero | read the baker's own line above it | [ps2ui-dev](page:cli/ps2ui-layout#output) |
 | `aspect: "<text>" is not a ratio like 4:3 or 16:9` | error, exit 1 | `--display-aspect` given anything but `<digits>:<digits>`; printed as a Node stack trace, not an `error:` line | write `4:3` or `16:9` | [Video modes](page:authoring/video-modes#reference-table) |
 | `aspect: "<text>" has a zero term` | error, exit 1 | `--display-aspect` given a zero numerator or denominator; also a stack trace | write a non-zero ratio | [Video modes](page:authoring/video-modes#reference-table) |
+
+| `ps2ui-layout: --limit takes NAME=N, got "<text>"` (and the same from `ps2ui-dev`) | error, exit 2 | a `--limit` argument with no `=`, or nothing before it | write `NAME=N` | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| `ps2ui-layout: --limit: unknown cap "<name>". Known: canvasDim, nodes, depth` (and the same from `ps2ui-dev`) | error, exit 2 | a cap name this compiler does not have, including a misspelling | use a name from the list | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| `ps2ui-layout: --limit <name> takes a positive integer, got "<text>"` (and the same from `ps2ui-dev`) | error, exit 2 | a value that is not an integer, or is below 1. A cap of 0 is a typo rather than "no limit" | pass a positive integer | [ps2ui-layout](page:cli/ps2ui-layout#options) |
+| `error: --limit takes NAME=N, got '<text>'` | error, exit 2 | the same shape fault, on `ps2ui-bake` | write `NAME=N` | [ps2ui-bake](page:cli/ps2ui-bake#options) |
+| `error: --limit: unknown cap '<name>'. Known: canvasDim, depth, imagePixels, nodes` | error, exit 2 | a cap name no tool has. The list is every cap the project file takes, not just this tool's | use a name from the list | [ps2ui-bake](page:cli/ps2ui-bake#options) |
+| `error: --limit <name> is a layout cap and ps2ui-layout enforces it; this tool enforces imagePixels.` plus the `ps2ui build` route | error, exit 2 | a real cap, spelled correctly, passed to the tool that does not enforce it | set it in the project file, or pass it to `ps2ui-layout` | [The project file](page:authoring/project-file#resource-caps) |
+| `error: --limit imagePixels takes a positive integer, got '<text>'` | error, exit 2 | a bad value for the one cap `ps2ui-bake` enforces | pass a positive integer | [ps2ui-bake](page:cli/ps2ui-bake#options) |
 
 ## Previewer
 

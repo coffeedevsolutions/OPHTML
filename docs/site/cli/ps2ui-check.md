@@ -4,7 +4,7 @@ title: ps2ui-check
 description: Validate a baked .uib against the invariants the C runtime indexes by without checking.
 section: cli
 order: 33
-version: 0.7.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/clip.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, tools/check-blobs.sh, runtime/ps2ui.h, .github/workflows/ci.yml, .github/workflows/hw.yml, examples/memcard/build.sh, examples/memcard/ps2ui.json, README.md, CHANGELOG.md]
 ---
 
@@ -21,7 +21,7 @@ ps2ui-check build/ui.uib --allow-dead 1 --strict
 ps2ui-check build/ui.uib --tints
 ```
 
-`ps2ui check` runs the same code on a project's output blob and forwards the project's `vramBudget` and `strict` keys. See [ps2ui](page:cli/ps2ui#synopsis). The checkout spelling is `PYTHONPATH=packages/baker python3 -m ps2ui_bake.check`, which is what [tools/check-blobs.sh](repo:tools/check-blobs.sh#L83) uses.
+`ps2ui check` runs the same code on a project's output blob and forwards the project's `vramBudget` and `strict` keys. See [ps2ui](page:cli/ps2ui#synopsis). The checkout spelling is `PYTHONPATH=packages/baker python3 -m ps2ui_bake.check`, which is what [tools/check-blobs.sh](repo:tools/check-blobs.sh#L88) uses.
 
 ## Options
 

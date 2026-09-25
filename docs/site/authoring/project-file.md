@@ -4,7 +4,7 @@ title: The project file
 description: Every ps2ui.json key with its default and the tool it reaches, how paths resolve, and what the loader refuses.
 section: authoring
 order: 10
-version: 0.7.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, examples/memcard/ps2ui.json, examples/opl-env/ps2ui.json, examples/channel6/ps2ui.json, examples/memcard/build.sh, examples/channel6/build.sh, docs/tutorial-uc3.md, CHANGELOG.md, CONTRIBUTING.md, .github/workflows/ci.yml, README.md]
 ---
 
@@ -61,7 +61,7 @@ ps2ui-bake: montage -> build/states.png
 
 ## Reference table
 
-The reaches column names the tool under [ps2ui](page:cli/ps2ui#synopsis) that receives the key. The mapping lives in `compile_screens`, `bake_argv`, `cmd_check` and `cmd_dev` in [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L170). The defaults live in `DEFAULTS` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L39).
+The reaches column names the tool under [ps2ui](page:cli/ps2ui#synopsis) that receives the key. The mapping lives in `compile_screens`, `bake_argv`, `cmd_check` and `cmd_dev` in [ps2ui.py](repo:packages/baker/ps2ui_bake/ps2ui.py#L205). The defaults live in `DEFAULTS` in [project.py](repo:packages/baker/ps2ui_bake/project.py#L39).
 
 | key | type | default | reaches |
 |---|---|---|---|
@@ -134,7 +134,7 @@ A screen's name is the HTML file's stem. The name is the intermediate's file ste
 
 ### Fonts
 
-The `fonts` key names a manifest. Without it, `fonts/fonts.json` beside the project is used when that file exists. Without either, no `--fonts` is passed and the baker applies its own default, which is the repository's `fonts/fonts.json` and exists only in a checkout. The tutorial project sets no `fonts` key, [docs/tutorial-uc3.md](repo:docs/tutorial-uc3.md#L147); it relies on `ps2ui fontgen` having written `fonts/fonts.json` beside it. The three shipped examples set no `fonts` key either and build against the checkout default.
+The `fonts` key names a manifest. Without it, `fonts/fonts.json` beside the project is used when that file exists. Without either, no `--fonts` is passed and the baker applies its own default, which is the repository's `fonts/fonts.json` and exists only in a checkout. The tutorial project sets no `fonts` key, [docs/tutorial-uc3.md](repo:docs/tutorial-uc3.md#L134); it relies on `ps2ui fontgen` having written `fonts/fonts.json` beside it. The three shipped examples set no `fonts` key either and build against the checkout default.
 
 ### A directory argument
 
@@ -231,7 +231,8 @@ Those are the defaults. `canvasDim` bounds each canvas dimension,
 `nodes` the elements on a screen after `data-repeat` expands, `depth`
 how far they nest, and `imagePixels` what a source image may decode to.
 The first three are enforced by the layout compiler and the fourth by
-the baker; `ps2ui build` sends each one to the tool that checks it.
+the baker; `ps2ui build` sends each one to the tool that checks it, and
+each takes a `--limit NAME=N` on that tool's own command line.
 
 A theme is a file somebody else wrote, so the caps refuse rather than
 warn: a PlayStation 2 cannot display a 30000px canvas, and there is no
@@ -243,7 +244,7 @@ your project needs it.
 
 ### Keys that reach the checker
 
-New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1255). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
+New in 0.6.0. `ps2ui check` forwards `strict` and `vramBudget` to `ps2ui-check`, so a project means the same thing to the build and to the check, [CHANGELOG.md](repo:CHANGELOG.md#L1524). The forwarded set is not a hand-written list. The test derives it from `DEFAULTS` and the checker's own `--help`, and fails when a key gains a checker flag and is not forwarded:
 
 ```sh
 cd packages/baker/tests && python3 -m unittest \

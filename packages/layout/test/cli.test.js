@@ -214,3 +214,54 @@ test('both bins screen --limit the same way, and answer with exit 2', () => {
     assert.match(tight.err, /more than 1 elements after data-repeat/);
   }
 });
+
+
+test('every page that quotes a usage line quotes the one the bin prints', () => {
+  // THE FLAG REACHED --help AND NOT THE PAGES THAT QUOTE --help.
+  // `--limit` went into ps2ui-layout's usage line in 48f1884 and
+  // ps2ui-dev's in a9e24d4. Two pages copy those lines verbatim --
+  // cli/ps2ui-layout.md as the synopsis, reference/diagnostics.md as the
+  // exit-2 row -- and both kept the older string for a release and a
+  // half. check-site-pages could not see it: it pins CITATIONS to line
+  // numbers and has nothing that ties a quoted string to the program
+  // that prints it. Review of #166 found the layout half, having missed
+  // it once itself, and the dev half was new.
+  //
+  // So the quote is held to the output. Any future flag that reaches a
+  // usage line fails here until the pages that reproduce it are updated,
+  // which is the only direction that matters: a page can be behind the
+  // tool, never ahead of it.
+  const pages = [
+    'docs/site/cli/ps2ui-layout.md',
+    'docs/site/reference/diagnostics.md',
+  ];
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  // A usage line inside a markdown table has its pipes escaped as `\|`,
+  // which is a faithful quote in a different spelling. Unescaping is the
+  // one difference this allows; a missing flag still fails.
+  const text = pages.map((p) => readFileSync(join(root, p), 'utf8')
+    .replace(/\\\|/g, '|'));
+  let quoted = 0;
+  for (const [name, prog] of [['ps2ui-layout.js', 'ps2ui-layout'],
+                              ['ps2ui-dev.js', 'ps2ui-dev']]) {
+    // No arguments is the usage path for both, and it exits 2.
+    const r = spawnSync(process.execPath, [bin(name)], { encoding: 'utf8' });
+    assert.equal(r.status, 2, r.stderr);
+    const line = r.stderr.split('\n').find((l) => l.startsWith(`usage: ${prog} `));
+    assert.ok(line, `${prog} printed no usage line: ${r.stderr}`);
+    // The flags the line names, which is the part a page gets wrong.
+    const flags = line.match(/--[a-z][a-z-]*/g);
+    assert.ok(flags.includes('--limit'),
+      `${prog}'s usage line has no --limit, so this test would pass vacuously`);
+    for (const [i, p] of pages.entries()) {
+      if (!text[i].includes(`usage: ${prog} `)) continue;
+      quoted += 1;
+      assert.ok(text[i].includes(line.trim()),
+        `${p} quotes a ${prog} usage line that is not the one ${prog} prints.\n`
+        + `  prints: ${line.trim()}\n`
+        + `  the page has a different string; paste this one over it.`);
+    }
+  }
+  // Not vacuous: both pages really do quote at least one of the two.
+  assert.ok(quoted >= 3, `only ${quoted} quoted usage line(s) were checked`);
+});

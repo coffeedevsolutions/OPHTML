@@ -2,8 +2,9 @@
 
 This directory holds the documentation library for the published packages
 (`ophtml` on PyPI, `@ophtml/layout` on npm) and the C runtime they ship. It
-is written for the 0.6.0 release. The pages are plain markdown and are built
-into the website later; nothing here depends on a site generator.
+is written for the release its `Site version` names, below. The pages
+are plain markdown and are built into the website later; nothing here
+depends on a site generator.
 
 This file is the contract every page is written against. `_prompts/` holds
 one self-contained brief per page. A documentation agent reads its brief,
@@ -44,7 +45,7 @@ are the `order` field in the frontmatter.
 | id | title | one line |
 |---|---|---|
 | index | OPHTML | what it is, the pipeline, where to start |
-| getting-started/installation | Installation | install both packages, fonts, the Raqm refusal, checkout install |
+| getting-started/installation | Installation | install both packages, fonts, 0.8.0's Raqm refusal, checkout install |
 | getting-started/quickstart | Quick start | eight commands from a TTF to a served preview |
 | getting-started/tutorial-game-browser | Tutorial: a game browser | the CI-executed tutorial in the library voice |
 | getting-started/how-it-works | How it works | three stages, two seams, the rules the design rests on |
@@ -83,7 +84,7 @@ are the `order` field in the frontmatter.
 | examples/memcard | memcard | the two-screen browser |
 | examples/opl-env | opl-env | six screens, two themes, streamed covers |
 | examples/channel6 | channel6 | the overlay browser and the probe screen |
-| project/changelog | Changelog | 0.6.0 release notes and earlier releases |
+| project/changelog | Changelog | the current release's notes and a table of earlier releases |
 | project/contributing | Contributing | setup, tests, the checks |
 | project/security-and-license | Security and license | reporting, scope, licences |
 | project/faq | FAQ | the questions the code answers |
@@ -99,7 +100,7 @@ title: ps2ui-bake
 description: Bake ui.json files into one .uib blob and render previews.
 section: cli
 order: 32
-version: 0.7.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/vram.py]
 ---
 ```
@@ -107,7 +108,7 @@ sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/vram.py]
 `sources` lists the repository files the page was verified against. A
 change to any of them marks the page for review.
 
-Site version: 0.7.0
+Site version: 0.9.0
 
 Every page carries that value in `version`. `tools/check-site-pages.py` reads
 it from the line above, so a stamp that disagrees fails the check.

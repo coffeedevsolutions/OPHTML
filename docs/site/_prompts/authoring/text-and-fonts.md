@@ -95,7 +95,7 @@ title: Text and fonts
 description: <one sentence>
 section: authoring
 order: 13
-version: 0.7.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```
@@ -107,7 +107,7 @@ Write links as `[text](page:<id>#<anchor>)`. Every id below must appear on the p
 - cli/ps2ui-fontgen - fonts.json and metrics
 - authoring/css - text properties
 - authoring/dynamic-text - slot text uses the same pen
-- getting-started/installation - the Raqm refusal
+- getting-started/installation - 0.8.0's Raqm refusal
 
 ## Facts to emit
 

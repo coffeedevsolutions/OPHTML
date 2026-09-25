@@ -87,7 +87,7 @@ title: OPHTML
 description: <one sentence>
 section: root
 order: 0
-version: 0.7.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -29,10 +29,10 @@ tracks both headings. A runbook nobody has executed is a draft.
 
 Less than it looks like, and the exact amount matters.
 
-This section describes the tree as it stands. Step 9 has been done, so
-`__version__` is `0.4.0.dev0` and `packages/layout/package.json` is
-back on the `next` dist-tag. It stops describing the tree the moment
-step 4 retitles the CHANGELOG for the next release.
+This section describes the tree between a step 9 and the next step 4,
+when `__version__` is a `.dev0` prerelease and `packages/layout/
+package.json` is on the `next` dist-tag. From step 4 to the next step 9,
+while a cut is open and then published, it describes no tree at all.
 
 **npm.** A range like `^0.3.0` does not match `0.3.0-dev.0`, so a
 dependent asking for the package by range never resolves a prerelease.
@@ -190,6 +190,37 @@ written twice to avoid.
    Not a follow-up and not a docs-team problem: a step, here, before
    the tag.
 
+   **First, the stamp.** `docs/site/ARCHITECTURE.md` carries
+   `Site version: <x.y.z>`, every page's front matter carries the same
+   value in `version:`, and `website/hooks.py` prints it in the footer of
+   every page as "OPHTML <x.y.z>. MIT License." Set all of them to the
+   version being cut. `check-site-pages.py` holds the pages to the
+   stamp, but nothing holds the stamp to the release, so a cut that
+   skips this stays green. The 0.7.0 cut did it and nothing wrote it
+   down; the 0.8.0 cut then skipped it, and was caught only by a
+   pre-publish audit reading the live footer.
+
+   **Then the prose written relative to the release being cut.**
+   Between cuts, pages and facts rows about a change that has not
+   shipped say "from the next release", "0.8.0 only", "the published
+   0.8.0". At the cut every one of them is false: the next release is
+   this one. Nothing reads them. `check-doc-versions.py` reads the
+   recorded version banners and these are prose, and
+   `check-site-pages.py` pins citations, not whether a fact row still
+   agrees with the page it restates. So grep for them, in the pages
+   *and* the facts rows:
+
+   ```sh
+   git grep -n -E 'next release|<previous> only|published <previous>|<previous> and earlier' -- docs/ README.md packages/*/README.md
+   ```
+
+   with `<previous>` spelled out (`0.8.0`). Every hit either becomes a
+   statement about this version or is history that says so. This is
+   the gap three cuts running were reviewed for and missed until review:
+   #170's version table, #172's front-page requirements row, and at
+   0.9.0 four facts rows that still called 0.9.0 "the next release"
+   after every page beside them had moved.
+
    ```sh
    python3 tools/check-doc-impact.py <previous tag> --all
    ```
@@ -248,6 +279,18 @@ written twice to avoid.
 6. **`packages/layout/package.json`** — drop `publishConfig.tag` (or
    set it to `latest`) only when the version stops being a prerelease.
    The check requires the two to agree in both directions.
+
+   **And the pages that describe it.** The check reads `package.json`,
+   not the prose about it, and cutting 0.8.0 left four places saying
+   the tree was pinned to `next`: two passages on
+   `getting-started/installation.md`, `compat.registries` in
+   `_facts/reference/compatibility.md`, and the pasted
+   `check-versions.py` block on `reference/compatibility.md`. Every one
+   was true the commit before and false after, and none was red. They
+   now state the rule, "`next` exactly while the version is a
+   prerelease", which is true on both sides of a cut; keep them that
+   way rather than describing the tree's current state. The pasted
+   block is real output, so regenerate it rather than editing lines.
 
 7. **Tag it**, `0.3.0` or `v0.3.0` — `check-versions.py` accepts
    either, and it is the rule that fails until you do. CI checks out
@@ -485,6 +528,106 @@ written twice to avoid.
    - a fresh `## Unreleased — <next>.dev0` above the release section,
      carrying its own `.uib` format paragraph.
    - the README's Quick start note, which names both versions.
+   - **`tools/check-doc-versions.py --pin`, and read the next
+     paragraph before you believe its output.**
+
+   **THE VERSION RECORD COLLAPSES AT A CUT, AND IT IS THIS STEP THAT
+   PAYS FOR IT.** `_versions.tsv` records each banner as meaning the
+   tree or the last release, so a bump knows which way to move it.
+   `classify()` tests the tree first, and at a release cut the two
+   numbers are *the same string* — so every banner classifies as the
+   tree, and `--pin` at step 5 records it that way. Measured cutting
+   0.8.0: the record went from 18 tree and 10 release to **every banner
+   tree and none release**.
+
+   So the record cannot say which banners should keep naming the
+   release; this list does, derived from what each banner *shows* on
+   the tree 0.8.0 left, and named by content rather than line number
+   because line numbers in prose are exactly what F48 says nobody pins:
+
+   - **Still the release** — output of an *installed* package, or a
+     record dated to the cut. `ps2ui --version` and
+     `ps2ui-fontgen --version` at the top of `cli/ps2ui.md` and
+     `cli/ps2ui-fontgen.md`; the two lines after the install commands
+     on `getting-started/installation.md`, and the fact half of
+     `install.commands` that states them, and its verified-by half
+     once it is re-measured from the registries rather than the
+     checkout; the sentence under the versions table on
+     `reference/compatibility.md`; `compat.registries`' verified-by
+     cell, which says "at the 0.8.0 cut"; and the `## 0.8.0` section of
+     `project/changelog.md`, both its opening line and its pasted
+     `check-versions.py` block, because rule 14 now makes that page
+     carry an empty `## <next>.dev0` heading above the release's notes
+     rather than replacing them.
+   - **Moves with the tree** — everything that is output of *this
+     checkout*: the `--version` rows for `ps2ui-bake`, `ps2ui-check`,
+     `ps2ui-layout` and `ps2ui-dev` under `_facts/cli/`; the session
+     command list opening `_facts/reference/compatibility.md`, and
+     `compat.versions` in the same file; the "Running from a checkout"
+     block on `cli/ps2ui.md`; the pasted `check-versions.py` block on
+     `reference/compatibility.md` (regenerate it, do not edit it); and
+     the wheel name on `runtime/integrating.md`.
+   - **Collapsed at the cut and needing their other half back** —
+     `cli.ps2ui.version` in `_facts/cli/ps2ui.md` and `fontgen.version`
+     in `_facts/cli/ps2ui-fontgen.md` used to say "the released version
+     prints X; this tree prints Y". At a cut X and Y are one string, so
+     0.8.0 rewrote each to a single claim about the tree. After this
+     step they diverge again, and each wants both halves restored.
+
+   **Every banner in the record is in exactly one group**, and the
+   count is the check on that: at the 0.8.0 cut the record held 29, and
+   the groups above are 9 still the release, 17 moving with the tree and
+   3 collapsed. If the record and the groups disagree when you run this
+   step, a banner has been added or lost since and the list needs
+   re-deriving before it is trusted.
+
+   Run at 0.9.0.dev0, it did disagree, and the list above is the
+   re-derived one: four banners the 0.8.0 list called tree are release
+   (the changelog page's two, and `install.commands`' verified-by pair
+   once measured from the registries), and restoring the collapsed
+   rows' halves added banners, so the record went from 29 to **31: 14
+   release and 17 tree**. The 0.9.0 cut then collapsed it as predicted,
+   to **30 banners, all tree**: the two collapsed rows lost their second
+   halves again, `install.commands` went from six banners to four, and the
+   cut added two, `compat.versions` on the changelog page's facts and the
+   `is a release and publishes to latest` line in the pasted block on
+   `reference/compatibility.md`. Step 9 after 0.9.0 starts from that
+   record and re-derives the groups before it trusts them.
+
+   Step 9 after 0.9.0 did, and this time the list held: the 14 banners
+   that went back to naming the release were exactly the release group
+   above, and the record ended at **32: 14 release and 18 tree**, the
+   extra tree banners being the changelog page's `compat.versions` row,
+   which now names both spellings of `0.10.0.dev0`.
+
+   The first draft of this note listed ten banners copied from the
+   record before the cut. Review of #170 found one of them no longer
+   existed -- `cli.ps2ui.version` had been collapsed, above -- and a
+   second had been "release" only because the block it sat in was
+   stale output from 0.7.0; regenerated, it is tree output. A list
+   copied from a record describes the record, not the tree.
+
+   Simulating this step against that record turns **every banner red
+   at once** -- 29 of 29 on the tree 0.8.0 left: the tree moves to
+   `<next>.dev0`, every banner still names the release, and every row
+   says it was pinned as the tree.
+
+   The trap is what you do next. Re-running `--pin` here makes every
+   one "release" and goes green -- and that is wrong for everything in
+   the second list above, which is output of the checkout and is now
+   stale output nobody will look at again. So at this step, move those
+   banners to `<next>.dev0` and restore the two collapsed rows FIRST,
+   and only then `--pin`. The first list is what should still name the
+   release.
+
+   There is no hand-edit that avoids this. A row kept as "release"
+   fails at the cut, because `classify()` cannot see a distinction
+   between two identical strings; the tree cannot be both green at the
+   cut and correct here with the tool as it stands. Fixing that means
+   `--pin` preserving an existing row's kind when the two versions
+   coincide — a change to the tool, deliberately not folded into the
+   0.8.0 version bump, because folding an unrelated fix into a version
+   bump is how a version bump stops being reviewable.
 
    That paragraph's drift count is **zero** straight after a release —
    the section below it shipped the format the tree still writes — and

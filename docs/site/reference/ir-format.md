@@ -4,7 +4,7 @@ title: ui.json
 description: The intermediate representation as the compiler emits it: every top-level key, every record field, the invariants and the version check.
 section: reference
 order: 50
-version: 0.7.0
+version: 0.9.0
 sources: [packages/layout/src/index.js, packages/layout/src/paint.js, packages/layout/src/focus.js, packages/layout/src/aspect.js, packages/layout/src/box.js, packages/layout/src/css.js, packages/layout/src/values.js, packages/layout/src/text.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/quads.py, docs/format-ir.md]
 ---
 

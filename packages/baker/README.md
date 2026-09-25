@@ -12,7 +12,7 @@ runtime replays on the PlayStation 2, plus PNG previews rendered by
 replaying that same blob.
 
 ```sh
-PYTHONPATH=. python3 -m ps2ui_bake ui.json -o ui.uib --preview out.png
+ps2ui-bake ui.json -o ui.uib --preview out.png
 ```
 
 `ps2ui serve` puts that same replay behind a localhost page with
@@ -56,11 +56,19 @@ further wiring. That is the whole console half without a clone.
 is the same thing inside a checkout, with build arms for each bring-up
 step.
 
-Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively. The
-authoring half above needs none of this: `pip install ophtml`, a TTF and
-Node are enough to build, check and preview a real blob.
+Or install [ps2dev](https://github.com/ps2dev/ps2dev) natively.
 [docs/deploying.md](https://github.com/coffeedevsolutions/OPHTML/blob/main/docs/deploying.md)
 is the path from an ELF onto hardware.
+
+The authoring half needs none of that: `pip install ophtml`, a TTF and
+Node are enough to build, check and preview a real blob, on macOS,
+Windows and Linux alike. `ps2ui fontgen` measures kerning with HarfBuzz
+through `uharfbuzz`, which pip installs with this package as a wheel for
+every platform, so nothing has to come from the system. (0.8.0 and
+earlier measured through Pillow's Raqm engine, which needs a fribidi no
+Pillow wheel bundles, and refused on a stock Mac or Windows box; see the
+[installation guide](https://coffeedevsolutions.github.io/OPHTML/getting-started/installation/#if-fontgen-refuses)
+if you meet that refusal.)
 
 ## Working from a checkout
 

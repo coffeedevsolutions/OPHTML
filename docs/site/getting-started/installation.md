@@ -4,7 +4,7 @@ title: Installation
 description: Install both packages, prove them with --version, generate font metrics, and know when the console half needs ps2dev.
 section: getting-started
 order: 1
-version: 0.7.0
+version: 0.9.0
 sources: [packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/ps2ui.py, fonts/fonts.json, .github/workflows/registry.yml, docs/tutorial-uc3.md, docs/site/ARCHITECTURE.md]
 ---
 
@@ -33,9 +33,9 @@ npm install -g @ophtml/layout
 
 ```sh
 $ ps2ui --version
-ps2ui 0.7.0
+ps2ui 0.9.0
 $ ps2ui-layout --version
-ps2ui-layout 0.7.0
+ps2ui-layout 0.9.0
 ```
 
 `ps2ui --version` proves the Python half; `ps2ui-layout --version` proves
@@ -49,7 +49,7 @@ only the second command exercises the compiler directly.
 | Python | 3.9 or newer | `requires-python` in `packages/baker/pyproject.toml` |
 | Pillow | 9 or newer | `dependencies` in `packages/baker/pyproject.toml`; the baker and `ps2ui-fontgen` both import it |
 | Node.js | 18 or newer | `engines.node` in `packages/layout/package.json` |
-| Raqm and fribidi in Pillow | present | `ps2ui fontgen` refuses to write metrics without Raqm |
+| uharfbuzz | 0.51.7 or newer | `dependencies` in `packages/baker/pyproject.toml`; `pip install ophtml` installs it as a wheel on every platform, so `ps2ui fontgen` needs nothing from the system |
 | ps2dev toolchain | only for the console half | the Python and Node halves never touch it |
 
 The full platform matrix, including the host C compiler and the pinned
@@ -63,8 +63,9 @@ gsKit headers, is in
 The two installs are independent and order does not matter. `pip install
 ophtml` resolves against PyPI's stable releases; `npm install -g
 @ophtml/layout` resolves against npm's `latest` dist-tag. A prerelease publishes under
-`next` on npm, never `latest`; this tree carries `0.8.0.dev0`, a
-prerelease, so it is pinned to `next` and would not take `latest`. Pip excludes a prerelease from a plain install while a
+`next` on npm, never `latest`: `publishConfig.tag` is `"next"` exactly while
+the version is a prerelease, and `check-versions.py` holds that in both
+directions. Pip excludes a prerelease from a plain install while a
 stable release exists. A plain install of either command therefore always
 lands on a released version, not a prerelease.
 
@@ -186,52 +187,25 @@ ps2ui: ps2ui-layout failed on ui/library.html (exit 1)
 Generate font metrics before building a project. `ps2ui fontgen
 <regular.ttf> <bold.ttf> [-o DIR]` writes `default.metrics.json`,
 `default-bold.metrics.json` and `fonts.json` into `fonts/` by default. It
-needs Raqm to measure kerning and refuses to write anything without it. See
+measures kerning with HarfBuzz through `uharfbuzz`, so it runs the same
+on a stock macOS, Windows or Linux install. See
 [ps2ui-fontgen](page:cli/ps2ui-fontgen#ps2ui-fontgen) for every argument and
 output file.
 
 ### If fontgen refuses
 
-`ps2ui fontgen` checks `features.check("raqm")` before opening a font.
-Without it, it prints the Pillow version, the platform, and whether
-fribidi is present, then a remedy that matches what it found.
-
-| platform | first thing to try | then |
-|---|---|---|
-| macOS | `brew install fribidi` | `brew install libraqm`, set `PKG_CONFIG_PATH` from `brew --prefix`, `pip install --no-binary pillow --force-reinstall pillow` |
-| Debian, Ubuntu | `apt install libfribidi0` | `pip install --no-binary pillow --force-reinstall pillow` |
-| Fedora | `dnf install fribidi` | `pip install --no-binary pillow --force-reinstall pillow` |
-
-The package-manager fix runs first only when Pillow reports fribidi
-missing. When fribidi is already present, the tool skips straight to the
-rebuild column. Verify with `features.check('raqm')`, not pip's exit
-status; a Pillow build without libraqm still exits 0 and silently omits
-the feature.
-
-Both macOS Pillow wheels compile Raqm into the binary and load fribidi
-from the system at run time. A Mac with Homebrew installed for a while
-usually clears this with the fribidi line alone. A clean runner does not.
-This machine's Pillow reports Raqm and fribidi both present:
+Only 0.8.0 and earlier refuse. They measured kerning through Pillow's
+Raqm engine, which loads a fribidi library no Pillow wheel bundles, so a
+stock Mac or Windows box printed `ps2ui-fontgen: this Pillow has no Raqm
+layout engine` and wrote nothing. Upgrading is the whole fix:
 
 ```sh
-$ python3 -c "from PIL import features; print(features.check('raqm'), features.check('fribidi'))"
-True True
+pip install --upgrade ophtml
 ```
 
-so the refusal below is quoted from a mocked test run, not a live refusal.
-
-```
-ps2ui-fontgen: this Pillow has no Raqm layout engine, so kerning cannot be extracted; refusing to write a metrics file without it.
-The Pillow you have (12.3.0, linux/x86_64) reports no Raqm, and no fribidi either.
-Raqm is compiled into Pillow's binary and fribidi is loaded from your system at run time, so the missing piece is probably fribidi alone. Try that first, it needs no rebuild:
-    brew install fribidi          # macOS
-    apt install libfribidi0       # Debian/Ubuntu
-    dnf install fribidi           # Fedora
-...
-If it is still false, rebuild Pillow against both:
-    pip install --no-binary pillow --force-reinstall pillow
-Use --no-binary pillow, not --no-binary :all: -- the bare form source-builds every dependency and spends tens of minutes bootstrapping CMake.
-```
+0.9.0 measures through `uharfbuzz` and never asks Pillow about Raqm,
+and it writes the same tables 0.8.0 did, byte for byte. If you have to
+stay on 0.8.0, its refusal prints the remedy for the platform it finds.
 
 ### From a checkout
 
@@ -266,8 +240,8 @@ setup, the cross-compile image, and the sample Makefile are on
 
 ## Limits and errors
 
-Without Raqm, `ps2ui fontgen` refuses outright and writes nothing; see
-[If fontgen refuses](#if-fontgen-refuses) for the remedy per platform.
+`ps2ui fontgen` 0.8.0 and earlier refuse outright without Raqm; see
+[If fontgen refuses](#if-fontgen-refuses).
 
 `ps2ui-fontgen`'s usage line names the checkout spelling,
 `python -m ps2ui_bake.fontgen`, even when the installed `ps2ui-fontgen`
@@ -277,8 +251,8 @@ one-line message. Neither blocks installation; both are worth knowing
 before scripting around either command's exit code.
 
 A plain `npm install -g @ophtml/layout` never installs a prerelease by
-accident: this tree's version publishes to the `next` dist-tag, and
-`latest` stays on the newest stable release. The same protection holds on
+accident: a prerelease publishes to the `next` dist-tag, and `latest`
+stays on the newest stable release. The same protection holds on
 PyPI for as long as a stable `ophtml` release exists.
 
 ## Related pages

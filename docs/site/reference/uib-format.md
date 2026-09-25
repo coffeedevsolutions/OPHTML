@@ -4,7 +4,7 @@ title: .uib
 description: The baked blob the console loads, record by record, with the alignment and CRC rules and the v7 stability pledge.
 section: reference
 order: 51
-version: 0.7.0
+version: 0.9.0
 sources: [docs/format-uib.md, runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/ps2ui.py, tools/check-format-frozen.py, tools/check-versions.py, docs/PLAN.md, README.md, examples/memcard/build/ui.uib, examples/opl-env/build/ui.uib, examples/channel6/build/ui.uib]
 ---
 
@@ -338,7 +338,7 @@ The memcard blob above carries `0x3`, bits 0 and 1. Its two fonts have 291 kern 
 
 ## Versioning
 
-`version` is 7. Readers refuse any other value: `PS2UI_ERR_VERSION` in the runtime, `ValueError` in the Python reader. `PS2UI_VERSION` in [ps2ui.h](repo:runtime/ps2ui.h#L37) is that format number, not a package version. [check-versions.py](repo:tools/check-versions.py#L352) holds it equal to `uib.VERSION`, and `ps2ui vendor-runtime` writes `ps2ui.c` and `ps2ui.h` from the same package that bakes the blob. What the pledge means for an installed app is on [Compatibility](page:reference/compatibility#format-compatibility).
+`version` is 7. Readers refuse any other value: `PS2UI_ERR_VERSION` in the runtime, `ValueError` in the Python reader. `PS2UI_VERSION` in [ps2ui.h](repo:runtime/ps2ui.h#L37) is that format number, not a package version. [check-versions.py](repo:tools/check-versions.py#L375) holds it equal to `uib.VERSION`, and `ps2ui vendor-runtime` writes `ps2ui.c` and `ps2ui.h` from the same package that bakes the blob. What the pledge means for an installed app is on [Compatibility](page:reference/compatibility#format-compatibility).
 
 ### The pledge
 

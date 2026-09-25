@@ -24,6 +24,7 @@ anyone else.
 """
 import argparse
 import contextlib
+import json
 import os
 import shutil
 import subprocess
@@ -76,8 +77,43 @@ def in_project(proj):
         os.chdir(prev)
 
 
+def shown(path):
+    """A constructed path, spelled the way every document here spells one.
+
+    ONE DOCUMENTED STRING HAS TO BE TRUE ON THREE PLATFORMS. The
+    tutorial asserts eight lines carrying a path -- three from
+    `ps2ui fontgen`, four from `ps2ui build`, one from `ps2ui check`
+    -- among them:
+
+        ps2ui-fontgen: 115 glyphs, 284 kern pairs -> fonts/default.metrics.json
+        ps2ui-layout: 14 paint commands, 6 focusables -> build/library.json
+        ps2ui-bake: 1 screen(s), ... -> build/ui.uib
+
+    and on Windows os.path.join and os.path.relpath spell all eight
+    with a backslash. A document cannot assert both spellings, and the
+    alternative -- teaching the checker to compare separator-insensitively
+    -- buys a green leg for a narrower claim than the one it appears to
+    certify: it would stop reading the separator anywhere, including
+    where a real difference lives.
+
+    WHY THE WRAPPER AND NOT THE TOOLS. ps2ui-layout, ps2ui-bake and
+    ps2ui-check each print the path they were HANDED (`-o`, `--preview`,
+    the positional blob), and echoing an argument back in a different
+    spelling than it arrived in would be its own defect. So a tool
+    echoes; `ps2ui` constructs, and the construction has a spelling.
+    That is the whole rule, and it puts every fix in this file.
+
+    FORWARD SLASHES ARE NOT A LIE ON WINDOWS. The Win32 API, Python's
+    open() and Node's fs all take `/` as a separator, so these paths
+    stay the paths -- this changes how one is written, never which file
+    it names. A no-op wherever os.sep is already `/`.
+    """
+    return path if os.sep == "/" else path.replace(os.sep, "/")
+
+
 def rel(proj, path):
-    return None if path is None else os.path.relpath(path, proj.root)
+    return None if path is None else shown(
+        os.path.relpath(path, proj.root))
 
 
 def font_args(proj):
@@ -160,9 +196,8 @@ def require_fonts(proj):
         "  halves read -- metrics alone are not enough, because the baker\n"
         "  rasterizes and needs the TTF paths the manifest carries.\n"
         "  Point `fonts` in %s at one you already have to share it."
-        % (os.path.relpath(proj.fonts_path or
-                           os.path.join(proj.fonts_dir, "fonts.json"),
-                           proj.root),
+        % (rel(proj, proj.fonts_path or
+                     os.path.join(proj.fonts_dir, "fonts.json")),
            os.path.basename(proj.path) if getattr(proj, "path", None)
            else "ps2ui.json"))
 
@@ -205,7 +240,7 @@ def compile_screens(proj, argv_extra):
             # a second summary here would bury it.
             raise ProjectError(
                 "ps2ui-layout failed on %s (exit %d)"
-                % (os.path.relpath(screen.html, proj.root), rc))
+                % (rel(proj, screen.html), rc))
         irs.append(out)
     return irs
 
@@ -278,7 +313,7 @@ def cmd_check(args):
             "%s: no blob to check. Run `ps2ui build` first -- this does "
             "not build, so that a check can never report on a blob it "
             "just made and nobody has seen."
-            % os.path.relpath(proj.out_path, proj.root))
+            % rel(proj, proj.out_path))
     # THE PROJECT'S BUDGET REACHES THE BAKE AND HAD TO REACH THIS TOO.
     #
     # `vramBudget` was passed to ps2ui-bake (bake_argv, above) and
@@ -346,16 +381,35 @@ def cmd_fontgen(args):
     for ttf, weight, name in ((args.regular, 400, "default.metrics.json"),
                               (args.bold, 700, "default-bold.metrics.json")):
         rc = fontgen.main([ttf, "default", str(weight),
-                           os.path.join(out_dir, name)])
+                           shown(os.path.join(out_dir, name))])
         if rc != 0:
             return rc
-    manifest = os.path.join(out_dir, "fonts.json")
+    manifest = shown(os.path.join(out_dir, "fonts.json"))
+    # json.dump RATHER THAN A FORMAT STRING, AND THE DIFFERENCE IS A
+    # PLATFORM. This wrote the file by hand -- `"ttf": ["%s"]` against
+    # os.path.abspath -- which is valid JSON for exactly as long as no
+    # path contains a backslash. On Windows every absolute path does:
+    #
+    #   "ttf": ["C:\Users\me\AppData\...\DejaVuSans.ttf"]
+    #    -> Bad escaped character in JSON at position 30
+    #
+    # so `ps2ui fontgen` wrote a manifest that `ps2ui build` could not
+    # read, one command later, with both halves working as designed.
+    # The tool broke its own output on the platform it was not written
+    # on, and the only symptom a reader got was the compiler exiting 1.
+    #
+    # A serialiser is not a style preference here. Escaping the two
+    # paths and keeping the hand-rolled braces would fix this instance
+    # and leave the next one -- a face name, a metrics filename -- one
+    # edit away. The structure is data, so data is what writes it.
     with open(manifest, "w", encoding="utf-8") as fh:
-        fh.write(
-            '{\n'
-            '  "regular": { "ttf": ["%s"], "metrics": "default.metrics.json" },\n'
-            '  "bold":    { "ttf": ["%s"], "metrics": "default-bold.metrics.json" }\n'
-            '}\n' % (os.path.abspath(args.regular), os.path.abspath(args.bold)))
+        json.dump({
+            "regular": {"ttf": [os.path.abspath(args.regular)],
+                        "metrics": "default.metrics.json"},
+            "bold": {"ttf": [os.path.abspath(args.bold)],
+                     "metrics": "default-bold.metrics.json"},
+        }, fh, indent=2)
+        fh.write("\n")
     print("ps2ui-fontgen: manifest -> %s" % manifest, file=sys.stderr)
     return 0
 

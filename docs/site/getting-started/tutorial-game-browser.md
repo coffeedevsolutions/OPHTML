@@ -4,7 +4,7 @@ title: Tutorial: a game browser
 description: Build a six-row game library screen from an empty directory, then drive it from a checked C loop.
 section: getting-started
 order: 3
-version: 0.7.0
+version: 0.9.0
 sources: [docs/tutorial-uc3.md, tools/check-tutorial.py, runtime/sample/main.c, fonts/fonts.json]
 ---
 
@@ -32,9 +32,7 @@ ps2ui-fontgen: manifest -> fonts/fonts.json
 ```
 
 Two faces, not a weight axis: `font-weight: 600` and above resolves to
-bold. On macOS this step can refuse over a missing Raqm engine; the
-[installation](page:getting-started/installation#if-fontgen-refuses) page
-covers the fix.
+bold.
 
 You now have `fonts/fonts.json`, naming both TTFs and their metrics.
 Nothing downstream mentions fonts again.

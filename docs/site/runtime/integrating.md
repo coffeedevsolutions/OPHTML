@@ -4,7 +4,7 @@ title: Integrating the runtime
 description: Vendor ps2ui.c and ps2ui.h into a project, cross-compile them against gsKit, and run the host checks that exist.
 section: runtime
 order: 40
-version: 0.7.0
+version: 0.9.0
 sources: [packages/baker/ps2ui_bake/vendor.py, packages/baker/setup.py, packages/baker/tests/test_vendor.py, packages/baker/README.md, tools/check-runtime-shipped.py, runtime/Makefile, runtime/ps2ui.c, runtime/ps2ui.h, runtime/sample/Makefile, runtime/sample/main.c, runtime/vendor/README.md, .github/workflows/hw.yml, README.md, CONTRIBUTING.md, CHANGELOG.md, BACKLOG.md]
 ---
 
@@ -213,7 +213,7 @@ any checkout.
 
 ```sh
 $ python3 tools/check-runtime-shipped.py
-ok - built one wheel: ophtml-0.8.0.dev0-py3-none-any.whl
+ok - built one wheel: ophtml-0.10.0.dev0-py3-none-any.whl
 ok - the wheel carries ps2ui_bake/runtime/ps2ui.c
 ...
 ok - `ps2ui vendor-runtime` runs from an installed wheel

@@ -1359,6 +1359,15 @@ out empty, and all three pens then agree perfectly on zero kerning.
 The toolchain behaved exactly as designed. Its **reachability** is what
 failed, and reachability is what the gate is about.
 
+**2026-09-23: F47 removes that failure at its root rather than
+documenting around it.** `fontgen` shapes with HarfBuzz through
+`uharfbuzz`, a wheel on every platform, and reproduces the committed
+tables byte for byte, so once the next release is published a plain
+`pip install ophtml` on macOS or Windows gets past the first command
+with nothing else installed. `ci.yml` checks that on stock macOS and
+Windows runners for every pull request; `registry.yml` checks it against
+what is published.
+
 That opened onto four more, none of them new and none of them findable
 here:
 

@@ -6,7 +6,7 @@ The model tier is the one the orchestrator spawns this brief on: `opus` for a pa
 
 ## Purpose and audience
 
-Metrics from a TTF: the bare tool's argv and the `ps2ui fontgen` form, the Raqm refusal, the metrics JSON, the default charset, and regenerating the shipped metrics.
+Metrics from a TTF: the bare tool's argv and the `ps2ui fontgen` form, measuring through uharfbuzz (and 0.8.0's Raqm refusal, by pointer), the metrics JSON, the default charset, and regenerating the shipped metrics.
 
 ## Read first
 
@@ -50,10 +50,10 @@ None recorded. If a README.md claim disagrees with what you verify, add it to th
 
 Line numbers are hints from the exploration that produced this brief; re-locate by symbol name. Authority order: code, tests, docs/*.md, README.md.
 
-- packages/baker/ps2ui_bake/fontgen.py - argv (~259-294), refusal (~272-276), _raqm_remedy, build_metrics (~79-100), DEFAULT_CHARSET (~26-29), build_kerning
+- packages/baker/ps2ui_bake/fontgen.py - argv (~145-170), _shaper (~74-98), build_metrics (~121-142), DEFAULT_CHARSET (~23-26), build_kerning (~102-118)
 - packages/baker/ps2ui_bake/ps2ui.py ~218-243 - the wrapper's three outputs
 - fonts/regen.sh; fonts/fonts.json; fonts/default.metrics.json
-- packages/baker/tests/test_baker.py TestFontgenRefusesWithoutRaqm, TestKerningExtraction
+- packages/baker/tests/test_baker.py TestFontgenNeedsNoRaqm, TestKerningExtraction
 
 ## Claims to verify, and how
 
@@ -61,7 +61,7 @@ Each item is `claim -> how to prove it`. Run every command. Paste real output in
 
 1. Bare argv: `<ttf> <family> <weight> <out> [charset-file]`; fewer than four is exit 2; --version/-V -> run with no args and paste
 2. `ps2ui fontgen <regular> <bold> [-o dir]` writes default.metrics.json, default-bold.metrics.json, fonts.json with absolute TTF paths -> run on fonts/vendor into a temp dir and list; paste the three stderr lines
-3. Without Raqm it exits 2 before writing; the remedy checks fribidi separately -> cite the test; quote the remedy from source, `code-only` if this machine has Raqm
+3. It measures through uharfbuzz and never asks Pillow about Raqm; without uharfbuzz importable it exits 1 with one line before writing -> cite TestFontgenNeedsNoRaqm; point at installation for 0.8.0's refusal
 4. Metrics fields: family, weight, unitsPerEm, ascent, descent, advances, kerning, missing, source -> print the keys of default.metrics.json
 5. Kerning is measured with substitutions disabled -> cite fontgen.py
 6. regen.sh reads fonts.json and reproduces the committed files byte for byte -> run and git diff
@@ -85,7 +85,7 @@ title: ps2ui-fontgen
 description: <one sentence>
 section: cli
 order: 34
-version: 0.7.0
+version: 0.9.0
 sources: [<every repository path opened>]
 ---
 ```
@@ -95,7 +95,7 @@ sources: [<every repository path opened>]
 Write links as `[text](page:<id>#<anchor>)`. Every id below must appear on the page at the place named.
 
 - authoring/text-and-fonts - what the metrics drive
-- getting-started/installation - Raqm
+- getting-started/installation - 0.8.0's Raqm refusal
 - authoring/project-file - fonts key
 
 ## Facts to emit
@@ -116,7 +116,7 @@ Required ids (downstream pages read these by name):
 - `fontgen.argv` - both forms
 - `fontgen.metrics-schema` - the fields
 - `fontgen.outputs` - the wrapper's three files
-- `fontgen.raqm` - refusal and remedy summary
+- `fontgen.shaper` - measuring through uharfbuzz, and `fontgen.shaper.missing`
 
 ## Out of scope
 

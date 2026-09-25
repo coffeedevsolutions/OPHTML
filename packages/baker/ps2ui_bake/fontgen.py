@@ -12,10 +12,7 @@ import json
 import string
 import sys
 
-import platform
-
-import PIL
-from PIL import ImageFont, features
+from PIL import ImageFont
 
 from . import __version__
 
@@ -29,47 +26,92 @@ DEFAULT_CHARSET = (
 )
 
 
-# Kerning is measured, not read from a table, because Pillow exposes no
-# kern/GPOS reader and this package's only dependency is Pillow. Measuring
-# "AV" against "A" + "V" asks the same shaper the rasterizer will use, so
-# whatever it does is what we record.
+# Kerning is measured, not read from a table: shaping "AV" and
+# subtracting "A" and "V" asks HarfBuzz the same question for a GPOS
+# font, a legacy `kern` font and anything else it understands, and
+# whatever it answers is what we record.
 #
 # Substitutions must be off for that to be true. With default features
 # DejaVu shapes "ff" as one ligature glyph 15 units narrower than f + f,
 # and the pen -- which draws two separate glyphs -- would then be handed a
 # kern that does not exist. Positioning (kern/GPOS) is what we want;
 # ligatures, contextual alternates and the rest are substitutions.
-NO_SUBSTITUTION = ["-liga", "-clig", "-dlig", "-hlig", "-rlig", "-calt"]
+NO_SUBSTITUTION = {"liga": False, "clig": False, "dlig": False,
+                   "hlig": False, "rlig": False, "calt": False}
 
 
-def _shaping():
-    """The `features` argument to pass Pillow, or None when it has no
-    Raqm and would reject the argument rather than honour it."""
-    return NO_SUBSTITUTION if features.check("raqm") else None
+# WHY HarfBuzz DIRECTLY, AND NOT PILLOW'S RAQM ENGINE ANY MORE (F47).
+#
+# This file used to measure through `ImageFont.getlength(features=...)`,
+# which needs Pillow's Raqm layout engine, which needs fribidi, which
+# no Pillow wheel bundles: Pillow loads it from the machine at run
+# time. So on a stock Mac or Windows box the first command of the
+# tutorial refused, over a bidirectional-text library this tool never
+# needed -- the default charset is Latin, where bidi does nothing --
+# and the remedy was a system package the reader had to go and find.
+# Four functions of platform-specific advice existed only to say so.
+#
+# uharfbuzz is the same shaper Raqm drives, as a wheel for every
+# platform pip serves, with no system half. Driven at the same 1000px
+# em with the same substitutions off, it reproduces what Raqm measured
+# exactly: both committed DejaVu tables pair for pair (284 and 163
+# pairs, 115 advances each), and zero differences across 45 other
+# faces, two more rebuilt to carry their kerning only in a legacy
+# `kern` table, and a Greek, Cyrillic, Hebrew, Arabic, Thai and
+# Japanese charset on the faces that cover it.
+#
+# THE FLOOR IN pyproject.toml IS 0.51.7 because it is the newest
+# uharfbuzz with Python 3.9 wheels, which this package still supports,
+# and it was measured to the same result as 0.56.2: pip on 3.9 lands
+# on it, so it is the version a 3.9 reader actually runs.
+#
+# IMPORTED HERE RATHER THAN AT THE TOP, so a checkout that has not
+# installed it loses this one command, with a sentence saying why,
+# rather than every command that happens to import this module.
+def _shaper(ttf_path, em):
+    """A function returning the advance of a string, in pixels at `em`.
+
+    26.6 fixed point, like FreeType's pixel sizes: the scale is em * 64
+    and the sum is divided back out, so rounding happens once, in the
+    caller, exactly where it happened when Pillow did the arithmetic.
+    The font is read into memory rather than opened by path, because a
+    path HarfBuzz opens itself goes through the C runtime's idea of the
+    filename encoding, and Windows paths are where that has bitten
+    this project before.
+    """
+    try:
+        import uharfbuzz as hb
+    except ImportError:
+        raise SystemExit(
+            "ps2ui-fontgen: needs the uharfbuzz package, which `pip "
+            "install ophtml` installs. From a checkout, install it "
+            "yourself: pip install uharfbuzz")
+    with open(ttf_path, "rb") as fh:
+        font = hb.Font(hb.Face(hb.Blob(fh.read())))
+    font.scale = (em * 64, em * 64)
+
+    def length(text):
+        buf = hb.Buffer()
+        buf.add_str(text)
+        buf.guess_segment_properties()
+        hb.shape(font, buf, NO_SUBSTITUTION)
+        return sum(p.x_advance for p in buf.glyph_positions) / 64
+    return length
 
 
-def build_kerning(font, charset) -> dict:
+def build_kerning(length, charset) -> dict:
     """{"cp_prev,cp_cur": units} for every pair the shaper adjusts.
 
-    O(n^2) in the charset, which is ~13k measurements for the default
-    120 glyphs -- a fraction of a second, once, at font-build time.
+    O(n^2) in the charset, which is ~13k shapes for the default 115
+    glyphs -- a fraction of a second, once, at font-build time.
     """
-    feat = _shaping()
-    if feat is None:
-        # Without Raqm, Pillow applies no GPOS at all, so every pair
-        # would measure zero. Say so rather than emitting an empty table
-        # that is indistinguishable from a font with no kerns.
-        print("ps2ui-fontgen: Pillow has no Raqm layout engine; "
-              "kerning not extracted", file=sys.stderr)
-        return {}
-
     chars = [c for c in sorted(set(charset)) if ord(c) >= 32]
-    widths = {c: font.getlength(c, features=feat) for c in chars}
+    widths = {c: length(c) for c in chars}
     kerning = {}
     for a in chars:
         wa = widths[a]
         for b in chars:
-            k = font.getlength(a + b, features=feat) - wa - widths[b]
+            k = length(a + b) - wa - widths[b]
             k = int(round(k))
             if k:
                 kerning[f"{ord(a)},{ord(b)}"] = k
@@ -80,13 +122,13 @@ def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAUL
     em = 1000
     font = ImageFont.truetype(ttf_path, em)
     ascent, descent = font.getmetrics()
-    feat = _shaping()
+    length = _shaper(ttf_path, em)
     advances = {}
     for ch in sorted(set(charset)):
         cp = ord(ch)
         if cp < 32:
             continue
-        advances[str(cp)] = int(round(font.getlength(ch, features=feat)))
+        advances[str(cp)] = int(round(length(ch)))
     return {
         "family": family,
         "weight": weight,
@@ -94,296 +136,19 @@ def build_metrics(ttf_path: str, family: str, weight: int, charset: str = DEFAUL
         "ascent": ascent,
         "descent": descent,
         "advances": advances,
-        "kerning": build_kerning(font, charset),
+        "kerning": build_kerning(length, charset),
         "missing": advances.get(str(ord("?")), 500),
         "source": ttf_path.rsplit("/", 1)[-1],
     }
 
 
-def _raqm_remedy():
-    """What to actually do about it, on the platform you are on.
-
-    The message this replaces said "install a Pillow wheel built with
-    Raqm (pip's manylinux wheels are)". True, and useless to the person
-    most likely to read it: pip's macOS wheels are not, which is
-    exactly why they are the ones seeing this. Phase 4's exit gate --
-    a stranger with npm, pip and a TTF -- failed here on the first real
-    attempt, at the tutorial's first command.
-
-    IT THEN SAID "pip's macOS wheels are built without it", WHICH IS A
-    RULE, AND THE RULE IS FALSE. A stranger-path run on an Intel Mac
-    reported Pillow 12.3.0 with `features.check('raqm')` TRUE and ran
-    the tutorial straight through, while a `macos-14` runner reports
-    False -- which looked architectural and is not. Both 12.3.0 macOS
-    wheels were opened and compared:
-
-        raqm compiled into _imagingft   both, same raqm.o breadcrumb
-        libraqm bundled                 neither
-        fribidi bundled                 neither
-        dlopen candidates in binary     libfribidi.dylib, libfribidi.so.0
-
-    THE WHEELS ARE THE SAME. Raqm is statically linked in; fribidi is
-    loaded from the machine at run time. An Intel Mac that has had
-    Homebrew on it for a while has libfribidi; a clean runner does not.
-    That is the entire "architectural" split, and it is not about
-    architecture at all. Measured in review of #126 and confirmed
-    independently against both wheels off PyPI.
-
-    SO THE FIX IS NOT A BETTER RULE, IT IS NOT STATING ONE -- and the
-    reason that is right turns out to be stronger than the reason first
-    given for it. This function runs at the moment
-    `features.check('raqm')` has ALREADY returned False, so the
-    reader's Pillow demonstrably lacks Raqm and no claim about wheels
-    is needed to tell them so. It reports what it detected, asks Pillow
-    about fribidi separately, and leads with the remedy that matches.
-
-    WHAT IS MEASURED AND WHAT IS INFERRED, because the message stakes
-    advice on it: that Raqm is in the binary and fribidi is not bundled
-    is read directly off both wheels. That installing fribidi alone
-    flips the feature is inference from that, not execution -- no Mac
-    was available -- which is why the message says "probably" and
-    prints the check rather than promising the outcome.
-
-    The macOS route is verified end to end rather than reasoned, twice
-    and against two libraqm releases: Pillow 12.3.0 against libraqm
-    0.10.5 on one Mac, and the same against 0.11.0 on a GitHub macOS
-    runner (registry run 1), both reproducing the tutorial's documented
-    numbers exactly. Deliberately not pinning a libraqm version here --
-    the first draft named 0.10.5, and a docstring that pins the weaker
-    of two pieces of evidence invites someone to think the other
-    version is untested.
-
-    `brew --prefix` RATHER THAN A LITERAL PATH. Homebrew is under
-    /opt/homebrew on Apple silicon and /usr/local on Intel, and a
-    message that hardcodes one is wrong for half its readers in a way
-    that fails silently: pkg-config simply finds nothing and the build
-    succeeds WITHOUT Raqm.
-
-    `--no-binary pillow`, NOT `--no-binary :all:`. The bare form scopes
-    the source build to the whole dependency graph, so pip goes off and
-    builds Pillow's build-dependencies too, including bootstrapping
-    CMake from C++ source. Measured at roughly forty minutes before
-    anyone worked out what it was doing, and it is written down here
-    because the trap is one keystroke from the fix.
-
-    AND A SUCCESSFUL BUILD IS NOT PROOF. Pillow builds perfectly
-    happily without libraqm and simply omits the feature, exit status
-    0, so the check is features.check and not pip's return code. That
-    is what this same refusal will tell you if it did not work.
-    """
-    here = "%s, %s/%s" % (PIL.__version__, sys.platform,
-                                 platform.machine())
-
-    # WHY fribidi IS ASKED ABOUT SEPARATELY. Raqm is compiled INTO
-    # _imagingft on every wheel checked -- the linker breadcrumb
-    # `src/thirdparty/raqm/raqm.o` is in the binary of both macOS
-    # wheels -- and fribidi is not bundled at all: the binary carries
-    # `libfribidi.dylib` / `libfribidi.so.0` as dlopen candidates and
-    # finds them on the machine or does not. So "no Raqm" usually means
-    # "no fribidi", and Pillow will say which. Asking is what turns a
-    # ten-minute source build into a thirty-second install.
-    #
-    # Guarded, because this runs on an error path and an error path
-    # that raises tells the reader nothing at all. A Pillow too old to
-    # know the feature name answers None, and None takes the general
-    # advice rather than a guess.
-    try:
-        fribidi = features.check("fribidi")
-    except Exception:                                   # pragma: no cover
-        fribidi = None
-
-    detected = "The Pillow you have (%s) reports no Raqm" % here
-    if fribidi is False:
-        detected += ", and no fribidi either"
-    detected += ".\n"
-
-    check = ("Check it took, with the feature and not pip's exit status "
-             "-- Pillow builds and exits 0 without these and simply "
-             "omits them:\n"
-             "    python -c \"from PIL import features; "
-             "print(features.check('raqm'))\"")
-
-    if fribidi is False:
-        # The cheap path, and the likely one. Named as a first thing to
-        # try rather than a promise: that Raqm is present in the binary
-        # is measured, that installing fribidi alone flips the feature
-        # is inference from it.
-        return (detected +
-                "Raqm is compiled into Pillow's binary and fribidi is "
-                "loaded from your system at run time, so the missing "
-                "piece is probably fribidi alone. Try that first, it "
-                "needs no rebuild:\n"
-                "    brew install fribidi          # macOS\n"
-                "    apt install libfribidi0       # Debian/Ubuntu\n"
-                "    dnf install fribidi           # Fedora\n"
-                + _windows_fribidi_hint()
-                + check + "\n"
-                + _escalation(fribidi_present=False))
-
-    return (detected +
-            "fribidi is present, so this is not the usual cause.\n"
-            + _escalation(fribidi_present=True) + "\n"
-            + check)
-
-
-def _escalation(fribidi_present):
-    """The step after the first advice did not work, per platform.
-
-    WHY THIS EXISTS AT ALL: BOTH CALLERS PROMISED A REBUILD AND THE
-    WINDOWS BRANCH THEN DECLINED IT. `_rebuild_hint()` is the
-    SOURCE-BUILD route, and on Windows a source build is not the route
-    -- so the win32 arm answered a question neither lead-in had asked.
-    With fribidi missing, "if it is still false, rebuild Pillow against
-    both" handed back the same two install commands the reader had
-    already run and then refused the harder thing, leaving somebody who
-    followed the advice and is still stuck with no next action. With
-    fribidi present, "fribidi is present, so this is not the usual
-    cause. Rebuild Pillow against Raqm" told them to install fribidi.
-
-    The branch's CONTENT was right and its two CALLERS were wrong,
-    which is why the test that fences the spelling passed over it:
-    `test_windows_is_told_to_supply_the_dll_and_not_to_rebuild` asks
-    whether the DLLs are named and `--no-binary` is absent, and nothing
-    asked whether the reader is left with somewhere to go. The fix is
-    to stop routing win32 into a rebuild hint at all rather than to
-    reword the hint, because the defect is the routing.
-
-    WHAT THE WINDOWS ARMS ARE GROUNDED IN, so neither branch states a
-    rule it has not measured. `_imagingft.cp311-win_amd64.pyd` off PyPI
-    carries `HAVE_RAQM` and loads fribidi by name at run time. So:
-
-      fribidi absent, still false after installing it -> the DLL is
-      not being LOADED, and the two causes are a directory that is not
-      on PATH when Python starts and a bitness mismatch. Neither is a
-      Pillow problem and neither is fixed by reinstalling anything.
-
-      fribidi present and Raqm still false -> on a PyPI wheel that
-      combination should not occur, because Raqm is linked in and
-      fribidi is the only run-time piece. So the Pillow in front of
-      the reader is not that wheel, and reinstalling it is the action.
-    """
-    if sys.platform != "win32":
-        if fribidi_present:
-            return "Rebuild Pillow against Raqm:\n" + _rebuild_hint()
-        return ("If it is still false, rebuild Pillow against both:\n"
-                + _rebuild_hint())
-
-    if fribidi_present:
-        return ("PyPI's Windows wheel compiles Raqm in and loads only "
-                "fribidi at run time, so fribidi present with Raqm absent "
-                "means the Pillow you have is not that wheel. Take it:\n"
-                "    pip install --force-reinstall --only-binary :all: pillow")
-    return ("If it is still false the DLL is present and Python is not "
-            "loading it, which is a search problem rather than a Pillow "
-            "one. Two causes, in the order they bite:\n"
-            "  1. the directory is not on PATH *before* Python starts -- "
-            "setting it inside the session that already imported PIL is "
-            "too late, because the lookup happens once, at import.\n"
-            "  2. the DLL and the interpreter disagree on bitness. A "
-            "32-bit fribidi cannot load into a 64-bit Python or the "
-            "other way round; `python -c \"import sys; "
-            "print(sys.maxsize > 2**32)\"` says which you are on.")
-
-
-def _windows_fribidi_hint():
-    """Windows needs a paragraph where the others need a line.
-
-    WHY THIS IS NOT A FOURTH ROW IN THE LIST ABOVE. The three lines
-    there each name a system package manager that has fribidi and put
-    it somewhere the loader already looks. Windows has neither half:
-    no package manager to ask, and no default directory the DLL can
-    land in. A row saying `choco install fribidi` would be the same
-    shape of wrong as the `/opt/homebrew` literal this function's
-    sibling exists to avoid -- plausible, and quietly useless.
-
-    WHAT IS MEASURED. `_imagingft.cp311-win_amd64.pyd` off PyPI
-    carries `HAVE_RAQM`, carries no libraqm of its own, and names
-    `fribidi-0`, `libfribidi-0` and `fribidi` as the things it looks
-    for at run time. That is the same shape as the macOS and manylinux
-    binaries -- Raqm linked in, fribidi loaded from the machine -- and
-    it is read off the wheel, not off a Windows box.
-
-    WHAT IS INFERRED, AND SAID AS SUCH. That supplying one of those
-    DLLs flips the feature on Windows follows from the structure and
-    has not been executed here, for exactly the reason the macOS
-    branch said "probably" for a cycle: nobody had the machine. The
-    `windows-plain` arm in registry.yml is what settles it, and the
-    day it does this text should stop hedging.
-
-    IT IS PLATFORM-GATED and the other three rows are not, because
-    this is four lines rather than one and a Mac reader scrolling past
-    a Windows DLL search order is being charged for somebody else's
-    problem. The list stays a list.
-    """
-    if sys.platform != "win32":
-        return ""
-    return ("On Windows there is no package manager to ask. Pillow looks "
-            "for `fribidi-0.dll`, `libfribidi-0.dll` or `fribidi.dll` on "
-            "the DLL search path; MSYS2 "
-            "(`pacman -S mingw-w64-x86_64-fribidi`) and conda-forge "
-            "(`conda install -c conda-forge fribidi`) both ship one. "
-            "Whichever you use, the directory holding the DLL has to be "
-            "on PATH before Python starts -- a DLL sitting in a folder "
-            "nothing searches fails exactly like an absent one.\n")
-
-
-def _rebuild_hint():
-    """The source-build route, and the two traps in it.
-
-    `brew --prefix` RATHER THAN A LITERAL PATH. Homebrew is under
-    /opt/homebrew on Apple silicon and /usr/local on Intel, and a
-    message that hardcodes one is wrong for half its readers in a way
-    that fails silently: pkg-config finds nothing and the build
-    succeeds WITHOUT Raqm.
-
-    `--no-binary pillow`, NOT `--no-binary :all:`. The bare form scopes
-    the source build to the whole dependency graph, so pip goes off and
-    builds Pillow's build-dependencies too, including bootstrapping
-    CMake from C++ source. Measured at roughly forty minutes before
-    anyone worked out what it was doing, and it is written down here
-    because the trap is one keystroke from the fix.
-    """
-    if sys.platform == "darwin":
-        return ("    brew install libraqm\n"
-                '    export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:'
-                '$(brew --prefix libraqm)/lib/pkgconfig"\n'
-                "    pip install --no-binary pillow --force-reinstall pillow\n"
-                "Use --no-binary pillow, not --no-binary :all: -- the bare "
-                "form source-builds every dependency and spends tens of "
-                "minutes bootstrapping CMake.")
-    # NO win32 ARM, AND ITS ABSENCE IS THE POINT. A source build of
-    # Pillow on Windows wants MSVC and a native dependency chain in
-    # place first, so it is not a slow fix, it is a different project.
-    # This function is only ever the SOURCE-BUILD route, so win32 does
-    # not belong in it: `_escalation()` routes that platform somewhere
-    # else entirely. The first version of this change did put a win32
-    # arm here, and it was reached from two lead-ins that both promised
-    # a rebuild -- so the message offered a rebuild, declined it, and
-    # handed back the advice the reader had already followed.
-    return ("    pip install --no-binary pillow --force-reinstall pillow\n"
-            "Use --no-binary pillow, not --no-binary :all: -- the bare "
-            "form source-builds every dependency and spends tens of "
-            "minutes bootstrapping CMake.")
-
-
 def main(argv=None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
-    # Before the Raqm check below, which is a hard refusal: asking a
+    # First, and before anything that imports a dependency: asking a
     # tool what it is must not be able to fail for an unrelated reason.
     if argv and argv[0] in ("--version", "-V"):
         print("ps2ui-fontgen %s" % __version__)
         return 0
-    # Hard requirement, checked before anything is written. Without Raqm
-    # the advances come out identical and the kerning table comes out
-    # empty -- a diff that deletes every pair while every test still
-    # passes, because all three pens agree perfectly on zero kerning.
-    # A metrics file that silently un-kerns the project is worse than
-    # no metrics file.
-    if not features.check("raqm"):
-        print("ps2ui-fontgen: this Pillow has no Raqm layout engine, so "
-              "kerning cannot be extracted; refusing to write a metrics "
-              "file without it.\n" + _raqm_remedy(), file=sys.stderr)
-        return 2
     if len(argv) < 4:
         print(
             "usage: python -m ps2ui_bake.fontgen <font.ttf> <family> <weight> <out.metrics.json> [charset-file]",

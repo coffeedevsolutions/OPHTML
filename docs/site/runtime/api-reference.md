@@ -4,7 +4,7 @@ title: C API reference
 description: Every public function in ps2ui.h with its return convention, scope and ordering rule, plus the public structs and constants.
 section: runtime
 order: 42
-version: 0.7.0
+version: 0.9.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/stub/gskit_stub.h, runtime/Makefile, runtime/vendor/host-shim/kernel.h, runtime/sample/main.c, packages/baker/ps2ui_bake/caps.py, README.md, docs/site/_facts/README.md]
 ---
 

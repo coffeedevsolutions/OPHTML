@@ -1,12 +1,12 @@
 # Changelog
 
-## Unreleased — 0.8.0.dev0
+## Unreleased — 0.10.0.dev0
 
 `.uib` format **version 7**, unchanged from the release below.
-Zero format moves have landed since 0.7.0, which is what a section
+Zero format moves have landed since 0.9.0, which is what a section
 opened straight after a release should say: the release under it
 shipped the format this tree still writes, so a blob baked here loads
-under a 0.7.0 runtime and the other way round.
+under a 0.9.0 runtime and the other way round.
 
 That count is the one number in this file that starts correct and
 decays. It becomes one the moment a format move lands, and
@@ -15,6 +15,28 @@ reading it back, so the check fails the change that moves the format
 without moving this line.
 
 ### Added
+
+- **The OPHTML console: any ps2ui theme, driven as a game launcher
+  (`console/`).** Until now a baked UI could draw a game list and do
+  nothing with it: the runtime is display-only by design, and device
+  I/O and launching were the app's to write, so nobody's UI could list
+  or start a game. `ophtml.elf` loads USB, exFAT HDD, MX4SIO and MMCE
+  drivers, scans each drive for ISOs in OPL's `DVD/` and `CD/` layout
+  (title IDs from the name or the disc's `SYSTEM.CNF`), fills whatever
+  theme it finds — `theme.uib` beside the ELF, then `OPHTML/theme.uib`
+  on a drive, then the built-in `examples/console` — and hands the
+  selected game to Neutrino with `-qb` through elf-loader's no-reset
+  entry point, so Neutrino reads it through the drivers the console
+  loaded. A theme opts in by using names (`game-{i}` rows,
+  `game-{i}-title`, `sel-title`, `status` and the rest in
+  `console/README.md`), every one optional; nothing in C is the
+  author's to write. Proven so far: `console/tests` on the host (file
+  names, ISO9660, `SYSTEM.CNF`, the directory scan, Neutrino's command
+  line), and `hw.yml` booting a MOCK build in Play! and diffing its
+  filled list against the previewer drawing the same games. Not yet:
+  no drive has been mounted and no game started on a console. Bench
+  cases C1–C8 in `console/README.md` are that evidence, and each is
+  open.
 
 - **Hard caps on what an untrusted theme may ask the compilers for.** A
   theme is a file somebody else wrote, and the compilers accepted
@@ -48,7 +70,12 @@ without moving this line.
   `unrecognized arguments` from the first and a bare usage line from
   the second, while `ps2ui build` on the same file was fine. Both are
   fixed, and the fence is a test that reads the spawned tool's own
-  parser rather than a list maintained beside it. Re-running every
+  parser rather than a list maintained beside it. And the flag reached
+  both `--help` outputs before it reached any page that quotes one: the
+  two CLI pages and the diagnostics catalogue now carry `--limit`, the
+  three layout caps, the header-read image refusal and the scan-out
+  refusal, and a test holds each quoted usage line to the line its bin
+  prints, because nothing tied the two together. Re-running every
   sabotage after that found one more: each cap has a test that its
   check fires, and the image cap was the one whose *number* nothing
   read, so raising it to ten billion left the whole suite green. It is
@@ -58,6 +85,138 @@ without moving this line.
   the tool that does not enforce it, answered until now by
   *"takes imagePixels=N with N a positive integer"* -- a complaint
   about the 5.
+
+### Changed
+
+- **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0
+  is what a stranger installs.** It kept the macOS and Windows remedy
+  steps, and the `-plain` jobs' assertion that fontgen refuses, while the
+  published release still needed Raqm, switching on whether the wheel
+  carried `_raqm_remedy`. 0.9.0 published, and run 35817721457 passed
+  every arm against it: the tutorial on all four with the remedies
+  skipped, and the committed tables from a plain install on macOS arm64,
+  macOS x86_64 and Windows. The remedies, the switch and the refusal
+  assertions are deleted. What replaces the switch is a guard: the
+  first run after the publish, 35817387412, was served 0.8.0 on both
+  Macs by an index that had not caught up, and the old refusal passed
+  there, measuring nothing. The `-plain` jobs now fail by name when pip
+  hands them a release from before F47, rather than later in fontgen
+  with a message that blames the machine.
+
+### Fixed
+
+- **A raised VRAM budget bought room for a framebuffer, which no budget
+  can.** `--vram-budget` exists to let a project declare the texture
+  space it really has. The refusal for a canvas too large to scan out
+  lived inside the advice printed only when no budget was given, so
+  passing one silenced the sentence and the failure together: a
+  30000x30000 canvas baked to a 17760-byte blob with exit 0, past a
+  message whose own last line reads "a narrower canvas is the only fix".
+  The budget charges textures and a framebuffer is not a texture, so the
+  check is now separate from the one a flag can reach.
+
+- **A 439 KiB image could cost 432 MB and eleven seconds, or end the
+  bake in a traceback.** An image is pre-scaled to its laid-out size, so
+  the baked bytes were already bounded: 40 distinct 1024x1024 sources
+  bake to 40 KiB. Nothing bounded the decode. A 12000x12000 PNG baked
+  clean in 11.0 seconds to produce 4 KiB of texture, and one step larger
+  Pillow's own `DecompressionBombError` reached the terminal raw. The
+  size is read from the header now, before any decode, so the same file
+  fails in 0.08 seconds with one error line.
+
+- **Nesting deep enough reported `Maximum call stack size
+  exceeded`.** That is V8's stack rather than a decision, so the real
+  limit moved with the machine and the message named neither the
+  element nor a number. How far it moves, bisected on one checkout:
+  1842 on node v22.22.2's default stack, 889 under `--stack-size=500`,
+  7781 under `--stack-size=4000`. The first version of this entry said
+  *"deeper than about 1500"*, which was the midpoint of the
+  1000-compiled / 2000-died bracket written as though it were a
+  reading; review of #166 asked for the reading. The refusal is the compiler's now, at 64, and
+  names the line the deepest element sits on. The check is iterative,
+  because a recursive walk to find the depth that breaks a recursive
+  walk overflows before it can report anything.
+
+## 0.9.0 — 2026-09-23
+
+`.uib` format **version 7**, unchanged from the release below.
+Zero format moves have landed since 0.8.0, which is what a section
+opened straight after a release should say: the release under it
+shipped the format this tree still writes, so a blob baked here loads
+under a 0.8.0 runtime and the other way round.
+
+That count is the one number in this file that starts correct and
+decays. It becomes one the moment a format move lands, and
+`tools/check-versions.py` derives it from the section below rather than
+reading it back, so the check fails the change that moves the format
+without moving this line.
+
+### Changed
+
+- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no
+  longer asks Pillow to shape (F47).** It measured kerning through
+  Pillow's Raqm engine, and Raqm loads fribidi from the machine at run
+  time: no Pillow wheel bundles it. So the tutorial's first command
+  refused on every clean macOS and Windows install, over a bidi library
+  the default Latin charset never exercises, and the remedy was a
+  system package the reader had to find. `registry.yml` run 35809073289
+  measured how bad that was against the published 0.8.0: a plain
+  install refused on `macos-15`, `macos-15-intel` and `windows-2025`;
+  `brew install fribidi` cleared it on Intel but not on Apple silicon,
+  which needed a source rebuild of Pillow.
+
+  `fontgen` now shapes with HarfBuzz through `uharfbuzz`, a new
+  dependency (Apache-2.0) that ships as a wheel for macOS universal2,
+  x86_64 and arm64, Windows, manylinux and musllinux, with nothing
+  loaded from the system. **Every committed number stays put.** Driven
+  at the same 1000px em with the same six substitution features off, it
+  reproduces both DejaVu tables pair for pair -- 284 and 163 pairs, 115
+  advances each -- and `fonts/regen.sh` rewrites both metrics files
+  byte for byte. Checked wider than the row asked, against Pillow with
+  Raqm on the same machine: 45 other installed faces, two rebuilt to
+  carry their kerning only in a legacy `kern` table, and a Greek,
+  Cyrillic, Hebrew, Arabic, Thai and Japanese charset, with zero
+  differing advances or pairs, on uharfbuzz 0.56.2 and on 0.51.7, the
+  newest with Python 3.9 wheels and so the floor in `pyproject.toml`.
+
+  **This amends a design rule, deliberately.** CONTRIBUTING said the
+  baker stays Pillow-only. The rule exists to keep the baker
+  self-contained, and Pillow alone was not: it carried a system
+  requirement this project could not ship. The rule now reads "only
+  what installs as a self-contained wheel on every platform pip
+  serves", and a third dependency has to clear that bar here.
+
+  What it deletes: the refusal in `main`, `_raqm_remedy()`,
+  `_escalation()`, `_windows_fribidi_hint()` and `_rebuild_hint()`,
+  eight tests of their wording, `require_raqm`, and the contributor
+  suite's macOS-only fribidi step. `uharfbuzz` is imported only when a
+  font is measured, so a checkout without it loses `fontgen` alone,
+  with one line naming the package. A new `ci.yml` job runs
+  `ps2ui fontgen` on stock `macos-15`, `macos-15-intel` and
+  `windows-2025` runners for every pull request and requires the
+  committed tables, the first Mac or Windows job that runs against the
+  tree rather than the last release. `registry.yml`'s remedy steps and
+  `-plain` jobs ask the published wheel which it is: they keep proving
+  0.8.0's documented route while that is what PyPI serves, and flip to
+  requiring the committed tables once this ships. Documents that
+  describe the installable release keep 0.8.0's remedy, labelled as
+  0.8.0's.
+
+## 0.8.0 — 2026-09-23
+
+`.uib` format **version 7**, unchanged from the release below.
+Zero format moves have landed since 0.7.0, which is what a section
+opened straight after a release should say: the release under it
+shipped the format this tree still writes, so a blob baked here loads
+under a 0.7.0 runtime and the other way round.
+
+That count is the one number in this file that starts correct and
+decays. It becomes one the moment a format move lands, and
+`tools/check-versions.py` derives it from the section below rather than
+reading it back, so the check fails the change that moves the format
+without moving this line.
+
+### Added
 
 - **A version a document prints is now held to the version something
   prints.** `check-site-pages.py` pins a citation to the line it names,
@@ -142,6 +301,148 @@ without moving this line.
 
 ### Fixed
 
+- **`fonts/default.metrics.json` is `fonts\default.metrics.json` on
+  Windows, so eight documented lines were false on a platform.**
+  `docs/tutorial-uc3.md` asserts eight lines carrying a path -- three
+  from `ps2ui fontgen`, four from `ps2ui build`, one from `ps2ui check`
+  -- and `os.path.join` and `os.path.relpath` spell every one of them
+  with a backslash there. This is the finding standing behind the two
+  entries below: the Windows leg refused its own manifest first, and
+  when that was fixed the separator was what remained.
+
+  **The other repair was considered and rejected.**
+  `tools/check-tutorial.py` could compare separator-insensitively. That
+  buys a green leg for a narrower claim than the one it appears to
+  certify -- it stops reading the separator everywhere, including where
+  a difference is real -- and it leaves the tool printing two spellings
+  of one path for every reader who is not a checker. One documented
+  string being true on three platforms is the stronger thing to own.
+
+  **A tool echoes; the wrapper constructs.** `ps2ui-layout`,
+  `ps2ui-bake` and `ps2ui-check` each print the path they were HANDED
+  -- `-o`, `--preview`, the positional blob, at
+  `ps2ui-layout.js:105`, `cli.py:338` and `check.py:745` -- and echoing
+  an argument back in a different spelling than it arrived in would be
+  its own defect. So the spelling is decided where a path is BUILT,
+  which is `ps2ui` and nowhere else. `shown()` translates `os.sep` to
+  `/`; `rel()` routes through it, which covers the five lines that
+  reach a tool as argv; `ps2ui fontgen` routes the three it builds
+  under `--out-dir`. Forward slashes are not a lie on
+  Windows -- Win32, Python's `open()` and Node's `fs` all take `/` --
+  so this changes how a path is written, never which file it names.
+
+  Four call sites computed their own `os.path.relpath` for a message
+  before this, each a separate chance to forget. There is one now and a
+  test counts them, because a fifth would be invisible on every machine
+  this suite runs on: `shown()` is the identity wherever `os.sep` is
+  already `/`. For the same reason the translation is checked under a
+  patched `os.sep` and the routing is checked by spying on the call --
+  the routing is what can regress, and unlike the translation it is
+  observable on any platform. Falsified four ways: the translation
+  removed, `rel` unrouted, `fontgen`'s manifest unrouted, and a fifth
+  `relpath` added.
+
+  **Nothing in CI can see this until 0.8.0 publishes**, which is now
+  true of three Windows fixes. `registry.yml` installs what is on the
+  registries; every job that tests this tree is Linux, where the
+  change is a no-op by construction.
+
+  **A correction this entry caused, and the reason it is worth
+  writing down.** Moving these lines, the first version of this change
+  declared the entry below off by one and "fixed" a citation that was
+  right. `ps2ui.py:194` was the `subprocess.call` at the commit that
+  wrote it; it read as `cmd += argv_extra` only because the commit
+  after that added an `import` at the top of the file and shifted
+  everything down one. The check was made against the wrong revision,
+  so a correct number was replaced with a wrong one, and then the
+  displacement was applied to that. Nothing could catch either step:
+  a `file.py:NN` written in this file's prose is pinned by no checker,
+  which is the open board row, and it now has a worked example.
+
+- **`ps2ui fontgen` wrote a manifest `ps2ui build` could not read, on
+  Windows, and the reporter above is what surfaced it.** The wrapper
+  built `fonts.json` by hand -- `"ttf": ["%s"]` against
+  `os.path.abspath` -- which is valid JSON for exactly as long as no
+  path contains a backslash. Every absolute Windows path does:
+
+      error: fonts\fonts.json: cannot be read as a fonts.json manifest
+      (Bad escaped character in JSON at position 30)
+
+  One command writes the file, the next refuses it, and both halves
+  behave exactly as designed. The only symptom a reader got was
+  `ps2ui: ps2ui-layout failed on ui\library.html (exit 1)` -- which is
+  the line, and the ONLY line, the tutorial checker used to print.
+  The two entries are one story: the reporter was fixed, the Windows
+  arm re-run, and the cause was in the log on the first attempt.
+
+  `json.dump` writes it now. **A serialiser rather than an escape,
+  deliberately**: escaping the two paths and keeping the hand-rolled
+  braces would fix this instance and leave the next one -- a face name,
+  a metrics filename -- one edit away. The structure is data, so data
+  writes it.
+
+  **Fenced on POSIX rather than asserted about Windows.** A backslash
+  is an ordinary character in a POSIX filename, so
+  `test_the_manifest_survives_a_backslash_in_the_font_path` copies a
+  real TTF to `Deja\Vu.ttf`, runs the wrapper, and requires that the
+  manifest parses, that the path round-trips byte for byte, and that
+  `load_font_manifest` -- the reader that actually failed -- accepts
+  it. Every run of the suite exercises it, on every platform, instead
+  of a claim about a machine this suite does not have. Falsified by
+  restoring the hand-rolled write.
+
+- **The tutorial checker threw away the diagnosis it had already
+  captured.** On a failing block it printed
+  `got.strip().splitlines()[-1]` -- one line, the last one. On a failing
+  `ps2ui build` the last line is `ps2ui: ps2ui-layout failed on
+  ui/library.html (exit 1)`, the wrapper's own summary, and everything
+  the compiler said above it was captured and dropped.
+
+  **Two places each locally right, combining to delete the evidence.**
+  `ps2ui.py:229` runs the compiler with stderr inheriting, under the
+  comment *"The compiler already printed why, in its own words. Adding a
+  second summary here would bury it"* -- and `check-tutorial.py` then
+  buried it, keeping exactly the summary that file had declined to add.
+  It cost a real failure: the Windows arm added this cycle reported
+  `ps2ui build` exiting 1 with no cause, and the cause had been read,
+  stored and discarded before anyone saw the log.
+
+  `tail()` keeps the last twenty lines, which carries the CSS stage's
+  error list now that a sheet reports every error in one pass. A tail
+  rather than everything, because the runner re-executes blocks 1..i in
+  one shell, so a whole-output dump on block 8 buries the failure in
+  seven blocks of healthy chatter -- the same defect pointing the other
+  way. When lines go, the count of them goes in their place; silence is
+  printed as `(no output)`, because "it failed and said nothing" points
+  at the command while a blank line points at nothing; and the runner's
+  own `___ps2ui_block_N___` sentinel is dropped rather than shown back
+  to somebody hunting for their error.
+
+  **The mismatch branch had the same shape and is fixed with it.** A
+  block that RAN but printed the wrong thing listed what the document
+  claimed and never what the command said, which is half a comparison.
+  Both sides are printed now, and the case that proves it is the one
+  this cost: `fonts/default.metrics.json` against
+  `fonts\default.metrics.json` is a glance when they are side by side
+  and a wheel inspection when they are not.
+
+  **FENCED BY A SELF-TEST RATHER THAN BY falsify.sh, because the defect
+  is on the failure path.** Every other guard in `tools/` is falsifiable
+  by breaking the thing and watching a check go red; that does not reach
+  a report which is only ever produced when something is already wrong.
+  A green tutorial prints no report at all, so reverting `tail()` would
+  have left every job in this repository green -- which is how it
+  survived. `--selftest` runs blocks written to fail and asserts the
+  REPORT: every printed line survives, a mismatch shows both sides, a
+  clipped tail says how much it dropped and keeps the END, silence is
+  named, and the sentinel stays out. `ci.yml` runs it BEFORE the
+  tutorial, so a broken reporter is named as such rather than arriving
+  as a confusing tutorial failure. Falsified four ways -- the old
+  `[-1]`, the mismatch branch reverted, the omission count silenced, the
+  sentinel filter removed -- each against a clean control, and the
+  second by hand after `falsify.sh` warned its own verdict was not
+  trustworthy.
+
 - **The remedy that ships inside the wheel sent Windows readers to
   build Pillow from source.** 0.7.0 removed a false claim from
   `_raqm_remedy()` -- it had handed Windows readers a fact about
@@ -207,38 +508,6 @@ without moving this line.
   `os.path.isabs("C:/Windows/Fonts/DejaVuSans.ttf")` is false on POSIX,
   so it joins the manifest's own directory, misses, and the loop moves
   to the next one.
-
-- **A raised VRAM budget bought room for a framebuffer, which no budget
-  can.** `--vram-budget` exists to let a project declare the texture
-  space it really has. The refusal for a canvas too large to scan out
-  lived inside the advice printed only when no budget was given, so
-  passing one silenced the sentence and the failure together: a
-  30000x30000 canvas baked to a 17760-byte blob with exit 0, past a
-  message whose own last line reads "a narrower canvas is the only fix".
-  The budget charges textures and a framebuffer is not a texture, so the
-  check is now separate from the one a flag can reach.
-
-- **A 439 KiB image could cost 432 MB and eleven seconds, or end the
-  bake in a traceback.** An image is pre-scaled to its laid-out size, so
-  the baked bytes were already bounded: 40 distinct 1024x1024 sources
-  bake to 40 KiB. Nothing bounded the decode. A 12000x12000 PNG baked
-  clean in 11.0 seconds to produce 4 KiB of texture, and one step larger
-  Pillow's own `DecompressionBombError` reached the terminal raw. The
-  size is read from the header now, before any decode, so the same file
-  fails in 0.08 seconds with one error line.
-
-- **Nesting deep enough reported `Maximum call stack size
-  exceeded`.** That is V8's stack rather than a decision, so the real
-  limit moved with the machine and the message named neither the
-  element nor a number. How far it moves, bisected on one checkout:
-  1842 on node v22.22.2's default stack, 889 under `--stack-size=500`,
-  7781 under `--stack-size=4000`. The first version of this entry said
-  *"deeper than about 1500"*, which was the midpoint of the
-  1000-compiled / 2000-died bracket written as though it were a
-  reading; review of #166 asked for the reading. The refusal is the compiler's now, at 64, and
-  names the line the deepest element sits on. The check is iterative,
-  because a recursive walk to find the depth that breaks a recursive
-  walk overflows before it can report anything.
 
 - **Nothing read the documentation library backwards, so a citation to
   a deleted file pointed at nothing forever.** `check-doc-impact.py`

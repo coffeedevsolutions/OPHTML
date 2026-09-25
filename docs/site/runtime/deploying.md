@@ -4,7 +4,7 @@ title: Deploying
 description: Get a built ELF onto a PlayStation 2, launch it, and read a full-screen colour as a status rather than a bug.
 section: runtime
 order: 47
-version: 0.7.0
+version: 0.9.0
 sources: [docs/deploying.md, tools/check-deploying.py, runtime/sample/main.c, runtime/sample/Makefile, .github/workflows/hw.yml]
 ---
 
