@@ -35,6 +35,7 @@ import sys
 from . import arena
 from . import caps as caps_mod
 from . import clip as clip_mod
+from . import console as console_mod
 from . import gs, vram
 from . import __version__
 from .quads import (
@@ -627,8 +628,14 @@ def check_vram(uib, rep: Report, budget=None) -> None:
 
 
 def check_blob(uib, budget=None, allow_dead: int = 0,
-               allow_hairline: int = 0) -> Report:
-    """Every check, in dependency order. Returns the Report."""
+               allow_hairline: int = 0, console: bool = False) -> Report:
+    """Every check, in dependency order. Returns the Report.
+
+    The console-contract checks (console.py) run on any blob with a
+    numbered game-N row or game-N-* slot, and on every blob with
+    `console=True`. A blob with neither gets none of those results, so
+    the counts every other blob reports are unchanged by their
+    existence -- test_console.py holds memcard and channel-6 to that."""
     rep = Report()
     check_tables(uib, rep)
     check_indices(uib, rep)
@@ -640,6 +647,7 @@ def check_blob(uib, budget=None, allow_dead: int = 0,
     check_vram(uib, rep, budget)
     check_crt(uib, rep, (uib.canvas_w, uib.canvas_h), allow_dead,
               allow_hairline)
+    console_mod.check(uib, rep, force=console)
     return rep
 
 
@@ -722,6 +730,11 @@ def main(argv=None) -> int:
                          "rules and interlace pair); more than N still warns")
     ap.add_argument("--strict", action="store_true",
                     help="treat CRT warnings as failures")
+    ap.add_argument("--console", action="store_true",
+                    help="hold the blob to the OPHTML console's theme "
+                         "contract (console/README.md) even with no "
+                         "game-N row; a blob with one is held to it "
+                         "anyway")
     ap.add_argument("--tints", action="store_true",
                     help="print the tint table, one row per entry and one "
                          "column per theme, then exit")
@@ -738,7 +751,7 @@ def main(argv=None) -> int:
         return 0
 
     rep = check_blob(uib, args.vram_budget, args.allow_dead,
-                     args.allow_hairline)
+                     args.allow_hairline, args.console)
     rep.emit()
 
     aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"

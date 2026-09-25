@@ -123,7 +123,9 @@ static void gs_init(void)
 static char pad_buf[256] __attribute__((aligned(64)));
 
 /* freepad on the SDK's sio2man, both loaded by storage.c -- not the
- * ROM's PADMAN, which cannot share the bus with the card-slot drivers. */
+ * ROM's PADMAN, which cannot share the bus with the card-slot drivers.
+ * (A ROMPAD=1 build loads the ROM pair instead, for the emulator; the
+ * libpad calls below are the same for both.) */
 static void input_init(void)
 {
     padInit(0);

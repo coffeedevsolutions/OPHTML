@@ -712,6 +712,12 @@ jobs:
           make -C console objclean
           make -C console MOCK=1 EE_BIN=ophtml-mock.elf
           test -f console/ophtml-mock.elf
+          # And the MOCK build on the ROM's pad driver, which is the
+          # only pad driver Play! answers (console/storage.c, ROMPAD).
+          # The emulator job presses buttons at this one.
+          make -C console objclean
+          make -C console MOCK=1 ROMPAD=1 EE_BIN=ophtml-nav.elf
+          test -f console/ophtml-nav.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ophtml-console-elf
@@ -719,6 +725,7 @@ jobs:
           path: |
             console/ophtml.elf
             console/ophtml-mock.elf
+            console/ophtml-nav.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ps2ui-starter-elf
@@ -829,7 +836,7 @@ jobs:
           # hosted runner has no GPU, so mesa's software rasteriser is
           # what actually serves GL here.
           sudo apt-get install -y \
-            xvfb imagemagick fuse \
+            xvfb imagemagick fuse xdotool \
             libgl1 libopengl0 libegl1 libglx0 libgl1-mesa-dri
           python3 -m pip install Pillow uharfbuzz
 
@@ -1333,6 +1340,82 @@ jobs:
           convert console_trim.png -resize 640x448\! console.png
           python3 tools/framediff.py console-expected.png console.png \
             --out console-diff.png --rmse 8 --tile-rmse 24 --stats
+
+      - name: The console's list follows the pad
+        if: always()
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          SDL_AUDIODRIVER: dummy
+          ALSOFT_DRIVERS: "null"
+        run: |
+          # ophtml-nav.elf is the MOCK build on the ROM's pad driver
+          # (make ROMPAD=1), because Play! answers pad reads only through
+          # its stand-in for rom0:PADMAN: measured, an IOP reset followed
+          # by the SDK's sio2man and freepad (or padman) takes no input
+          # under it, and the same reset followed by the ROM pair does.
+          # So this proves the console's NAVIGATION -- up and down walking
+          # the list, R1 and L1 paging it, the window scrolling the least
+          # it can, the sel-* panel following -- and not freepad, which is
+          # bench case C8.
+          #
+          # Play! binds no key to the pad until its controller dialog has
+          # been opened, which a runner never does; play_input.py writes
+          # the bindings that dialog would. Three presses of Down, then
+          # R1 (key 8), then L1 (key 1), each frame diffed against
+          # mock_expected.py replaying the same keys through console.py's
+          # copy of the list window.
+          #
+          # CALIBRATED LOCALLY against this pinned Play! (2026-09-24): the
+          # three correct frames score worst tile 15.1, 14.4 and 15.1.
+          # The selection one item off scores 62.4 to 72.0, and the right
+          # item with the window scrolled wrong 68.6 to 69.0. Same
+          # tolerances as the step above, for the same reason.
+          profile="$HOME/.local/share/Play Data Files/inputprofiles"
+          mkdir -p "$profile"
+          python3 console/tests/play_input.py "$profile/default.xml"
+          ex=baked/console/build/ui.uib
+          python3 console/tests/mock_expected.py $ex nav1-expected.png \
+            --keys down,down,down
+          python3 console/tests/mock_expected.py $ex nav2-expected.png \
+            --keys down,down,down,r1
+          python3 console/tests/mock_expected.py $ex nav3-expected.png \
+            --keys down,down,down,r1,l1
+          xvfb-run -s "-screen 0 1280x896x24" sh -c '
+            ./squashfs-root/AppRun --fullscreen --elf console-elf/ophtml-nav.elf \
+              >nav-play.log 2>&1 &
+            PLAY_PID=$!
+            sleep 20
+            if ! kill -0 $PLAY_PID 2>/dev/null; then
+              echo "Play! exited before the first key; its output:"
+              cat nav-play.log
+              exit 1
+            fi
+            press() {
+              win=$(xdotool search --name Play | tail -1)
+              [ -n "$win" ] && xdotool windowfocus --sync "$win"
+              xdotool keydown "$1"; sleep 0.25
+              xdotool keyup "$1"; sleep 0.4
+            }
+            press Down; press Down; press Down; sleep 1
+            import -window root nav1_raw.png
+            press 8; sleep 1
+            import -window root nav2_raw.png
+            press 1; sleep 1
+            import -window root nav3_raw.png
+            kill $PLAY_PID 2>/dev/null || true
+            sleep 2
+            kill -9 $PLAY_PID 2>/dev/null || true
+          '
+          rc=0
+          for n in 1 2 3; do
+            convert nav${n}_raw.png -fuzz 5% -trim +repage nav${n}_trim.png
+            convert nav${n}_trim.png -resize 640x448\! nav${n}.png
+            echo "nav $n: trimmed to $(identify -format '%wx%h' nav${n}_trim.png)"
+            python3 tools/framediff.py nav${n}-expected.png nav${n}.png \
+              --out nav${n}-diff.png --rmse 8 --tile-rmse 24 || rc=1
+          done
+          exit $rc
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -1343,6 +1426,12 @@ jobs:
             console.png
             console-expected.png
             console-diff.png
+            nav1.png
+            nav2.png
+            nav3.png
+            nav1-expected.png
+            nav2-expected.png
+            nav3-expected.png
             framediff.png
             probe.png
             probe6.png

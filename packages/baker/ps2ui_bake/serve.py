@@ -57,6 +57,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import cli
+from . import console
 from . import preview
 from .project import ProjectError, load, _attr
 from .uib import read_uib
@@ -226,6 +227,85 @@ class PreviewState:
             json.dumps(text, sort_keys=True).encode("utf-8")).hexdigest()[:12]
         return (self.screen(uib)["name"], self.focus_index(uib), self.theme,
                 self.aspect, digest)
+
+
+# ---------------------------------------------------------------- console
+
+class ConsoleMock:
+    """`--console`: the theme filled with the mock library and driven the
+    way ophtml.elf drives it, so an author sees a console theme populated
+    before owning a console.
+
+    The data and the arithmetic are console.py's, which is the host copy
+    of console/main.c's fill() and runtime/ps2ui.c's list window; this
+    class only decides when to call them, in the order main.c's loop
+    does: up and down walk the list while focus is on a row and fall
+    through to an ordinary move at its ends, and focus that arrives on a
+    row by any other move pulls the selection after it."""
+
+    def __init__(self):
+        self.window = None
+
+    def attach(self, uib, state):
+        """(Re)bind to a blob: a rebuild can change how many rows it has,
+        so the window is rebuilt around the selection it had."""
+        sel = self.window.sel if self.window else 0
+        self.window = console.ListWindow(console.row_count(uib),
+                                         len(console.MOCK_GAMES))
+        self.window.select(sel)
+        state.screen_name = console.games_screen(uib)["name"]
+        state.reconcile(uib)
+        self.push(uib, state)
+
+    def push(self, uib, state):
+        text, focus = console.fill(uib, console.MOCK_GAMES, self.window,
+                                   console.MOCK_STATUS)
+        state.slot_text[state.screen_name] = text
+        if focus:
+            state.focus_name = focus
+
+    def _row(self, uib, state):
+        if state.screen(uib)["name"] != console.games_screen(uib)["name"]:
+            return -1
+        m = console.ROW.match(state.focus_name or "")
+        return int(m.group(1)) if m and int(m.group(1)) < self.window.rows else -1
+
+    def press(self, uib, state, key):
+        """One button, as main.c's loop handles it."""
+        if not self.key(uib, state, key):
+            state.move(uib, key)
+            self.follow(uib, state)
+
+    def key(self, uib, state, key):
+        """True if the list took the key; False to fall through to an
+        ordinary ps2ui_move, as main.c does.
+
+        FOCUS IS SYNCED EVEN WHEN NOTHING MOVED. ps2ui_list_select calls
+        list_sync_focus whether or not the selection changed, so L1 at
+        the top of the list -- with focus on a button beside it -- pulls
+        focus back to the selected row while ps2ui_list_move returns 0.
+        The first version of this pushed only on a change and left focus
+        on the button (the #180 review, confirmed against a host build of
+        runtime/ps2ui.c)."""
+        if key in ("l1", "r1"):
+            self.window.move(-self.window.rows if key == "l1"
+                             else self.window.rows)
+            if self.window.count:
+                self.push(uib, state)
+            return True
+        if key in console.KEYS and self._row(uib, state) >= 0:
+            if self.window.move(console.KEYS[key]):
+                self.push(uib, state)
+                return True
+        return False
+
+    def follow(self, uib, state):
+        """main.c's "make the selection follow it" after a plain move."""
+        row = self._row(uib, state)
+        if row >= 0 and self.window.item_at(row) >= 0 \
+                and row != self.window.selected_row():
+            self.window.select(self.window.top + row)
+            self.push(uib, state)
 
 
 # ---------------------------------------------------------------- frames
@@ -404,6 +484,7 @@ class Server:
         self.error = None
         self.revision = 0
         self._warm = None
+        self.console = None     # a ConsoleMock under --console
         if uib is not None:
             self.state.reconcile(uib)
 
@@ -418,6 +499,8 @@ class Server:
                 self.uib = result.uib
                 self.warnings = result.warnings
                 self.state.reconcile(result.uib)
+                if self.console:
+                    self.console.attach(result.uib, self.state)
                 self.cache.clear()
             self.revision += 1
         if result.uib is not None:
@@ -528,7 +611,11 @@ class Server:
         with self.lock:
             uib, st = self.uib, self.state
             if "key" in body:
-                st.move(uib, str(body["key"]))
+                key = str(body["key"])
+                if self.console:
+                    self.console.press(uib, st, key)
+                else:
+                    st.move(uib, key)
             elif "screen" in body:
                 st.set_screen(uib, str(body["screen"]))
             elif "theme" in body:
@@ -719,6 +806,9 @@ def build_server(args):
         if srv.uib is None:
             raise ProjectError("the first build failed, so there is nothing "
                                "to serve:\n%s" % result.error)
+    if getattr(args, "console", False):
+        srv.console = ConsoleMock()
+        srv.console.attach(srv.uib, srv.state)
     if args.screen:
         try:
             srv.state.set_screen(srv.uib, args.screen)
@@ -750,6 +840,10 @@ def add_arguments(parser):
                              "named here is used or the command fails")
     parser.add_argument("--screen", metavar="NAME", help="the screen to open")
     parser.add_argument("--theme", type=int, default=0, help="the theme row")
+    parser.add_argument("--console", action="store_true",
+                        help="fill the theme with the OPHTML console's mock "
+                             "games, and drive its game-N list the way the "
+                             "console does")
     parser.add_argument("--no-watch", action="store_true",
                         help="do not rebuild on edits")
     parser.add_argument("--selftest", action="store_true",

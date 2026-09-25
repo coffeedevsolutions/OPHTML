@@ -20,6 +20,13 @@ and the console runs your UI. Nothing in C is yours to write.
   - the drive wait ends;
   - the built-in theme draws;
   - the list binds games to rows, labels and the selection panel.
+- `hw.yml` also presses buttons at a navigation build in Play!: Down
+  three times, then R1, then L1. It diffs each frame against the
+  previewer replaying the same keys. That proves up/down, paging, the
+  window scrolling and the selection panel following the highlight.
+  It does **not** prove the pad driver: Play! only answers the ROM's
+  pad modules, so that build loads those instead of `freepad` (see
+  [Building](#building)). `freepad` is still bench case C8's.
 - Play! has no USB, HDD or card slot. So nothing has mounted a real
   drive or started a game yet. That is what
   [the bench cases](#bench-cases) below are for, and each one is
@@ -96,6 +103,33 @@ one list of titles is already a working theme.
 [examples/console/ui/games.html](../examples/console/ui/games.html) is
 the built-in theme and uses every name above.
 
+### Checking and previewing your theme
+
+`ps2ui check` (and `ps2ui-check`) holds any blob with a numbered
+`game-N` row or `game-N-*` slot to the contract. (Not `sel-*` or
+`status` alone: those are ordinary names other UIs use for their own
+panels.) It is an **error** when the console would leave
+something showing its placeholder:
+- a gap in the rows (`game-0`, `game-1`, `game-3`: the console stops
+  counting at `game-2`);
+- rows on a screen the console never opens;
+- a `game-N-*` slot for a row that doesn't exist.
+
+It is a **warning** when:
+- a name is one the console never fills (`game-0-titel` is reported
+  with "did you mean 'title'?");
+- a slot is too short for what the console writes (an ID is always 11
+  characters);
+- the rows have no title slot.
+
+`ps2ui-check --console` runs these checks on a blob with no `game-N`
+names.
+
+`ps2ui serve --console` fills your theme with the mock games and drives
+the list the way the console does: up and down walk it, and focus that
+lands on a row pulls the selection with it. You see your theme with a
+full library before it ever reaches a console.
+
 ## Controls
 
 | Button | Does |
@@ -156,6 +190,15 @@ the default.
 drive held them. Boot it in an emulator to see your theme filled
 without a console. Put your blob in with `THEME=`.
 
+`make -C console MOCK=1 ROMPAD=1 EE_BIN=ophtml-nav.elf` is the same
+build on the ROM's pad modules (`rom0:SIO2MAN`, `rom0:PADMAN`) instead
+of the SDK's `sio2man` and `freepad`. **It exists for Play!**, which
+answers pad reads only through its stand-in for the ROM pair; measured,
+Play! delivers no input to the SDK pad drivers after an IOP reset. The
+ROM pair can't share the bus with the card-slot drivers, so this build
+has no memory card, MMCE or MX4SIO. Never ship it: the real ELF uses
+`freepad`, as NHDDL does on consoles.
+
 ## How it works
 
 `main.c` explains the boot order and why it is fixed. In short:
@@ -191,4 +234,4 @@ screen, the way [docs/bench-phase1.md](../docs/bench-phase1.md) does.
 | C5 `[open]` | a microSD card on MX4SIO, ELF renamed `ophtml-m4s.elf` | the games are listed as `SD`, and one boots |
 | C6 `[open]` | a microSD card in an SD2PSX or MemCard PRO2 | the games are listed as `MMCE`, and one boots |
 | C7 `[open]` | a `theme.uib` of your own beside the ELF | your theme draws, with the games filled in |
-| C8 `[open]` | a pad | up/down/L1/R1 move the selection; the highlighted row is the one ✕ starts |
+| C8 `[open]` | a pad | up/down/L1/R1 move the selection; the highlighted row is the one ✕ starts. The emulator has proven the navigation with the ROM pad driver; this case is what proves `freepad` |
