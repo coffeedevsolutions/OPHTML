@@ -89,7 +89,7 @@ title: ui.json
 description: <one sentence>
 section: reference
 order: 50
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

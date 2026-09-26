@@ -4,7 +4,7 @@ title: ps2ui-layout and ps2ui-dev
 description: Compile one screen's HTML and CSS into ui.json, or watch the pair and rebake the blob and preview on every save.
 section: cli
 order: 31
-version: 0.9.0
+version: 0.10.0
 sources: [packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, packages/layout/src/aspect.js, packages/layout/src/lint.js, packages/layout/package.json, packages/layout/test/cli.test.js, packages/layout/test/fonts.test.js, packages/baker/ps2ui_bake/ps2ui.py, examples/memcard/ps2ui.json, examples/memcard/build.sh, fonts/fonts.json, README.md]
 ---
 
@@ -41,7 +41,7 @@ Every flag is optional except `-o`. The two positionals are the HTML file and th
 | `--focus-wrap` | none | off | Adds wrap-around edges to the focus graph. See [focus and navigation](page:authoring/focus-and-navigation#wrap). |
 | `--strict` | none | off | Exits 1 when the compile produced any warning. See [CRT linter](page:authoring/crt-linter#strict). |
 | `--min-font-size` | positive integer, px | `14` | Replaces the floor the `min-font-size` lint checks against. See [CRT linter](page:authoring/crt-linter#reference-table). |
-| `--limit` | `NAME=N`, repeatable | see [resource caps](page:authoring/project-file#resource-caps) | Raises one cap: `canvasDim`, `nodes` or `depth`. `ps2ui build` sends the project file's `limits` here, so this is the same escape hatch on the command line. An unknown name or a value below 1 is a usage error. |
+| `--limit` | `NAME=N`, repeatable | see [resource caps](page:authoring/project-file#resource-caps) | New in 0.10.0: raises one cap: `canvasDim`, `nodes` or `depth`. `ps2ui build` sends the project file's `limits` here, so this is the same escape hatch on the command line. An unknown name or a value below 1 is a usage error. |
 | `-h`, `--help` | none | | Prints the usage line and exits 0. |
 | `-V`, `--version` | none | | Prints `ps2ui-layout <version>` on stdout and exits 0. |
 
@@ -191,7 +191,7 @@ The baker is spawned as `python3 -m ps2ui_bake` with `PYTHONPATH` pointing at th
 | `--focus-wrap` | none | off | As for `ps2ui-layout`. |
 | `--strict` | none | off | A compile with any warning fails before the bake; `--once` exits 1. See below. |
 | `--min-font-size` | positive integer, px | `14` | Replaces the floor the `min-font-size` lint checks against, as for `ps2ui-layout`. |
-| `--limit` | `NAME=N`, repeatable | see [resource caps](page:authoring/project-file#resource-caps) | The same three caps, read by the same parser as `ps2ui-layout`, because `ps2ui dev` forwards the project file's `limits` here too. |
+| `--limit` | `NAME=N`, repeatable | see [resource caps](page:authoring/project-file#resource-caps) | New in 0.10.0: the same three caps, read by the same parser as `ps2ui-layout`, because `ps2ui dev` forwards the project file's `limits` here too. |
 | `--montage` | none | off | Adds `--montage states.png` to the bake. |
 | `--palettize-images` | none | off | Forwarded to the bake as `--palettize-images`. See [ps2ui-bake](page:cli/ps2ui-bake#options). |
 | `--once` | none | off | Build one time and exit with the build status. |

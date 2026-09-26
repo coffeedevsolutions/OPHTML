@@ -4,7 +4,7 @@ title: The project file
 description: Every ps2ui.json key with its default and the tool it reaches, how paths resolve, and what the loader refuses.
 section: authoring
 order: 10
-version: 0.9.0
+version: 0.10.0
 sources: [packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, packages/layout/bin/ps2ui-layout.js, packages/layout/bin/ps2ui-dev.js, packages/layout/src/index.js, examples/memcard/ps2ui.json, examples/opl-env/ps2ui.json, examples/channel6/ps2ui.json, examples/memcard/build.sh, examples/channel6/build.sh, docs/tutorial-uc3.md, CHANGELOG.md, CONTRIBUTING.md, .github/workflows/ci.yml, README.md]
 ---
 
@@ -219,7 +219,7 @@ ui.uib
 
 ### Resource caps
 
-`limits` is an object, one key per cap, and every value is a positive
+New in 0.10.0. `limits` is an object, one key per cap, and every value is a positive
 integer:
 
 ```json

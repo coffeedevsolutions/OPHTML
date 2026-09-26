@@ -4,7 +4,7 @@ title: Theming
 description: Name colours in :root, give them a second value in @theme, read them with var(), and select a row on the console with ps2ui_theme_set.
 section: authoring
 order: 18
-version: 0.9.0
+version: 0.10.0
 sources: [packages/layout/src/css.js, packages/layout/src/index.js, packages/layout/src/paint.js, packages/layout/test/parse.test.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, packages/baker/tests/test_baker.py, runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/sample/main.c, examples/opl-env/ui/opl.css, examples/opl-env/build.sh, docs/design-p3b-theming.md, README.md]
 ---
 

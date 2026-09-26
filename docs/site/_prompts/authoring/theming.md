@@ -98,7 +98,7 @@ title: Theming
 description: <one sentence>
 section: authoring
 order: 18
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -4,7 +4,7 @@ title: Tutorial: a game browser
 description: Build a six-row game library screen from an empty directory, then drive it from a checked C loop.
 section: getting-started
 order: 3
-version: 0.9.0
+version: 0.10.0
 sources: [docs/tutorial-uc3.md, tools/check-tutorial.py, runtime/sample/main.c, fonts/fonts.json]
 ---
 

@@ -92,7 +92,7 @@ title: Installation
 description: <one sentence>
 section: getting-started
 order: 1
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

@@ -4,7 +4,7 @@ title: Lists
 description: data-repeat bakes a fixed number of rows, and the runtime list window scrolls any number of items through them.
 section: authoring
 order: 16
-version: 0.9.0
+version: 0.10.0
 sources: [packages/layout/src/repeat.js, packages/layout/src/index.js, packages/layout/test/layout.test.js, runtime/ps2ui.h, runtime/ps2ui.c, runtime/tests/test_runtime.c, runtime/Makefile, docs/tutorial-uc3.md, docs/site/assets/authoring/lists/demo/ui/library.html, docs/site/assets/authoring/lists/demo/ui/library.css, docs/site/assets/authoring/lists/demo/ps2ui.json]
 ---
 

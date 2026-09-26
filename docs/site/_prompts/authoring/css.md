@@ -98,7 +98,7 @@ title: CSS
 description: <one sentence>
 section: authoring
 order: 12
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

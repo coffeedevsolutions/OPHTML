@@ -94,7 +94,7 @@ title: Focus and navigation
 description: <one sentence>
 section: authoring
 order: 17
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

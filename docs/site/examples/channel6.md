@@ -4,7 +4,7 @@ title: channel6
 description: A two-screen PS2 game browser and its bring-up conformance probe, baked twice for 4:3 and 16:9 and asserted end to end by its own check.py.
 section: examples
 order: 62
-version: 0.9.0
+version: 0.10.0
 sources: [examples/channel6/ps2ui.json, examples/channel6/build.sh, examples/channel6/README.md, examples/channel6/check.py, examples/channel6/preview_in_game.py, examples/channel6/ui/games.html, examples/channel6/ui/probe.html, examples/channel6/ui/channel6.css, tools/check-blobs.sh, .github/workflows/ci.yml, docs/site/ARCHITECTURE.md, docs/site/_facts/authoring/project-file.md, docs/site/_facts/cli/ps2ui.md, docs/site/_facts/cli/ps2ui-check.md, docs/site/_facts/authoring/theming.md, docs/site/_facts/authoring/screens-and-overlays.md, docs/site/_facts/runtime/streaming-art.md, docs/site/runtime/first-boot.md]
 ---
 

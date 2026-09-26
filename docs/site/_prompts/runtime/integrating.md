@@ -91,7 +91,7 @@ title: Integrating the runtime
 description: <one sentence>
 section: runtime
 order: 40
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

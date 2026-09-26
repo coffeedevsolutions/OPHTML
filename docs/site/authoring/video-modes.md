@@ -4,7 +4,7 @@ title: Video modes
 description: The four video modes, why PS2 widescreen is anamorphic, how to preview at the panel's aspect, and what the blob header tells the runtime.
 section: authoring
 order: 20
-version: 0.9.0
+version: 0.10.0
 sources: [packages/layout/src/aspect.js, packages/layout/src/lint.js, packages/layout/src/index.js, packages/layout/bin/ps2ui-layout.js, packages/layout/test/layout.test.js, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/preview.py, packages/baker/ps2ui_bake/project.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, packages/baker/tests/test_baker.py, runtime/ps2ui.c, runtime/ps2ui.h, runtime/tests/test_runtime.c, runtime/Makefile, examples/channel6/ps2ui.json, examples/channel6/build.sh, examples/channel6/ui/games.html, examples/channel6/ui/channel6.css]
 ---
 

@@ -102,7 +102,7 @@ title: ps2ui-bake
 description: Bake ui.json files into one .uib blob and render previews.
 section: cli
 order: 32
-version: 0.9.0
+version: 0.10.0
 sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/vram.py]
 ---
 ```
@@ -110,7 +110,7 @@ sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/vram.py]
 `sources` lists the repository files the page was verified against. A
 change to any of them marks the page for review.
 
-Site version: 0.9.0
+Site version: 0.10.0
 
 Every page carries that value in `version`. `tools/check-site-pages.py` reads
 it from the line above, so a stamp that disagrees fails the check.
