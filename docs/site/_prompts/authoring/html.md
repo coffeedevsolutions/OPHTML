@@ -92,7 +92,7 @@ title: HTML
 description: <one sentence>
 section: authoring
 order: 11
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

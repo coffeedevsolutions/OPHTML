@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ophtml-logo-releaseVersion090-plain-white-darkbg.png"
+  <img src="docs/assets/ophtml-logo-releaseVersion0100-plain-white-darkbg.png"
        alt="OPHTML" width="600">
 </p>
 
@@ -88,24 +88,24 @@ Three ways in, depending on what you want:
   memory cards, multi-channel devices, Open PS2 Loader and autoboot.
 
 **Both packages are published**, so `pip install ophtml` and
-`npm install -g @ophtml/layout` are the way in. Those give you `0.9.0`,
-tagged `v0.9.0` — the first release a stock Mac or Windows box can run
-from end to end: `ps2ui fontgen` measures kerning with HarfBuzz through
-`uharfbuzz`, which pip installs with the package, where 0.8.0 asked
-Pillow's Raqm engine and refused without a fribidi no wheel ships. It
-includes `ps2ui vendor-runtime`, which writes `ps2ui.c` and `ps2ui.h`
-out of the installed package, so the console half needs no clone, and
-`ps2ui_offset_set`, the first call that changes *where* the runtime
-draws rather than what. CI runs `ps2ui fontgen` on stock macOS and
-Windows runners for every pull request. This tree has since moved on to
-`0.10.0.dev0` (`0.10.0-dev.0` on npm), a prerelease that is on neither
-registry and is not meant to be. The two still understand each other,
-because the blobs baked here are format **v7** and
-zero moves of the `.uib` format have landed since 0.9.0: that is
-the stability pledge, made at v7 and enforced by
-`tools/check-format-frozen.py` rather than announced, so a blob this
-tree writes loads under a 0.9.0 runtime and the other way round. Every
-CLI answers `--version`. What is left of Phase 4's exit gate in
+`npm install -g @ophtml/layout` are the way in. Those give you `0.10.0`,
+tagged `v0.10.0` — the first release that runs a theme on a console with
+no C of your own. `ophtml.elf`, attached to the
+[GitHub Release](https://github.com/coffeedevsolutions/OPHTML/releases),
+lists the ISOs on USB, exFAT HDD, MX4SIO and MMCE drives through any
+baked theme and hands the chosen game to Neutrino. It boots and draws
+in an emulator in CI, and it has not yet been run on a console, so
+treat it as experimental: [console/README.md](console/README.md) lists
+the bench cases still open.
+`ps2ui check --console` and `ps2ui serve --console` hold a theme to the
+names it fills, hard caps bound what an untrusted theme may ask of the
+compilers, and the runtime refuses the misaligned blobs a fuzzer found
+could crash it. The blobs this release bakes are format **v7**, as
+0.9.0's were: zero moves of the `.uib` format have landed
+since 0.9.0. That is the stability pledge, made at v7 and enforced
+by `tools/check-format-frozen.py` rather than announced, so a blob
+either release writes loads under the other's runtime. Every CLI
+answers `--version`. What is left of Phase 4's exit gate in
 [docs/PLAN.md](docs/PLAN.md) is the half that always needed a console;
 [docs/releasing.md](docs/releasing.md) is the procedure, and
 `tools/check-versions.py` keeps this paragraph honest.

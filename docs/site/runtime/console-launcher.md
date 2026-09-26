@@ -4,7 +4,7 @@ title: Console launcher
 description: Run a baked theme on a PlayStation 2 as a game launcher, with no C of your own, using ophtml.elf and Neutrino.
 section: runtime
 order: 49
-version: 0.9.0
+version: 0.10.0
 sources: [console/main.c, console/launch.c, console/library.c, console/scan.c, console/storage.c, console/README.md, .github/workflows/console-release.yml, console/tests/mock_expected.py, packages/baker/ps2ui_bake/console.py]
 ---
 
@@ -12,7 +12,7 @@ sources: [console/main.c, console/launch.c, console/library.c, console/scan.c, c
 
 ## What it is
 
-`ophtml.elf` is a finished PlayStation 2 program that lists the ISOs on the
+New in 0.10.0. `ophtml.elf` is a finished PlayStation 2 program that lists the ISOs on the
 drives it can mount and draws them through your theme. Pressing ✕ hands the
 selected game to [Neutrino](https://github.com/rickgaiser/neutrino), which
 boots it. The theme is an ordinary `.uib`. Nothing in C is yours to write.

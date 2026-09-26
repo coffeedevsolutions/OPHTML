@@ -4,7 +4,7 @@ title: First boot
 description: Ten ordered bring-up steps for a console or emulator, each with a build flag, an expected picture, and what a wrong one means.
 section: runtime
 order: 48
-version: 0.9.0
+version: 0.10.0
 sources: [docs/bringup.md, docs/bench-runbook.md, examples/channel6/README.md, runtime/sample/Makefile, runtime/Makefile, tools/make_testcard.py, tools/read_testcard.py, tools/read_probe6.py, .github/workflows/hw.yml, docs/site/runtime/integrating.md, docs/site/authoring/video-modes.md]
 ---
 

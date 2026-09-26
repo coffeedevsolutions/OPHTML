@@ -4,7 +4,7 @@ title: CSS
 description: The selector grammar, every property the compiler understands, the units and colours it accepts, and the two rules that have no CSS equivalent.
 section: authoring
 order: 12
-version: 0.9.0
+version: 0.10.0
 sources: [packages/layout/src/css.js, packages/layout/src/values.js, packages/layout/src/flex.js, packages/layout/src/paint.js, packages/layout/src/box.js, packages/layout/src/index.js, packages/layout/src/text.js, packages/layout/test/parse.test.js, packages/layout/test/layout.test.js, docs/site/assets/authoring/css/demo/demo.html, docs/site/assets/authoring/css/demo/demo.css, README.md]
 ---
 

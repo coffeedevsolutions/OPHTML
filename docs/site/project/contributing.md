@@ -4,7 +4,7 @@ title: Contributing
 description: Set up the tree, run the test suite CI runs, follow the five design rules, and see how a change is checked and admitted.
 section: project
 order: 71
-version: 0.9.0
+version: 0.10.0
 sources: [docs/site/ARCHITECTURE.md, CONTRIBUTING.md, .github/workflows/ci.yml, .github/ISSUE_TEMPLATE/bug.yml, .github/ISSUE_TEMPLATE/feature.yml, BACKLOG.md, docs/PLAN.md, packages/layout/package.json, examples/memcard/build.sh, tools/check-tutorial.py, tools/check-site-assets.py, tools/check-blobs.sh, tools/falsify.sh, tools/check-versions.py, tools/check-format-frozen.py, tools/check-runtime-shipped.py, tools/check-example-figures.py, tools/check-sweep-table.py, tools/check-deploying.py, tools/check-vram-model.py, tools/check-timing-probe.py, tools/check-findings.py, tools/check-backlog.py, docs/site/runtime/integrating.md, docs/site/cli/ps2ui.md, docs/site/project/internals.md, docs/site/project/security-and-license.md, docs/site/_facts/runtime/integrating.md, docs/site/_facts/cli/ps2ui.md, docs/site/_facts/reference/compatibility.md]
 ---
 
@@ -29,7 +29,7 @@ Run all five before every pull request, from the repository root.
 | `make -C runtime test` | the C runtime suite: `syntax-check`, `timing-check`, `test-narrow`, then the runtime test binary over five blobs. |
 | `make -C runtime syntax-check CC=clang` | the same 27 sample and runtime compiles, under a second compiler. |
 
-For a change to the loader in `runtime/ps2ui.c`, also run `make -C runtime fuzz`. It fuzzes `ps2ui_load` for 60 seconds from the blobs the commands above build, and needs clang's libFuzzer runtime (`libclang-rt-18-dev` on Ubuntu). CI runs it on every change and for half an hour nightly.
+New in 0.10.0. For a change to the loader in `runtime/ps2ui.c`, also run `make -C runtime fuzz`. It fuzzes `ps2ui_load` for 60 seconds from the blobs the commands above build, and needs clang's libFuzzer runtime (`libclang-rt-18-dev` on Ubuntu). CI runs it on every change and for half an hour nightly.
 
 Tails from this session:
 

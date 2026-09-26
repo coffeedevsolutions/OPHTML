@@ -80,7 +80,7 @@ title: Changelog
 description: <one sentence>
 section: project
 order: 70
-version: 0.9.0
+version: 0.10.0
 sources: [<every repository path opened>]
 ---
 ```

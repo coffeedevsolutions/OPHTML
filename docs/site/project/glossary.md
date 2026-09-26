@@ -4,7 +4,7 @@ title: Glossary
 description: Alphabetical terms from the toolchain and runtime, each linked to the page that uses it.
 section: project
 order: 74
-version: 0.9.0
+version: 0.10.0
 sources: [docs/site/ARCHITECTURE.md, docs/site/_facts/reference/uib-format.md, docs/site/_facts/runtime/frame-loop.md, docs/site/_facts/authoring/theming.md, docs/site/_facts/authoring/text-and-fonts.md, docs/site/_facts/authoring/crt-linter.md, docs/site/_facts/cli/previewer.md, docs/site/_facts/authoring/lists.md, docs/site/_facts/authoring/dynamic-text.md, docs/site/_facts/authoring/images.md, docs/site/_facts/authoring/vram-budget.md, docs/site/_facts/authoring/video-modes.md, docs/site/_facts/authoring/focus-and-navigation.md, docs/site/_facts/authoring/screens-and-overlays.md, docs/site/_facts/reference/ir-format.md, docs/site/_facts/runtime/api-reference.md, docs/site/_facts/runtime/moving-and-hiding.md, docs/site/_facts/runtime/streaming-art.md, docs/site/reference/uib-format.md, docs/site/runtime/frame-loop.md, docs/site/authoring/theming.md, docs/site/authoring/text-and-fonts.md, docs/site/authoring/crt-linter.md, docs/site/cli/previewer.md, docs/site/authoring/lists.md, docs/site/authoring/dynamic-text.md, docs/site/authoring/images.md, docs/site/authoring/vram-budget.md, docs/site/authoring/video-modes.md, docs/site/authoring/focus-and-navigation.md, docs/site/authoring/screens-and-overlays.md, docs/site/reference/ir-format.md, docs/site/runtime/api-reference.md, docs/site/runtime/streaming-art.md, docs/site/cli/ps2ui-bake.md, docs/site/cli/ps2ui-layout.md, docs/site/runtime/integrating.md]
 ---
 

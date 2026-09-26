@@ -4,7 +4,7 @@ title: The frame loop
 description: Size the arena, load the blob, upload once, and what ps2ui_render guarantees on every frame after that.
 section: runtime
 order: 41
-version: 0.9.0
+version: 0.10.0
 sources: [runtime/ps2ui.h, runtime/ps2ui.c, runtime/sample/main.c, runtime/tests/test_runtime.c, packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/check.py, README.md]
 ---
 

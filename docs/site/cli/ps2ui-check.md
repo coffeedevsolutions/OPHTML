@@ -4,7 +4,7 @@ title: ps2ui-check
 description: Validate a baked .uib against the invariants the C runtime indexes by without checking.
 section: cli
 order: 33
-version: 0.9.0
+version: 0.10.0
 sources: [packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/uib.py, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/clip.py, packages/baker/ps2ui_bake/cli.py, packages/baker/tests/test_baker.py, tools/check-blobs.sh, runtime/ps2ui.h, .github/workflows/ci.yml, .github/workflows/hw.yml, examples/memcard/build.sh, examples/memcard/ps2ui.json, README.md, CHANGELOG.md]
 ---
 
@@ -61,7 +61,7 @@ options:
 | `--allow-dead` | `N` | 0 | declare that exactly N commands fall outside their clip on purpose |
 | `--allow-hairline` | `N` | 0 | declare that exactly N quads are 1px wide or tall on purpose |
 | `--strict` | none | off | count failed warnings as failures in the exit code |
-| `--console` | none | off | run the console-contract checks on a blob with no numbered `game-N` row or slot; one with any gets them without the flag |
+| `--console` | none | off | New in 0.10.0: run the console-contract checks on a blob with no numbered `game-N` row or slot; one with any gets them without the flag |
 | `--tints` | none | off | print the tint table and exit 0 without running any check |
 
 ## Output

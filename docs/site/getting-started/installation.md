@@ -4,7 +4,7 @@ title: Installation
 description: Install both packages, prove them with --version, generate font metrics, and know when the console half needs ps2dev.
 section: getting-started
 order: 1
-version: 0.9.0
+version: 0.10.0
 sources: [packages/baker/pyproject.toml, packages/layout/package.json, packages/baker/ps2ui_bake/fontgen.py, packages/baker/ps2ui_bake/ps2ui.py, fonts/fonts.json, .github/workflows/registry.yml, docs/tutorial-uc3.md, docs/site/ARCHITECTURE.md]
 ---
 
@@ -33,9 +33,9 @@ npm install -g @ophtml/layout
 
 ```sh
 $ ps2ui --version
-ps2ui 0.9.0
+ps2ui 0.10.0
 $ ps2ui-layout --version
-ps2ui-layout 0.9.0
+ps2ui-layout 0.10.0
 ```
 
 `ps2ui --version` proves the Python half; `ps2ui-layout --version` proves

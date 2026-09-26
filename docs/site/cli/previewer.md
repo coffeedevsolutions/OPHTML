@@ -4,7 +4,7 @@ title: Previewer
 description: ps2ui serve builds the project, serves one page on loopback, and drives the blob by arrow key.
 section: cli
 order: 35
-version: 0.9.0
+version: 0.10.0
 sources: [packages/baker/ps2ui_bake/serve.py, packages/baker/ps2ui_bake/serve_page.html, packages/baker/ps2ui_bake/ps2ui.py, packages/baker/ps2ui_bake/preview.py, packages/baker/tests/test_serve.py, docs/tutorial-uc3.md, README.md]
 ---
 
@@ -45,7 +45,7 @@ project file inside it. Paths print relative to that file, as they do for
 | `--port` | `PORT` | 8080, walking up to 8099 | bind this port once, and say which port is busy and fail |
 | `--screen` | `NAME` | the blob's first screen | open on this screen |
 | `--theme` | `THEME` | `0` | open on this theme row |
-| `--console` | none | off | fill the theme with the console's mock games; up and down walk its `game-N` list as `ophtml.elf` does |
+| `--console` | none | off | New in 0.10.0: fill the theme with the console's mock games; up and down walk its `game-N` list as `ophtml.elf` does |
 | `--no-watch` | none | off | serve the first build and never rebuild |
 | `--selftest` | none | off | fetch every route on an ephemeral port, assert the frame, exit |
 

@@ -4,7 +4,7 @@ title: ps2ui-bake
 description: Bake one or more ui.json files into a single .uib blob, with previews, a VRAM breakdown and the arena size.
 section: cli
 order: 32
-version: 0.9.0
+version: 0.10.0
 sources: [packages/baker/ps2ui_bake/cli.py, packages/baker/ps2ui_bake/__main__.py, packages/baker/ps2ui_bake/caps.py, packages/baker/ps2ui_bake/vram.py, packages/baker/ps2ui_bake/arena.py, packages/baker/ps2ui_bake/check.py, packages/baker/ps2ui_bake/quads.py, packages/baker/ps2ui_bake/__init__.py, packages/baker/pyproject.toml, packages/baker/tests/test_baker.py, examples/memcard/build.sh, examples/memcard/ps2ui.json, tools/check-example-figures.py, .github/workflows/ci.yml, README.md]
 ---
 
@@ -50,7 +50,7 @@ The list below is the whole option set, from `ps2ui-bake --help` in this session
 | `--palettize-images` | none | off | Quantize every `<img>` to PSMT8 with a CLUT. Per-image opt-in is the `palettize` attribute; see [images](page:authoring/images#reference-table). |
 | `--tints` | none | off | Print the tint table as it is written, with the `var()` name behind each entry. See [theming](page:authoring/theming#behaviour). |
 | `--vram-budget` | bytes | 4 MiB minus two framebuffers and a Z buffer at canvas size | Texture VRAM ceiling the bake refuses past. See [VRAM budget](page:authoring/vram-budget#reference-table). |
-| `--limit` | `imagePixels=N`, repeatable | 32000000 | Raises the pixel count a source image may decode to, read from the PNG header before any decode. This tool enforces `imagePixels` only; the other three caps belong to [ps2ui-layout](page:cli/ps2ui-layout#options), and passing one here is a usage error that says so. See [resource caps](page:authoring/project-file#resource-caps). |
+| `--limit` | `imagePixels=N`, repeatable | 32000000 | New in 0.10.0: raises the pixel count a source image may decode to, read from the PNG header before any decode. This tool enforces `imagePixels` only; the other three caps belong to [ps2ui-layout](page:cli/ps2ui-layout#options), and passing one here is a usage error that says so. See [resource caps](page:authoring/project-file#resource-caps). |
 | `--version` | none | | Print `ps2ui-bake` and the package version, then exit 0. |
 | `-h`, `--help` | none | | Print the usage above and exit 0. |
 

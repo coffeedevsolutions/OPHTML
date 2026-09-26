@@ -4,7 +4,7 @@ title: OPHTML
 description: Build PlayStation 2 homebrew UIs from HTML and CSS, and find every part of the documentation library from one page.
 section: root
 order: 0
-version: 0.9.0
+version: 0.10.0
 sources: [docs/site/ARCHITECTURE.md, docs/site/_facts/getting-started/installation.md, docs/site/_facts/getting-started/quickstart.md, docs/site/_facts/getting-started/how-it-works.md, docs/site/_facts/reference/compatibility.md, docs/site/getting-started/installation.md, docs/site/getting-started/quickstart.md, docs/site/getting-started/tutorial-game-browser.md, docs/site/assets/getting-started/how-it-works/stages.svg, docs/site/assets/assets.json, README.md]
 ---
 

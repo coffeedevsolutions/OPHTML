@@ -4,7 +4,7 @@ title: memcard
 description: A two-screen PS2 memory-card browser that demonstrates slots, focus and a montage in the smallest project the format supports.
 section: examples
 order: 60
-version: 0.9.0
+version: 0.10.0
 sources: [examples/memcard/ps2ui.json, examples/memcard/build.sh, examples/memcard/ui/library.html, examples/memcard/ui/saves.html, examples/memcard/ui/library.css, tools/check-blobs.sh, runtime/Makefile, .github/workflows/ci.yml, docs/site/authoring/project-file.md, docs/site/cli/ps2ui-check.md, docs/site/authoring/dynamic-text.md, docs/site/authoring/lists.md, docs/site/cli/ps2ui.md]
 ---
 
