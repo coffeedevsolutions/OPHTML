@@ -19,6 +19,14 @@ on:
         description: How long to fuzz, in seconds
         required: false
         default: '1800'
+        # A UI hint and nothing more: Actions renders a number field and
+        # does not reject what is typed into it, so this value still
+        # reaches the job as free text. The guard that matters is in
+        # runtime/Makefile, which refuses a FUZZ_TIME that is not a
+        # whole number at parse time -- it used to substitute this into
+        # libFuzzer's command line unquoted, so `1; touch x` ran
+        # `touch`. tools/check-workflow-pins.py runs that guard.
+        type: number
 
 permissions:
   contents: read

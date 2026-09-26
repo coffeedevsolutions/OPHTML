@@ -361,9 +361,57 @@ build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h \
 # FUZZ_ARGS goes to libFuzzer as-is: ci.yml passes -seed=1, so its pass
 # walks the same inputs every run instead of a new random walk that
 # could surface an old bug on an unrelated pull request (review of #182).
+#
+# FUZZ_TIME IS VALIDATED, AND THAT IS NOT PRECAUTIONARY. fuzz.yml has a
+# workflow_dispatch input `seconds` that is free text, hands it to this
+# target, and `-max_total_time=$(FUZZ_TIME)` below was unquoted, so
+# `seconds: 1; id` ran `id` in the job -- in a workflow that holds
+# `actions: write`. Triggering it needs push access already, so this was
+# a footgun rather than an escalation, but it is the shape of defect
+# that gets wired to something untrusted later.
+#
+# The guard is pure make text functions: $(subst) deletes each digit in
+# turn and whatever survives is the part that is not a whole number. So
+# nothing runs a shell on the value in order to decide whether the value
+# is safe to give a shell -- which is the failure mode a `case` in the
+# recipe would have had. It fires at parse time, before build/fuzz_load
+# is even considered, so a bad value costs no compile.
+#
+# FUZZ_ARGS CANNOT TAKE THE SAME GUARD and must not be given a
+# lookalike. It is word-split on purpose -- `-seed=1` today, several
+# flags on a long run -- so it reaches the shell as text by design. It
+# is set from literals inside this repository only, and
+# tools/check-workflow-pins.py fails if a workflow ever routes one of
+# its own inputs into it.
 FUZZ_CC   ?= clang
 FUZZ_TIME ?= 60
 FUZZ_ARGS ?=
+
+# Ten substitutions rather than one continued line: a backslash-newline
+# inside a $(subst) argument becomes a space in the text being
+# substituted, which would leave residue for a perfectly good number.
+FUZZ_TIME_R0 := $(subst 0,,$(FUZZ_TIME))
+FUZZ_TIME_R1 := $(subst 1,,$(FUZZ_TIME_R0))
+FUZZ_TIME_R2 := $(subst 2,,$(FUZZ_TIME_R1))
+FUZZ_TIME_R3 := $(subst 3,,$(FUZZ_TIME_R2))
+FUZZ_TIME_R4 := $(subst 4,,$(FUZZ_TIME_R3))
+FUZZ_TIME_R5 := $(subst 5,,$(FUZZ_TIME_R4))
+FUZZ_TIME_R6 := $(subst 6,,$(FUZZ_TIME_R5))
+FUZZ_TIME_R7 := $(subst 7,,$(FUZZ_TIME_R6))
+FUZZ_TIME_R8 := $(subst 8,,$(FUZZ_TIME_R7))
+FUZZ_TIME_RESIDUE := $(subst 9,,$(FUZZ_TIME_R8))
+
+# Scoped to the goal, so `make test` is not held to a variable it never
+# uses. The `.` on both sides is load-bearing: make strips a
+# conditional's arguments, so a FUZZ_TIME of `1 2` -- residue of one
+# space -- would otherwise compare equal to empty and pass. The $(if)
+# arm catches an empty FUZZ_TIME, whose residue is also empty.
+ifneq ($(filter fuzz,$(MAKECMDGOALS)),)
+ifneq (.$(FUZZ_TIME_RESIDUE)$(if $(FUZZ_TIME),,empty).,..)
+$(error FUZZ_TIME must be a whole number of seconds, not "$(FUZZ_TIME)")
+endif
+endif
+
 FUZZ_SEEDS = $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) \
              $(wildcard ../examples/*/build/*.uib) \
              $(wildcard ../fixtures/*/build/*.uib)
@@ -387,7 +435,7 @@ fuzz: build/fuzz_load
 	if [ $$n -eq 0 ]; then echo "fuzz: no seed blobs; run make test and the examples' build.sh first" >&2; exit 1; fi; \
 	echo "fuzz: $$n seed blob(s), $(FUZZ_TIME) s"
 	./build/fuzz_load build/fuzz-corpus build/fuzz-seeds \
-		-max_total_time=$(FUZZ_TIME) -max_len=262144 \
+		-max_total_time="$(FUZZ_TIME)" -max_len=262144 \
 		-artifact_prefix=build/fuzz-crashes/ -print_final_stats=1 $(FUZZ_ARGS)
 
 clean:

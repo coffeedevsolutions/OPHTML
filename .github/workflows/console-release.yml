@@ -66,7 +66,33 @@ jobs:
   elf:
     needs: theme
     runs-on: ubuntu-24.04
-    container: ghcr.io/ps2dev/ps2dev:latest
+    # PINNED BY DIGEST, and hw.yml's identical container deliberately is
+    # not. The two jobs want opposite things from the same image:
+    #
+    #   * hw.yml compiles on every push and its TFX probe exists to
+    #     notice gsKit moving, so freezing that container would freeze
+    #     the watch. It stays on `:latest` (see the comment above its
+    #     runner pin).
+    #   * this job produces a public download that nothing downstream
+    #     re-verifies. No emulator gate runs on the released ELF, and
+    #     the `SHA256SUMS` beside it is computed by this very job, so it
+    #     attests to the bytes it just built and not to the toolchain
+    #     that built them. On `:latest` the compiler for a tagged
+    #     release would be whatever ghcr.io served the minute the tag
+    #     was pushed, and a release cannot be rebuilt afterwards from
+    #     the tag alone.
+    #
+    # This is ghcr.io/ps2dev/ps2dev:latest as it stood on 2026-09-26:
+    # the multi-arch index, whose linux/amd64 image was built
+    # 2026-09-25 from ps2dev/ps2dev revision 0463697. Bumping it is a
+    # deliberate edit -- re-resolve the tag, then read the compiler
+    # version this job prints against the last release's run log. If
+    # ghcr.io ever stops serving this manifest the job fails on the
+    # pull, which is the right way round: a release that cannot name
+    # its toolchain should not be built, and re-resolving the tag is
+    # then the fix. tools/check-workflow-pins.py fails if this loses
+    # its digest, and fails if hw.yml gains one.
+    container: ghcr.io/ps2dev/ps2dev@sha256:1511fde1e42e2c8c192e08a308d9c90d3d69613f6c8022ec71aac7202d477336
     steps:
       - uses: actions/checkout@v7
         with:
@@ -81,12 +107,13 @@ jobs:
           mips64r5900el-ps2-elf-gcc --version | head -1
           test -f examples/console/build/ui.uib
           # The same build lines hw.yml runs on every push. Not
-          # necessarily the same binary: the ps2dev image is unpinned in
-          # both workflows, and this runs at tag time, so gsKit or the
-          # SDK can differ from the image hw.yml booted in Play!. The
-          # "Initialize containers" step logs the image digest, and the
-          # compiler's version is printed below, so docs/releasing.md
-          # step 8b can say which toolchain built the release.
+          # necessarily the same binary: this job's container is pinned
+          # by digest and hw.yml's is `:latest`, so on the same commit
+          # hw.yml can boot a newer gsKit or SDK in Play! than the one
+          # this builds the release with. The "Initialize containers"
+          # step logs the image digest, and the compiler's version is
+          # printed below, so docs/releasing.md step 8b can say which
+          # toolchain built the release.
           # ophtml-nav.elf is left
           # out: it loads the ROM's pad modules for the emulator, which
           # costs the memory card, MMCE and MX4SIO drivers, and

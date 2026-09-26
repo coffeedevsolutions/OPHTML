@@ -152,7 +152,7 @@ a prerelease refused `latest` and a release refused any other tag.
 | macOS, Windows | nothing beyond the two wheels, since 0.9.0 | CHANGELOG.md 0.9.0 section |
 | host C compiler | `cc` or clang, for `make -C runtime test` | `runtime/Makefile` |
 | gsKit (host tests) | vendored headers pinned to commit `43122eb96289167975b56caa45beb71eb8684fa2` | `runtime/vendor/README.md` |
-| PS2SDK / ps2dev toolchain | `ghcr.io/ps2dev/ps2dev:latest`, deliberately unpinned | `.github/workflows/hw.yml` |
+| PS2SDK / ps2dev toolchain | `ghcr.io/ps2dev/ps2dev:latest` for the per-push build, deliberately unpinned; the release build pins the same image by digest | `.github/workflows/hw.yml`, `.github/workflows/console-release.yml` |
 
 Install both packages per
 [installation](page:getting-started/installation#what-you-need).
@@ -188,7 +188,9 @@ of a hand-written stub, on either compiler, so a struct-shape or
 prototype mismatch fails the build rather than passing silently. The
 console build takes its PS2SDK and gsKit headers from the same
 unpinned ps2dev image, kept unpinned on purpose so an upstream change
-shows up as a watch rather than staying frozen out of sight.
+shows up as a watch rather than staying frozen out of sight. The
+release build is the exception and pins that image by digest, because
+its ELF is a public download and no gate re-checks it.
 
 ## Names
 

@@ -267,8 +267,15 @@ above stopped after its two lines.
 
 New in 0.6.0. The command prints the toolchain it needs rather than the
 two files alone. CI compiles the ELF in the same image,
-`ghcr.io/ps2dev/ps2dev:latest`. That tag stays unpinned on purpose, so a
-gsKit change shows up as a red job.
+`ghcr.io/ps2dev/ps2dev:latest`, on every push. That tag stays unpinned on
+purpose, so a gsKit change shows up as a red job.
+
+**The release build is the one job that pins it.** What it produces is an
+`ophtml.elf` on a GitHub Release, a download a stranger runs and nothing
+downstream re-checks, so it names an immutable digest of that same image
+rather than the tag. Moving the digest is a deliberate edit, and
+`tools/check-workflow-pins.py` fails if either job takes the other's
+policy.
 
 `runtime/vendor/gsKit/` holds verbatim public headers from ps2dev/gsKit at
 commit `43122eb96289167975b56caa45beb71eb8684fa2`. They are host-only. The

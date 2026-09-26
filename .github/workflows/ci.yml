@@ -591,6 +591,19 @@ jobs:
             examples/channel6/build/probe.png
             examples/channel6/build/probe-states.png
 
+      # The container images CI builds in, and the one variable a
+      # workflow input reaches a shell through. Both were decisions the
+      # tree had made correctly and nothing held: console-release.yml
+      # built the released ELF in an unpinned image, and FUZZ_TIME went
+      # into libFuzzer's command line unquoted, so a dispatch input of
+      # `1; touch x` ran `touch`. The checker asserts the pin and the
+      # UNpin separately -- hw.yml's copy of the same image must stay
+      # floating or its gsKit watch freezes -- and it RUNS the FUZZ_TIME
+      # guard rather than grepping for it, because a version that only
+      # read the file reported PASS with the guard deleted.
+      - name: Container pins and the fuzz variables
+        run: python3 tools/check-workflow-pins.py
+
       # THE AUTHORITATIVE RUN, unflagged, after every check it could
       # otherwise have masked. The early step is a strict subset of
       # this one, so a rule added to check-versions.py later is

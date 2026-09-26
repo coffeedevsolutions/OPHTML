@@ -539,8 +539,10 @@ written twice to avoid.
      run on a console;
    - note which toolchain built it: the run's "Initialize containers"
      step logs the ps2dev image digest, and the build step prints the
-     compiler version. The image is unpinned, so this can differ from
-     the one `hw.yml` booted in Play! on the same commit;
+     compiler version. The release build pins that image by digest, so
+     a re-run of the same tag rebuilds with the same toolchain. `hw.yml`
+     stays on `:latest` on purpose, so the image it booted in Play! on
+     this commit can still be a newer one;
    - publish it only after `pip index versions ophtml` lists the new
      version. Publishing fires `registry.yml`'s `release: published`
      trigger, which installs the release from PyPI and goes red if the
