@@ -24,20 +24,20 @@ them.
 ```
 $ python3 tools/check-versions.py --except-tag
 ok - packages/baker derives its version from ps2ui_bake.__version__ and declares it nowhere else
-ok - @ophtml/layout 0.10.0 and ophtml 0.10.0 are the same version in the two spellings
+ok - @ophtml/layout 0.11.0-dev.0 and ophtml 0.11.0.dev0 are the same version in the two spellings
 ok - PS2UI_VERSION and uib.VERSION are both 7
 ok - docs/format-uib.md's header table says version 7
 ok - docs/format-uib.md's Versioning list explains v7
-ok - CHANGELOG's newest section is headed '0.10.0 — 2026-09-26', dated, and is the release the packages carry
+ok - CHANGELOG's open section is headed with 0.11.0.dev0
 ok - CHANGELOG's open section names format v7
-ok - CHANGELOG's 0.9.0 section records the format it shipped (v7)
-ok - CHANGELOG counts zero format moves since 0.9.0, and v7 -> v7 is 0
-ok - CHANGELOG counts the drift from 0.9.0, the section below it
-ok - README's Quick start note names 0.10.0, 0.10.0, format v7 and the drift since 0.9.0
+ok - CHANGELOG's 0.10.0 section records the format it shipped (v7)
+ok - CHANGELOG counts zero format moves since 0.10.0, and v7 -> v7 is 0
+ok - CHANGELOG counts the drift from 0.10.0, the section below it
+ok - README's Quick start note names 0.11.0.dev0, 0.11.0-dev.0, format v7 and the drift since 0.10.0
 ok - and docs/assets/ophtml-logo-releaseVersion0100-plain-white-darkbg.png is actually there
-ok - README's header logo names 0.10.0, which is the release being cut
+ok - README's header logo names 0.10.0, which is the last release
 ok - @ophtml is scoped and publishes with access: public
-ok - @ophtml/layout 0.10.0 is a release and publishes to `latest`
+ok - @ophtml/layout publishes to the 'next' dist-tag, so a publish of this prerelease would not take `latest`
 ok - docs/releasing.md exists and still names __version__ and the tagging step (keywords, not correctness)
 ok - layout is named @ophtml/layout
 ok - baker is named ophtml
@@ -50,8 +50,9 @@ ok - CHANGELOG's 0.6.0 section is the one v0.6.0 shipped
 ok - CHANGELOG's 0.7.0 section is the one v0.7.0 shipped
 ok - CHANGELOG's 0.8.0 section is the one v0.8.0 shipped
 ok - CHANGELOG's 0.9.0 section is the one v0.9.0 shipped
+ok - CHANGELOG's 0.10.0 section is the one v0.10.0 shipped
 ok - the recorded v0.3.0 edit ('**Tagged is not published.**' -> '**Tagged and published.**') is still the one difference it excuses
-# rule 23 compared 7 of 7 released section(s) with their tags
+# rule 23 compared 8 of 8 released section(s) with their tags
 ok - CHANGELOG's Tagged is not published paragraph is gone, matching PUBLISHED = True
 ok - the npm package is scoped: @ophtml/layout
 ok - README.md names the packages it tells people to install
@@ -61,22 +62,25 @@ ok - docs/tutorial-uc3.md names the packages it tells people to install
 ok - docs/PLAN.md's format history runs v1 through v7
 ok - ci.yml runs this file unflagged exactly once, so the tag rule is evaluated (2 invocation(s) in total)
 ok - and it is the last `run:` step in the workflow, so a red tag rule cannot mask the checks before it
-ok - CHANGELOG's 0.10.0 section says what changed (12 entries under 3 heading(s))
-ok - the Changelog page restates the open 0.10.0 section one for one: 12 bullet(s) for 12 entries
-ok - the changelog.mapping row names the 7 number(s) rule 14 counts
+ok - the open 0.11.0.dev0 section has 2 entries for the 0 commit(s) since v0.10.0
+ok - the Changelog page restates the open 0.11.0.dev0 section one for one: 2 bullet(s) for 2 entries
+ok - the changelog.mapping row names the 3 number(s) rule 14 counts
 skip - the tag rule, deferred to the full unflagged run at the end of this job (--except-tag)
 ```
 
 | component | version | reads |
 |---|---|---|
-| `ophtml` (PyPI) | 0.10.0 | `ps2ui_bake.__version__` |
-| `@ophtml/layout` (npm) | 0.10.0 | `packages/layout/package.json` |
+| `ophtml` (PyPI) | 0.11.0.dev0 | `ps2ui_bake.__version__` |
+| `@ophtml/layout` (npm) | 0.11.0-dev.0 | `packages/layout/package.json` |
 | ui.json IR | 1 | `IR_VERSION` in `packages/layout/src/index.js` |
 | `.uib` format | 7 | `VERSION` in `packages/baker/ps2ui_bake/uib.py` |
 | `PS2UI_VERSION` (runtime macro) | 7 | `runtime/ps2ui.h` |
 
-`ps2ui --version` prints `ps2ui 0.10.0`. `ps2ui-layout --version`
-prints `ps2ui-layout 0.10.0`. `PS2UI_VERSION` is the frozen
+The table is this tree, a prerelease on neither registry. What
+`pip install ophtml` and `npm install -g @ophtml/layout` give you is
+the release: its `ps2ui --version` prints `ps2ui 0.10.0`.
+Its `ps2ui-layout --version` prints `ps2ui-layout 0.10.0`. Both write
+format 7, as this tree does. `PS2UI_VERSION` is the frozen
 `.uib` format version, not a mechanism that stops the baker and the
 runtime drifting apart by itself. Baker and runtime agree because
 `ps2ui vendor-runtime` ships both files from one package in one

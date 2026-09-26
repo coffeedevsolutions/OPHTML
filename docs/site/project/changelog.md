@@ -14,6 +14,18 @@ The 0.10.0 section of `CHANGELOG.md`, restated by category, one bullet
 here for each entry there. The file carries the reasoning and the
 measurements; this page carries what changed.
 
+## 0.11.0.dev0
+
+Unreleased; 0.10.0, below, is what installs.
+
+### Fixed
+
+- `ps2ui-layout` refuses a tree nested past the depth cap with its own
+  message on every machine. On macOS arm64, 0.10.0 could still die of
+  `Maximum call stack size exceeded` before the cap was checked.
+- The baker test suite passes on a clean checkout, before the examples
+  are built.
+
 ## 0.10.0
 
 `ophtml` 0.10.0, `@ophtml/layout` 0.10.0, tagged `v0.10.0`. `pip install

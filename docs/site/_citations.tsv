@@ -2,7 +2,7 @@
 # Written by tools/check-site-pages.py --pin. Do not edit by hand.
 _facts/README	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
 _facts/README	runtime/ps2ui.c	1437	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
-_facts/authoring/crt-linter	README.md	218	## Supported CSS		
+_facts/authoring/crt-linter	README.md	220	## Supported CSS		
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	544	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	577	def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,		              allow_hairline: int = 0) -> None:
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	807	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
@@ -20,10 +20,10 @@ _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	106	  for (const
 _facts/authoring/crt-linter	packages/layout/src/box.js	99	  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',	const KNOWN_DATA_ATTRS = new Set([	  'data-tex-slot', 'data-repeat',
 _facts/authoring/crt-linter	packages/layout/src/box.js	201	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
 _facts/authoring/crt-linter	packages/layout/src/box.js	310	  // a rounded card that does not clip draws correctly, and a square	  // fires on the box that does both, because either alone is fine:	  // one that clips clips correctly.
-_facts/authoring/crt-linter	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
-_facts/authoring/crt-linter	packages/layout/src/index.js	273	  // in at the index it would have painted at. A data-slot draws no	  // forLint, not commands: it is the same list with slot text spliced	  // static command, so linting `commands` checked every colour in the
-_facts/authoring/crt-linter	packages/layout/src/index.js	276	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
-_facts/authoring/crt-linter	packages/layout/src/index.js	283	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
+_facts/authoring/crt-linter	packages/layout/src/index.js	278	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/authoring/crt-linter	packages/layout/src/index.js	280	  // in at the index it would have painted at. A data-slot draws no	  // forLint, not commands: it is the same list with slot text spliced	  // static command, so linting `commands` checked every colour in the
+_facts/authoring/crt-linter	packages/layout/src/index.js	283	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
+_facts/authoring/crt-linter	packages/layout/src/index.js	290	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
 _facts/authoring/crt-linter	packages/layout/src/lint.js	7	// statically. Lints are warnings, not errors — a homebrew author with an	// visible in a desktop browser preview, so the compiler checks for them	// LCD and component cables may ignore all of them deliberately.
 _facts/authoring/crt-linter	packages/layout/src/lint.js	12	export const DEFAULT_LINT_OPTIONS = Object.freeze({		  canvasW: 640,
 _facts/authoring/crt-linter	packages/layout/src/lint.js	22	  minContrast: 3.0,	  minFontSize: 14,	  // Pixel aspect ratio; 1.0 is square. Anything else distorts shapes.
@@ -59,9 +59,9 @@ _facts/authoring/crt-linter	packages/layout/src/lint.js	277	    if (x + w > safe
 _facts/authoring/crt-linter	packages/layout/src/lint.js	279	        rule: 'overscan',	      warnings.push({	        message: `focusable "${node.name}" extends past the action-safe area`,
 _facts/authoring/crt-linter	packages/layout/src/paint.js	156	      ...(box.nocontrast ? { nocontrast: true } : {}),	      focusId: box.focusId,	    });
 _facts/authoring/crt-linter	packages/layout/src/paint.js	255	        ...(box.nocontrast ? { nocontrast: true } : {}),	        focusId: box.focusId,	      });
-_facts/authoring/css	README.md	220	- Flexbox: `flex-direction`, `flex-wrap`, `flex-grow`/`-shrink`/`-basis` and the `flex` shorthand, `gap`/`row-gap`/`column-gap`, `justify-content`, `align-items`, `align-self`. **`flex-direction` has no default** (see below)		- Box model (border-box): `padding`, `margin`, borders, `border-radius` (one px length, baked as nine-patch textures)
-_facts/authoring/css	README.md	236	**Colors are not open-ended.** Hex (`#rgb`, `#rgba`, `#rrggbb`,		`#rrggbbaa`), `rgb()`/`rgba()` with numbers or percentages, and exactly
-_facts/authoring/css	README.md	250	**A `:focus` rule may change paint, and only paint.** Changing `width`,		`padding`, `flex-*`, `font-size`, `line-height` or `overflow` there is a
+_facts/authoring/css	README.md	222	- Flexbox: `flex-direction`, `flex-wrap`, `flex-grow`/`-shrink`/`-basis` and the `flex` shorthand, `gap`/`row-gap`/`column-gap`, `justify-content`, `align-items`, `align-self`. **`flex-direction` has no default** (see below)		- Box model (border-box): `padding`, `margin`, borders, `border-radius` (one px length, baked as nine-patch textures)
+_facts/authoring/css	README.md	238	**Colors are not open-ended.** Hex (`#rgb`, `#rgba`, `#rrggbb`,		`#rrggbbaa`), `rgb()`/`rgba()` with numbers or percentages, and exactly
+_facts/authoring/css	README.md	252	**A `:focus` rule may change paint, and only paint.** Changing `width`,		`padding`, `flex-*`, `font-size`, `line-height` or `overflow` there is a
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	72	def patch_key(radius: int, border_w: int, part: int):		    """A coverage patch is identified by its GEOMETRY and nothing else.
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	82	@dataclass		class NinePatch:
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	155	def slice_quads(patch: NinePatch, x: int, y: int, w: int, h: int):		    """Yield (dst_rect, src_rect) pairs mapping the nine cells onto a
@@ -149,8 +149,8 @@ _facts/authoring/css	packages/layout/src/flex.js	551	    // Ellipsize overflowin
 _facts/authoring/css	packages/layout/src/flex.js	552	    if (s.whiteSpace === 'nowrap' && s.textOverflow === 'ellipsis') {	    // Ellipsize overflowing nowrap lines when asked to.	      const font = ctx.fonts.resolve(s.fontWeight);
 _facts/authoring/css	packages/layout/src/flex.js	613	      // keeps its intrinsic aspect unless the cross size is explicit.	      // flex containers (distorting them); here a replaced element	      // Pixel art on a CRT beats spec fidelity on this one.
 _facts/authoring/css	packages/layout/src/index.js	62	  resolve(weight) {	  }	    return weight >= 600 ? this.bold : this.regular;
-_facts/authoring/css	packages/layout/src/index.js	207	  if (!root) throw new Error('layout: root element is display: none');	  if (cssErrors.length) throw cssError(cssErrors);	  if (boxEnv.undirected) {
-_facts/authoring/css	packages/layout/src/index.js	208	  if (boxEnv.undirected) {	  if (!root) throw new Error('layout: root element is display: none');	    // All of them at once: a document written against the old implicit
+_facts/authoring/css	packages/layout/src/index.js	214	  if (!root) throw new Error('layout: root element is display: none');	  if (cssErrors.length) throw cssError(cssErrors);	  if (boxEnv.undirected) {
+_facts/authoring/css	packages/layout/src/index.js	215	  if (boxEnv.undirected) {	  if (!root) throw new Error('layout: root element is display: none');	    // All of them at once: a document written against the old implicit
 _facts/authoring/css	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/authoring/css	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
 _facts/authoring/css	packages/layout/src/paint.js	71	  const fillVec = foldAlpha(	  // dead decision is theme 0's, and every row follows it.	    vectorOf(style.backgroundThemes, style.background, style.backgroundVar,
@@ -235,7 +235,7 @@ _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	125	  let ini
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	126	  for (const box of list) {	  let initial = null;	    if ('autofocus' in box.el.attrs) { initial = box.id; break; }
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	139	export function checkReachability(graph) {	 */	  const warnings = [];
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	154	      warnings.push(`focus: "${n.name}" is unreachable from the initial focus by D-pad`);	    if (!seen.has(n.id)) {	    }
-_facts/authoring/focus-and-navigation	packages/layout/src/index.js	235	  for (const w of checkReachability(focus)) warnings.push(w);	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	
+_facts/authoring/focus-and-navigation	packages/layout/src/index.js	242	  for (const w of checkReachability(focus)) warnings.push(w);	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1546	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)		{
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1562	     * cycle of hidden nodes must terminate, not spin. */	     * on something invisible. Bounded by the node count: a graph with a	    {
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
@@ -349,9 +349,9 @@ _facts/authoring/images	packages/layout/src/flex.js	247	    if (box.image.stream
 _facts/authoring/images	packages/layout/src/flex.js	613	      // keeps its intrinsic aspect unless the cross size is explicit.	      // flex containers (distorting them); here a replaced element	      // Pixel art on a CRT beats spec fidelity on this one.
 _facts/authoring/images	packages/layout/src/image.js	14	const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);		
 _facts/authoring/images	packages/layout/src/image.js	24	  } catch (err) {	    buf = readFileSync(path);	    throw new Error(`image: cannot read "${path}": ${err.code ?? err.message}`);
-_facts/authoring/images	packages/layout/src/index.js	344	export function compileFiles(htmlPath, cssPath, options = {}) {		  return compile(
+_facts/authoring/images	packages/layout/src/index.js	351	export function compileFiles(htmlPath, cssPath, options = {}) {		  return compile(
 _facts/authoring/lists	docs/tutorial-uc3.md	370	for (;;) {		    if (pad_down)  ps2ui_list_move(&ui, &list, +1);
-_facts/authoring/lists	packages/layout/src/index.js	173	  // Stamp out data-repeat templates before anything computes styles, so	  const dom = parseHTML(htmlSrc);	  // a repeated row is indistinguishable from one that was typed out.
+_facts/authoring/lists	packages/layout/src/index.js	180	  // Stamp out data-repeat templates before anything computes styles, so	  checkTree(dom, limits);	  // a repeated row is indistinguishable from one that was typed out.
 _facts/authoring/lists	packages/layout/src/repeat.js	16	// 1-based, in any attribute value and in text. Nothing is renamed behind	// Substitution is explicit. `{i}` is the 0-based index and `{n}` is	// your back: a `data-slot` without `{i}` produces N identical slot names,
 _facts/authoring/lists	packages/layout/src/repeat.js	21	const MAX_REPEAT = 256;		
 _facts/authoring/lists	packages/layout/src/repeat.js	24	export function substituteIndex(s, i) {	/** Substitute {i} / {n} in a string. */	  return s.replace(/\\{(i|n)\\}/g, (_, k) => String(k === 'i' ? i : i + 1));
@@ -395,14 +395,14 @@ _facts/authoring/lists	runtime/ps2ui.h	821	/* The item index displayed in row `r
 _facts/authoring/lists	runtime/ps2ui.h	822	 * the end of the data and should be blanked. This is the loop the app	/* The item index displayed in row `row`, or -1 when that row is past	 * runs after every move to refill the slots. */
 _facts/authoring/lists	runtime/ps2ui.h	826	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
 _facts/authoring/lists	runtime/ps2ui.h	830	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
-_facts/authoring/project-file	CHANGELOG.md	1622	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
-_facts/authoring/project-file	README.md	142	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
-_facts/authoring/project-file	README.md	663	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
+_facts/authoring/project-file	CHANGELOG.md	1665	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/project-file	README.md	144	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
+_facts/authoring/project-file	README.md	665	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 _facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	65	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
 _facts/authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/authoring/project-file	packages/baker/ps2ui_bake/ps2ui.py	336	    argv = [rel(proj, proj.out_path)]	    # written; nothing passed it.	    if proj.vram_budget is not None:
-_facts/authoring/project-file	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/authoring/project-file	packages/layout/src/index.js	278	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
 _facts/authoring/screens-and-overlays	BACKLOG.md	574	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
 _facts/authoring/screens-and-overlays	BACKLOG.md	597	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
 _facts/authoring/screens-and-overlays	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
@@ -481,7 +481,7 @@ _facts/authoring/text-and-fonts	packages/layout/src/text.js	160	export function 
 _facts/authoring/text-and-fonts	packages/layout/src/text.js	183	export function resolveLineHeight(lineHeight, fontSize) {	/** Resolve line-height (px or unitless multiplier) to integral px. */	  if (lineHeight.unit === 'px') return roundHalfUp(lineHeight.value);
 _facts/authoring/text-and-fonts	packages/layout/src/values.js	24	export function roundHalfUp(x) {	// floor(x + 0.5) so glyph advances agree between the two hosts.	  return Math.floor(x + 0.5);
 _facts/authoring/theming	README.md	25	One blob, two themes, swapped on the console at runtime by		`ps2ui_theme_set`. No rebuild, no second asset set: a theme is a row of
-_facts/authoring/theming	README.md	228	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
+_facts/authoring/theming	README.md	230	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	699	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	794	    if args.tints:		        print_tints(uib, args.uib)
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	345	    if args.tints:		        names = ir.get("themes") or ["root"]
@@ -524,11 +524,11 @@ _facts/authoring/theming	packages/layout/src/css.js	611	  const def = vars && va
 _facts/authoring/theming	packages/layout/src/css.js	625	/** A literal's vector: the same colour in every theme. */		export function themeVector(rgba, vars) {
 _facts/authoring/theming	packages/layout/src/css.js	631	export function themeCount(vars) {	/** How many themes this sheet declares, root included. Always >= 1. */	  if (!vars) return 1;
 _facts/authoring/theming	packages/layout/src/css.js	853	        if (p.startsWith('var(')) {	        // arrive here in two pieces.	          const { rgba, varName, rgbaThemes } = resolveColorValue(p, vars, prop, line);
-_facts/authoring/theming	packages/layout/src/index.js	231	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
-_facts/authoring/theming	packages/layout/src/index.js	269	  // too. The lint's own `rule` field already carries the distinction	  // trip: fix :root, rebuild, and only then discover light was broken	  // this comment was drawing in prose, so use it.
-_facts/authoring/theming	packages/layout/src/index.js	276	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
-_facts/authoring/theming	packages/layout/src/index.js	283	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
-_facts/authoring/theming	packages/layout/src/index.js	292	    canvas: {	    version: IR_VERSION,	      w: canvasW,
+_facts/authoring/theming	packages/layout/src/index.js	238	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
+_facts/authoring/theming	packages/layout/src/index.js	276	  // too. The lint's own `rule` field already carries the distinction	  // trip: fix :root, rebuild, and only then discover light was broken	  // this comment was drawing in prose, so use it.
+_facts/authoring/theming	packages/layout/src/index.js	283	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
+_facts/authoring/theming	packages/layout/src/index.js	290	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
+_facts/authoring/theming	packages/layout/src/index.js	299	    canvas: {	    version: IR_VERSION,	      w: canvasW,
 _facts/authoring/theming	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/authoring/theming	packages/layout/src/paint.js	41	function vectorOf(themes, rgba, varName, nThemes, what) {	// previewer all agree, and only the second theme row is wrong.	  if (themes) {
 _facts/authoring/theming	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
@@ -574,7 +574,7 @@ _facts/authoring/video-modes	packages/layout/src/aspect.js	42	export function di
 _facts/authoring/video-modes	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 _facts/authoring/video-modes	packages/layout/src/index.js	156	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
 _facts/authoring/video-modes	packages/layout/src/index.js	165	  const par = pixelAspect(canvasW, canvasH, displayAspect);	  const displayAspect = options.displayAspect ?? [4, 3];	  const fonts = options.fonts
-_facts/authoring/video-modes	packages/layout/src/index.js	290	  return {		    version: IR_VERSION,
+_facts/authoring/video-modes	packages/layout/src/index.js	297	  return {		    version: IR_VERSION,
 _facts/authoring/video-modes	packages/layout/src/lint.js	12	export const DEFAULT_LINT_OPTIONS = Object.freeze({		  canvasW: 640,
 _facts/authoring/video-modes	packages/layout/src/lint.js	15	  // Title-safe area: 5% inset per side, derived from the canvas so PAL	  canvasH: 448,	  // (640x512) gets its own numbers (SMPTE ST 2046 is stricter; 5%
 _facts/authoring/video-modes	packages/layout/src/lint.js	139	  if (opt.safeInsetX == null) opt.safeInsetX = Math.round(opt.canvasW * 0.05);	  const opt = { ...DEFAULT_LINT_OPTIONS, ...options };	  if (opt.safeInsetY == null) opt.safeInsetY = Math.round(opt.canvasH * 0.05);
@@ -584,7 +584,7 @@ _facts/authoring/video-modes	runtime/ps2ui.c	1533	uint32_t ps2ui_pixel_aspect_x1
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
-_facts/authoring/vram-budget	CHANGELOG.md	1622	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/vram-budget	CHANGELOG.md	1665	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	619	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	624	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	648	    if note and not ok:	    # look better tested than it is.	        for line in note:
@@ -617,7 +617,7 @@ _facts/authoring/vram-budget	runtime/ps2ui.h	325	                               
 _facts/authoring/vram-budget	runtime/ps2ui.h	390	    /* Runtime slot text. Each slot owns capacity+1 bytes at	    int       uploaded;	     * slot_text + slot_off[i] -- the capacity the baker declared for
 _facts/authoring/vram-budget	runtime/ps2ui.h	468	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
 _facts/authoring/vram-budget	runtime/ps2ui.h	477	/* Point a streamed texture slot at the caller's texels.		 *
-_facts/cli/previewer	README.md	722	**Runtime visibility is not previewable in v1**, and that is a stated		boundary. The renderer is parameterised on screen, focus node, theme and
+_facts/cli/previewer	README.md	724	**Runtime visibility is not previewable in v1**, and that is a stated		boundary. The renderer is parameterised on screen, focus node, theme and
 _facts/cli/previewer	docs/tutorial-uc3.md	281	**It does not replace hardware testing**, and the finding that says so		is specific. F-048, gsKit's full-screen clear not paying the blended
 _facts/cli/previewer	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/cli/previewer	packages/baker/ps2ui_bake/ps2ui.py	564	    sv = sub.add_parser("serve", help="preview the project in a browser")	    # reaches. test_serve.py asserts it by running `build --help`.	    sv.add_argument("project", nargs="?", default="ps2ui.json")
@@ -628,7 +628,7 @@ _facts/cli/previewer	packages/baker/ps2ui_bake/serve_page.html	681	const KEYS = 
 _facts/cli/previewer	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 _facts/cli/ps2ui	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 _facts/cli/ps2ui	examples/memcard/build.sh	18	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.11.0.dev0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	217	    ir_suffix = ""	    # have to guess where the suffix goes.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	250	def _not_a_project(path):		    """Why this file is not a ps2ui.json, naming the blob case."""
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	284	    except UnicodeDecodeError:	            data = json.load(fh)	        # THE DOCSTRING ABOVE PROMISED THIS AND THE HANDLER DID NOT
@@ -703,13 +703,13 @@ _facts/cli/ps2ui-check	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * 
 _facts/cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 _facts/cli/ps2ui-check	tools/check-blobs.sh	74	    if ! flags=$(known_flags "$blob"); then	for blob in $blobs; do	        echo "check-blobs: no rules for $blob" >&2
 _facts/cli/ps2ui-check	tools/check-blobs.sh	95	if [ "$checked" = 0 ]; then	# turn this whole step into a no-op that reports nothing and passes.	    echo "check-blobs: no blobs found -- nothing was validated" >&2
-_facts/cli/ps2ui-fontgen	README.md	131	`ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare		commands on `PATH`, and `-e` points them at this tree, so editing the
-_facts/cli/ps2ui-fontgen	README.md	140	ps2ui fontgen /path/DejaVuSans.ttf /path/DejaVuSans-Bold.ttf	```sh	cat > ps2ui.json <<'EOF'
-_facts/cli/ps2ui-fontgen	README.md	313	./fonts/regen.sh	```sh	```
+_facts/cli/ps2ui-fontgen	README.md	133	`ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare		commands on `PATH`, and `-e` points them at this tree, so editing the
+_facts/cli/ps2ui-fontgen	README.md	142	ps2ui fontgen /path/DejaVuSans.ttf /path/DejaVuSans-Bold.ttf	```sh	cat > ps2ui.json <<'EOF'
+_facts/cli/ps2ui-fontgen	README.md	315	./fonts/regen.sh	```sh	```
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	40	from ps2ui_bake.cli import load_font_manifest	import sys, os	from ps2ui_bake import fontgen
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	49	    rc = fontgen.main([ttf, "DejaVu Sans", str(weight),	    print("regen: %s = %s" % (face, ttf))	                       os.path.join(here, out)])
-_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.11.0.dev0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	83	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	19	# Latin-1 printable + the punctuation the example UI actually uses.		# chr(32) explicitly: an invisible U+00A0 once impersonated the space
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	23	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
@@ -786,8 +786,8 @@ _facts/cli/ps2ui-layout	packages/layout/src/index.js	65	  static fromDir(dir = D
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	94	  static fromManifest(path) {	   */	    let manifest;
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	118	function missingFonts(dir, missing) {	/** What to tell someone whose font metrics are not where we looked. */	  return `no font metrics at ${missing}.\\n`
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	156	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
-_facts/cli/ps2ui-layout	packages/layout/src/index.js	234	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	    root, themeNames.length);	  for (const w of checkReachability(focus)) warnings.push(w);
-_facts/cli/ps2ui-layout	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	241	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	    root, themeNames.length);	  for (const w of checkReachability(focus)) warnings.push(w);
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	278	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
 _facts/cli/ps2ui-layout	packages/layout/src/lint.js	21	  minFontSize: 14,	  safeInsetY: null,	  minContrast: 3.0,
 _facts/examples/channel6	.github/workflows/ci.yml	253	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
 _facts/examples/channel6	examples/channel6/README.md	106	its contract in TAP. 47 checks, and a red one names what broke. (The	Then it runs [check.py](check.py), which re-reads the blob and asserts	number was 24 and is derived from nothing — `check.py` prints its own
@@ -828,47 +828,50 @@ _facts/examples/opl-env	tools/check-example-figures.py	1	#!/usr/bin/env python3	
 _facts/examples/opl-env	tools/check-example-figures.py	46	# 392 KiB footprint that P3b-6 had moved to 336, a Phase 2 record three	# read to decide what to build next. In one day it was found carrying a	# figures out of date, and a slot count of 127 against a blob holding
 _facts/examples/opl-env	tools/check-example-figures.py	111	    act = dict(act)	    text = open(path, encoding="utf-8").read()	    act["vram_kib"] = (
 _facts/getting-started/installation	.github/workflows/registry.yml	181	          python -m pip install ophtml	        run: |	          npm install -g @ophtml/layout
-_facts/getting-started/installation	CHANGELOG.md	240	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
-_facts/getting-started/installation	CHANGELOG.md	530	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/getting-started/installation	CHANGELOG.md	283	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
+_facts/getting-started/installation	CHANGELOG.md	573	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
 _facts/getting-started/installation	packages/baker/ps2ui_bake/ps2ui.py	37	def layout_command():		    """How to invoke ps2ui-layout, or a message saying how to get it."""
 _facts/getting-started/installation	packages/baker/ps2ui_bake/vendor.py	238	    print("runtime source: %s (%s)" % (src, label))		
 _facts/getting-started/installation	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9", "uharfbuzz>=0.51.7"]
 _facts/getting-started/installation	packages/baker/pyproject.toml	17	[project.scripts]		# One front door over a toolchain that had three. The three below stay:
-_facts/getting-started/installation	packages/layout/package.json	10	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
-_facts/getting-started/installation	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
+_facts/getting-started/installation	packages/layout/package.json	11	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
+_facts/getting-started/installation	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
 _facts/getting-started/quickstart	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        ps2ui_render(&ui, gs);	#else	#endif
-_facts/project/changelog	CHANGELOG.md	17	### Added		
-_facts/project/changelog	CHANGELOG.md	19	- **The OPHTML console: any ps2ui theme, driven as a game launcher		  (`console/`).** Until now a baked UI could draw a game list and do
-_facts/project/changelog	CHANGELOG.md	41	- **A console theme can be checked, previewed and navigated before it		  reaches a console.** `ps2ui check` holds any blob with numbered
-_facts/project/changelog	CHANGELOG.md	63	- **Hard caps on what an untrusted theme may ask the compilers for.** A	  reference frames all read.	  theme is a file somebody else wrote, and the compilers accepted
-_facts/project/changelog	CHANGELOG.md	111	- **The console launcher can be downloaded, and the docs site says how		  to run it.** Until now `ophtml.elf` existed only as a CI artifact,
-_facts/project/changelog	CHANGELOG.md	127	- **A released CHANGELOG section is held to its tag.** A merge in #166		  put four entries into the released `## 0.8.0` section with no conflict
-_facts/project/changelog	CHANGELOG.md	137	- **The `.uib` loader is fuzzed (S2).** `runtime/tests/fuzz_load.c`		  runs libFuzzer over `ps2ui_arena_size`, `ps2ui_load` and everything a
-_facts/project/changelog	CHANGELOG.md	149	### Changed		
-_facts/project/changelog	CHANGELOG.md	151	- **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0		  is what a stranger installs.** It kept the macOS and Windows remedy
-_facts/project/changelog	CHANGELOG.md	166	### Fixed		
-_facts/project/changelog	CHANGELOG.md	168	- **A crafted `.uib` could crash the console before anything drew.**		  Nothing checked where a table sat, only that it fit, and every table
-_facts/project/changelog	CHANGELOG.md	181	- **`ps2ui check` printed a Python traceback for a malformed blob.**		  `read_uib` promises ValueError on a bad file, and `ps2ui check`
-_facts/project/changelog	CHANGELOG.md	192	- **A raised VRAM budget bought room for a framebuffer, which no budget		  can.** `--vram-budget` exists to let a project declare the texture
-_facts/project/changelog	CHANGELOG.md	202	- **A 439 KiB image could cost 432 MB and eleven seconds, or end the		  bake in a traceback.** An image is pre-scaled to its laid-out size, so
-_facts/project/changelog	CHANGELOG.md	211	- **Nesting deep enough reported `Maximum call stack size		  exceeded`.** That is V8's stack rather than a decision, so the real
-_facts/project/changelog	CHANGELOG.md	224	## 0.9.0 — 2026-09-23		
-_facts/project/changelog	CHANGELOG.md	240	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
-_facts/project/changelog	CHANGELOG.md	289	## 0.8.0 — 2026-09-23		
-_facts/project/changelog	CHANGELOG.md	305	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
-_facts/project/changelog	CHANGELOG.md	335	- **Three platforms had never run this toolchain, and the arm that		  covered the one non-Linux platform is now deprecated.**
-_facts/project/changelog	CHANGELOG.md	1249	## 0.7.0 — 2026-09-17		
-_facts/project/changelog	CHANGELOG.md	1265	- **`ps2ui vendor-runtime --starter` — the four files that build to a		  console binary, instead of the two that do not.** An install gave a
-_facts/project/changelog	CHANGELOG.md	1325	- **A `:focus` rule could bold a row that had been measured thin, and		  three other text properties it accepted did nothing at all.** The
-_facts/project/changelog	CHANGELOG.md	1370	- **Eight keyword-valued CSS properties accepted any string, and a typo		  bought you a different layout rather than an error.**
-_facts/project/changelog	CHANGELOG.md	1520	## 0.6.0 — 2026-09-12		
-_facts/project/changelog	CHANGELOG.md	1524	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/project/changelog	CHANGELOG.md	1622	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
-_facts/project/changelog	CHANGELOG.md	1712	## 0.5.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1762	## 0.4.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1852	## 0.3.0 — 2026-09-04		
+_facts/project/changelog	CHANGELOG.md	17	### Fixed		
+_facts/project/changelog	CHANGELOG.md	19	- **A tree too deep could still overflow V8's stack in `ps2ui-layout`,		  on macOS arm64.** 0.10.0 made the depth cap an iterative walk so it
+_facts/project/changelog	CHANGELOG.md	35	- **The baker suite failed on a clean checkout.** The test that holds		  the image cap to the corpus it was derived from walked `examples/`
+_facts/project/changelog	CHANGELOG.md	60	### Added		
+_facts/project/changelog	CHANGELOG.md	62	- **The OPHTML console: any ps2ui theme, driven as a game launcher		  (`console/`).** Until now a baked UI could draw a game list and do
+_facts/project/changelog	CHANGELOG.md	84	- **A console theme can be checked, previewed and navigated before it		  reaches a console.** `ps2ui check` holds any blob with numbered
+_facts/project/changelog	CHANGELOG.md	106	- **Hard caps on what an untrusted theme may ask the compilers for.** A	  reference frames all read.	  theme is a file somebody else wrote, and the compilers accepted
+_facts/project/changelog	CHANGELOG.md	154	- **The console launcher can be downloaded, and the docs site says how		  to run it.** Until now `ophtml.elf` existed only as a CI artifact,
+_facts/project/changelog	CHANGELOG.md	170	- **A released CHANGELOG section is held to its tag.** A merge in #166		  put four entries into the released `## 0.8.0` section with no conflict
+_facts/project/changelog	CHANGELOG.md	180	- **The `.uib` loader is fuzzed (S2).** `runtime/tests/fuzz_load.c`		  runs libFuzzer over `ps2ui_arena_size`, `ps2ui_load` and everything a
+_facts/project/changelog	CHANGELOG.md	192	### Changed		
+_facts/project/changelog	CHANGELOG.md	194	- **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0		  is what a stranger installs.** It kept the macOS and Windows remedy
+_facts/project/changelog	CHANGELOG.md	209	### Fixed		
+_facts/project/changelog	CHANGELOG.md	211	- **A crafted `.uib` could crash the console before anything drew.**		  Nothing checked where a table sat, only that it fit, and every table
+_facts/project/changelog	CHANGELOG.md	224	- **`ps2ui check` printed a Python traceback for a malformed blob.**		  `read_uib` promises ValueError on a bad file, and `ps2ui check`
+_facts/project/changelog	CHANGELOG.md	235	- **A raised VRAM budget bought room for a framebuffer, which no budget		  can.** `--vram-budget` exists to let a project declare the texture
+_facts/project/changelog	CHANGELOG.md	245	- **A 439 KiB image could cost 432 MB and eleven seconds, or end the		  bake in a traceback.** An image is pre-scaled to its laid-out size, so
+_facts/project/changelog	CHANGELOG.md	254	- **Nesting deep enough reported `Maximum call stack size		  exceeded`.** That is V8's stack rather than a decision, so the real
+_facts/project/changelog	CHANGELOG.md	267	## 0.9.0 — 2026-09-23		
+_facts/project/changelog	CHANGELOG.md	283	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
+_facts/project/changelog	CHANGELOG.md	332	## 0.8.0 — 2026-09-23		
+_facts/project/changelog	CHANGELOG.md	348	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
+_facts/project/changelog	CHANGELOG.md	378	- **Three platforms had never run this toolchain, and the arm that		  covered the one non-Linux platform is now deprecated.**
+_facts/project/changelog	CHANGELOG.md	1292	## 0.7.0 — 2026-09-17		
+_facts/project/changelog	CHANGELOG.md	1308	- **`ps2ui vendor-runtime --starter` — the four files that build to a		  console binary, instead of the two that do not.** An install gave a
+_facts/project/changelog	CHANGELOG.md	1368	- **A `:focus` rule could bold a row that had been measured thin, and		  three other text properties it accepted did nothing at all.** The
+_facts/project/changelog	CHANGELOG.md	1413	- **Eight keyword-valued CSS properties accepted any string, and a typo		  bought you a different layout rather than an error.**
+_facts/project/changelog	CHANGELOG.md	1563	## 0.6.0 — 2026-09-12		
+_facts/project/changelog	CHANGELOG.md	1567	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/project/changelog	CHANGELOG.md	1665	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/project/changelog	CHANGELOG.md	1755	## 0.5.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1805	## 0.4.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1895	## 0.3.0 — 2026-09-04		
 _facts/project/internals	docs/PLAN.md	1	# ps2ui Foundation Plan		
 _facts/project/internals	docs/architecture.md	1	# ps2ui — architecture and decisions		
 _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the streaming sitting		
@@ -915,21 +918,21 @@ _facts/project/security-and-license	SECURITY.md	10	- **The C runtime parses `.ui
 _facts/project/security-and-license	SECURITY.md	15	- **The build tools run on your machine.** `ps2ui-layout` and	  planned (backlog S2).	  `ps2ui-bake` read HTML/CSS/IR you point them at. Resource-exhaustion
 _facts/project/security-and-license	fonts/vendor/LICENSE.txt	1	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/		Upstream-Name: DejaVu fonts
 _facts/project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-_facts/project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+_facts/project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 _facts/project/security-and-license	runtime/ps2ui.c	282	    uint32_t i;	    arena_layout L;	    memset(ctx, 0, sizeof *ctx);
 _facts/project/security-and-license	runtime/vendor/README.md	1	# Vendored gsKit headers		
 _facts/project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
 _facts/reference/compatibility	.github/workflows/hw.yml	47	  # re-measure the band. ghcr.io/ps2dev/ps2dev:latest stays deliberately	  # the calibration comment on the gated diff step and expect to	  # UNpinned: the TFX compile probe exists to notice gsKit changing, and
 _facts/reference/compatibility	.github/workflows/registry.yml	194	  # A PLAIN PIP INSTALL, AND NOTHING ELSE, ON EACH MAC.		  #
 _facts/reference/compatibility	.github/workflows/registry.yml	255	  # THE SAME, ON WINDOWS.		  #
-_facts/reference/compatibility	CHANGELOG.md	530	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
-_facts/reference/compatibility	CHANGELOG.md	1563	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
-_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0"	# until the first real release was on PyPI.	
+_facts/reference/compatibility	CHANGELOG.md	573	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/reference/compatibility	CHANGELOG.md	1606	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
+_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.11.0.dev0"	# until the first real release was on PyPI.	
 _facts/reference/compatibility	packages/baker/ps2ui_bake/vendor.py	15	the tree. Handing out a runtime fetched from anywhere else reintroduces	and check-versions.py holds the two together in the tree -- but only in	exactly the skew that fence exists to prevent, and it would do it at the
 _facts/reference/compatibility	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9", "uharfbuzz>=0.51.7"]
-_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.10.0",	  "name": "@ophtml/layout",	  "publishConfig": {
-_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.10.0",	    "access": "public"
-_facts/reference/compatibility	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
+_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.11.0-dev.0",	  "name": "@ophtml/layout",	  "publishConfig": {
+_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.11.0-dev.0",	    "access": "public",
+_facts/reference/compatibility	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
 _facts/reference/compatibility	packages/layout/src/index.js	50	export const IR_VERSION = 1;		
 _facts/reference/compatibility	runtime/Makefile	4	CC      ?= cc		CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2
 _facts/reference/compatibility	runtime/ps2ui.c	197	    if (h->magic != PS2UI_MAGIC || h->version != PS2UI_VERSION)	        return 0;	        return 0;
@@ -937,7 +940,7 @@ _facts/reference/compatibility	runtime/ps2ui.c	297	    if (ctx->hdr->version != 
 _facts/reference/compatibility	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/reference/compatibility	runtime/ps2ui.h	427	#define PS2UI_ERR_VERSION    -3	#define PS2UI_ERR_MAGIC      -2	#define PS2UI_ERR_BOUNDS     -4
 _facts/reference/compatibility	runtime/vendor/README.md	3	`gsKit/` contains verbatim copies of the public headers from		[ps2dev/gsKit](https://github.com/ps2dev/gsKit) at commit
-_facts/reference/diagnostics	CHANGELOG.md	1563	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
+_facts/reference/diagnostics	CHANGELOG.md	1606	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/caps.py	83	    if records is not None:		        # >= because the runtime's guard is `depth + 1 >= MAX`, so the
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	788	    try:		        uib = read_uib(args.uib)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	792	        return 2	        print(f"ps2ui-check: {exc}", file=sys.stderr)	
@@ -1021,14 +1024,14 @@ _facts/reference/ir-format	packages/layout/src/focus.js	110	  const list = [...f
 _facts/reference/ir-format	packages/layout/src/index.js	50	export const IR_VERSION = 1;		
 _facts/reference/ir-format	packages/layout/src/index.js	156	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
 _facts/reference/ir-format	packages/layout/src/index.js	170	  const warnings = [];	        : FontContext.fromDir(options.fontDir));	
-_facts/reference/ir-format	packages/layout/src/index.js	194	  // can fail in its own right -- a container with no children, a	  // built from here down is the one the author did not ask for, and it	  // percentage against nothing. When it does, the CSS errors are the
-_facts/reference/ir-format	packages/layout/src/index.js	231	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
-_facts/reference/ir-format	packages/layout/src/index.js	250	  // reported n_theme times, which teaches people to skim the list --	  // byte-identical strings in every row and would otherwise be	  // the same argument data-nocontrast makes in lint.js. The colour
-_facts/reference/ir-format	packages/layout/src/index.js	264	  // theme. Rounding to two decimals widens it well past the symmetric	  // Both fail at 1.07:1, one message, and nothing names the light	  // case -- any two pairs landing on the same 2dp ratio collapse.
-_facts/reference/ir-format	packages/layout/src/index.js	283	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
-_facts/reference/ir-format	packages/layout/src/index.js	290	  return {		    version: IR_VERSION,
-_facts/reference/ir-format	packages/layout/src/index.js	292	    canvas: {	    version: IR_VERSION,	      w: canvasW,
-_facts/reference/ir-format	packages/layout/src/index.js	301	    fonts: {	    },	      regular: { family: fonts.regular.family, weight: fonts.regular.weight },
+_facts/reference/ir-format	packages/layout/src/index.js	201	  // can fail in its own right -- a container with no children, a	  // built from here down is the one the author did not ask for, and it	  // percentage against nothing. When it does, the CSS errors are the
+_facts/reference/ir-format	packages/layout/src/index.js	238	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
+_facts/reference/ir-format	packages/layout/src/index.js	257	  // reported n_theme times, which teaches people to skim the list --	  // byte-identical strings in every row and would otherwise be	  // the same argument data-nocontrast makes in lint.js. The colour
+_facts/reference/ir-format	packages/layout/src/index.js	271	  // theme. Rounding to two decimals widens it well past the symmetric	  // Both fail at 1.07:1, one message, and nothing names the light	  // case -- any two pairs landing on the same 2dp ratio collapse.
+_facts/reference/ir-format	packages/layout/src/index.js	290	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
+_facts/reference/ir-format	packages/layout/src/index.js	297	  return {		    version: IR_VERSION,
+_facts/reference/ir-format	packages/layout/src/index.js	299	    canvas: {	    version: IR_VERSION,	      w: canvasW,
+_facts/reference/ir-format	packages/layout/src/index.js	308	    fonts: {	    },	      regular: { family: fonts.regular.family, weight: fonts.regular.weight },
 _facts/reference/ir-format	packages/layout/src/paint.js	7	//   state:   'always' | 'unfocused' | 'focused'	//	//   focusId: the focus scope it belongs to (null outside scopes)
 _facts/reference/ir-format	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/reference/ir-format	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
@@ -1090,7 +1093,7 @@ _facts/reference/uib-format	tools/check-format-frozen.py	4	WHY THIS EXISTS. docs
 _facts/reference/uib-format	tools/check-format-frozen.py	80	PLEDGED_VERSION = 7		
 _facts/reference/uib-format	tools/check-format-frozen.py	184	    # 4. Assigned feature bits keep their values. New ones are the		    #    growth path and are allowed -- this loop is over the FROZEN
 _facts/reference/uib-format	tools/check-versions.py	400	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
-_facts/runtime/api-reference	README.md	434	  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by	- **Queries stay in UI coordinates.** The focused node's rect is	  the offset, so your own hit-testing keeps working; add the offset
+_facts/runtime/api-reference	README.md	436	  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by	- **Queries stay in UI coordinates.** The focused node's rect is	  the offset, so your own hit-testing keeps working; add the offset
 _facts/runtime/api-reference	runtime/ps2ui.c	39	uint32_t ps2ui_crc32(const void *data, size_t len)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	264	size_t ps2ui_arena_size(const void *data, size_t size)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	278	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,		               void *arena, size_t arena_size)
@@ -1439,9 +1442,9 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1524	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/runtime/moving-and-hiding	CHANGELOG.md	2058	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
-_facts/runtime/moving-and-hiding	README.md	441	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1567	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/runtime/moving-and-hiding	CHANGELOG.md	2101	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
+_facts/runtime/moving-and-hiding	README.md	443	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	171	    # The canvas rect, and it does NOT take the offset: it is the screen	    tex_cache = {}	    # edge, the same role stack[0] has in ps2ui_render. Content pushed
@@ -1568,7 +1571,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	65	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	366	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	1608	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	1651	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	134	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -1642,7 +1645,7 @@ project/internals	docs/findings.md	1	<!-- GENERATED by tools/check-findings.py -
 project/internals	docs/method.md	1	# How this project tests itself, and the ways it has failed to		
 project/internals	docs/releasing.md	1	# Releasing		
 project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 project/security-and-license	runtime/vendor/README.md	7	Academic Free License version 2.0 — see the notice each file carries.	(`ee/gs/include/*.h` and `ee/dma/include/*.h`), licensed under the	
 project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
 reference/uib-format	docs/PLAN.md	92	**Format history:** v1 initial → v2 CRC-32 + feature bits + dynamic-text		tables → v3 multi-screen + images (0.2.0) → v4 display aspect (76-byte

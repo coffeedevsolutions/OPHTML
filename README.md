@@ -100,12 +100,14 @@ the bench cases still open.
 `ps2ui check --console` and `ps2ui serve --console` hold a theme to the
 names it fills, hard caps bound what an untrusted theme may ask of the
 compilers, and the runtime refuses the misaligned blobs a fuzzer found
-could crash it. The blobs this release bakes are format **v7**, as
-0.9.0's were: zero moves of the `.uib` format have landed
-since 0.9.0. That is the stability pledge, made at v7 and enforced
-by `tools/check-format-frozen.py` rather than announced, so a blob
-either release writes loads under the other's runtime. Every CLI
-answers `--version`. What is left of Phase 4's exit gate in
+could crash it. This tree has since moved on to `0.11.0.dev0`
+(`0.11.0-dev.0` on npm), a prerelease on neither registry. The two
+still understand each other: the blobs baked here are format **v7**,
+and zero moves of the `.uib` format have landed since 0.10.0. That
+is the stability pledge, made at v7 and enforced by
+`tools/check-format-frozen.py` rather than announced, so a blob this
+tree writes loads under a 0.10.0 runtime and the other way round.
+Every CLI answers `--version`. What is left of Phase 4's exit gate in
 [docs/PLAN.md](docs/PLAN.md) is the half that always needed a console;
 [docs/releasing.md](docs/releasing.md) is the procedure, and
 `tools/check-versions.py` keeps this paragraph honest.
