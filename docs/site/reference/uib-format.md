@@ -284,14 +284,16 @@ The writer establishes each property. `ps2ui_load` refuses a file that breaks on
 
 | invariant | writer | runtime | ps2ui-check |
 |---|---|---|---|
-| `off_blob` is a multiple of 16 | `blob_pad` in [uib.py](repo:packages/baker/ps2ui_bake/uib.py#L409) | blob address with low bits set is `PS2UI_ERR_ALIGN`, [ps2ui.c](repo:runtime/ps2ui.c#L341) | check 12 |
-| every baked `data_off` is a multiple of 16 | `_align16` after every texture | `PS2UI_ERR_ALIGN`, [ps2ui.c](repo:runtime/ps2ui.c#L364) | check 13 |
+| `off_blob` is a multiple of 16 | `blob_pad` in [uib.py](repo:packages/baker/ps2ui_bake/uib.py#L409) | blob address with low bits set is `PS2UI_ERR_ALIGN`, [ps2ui.c](repo:runtime/ps2ui.c#L373) | check 12 |
+| every baked `data_off` is a multiple of 16 | `_align16` after every texture | `PS2UI_ERR_ALIGN`, [ps2ui.c](repo:runtime/ps2ui.c#L396) | check 13 |
 | `crc32` is the zlib CRC-32 of the file with bytes 48 to 51 zeroed | `zlib.crc32` patched in at offset 48 | `PS2UI_ERR_CRC` from `crc_file_with_hole`, [ps2ui.c](repo:runtime/ps2ui.c#L48) | reader raises before checks run |
 | every table ends inside the file | offsets computed from counts and strides | `PS2UI_ERR_TRUNCATED` | reader raises |
-| `n_screen` is at least 1 | default screen `main` when none is given | `PS2UI_ERR_BOUNDS`, [ps2ui.c](repo:runtime/ps2ui.c#L275) | check 5 |
-| `n_theme` is at least 1 | `n_theme` defaults to 1 | `PS2UI_ERR_BOUNDS`, [ps2ui.c](repo:runtime/ps2ui.c#L280) | check 41 |
-| `n_theme` above 1 requires feature bit 4 | bit set from `n_theme` | `PS2UI_ERR_TINTS`, [ps2ui.c](repo:runtime/ps2ui.c#L292) | check 44 |
-| a streamed texture requires bit 3, a name and a non-zero `data_len` | bit set from the texture table | `PS2UI_ERR_FEATURES` or `PS2UI_ERR_BOUNDS`, [ps2ui.c](repo:runtime/ps2ui.c#L357) | checks 6 to 9 |
+| every table starts at a multiple of 4 | an 84-byte header and entries whose sizes are multiples of 4 | `PS2UI_ERR_ALIGN`, [tables_aligned](repo:runtime/ps2ui.c#L165) | reader raises |
+| a font's glyph and kern tables start at a multiple of 4 in the blob | `_align16` before each | `PS2UI_ERR_ALIGN` | reader raises |
+| `n_screen` is at least 1 | default screen `main` when none is given | `PS2UI_ERR_BOUNDS`, [ps2ui.c](repo:runtime/ps2ui.c#L307) | check 5 |
+| `n_theme` is at least 1 | `n_theme` defaults to 1 | `PS2UI_ERR_BOUNDS`, [ps2ui.c](repo:runtime/ps2ui.c#L312) | check 41 |
+| `n_theme` above 1 requires feature bit 4 | bit set from `n_theme` | `PS2UI_ERR_TINTS`, [ps2ui.c](repo:runtime/ps2ui.c#L324) | check 44 |
+| a streamed texture requires bit 3, a name and a non-zero `data_len` | bit set from the texture table | `PS2UI_ERR_FEATURES` or `PS2UI_ERR_BOUNDS`, [ps2ui.c](repo:runtime/ps2ui.c#L389) | checks 6 to 9 |
 | `4 * n_tint` is below the painting command count | interning in `_tint` | not checked | check 43, once at least 100 commands paint |
 
 The runtime checks the blob's address in memory, not its file offset. A file placed 16-aligned in memory has an aligned blob only because `off_blob` is a multiple of 16, so the two checks are one property. Run the arithmetic on the memcard blob.
@@ -338,7 +340,7 @@ The memcard blob above carries `0x3`, bits 0 and 1. Its two fonts have 291 kern 
 
 ## Versioning
 
-`version` is 7. Readers refuse any other value: `PS2UI_ERR_VERSION` in the runtime, `ValueError` in the Python reader. `PS2UI_VERSION` in [ps2ui.h](repo:runtime/ps2ui.h#L37) is that format number, not a package version. [check-versions.py](repo:tools/check-versions.py#L375) holds it equal to `uib.VERSION`, and `ps2ui vendor-runtime` writes `ps2ui.c` and `ps2ui.h` from the same package that bakes the blob. What the pledge means for an installed app is on [Compatibility](page:reference/compatibility#format-compatibility).
+`version` is 7. Readers refuse any other value: `PS2UI_ERR_VERSION` in the runtime, `ValueError` in the Python reader. `PS2UI_VERSION` in [ps2ui.h](repo:runtime/ps2ui.h#L37) is that format number, not a package version. [check-versions.py](repo:tools/check-versions.py#L400) holds it equal to `uib.VERSION`, and `ps2ui vendor-runtime` writes `ps2ui.c` and `ps2ui.h` from the same package that bakes the blob. What the pledge means for an installed app is on [Compatibility](page:reference/compatibility#format-compatibility).
 
 ### The pledge
 

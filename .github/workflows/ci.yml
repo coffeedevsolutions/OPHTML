@@ -320,6 +320,36 @@ jobs:
       - name: Console library tests, sanitized
         run: make -C console/tests test-sanitize
 
+      # S2. libFuzzer over ps2ui_load and everything a program does with
+      # a blob that loaded (runtime/tests/fuzz_load.c says what, and what
+      # not). A theme is a file somebody else wrote, and the console
+      # launcher loads whatever theme.uib it finds on a drive. The seeds
+      # are every blob built above, so this sits after all of them.
+      #
+      # Sixty seconds is a smoke pass: the harness builds, runs, and the
+      # inputs this change makes reachable get a minute. Its first run
+      # found a misaligned read in ps2ui_arena_size within seconds. The
+      # long runs are fuzz.yml's, nightly.
+      #
+      # -seed=1 makes it a gate rather than a lottery: the same inputs in
+      # the same order on every run, so a failure belongs to the change
+      # that caused it and a re-run reproduces it. Exploring is
+      # fuzz.yml's job, with libFuzzer's time-based seed.
+      - name: Fuzz the .uib loader (short pass)
+        run: |
+          dpkg -s libclang-rt-18-dev >/dev/null 2>&1 || {
+            sudo apt-get update -q
+            sudo apt-get install -y -q libclang-rt-18-dev
+          }
+          make -C runtime fuzz FUZZ_CC=clang-18 FUZZ_TIME=60 FUZZ_ARGS=-seed=1
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: fuzz-crashes
+          retention-days: 14
+          path: runtime/build/fuzz-crashes/
+          if-no-files-found: ignore
+
       # A shipped example's README opens "Taken from the blob, not
       # estimated". They were, once. Then a slot was added and three
       # figures drifted through two pull requests and a phase lock,

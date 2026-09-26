@@ -171,7 +171,10 @@ def check_tables(uib, rep: Report) -> None:
               "texture names are unique, so a name identifies one slot")
     # A font atlas is produced at bake time by definition, and the slot
     # pen binds it without checking for texels.
-    rep.error(all(uib.textures[f["tex"]].kind != TEXKIND_STREAMED
+    # A font whose index is out of range is check_fonts' finding, not
+    # this one's; subscripting with it raised IndexError (S2).
+    rep.error(all(not 0 <= f["tex"] < len(uib.textures)
+                  or uib.textures[f["tex"]].kind != TEXKIND_STREAMED
                   for f in uib.fonts),
               "no font points at a streamed texture")
 
@@ -200,8 +203,13 @@ def check_tables(uib, rep: Report) -> None:
               + (f"; misaligned: {misaligned}" if misaligned else ""))
 
 
-def check_indices(uib, rep: Report) -> None:
-    """Every table index the runtime dereferences without checking."""
+def check_indices(uib, rep: Report) -> bool:
+    """Every table index the runtime dereferences without checking.
+
+    Returns whether every REFERENCE is in range: a texture, CLUT, font
+    or focus index that later checks subscript with. The state checks
+    below are findings too, but none of them makes a subscript unsafe,
+    so they do not count towards it (check_blob's gate)."""
     bad_tex = [i for i, r in enumerate(uib.records)
                if r.op == OP_TEXQUAD and not 0 <= r.tex < len(uib.textures)]
     rep.error(not bad_tex,
@@ -244,18 +252,25 @@ def check_indices(uib, rep: Report) -> None:
     rep.error(not orphan,
               "every focus-dependent command names a focus node"
               + (f"; commands {orphan[:5]}" if orphan else ""))
+    return not (bad_tex or bad_clut or bad_font or bad_focus)
 
 
-def check_screens(uib, rep: Report) -> None:
+def check_screens(uib, rep: Report) -> bool:
     """Screens must partition the command, focus and slot tables.
+
+    Returns whether they do, which is what makes every screen's ranges
+    safe to walk (check_blob's gate). The rest of what this reports --
+    reachability, unique names, the initial focus -- is a finding about
+    the UI and leaves every later check safe to run.
 
     `ps2ui_screen_set` swaps ranges and replays. A gap means commands
     that no screen ever draws; an overlap means one screen drawing
     another's. Neither is detectable at runtime.
     """
     if not rep.error(len(uib.screens) >= 1, "at least one screen"):
-        return
+        return False
 
+    partitioned = {}
     for first, count, total, what in (
         ("cmd_first", "cmd_count", len(uib.records), "command"),
         ("focus_first", "focus_count", len(uib.focus), "focus"),
@@ -268,15 +283,20 @@ def check_screens(uib, rep: Report) -> None:
                 ok = False
                 break
             cursor += sc[count]
-        rep.error(ok and cursor == total,
-                  f"screens partition the {what} table contiguously "
-                  f"({cursor}/{total})")
+        partitioned[what] = rep.error(
+            ok and cursor == total,
+            f"screens partition the {what} table contiguously "
+            f"({cursor}/{total})")
 
     names = [sc["name"] for sc in uib.screens]
     rep.error(len(set(names)) == len(names),
               f"screen names are unique: {names}")
 
-    for sc in uib.screens:
+    # The per-screen focus checks index the focus table by each screen's
+    # range, so they run only when those ranges were just shown to tile
+    # it. On a blob where they do not, the partition failure above is
+    # the finding, and subscripting past it raised IndexError (S2).
+    for sc in (uib.screens if partitioned["focus"] else []):
         lo, hi = sc["focus_first"], sc["focus_first"] + sc["focus_count"]
         if sc["focus_count"] == 0:
             rep.error(sc["initial"] == FOCUS_NONE,
@@ -307,6 +327,9 @@ def check_screens(uib, rep: Report) -> None:
     if uib.screens:
         rep.error(uib.initial_focus == uib.screens[0]["initial"],
                   "header initial_focus matches screen 0")
+    # What check_blob's gate needs: every later check walks each
+    # screen's command, focus and slot ranges.
+    return all(partitioned.values())
 
 
 def check_scissors(uib, rep: Report) -> None:
@@ -638,8 +661,30 @@ def check_blob(uib, budget=None, allow_dead: int = 0,
     existence -- test_console.py holds memcard and channel-6 to that."""
     rep = Report()
     check_tables(uib, rep)
-    check_indices(uib, rep)
-    check_screens(uib, rep)
+    refs_ok = check_indices(uib, rep)
+    parts_ok = check_screens(uib, rep)
+    # THE CHECKS BELOW SUBSCRIPT THROUGH TWO THINGS: the references
+    # check_indices validates, and the screen ranges check_screens shows
+    # tile the tables. When either failed, running them raised a
+    # traceback (the S2 fuzz pass found five such sites), so they are
+    # skipped, and the report SAYS so.
+    #
+    # ONLY THOSE TWO. The first version stopped on any error at all, and
+    # review of #182 showed what that cost: a stranded focus node --
+    # which the layout compiler only warns about, so a non-strict build
+    # bakes one -- cut memcard's report from 63 results to 32, with
+    # VRAM, fonts and the CRT checks missing and nothing saying why.
+    # Every other error here leaves the later checks safe to run.
+    if not (refs_ok and parts_ok):
+        rep.note("stopped before the scissor, GS domain, tint, font, VRAM, "
+                 "CRT and console checks: %s, and those checks index "
+                 "through %s. Fix the error%s above and run again."
+                 % (" and ".join(w for w, ok in (
+                     ("a table reference is out of range", refs_ok),
+                     ("the screens do not tile the tables", parts_ok)) if not ok),
+                    "both" if not (refs_ok or parts_ok) else "it",
+                    "s" if not (refs_ok or parts_ok) else ""))
+        return rep
     check_scissors(uib, rep)
     check_gs_domains(uib, rep)
     check_tints(uib, rep)

@@ -3646,6 +3646,66 @@ int main(int argc, char **argv)
         }
     }
 
+    /* ---- load: every struct read in place is 4-aligned (S2) ----
+     * Last in the file on purpose: the facts files quote this suite's
+     * `ok N` numbers as evidence, so a block added in the middle would
+     * renumber every check after it.
+     * The S2 fuzzer's first finding: nothing checked a table's offset,
+     * so ps2ui_arena_size read the slot table at an odd address. On
+     * the EE that is an address error, and the console launcher calls
+     * it on any theme.uib it finds on a drive. Each mutation below
+     * keeps the CRC valid, so the refusal is the one being tested. */
+    {
+        ps2ui_ctx mc;
+        uint8_t *dup = malloc(len + 16);
+        size_t pad = (16 - (((uintptr_t)dup) & 15u)) & 15u;
+        uint8_t *d = dup + pad;
+        ps2ui_header *dh = (ps2ui_header *)d;
+
+        memcpy(d, blob, len);
+        dh->off_slot += 2;
+        recrc(d, len);
+        CHECK(ps2ui_arena_size(d, len) == 0,
+              "a slot table at an offset that is not a multiple of 4 gets no arena");
+        CHECK(load_arena(&mc, d, len) == PS2UI_ERR_ALIGN,
+              "and is refused by ps2ui_load with PS2UI_ERR_ALIGN");
+
+        memcpy(d, blob, len);
+        dh->off_cmd += 1;
+        recrc(d, len);
+        CHECK(load_arena(&mc, d, len) == PS2UI_ERR_ALIGN,
+              "so is a command table at an odd offset");
+
+        memcpy(d, blob, len);
+        CHECK(dh->n_font > 0, "the fixture has a font whose glyph table can move");
+        ((ps2ui_font_entry *)(d + dh->off_font))->glyphs_off += 2;
+        recrc(d, len);
+        CHECK(load_arena(&mc, d, len) == PS2UI_ERR_ALIGN,
+              "so is a glyph table at an offset that is not a multiple of 4");
+
+        /* The kern half, which review of #182 found no test and four
+         * minutes of fuzzing reaching: ok 414 moves only a glyph table. */
+        memcpy(d, blob, len);
+        {
+            ps2ui_font_entry *fe = (ps2ui_font_entry *)(d + dh->off_font);
+            uint32_t f;
+            for (f = 0; f < dh->n_font && fe[f].kern_count == 0; f++)
+                ;
+            CHECK(f < dh->n_font, "the fixture has a font with kern pairs to move");
+            if (f < dh->n_font)
+                fe[f].kerns_off += 2;
+        }
+        recrc(d, len);
+        CHECK(load_arena(&mc, d, len) == PS2UI_ERR_ALIGN,
+              "so is a kern table at an offset that is not a multiple of 4");
+
+        memcpy(d, blob, len);
+        recrc(d, len);
+        CHECK(load_arena(&mc, d, len) == PS2UI_OK,
+              "and the unmutated bytes in the same buffer load, so it was the offsets");
+        free(dup);
+    }
+
 report:
     printf("1..%d\n", checks);
     printf("%s: %d checks, %d failure(s)\n", failures ? "FAIL" : "PASS", checks, failures);

@@ -38,6 +38,12 @@ Unreleased; 0.9.0, below, is what installs.
   its mock build and checksums, and a new page covers running it with
   Neutrino and your own theme. It has not yet run on a console. See
   [Console launcher](page:runtime/console-launcher).
+- `check-versions.py` fails when a released CHANGELOG section differs
+  from the same section at its tag, so a merge can no longer add entries
+  to a release that already shipped.
+- The `.uib` loader is fuzzed, for a minute on every change and half an
+  hour nightly, and `ps2ui check` is fuzzed over mutated example blobs.
+  Run it with `make -C runtime fuzz`.
 
 ### Changed
 
@@ -49,6 +55,13 @@ Unreleased; 0.9.0, below, is what installs.
 
 ### Fixed
 
+- A `.uib` whose tables were not 4-byte aligned crashed the console in
+  `ps2ui_arena_size` or `ps2ui_load`. Both refuse it now, with
+  `PS2UI_ERR_ALIGN`, before reading a table. See
+  [Errors and constants](page:runtime/errors-and-constants#load-check-order).
+- `ps2ui check` printed a Python traceback, not a verdict, for a blob
+  with a table past its end, an unknown texture format, or a reference
+  past a table.
 - A raised `--vram-budget` bought room for a framebuffer, which no
   budget can. A 30000x30000 canvas baked to a blob with exit 0, past a
   message saying a narrower canvas was the only fix.

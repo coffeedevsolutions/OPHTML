@@ -501,7 +501,13 @@ written twice to avoid.
      `0.3.0` section, which is present-tense and stops being true.
      Rule 20 keys it to `PUBLISHED` in both directions, so this edit is
      fenced too — it was the one item on this list that was a matter of
-     remembering, and it is not any more.
+     remembering, and it is not any more. It is also the one edit a
+     released section carries after its tag. Rule 23 holds every
+     released section to `git show <tag>:CHANGELOG.md`, and this
+     paragraph passes only because `RELEASED_SECTION_EDITS` in
+     `tools/check-versions.py` records it. A later release that edits
+     its own section after tagging records that edit there, with the
+     reason, in the same commit.
 
    Rule 10 used to key on the literal `Neither package is published`,
    which meant rewriting the note the day it stopped being true would

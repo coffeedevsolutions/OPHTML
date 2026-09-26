@@ -432,7 +432,7 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ERR_TOO_MANY   -5
 #define PS2UI_ERR_CRC        -6
 #define PS2UI_ERR_FEATURES   -7
-#define PS2UI_ERR_ALIGN      -8  /* texture bytes or arena not 16-aligned */
+#define PS2UI_ERR_ALIGN      -8  /* blob, a table, texture bytes or arena misaligned */
 #define PS2UI_ERR_ARENA      -9  /* arena smaller than ps2ui_arena_size() */
 #define PS2UI_ERR_NOT_STREAMED -10 /* tex_set on a baked or unknown slot  */
 #define PS2UI_ERR_SIZE       -11 /* tex_set payload is not the reservation */
