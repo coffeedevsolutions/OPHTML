@@ -16,21 +16,26 @@ without moving this line.
 
 ### Fixed
 
-- **A tree too deep could still overflow V8's stack in `ps2ui-layout`,
-  on macOS arm64.** 0.10.0 made the depth cap an iterative walk so it
-  could report a tree nested thousands deep instead of dying in one,
-  and then ran it after `expandRepeats`, whose walk is recursive. On
-  Linux the stack outlasts a 4000-deep tree and the cap spoke; on
-  macOS arm64 `repeat.js` gave out first, and the compiler printed
-  `Maximum call stack size exceeded` -- the exact failure the 0.10.0
-  entry says was closed. `registry.yml`'s contributor leg on
-  `macos-15` found it after the release. The cap now also runs before
-  expansion, which is safe because `data-repeat` adds siblings and never
-  depth, and only ever adds nodes, so the early check refuses nothing
-  the later one accepts. A new test compiles the same tree in a child
-  process with a quarter of V8's default stack, so every runner now
-  has the Mac's margin: against 0.10.0's order it fails in `repeat.js`,
-  and it passes at 120 KB with this one.
+- **A tree too deep could still overflow V8's stack in `ps2ui-layout`.**
+  0.10.0 made the depth cap an iterative walk so it could report a tree
+  nested thousands deep instead of dying in one, and then ran it after
+  `expandRepeats`, whose walk is recursive. So a tree thousands deep
+  under a `data-repeat` still died in `repeat.js` with `Maximum call
+  stack size exceeded` -- the exact failure the 0.10.0 entry says was
+  closed -- on any platform, at Node's default stack on Linux too. The
+  test 0.10.0 shipped used a bare tree, which `repeat.js` walks less
+  deeply per level, so it passed on Linux; macOS arm64 gives out sooner
+  and failed even on that, which is how `registry.yml`'s contributor
+  leg on `macos-15` found it after the release (review of #184 found
+  the `data-repeat` case). The cap now also runs before expansion,
+  which is safe because `data-repeat` adds siblings and never depth,
+  and only ever adds nodes (a count below 1 is refused), so the early
+  check refuses nothing the later one accepts. A new test compiles the
+  tree, bare and under a `data-repeat`, in a child process with a
+  quarter of V8's default stack: against 0.10.0's order it fails in
+  `repeat.js`, and it passes at 120 KB with this one. And `ci.yml`'s
+  `macos-15` job now runs the layout suite on every pull request, so
+  this class of failure no longer waits for the weekly registry run.
 
 - **The baker suite failed on a clean checkout.** The test that holds
   the image cap to the corpus it was derived from walked `examples/`

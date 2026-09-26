@@ -97,7 +97,8 @@ $ ps2ui-check ui.uib
 
 `ps2ui_arena_size` answers the same question at runtime from the blob in
 hand. It returns 0 when the header is unreadable, the magic, version or
-table alignment is wrong, or the tables do not fit the buffer, which also
+table alignment is wrong, the tables do not fit the buffer, the blob has
+no screens, or the arena would need more than `size_t` holds. Each also
 reads as "do not call load".
 
 ## Reference table

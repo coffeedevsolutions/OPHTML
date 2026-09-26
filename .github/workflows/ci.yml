@@ -87,6 +87,19 @@ jobs:
                     % (name, len(got["advances"]), len(got["kerning"])))
           PY
 
+      # The layout suite on the arm64 Mac, on every pull request. Its
+      # stack gives out sooner than the Linux runner's, and 0.10.0's
+      # depth-cap test passed here in ci.yml's absence and failed in
+      # registry.yml's weekly contributor leg, after the release (#184).
+      - if: matrix.os == 'macos-15'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: The layout suite on this machine
+        if: matrix.os == 'macos-15'
+        working-directory: packages/layout
+        run: npm test
+
   toolchain:
     # Same pin as hw.yml, same reason in miniature: the suites' toolchains
     # (node, python) are version-pinned by actions, but the image's

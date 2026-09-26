@@ -830,12 +830,12 @@ test('limits: a tree too deep is refused by this compiler, not by V8', () => {
 
 test('limits: the depth cap speaks before any recursive walk, on a small stack', () => {
   // 0.10.0 ran the cap after expandRepeats, whose walk is recursive, so
-  // on macOS arm64 the test above died in repeat.js with V8's "Maximum
-  // call stack size exceeded" while Linux, with more stack, stayed
-  // green (registry.yml's contributor leg found it after the release).
-  // A child with a quarter of the default stack puts that machine on
-  // every runner. The second tree hides the depth inside a data-repeat,
-  // where hasRepeat and clone recurse as well.
+  // a deep tree under a data-repeat died in repeat.js with V8's "Maximum
+  // call stack size exceeded" on any platform, and on macOS arm64 the
+  // bare tree in the test above died too (registry.yml's contributor leg
+  // found that after the release). A child with a quarter of the default
+  // stack gives every runner less margin than that Mac had. The second
+  // tree hides the depth inside a data-repeat, where the walk is deepest.
   const run = (html) => spawnSync(process.execPath, [
     '--stack-size=250', '--input-type=module', '-e',
     `import { compile, FontContext } from ${JSON.stringify(
