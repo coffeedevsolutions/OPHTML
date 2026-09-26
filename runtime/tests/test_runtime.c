@@ -3683,6 +3683,22 @@ int main(int argc, char **argv)
         CHECK(load_arena(&mc, d, len) == PS2UI_ERR_ALIGN,
               "so is a glyph table at an offset that is not a multiple of 4");
 
+        /* The kern half, which review of #182 found no test and four
+         * minutes of fuzzing reaching: ok 414 moves only a glyph table. */
+        memcpy(d, blob, len);
+        {
+            ps2ui_font_entry *fe = (ps2ui_font_entry *)(d + dh->off_font);
+            uint32_t f;
+            for (f = 0; f < dh->n_font && fe[f].kern_count == 0; f++)
+                ;
+            CHECK(f < dh->n_font, "the fixture has a font with kern pairs to move");
+            if (f < dh->n_font)
+                fe[f].kerns_off += 2;
+        }
+        recrc(d, len);
+        CHECK(load_arena(&mc, d, len) == PS2UI_ERR_ALIGN,
+              "so is a kern table at an offset that is not a multiple of 4");
+
         memcpy(d, blob, len);
         recrc(d, len);
         CHECK(load_arena(&mc, d, len) == PS2UI_OK,

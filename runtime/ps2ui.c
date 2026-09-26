@@ -466,8 +466,9 @@ int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,
             return PS2UI_ERR_BOUNDS;
         /* Both arrays are read in place as structs that open with a
          * uint32_t, so they need what tables_aligned asks of the
-         * tables. The blob itself is 16-aligned (checked above), so
-         * the offset alone decides it. The baker 16-aligns both. */
+         * tables. Their offsets are relative to the string blob,
+         * ctx->blob, which is 16-aligned (checked above), so the offset
+         * alone decides it. The baker 16-aligns both. */
         if ((f->glyph_count && (f->glyphs_off & 3u))
             || (f->kern_count && (f->kerns_off & 3u)))
             return PS2UI_ERR_ALIGN;

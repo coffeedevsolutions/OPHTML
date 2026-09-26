@@ -185,9 +185,9 @@ without moving this line.
   `struct.error` or `KeyError` instead. A blob that read cleanly but
   referenced past a table got `IndexError` from whichever later check
   subscripted it. The reader now checks every table's extent and
-  alignment as the runtime does and refuses unknown formats. The
-  checker stops after its table, index and screen checks when those
-  failed, as its own `Report` docstring said callers could.
+  alignment as the runtime does and refuses unknown formats. When a
+  reference or a screen range is bad, the checks that walk them are
+  skipped and the report says so; any other error stops nothing.
 
 - **A raised VRAM budget bought room for a framebuffer, which no budget
   can.** `--vram-budget` exists to let a project declare the texture

@@ -1,11 +1,11 @@
 # page	repo path	line	text of that line when pinned	line before	line after
 # Written by tools/check-site-pages.py --pin. Do not edit by hand.
 _facts/README	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
-_facts/README	runtime/ps2ui.c	1436	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
+_facts/README	runtime/ps2ui.c	1437	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
 _facts/authoring/crt-linter	README.md	218	## Supported CSS		
-_facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	530	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
-_facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	563	def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,		              allow_hairline: int = 0) -> None:
-_facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	778	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
+_facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	544	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
+_facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	577	def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,		              allow_hairline: int = 0) -> None:
+_facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	807	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/project.py	51	    "minFontSize": None,	    "strict": False,	    "focusWrap": False,
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/ps2ui.py	224	        if proj.min_font_size is not None:	            cmd += ["--strict"]	            cmd += ["--min-font-size", str(proj.min_font_size)]
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/ps2ui.py	481	        if proj.strict:	            cmd += ["--display-aspect", proj.display_aspect]	            cmd += ["--strict"]
@@ -187,23 +187,23 @@ _facts/authoring/dynamic-text	packages/layout/src/box.js	220	      capacity: par
 _facts/authoring/dynamic-text	packages/layout/src/paint.js	195	      // static text commands. One line, enforced here.	      // Placeholder text of a data-slot: becomes a slot descriptor, not	      if (box.lines.length !== 1) {
 _facts/authoring/dynamic-text	packages/layout/src/paint.js	208	      slots.push({	      const foc = textPaint(box.focusStyle, nThemes);	        name: parent.slot.name,
 _facts/authoring/dynamic-text	packages/layout/src/paint.js	329	  const seen = new Set();	  visit(root);	  for (const s of slots) {
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1287	static int slot_measure(const ps2ui_ctx *ctx, const ps2ui_slot_entry *s,	 * *draw_len and whether the ellipsis is needed into *ellipsize. */	                        const ps2ui_font_entry *font, const char *text,
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1336	static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)		{
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1345	static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)		{
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1354	        /* Slots live outside the command list, so the visibility check	        const char *text;	         * in the command loop does not reach them. Without this, hiding
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1372	        pen = s->x;		        if (s->align == PS2UI_SLOT_ALIGN_CENTER && width < s->w)
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1394	        while (p < end) {	        int have_prev = 0;	            uint32_t cp = utf8_next(&p);
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1436	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1451	static void utf8_trim_partial(char *s)	 * U+FFFD and the pen draws '?' where half a glyph used to be. */	{
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1475	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)		{
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1489	     * baker declared is the truncation point, not a global BUFSZ. */	    /* The slot's own buffer is capacity + 1 bytes; the capacity the	    cap = ctx->slots[i].capacity;
-_facts/authoring/dynamic-text	runtime/ps2ui.c	1498	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)		{
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1288	static int slot_measure(const ps2ui_ctx *ctx, const ps2ui_slot_entry *s,	 * *draw_len and whether the ellipsis is needed into *ellipsize. */	                        const ps2ui_font_entry *font, const char *text,
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1337	static const char *slot_current_text(const ps2ui_ctx *ctx, uint32_t index)		{
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1346	static void render_slots(ps2ui_ctx *ctx, GSGLOBAL *gs, int tex_ok)		{
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1355	        /* Slots live outside the command list, so the visibility check	        const char *text;	         * in the command loop does not reach them. Without this, hiding
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1373	        pen = s->x;		        if (s->align == PS2UI_SLOT_ALIGN_CENTER && width < s->w)
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1395	        while (p < end) {	        int have_prev = 0;	            uint32_t cp = utf8_next(&p);
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1437	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1452	static void utf8_trim_partial(char *s)	 * U+FFFD and the pen draws '?' where half a glyph used to be. */	{
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1476	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)		{
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1490	     * baker declared is the truncation point, not a global BUFSZ. */	    /* The slot's own buffer is capacity + 1 bytes; the capacity the	    cap = ctx->slots[i].capacity;
+_facts/authoring/dynamic-text	runtime/ps2ui.c	1499	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)		{
 _facts/authoring/dynamic-text	runtime/ps2ui.h	667	 * at the slot's baked capacity without splitting a character). NULL	/* Set a dynamic-text slot's current string (UTF-8; copied, truncated	 * reverts to the baked placeholder; "" blanks the slot.
 _facts/authoring/dynamic-text	runtime/ps2ui.h	672	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	
 _facts/authoring/dynamic-text	runtime/sample/main.c	1756	        char telem[160];	         * announces itself, not a silent loss. */	        /* SLOT NAMES ARE SCREEN-SCOPED, and they have to be: slots are
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/check.py	101	    """Names reachable from a screen's initial focus by D-pad.	def _reachable(uib, sc) -> set:	
-_facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/check.py	281	    rep.error(len(set(names)) == len(names),	    names = [sc["name"] for sc in uib.screens]	              f"screen names are unique: {names}")
-_facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/check.py	297	        # Edges that leave the screen would move focus to a node the		        # screen never draws.
+_facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/check.py	292	    rep.error(len(set(names)) == len(names),	    names = [sc["name"] for sc in uib.screens]	              f"screen names are unique: {names}")
+_facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/check.py	308	        # Edges that leave the screen would move focus to a node the		        # screen never draws.
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/preview.py	350	def montage(uib: UibFile, columns: int = 3, gap: int = 16, screen=0) -> Image.Image:		    """One tile per focusable of one screen, that focusable current —
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/project.py	52	    "focusWrap": False,	    "minFontSize": None,	    "palettizeImages": False,
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/project.py	124	        return None if rel is None else os.path.join(self.root, rel)	    def _abs(self, rel):	
@@ -236,12 +236,12 @@ _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	126	  for (co
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	139	export function checkReachability(graph) {	 */	  const warnings = [];
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	154	      warnings.push(`focus: "${n.name}" is unreachable from the initial focus by D-pad`);	    if (!seen.has(n.id)) {	    }
 _facts/authoring/focus-and-navigation	packages/layout/src/index.js	235	  for (const w of checkReachability(focus)) warnings.push(w);	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	
-_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1545	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)		{
-_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1561	     * cycle of hidden nodes must terminate, not spin. */	     * on something invisible. Bounded by the node count: a graph with a	    {
-_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1596	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
-_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1602	    scr = &ctx->screen_table[ctx->screen];	        return PS2UI_NONE;	    lo = scr->focus_first;
-_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1665	const char *ps2ui_focus_name(const ps2ui_ctx *ctx)		{
-_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1672	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)		{
+_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1546	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)		{
+_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1562	     * cycle of hidden nodes must terminate, not spin. */	     * on something invisible. Bounded by the node count: a graph with a	    {
+_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
+_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1603	    scr = &ctx->screen_table[ctx->screen];	        return PS2UI_NONE;	    lo = scr->focus_first;
+_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1666	const char *ps2ui_focus_name(const ps2ui_ctx *ctx)		{
+_facts/authoring/focus-and-navigation	runtime/ps2ui.c	1673	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)		{
 _facts/authoring/focus-and-navigation	runtime/ps2ui.h	79	#define PS2UI_NONE 0xFFFFu		
 _facts/authoring/focus-and-navigation	runtime/ps2ui.h	190	typedef struct ps2ui_focus_node {		    uint16_t id;
 _facts/authoring/focus-and-navigation	runtime/ps2ui.h	192	    uint16_t up, down, left, right; /* focus indices or PS2UI_NONE */	    uint16_t id;	    uint16_t pad0;
@@ -365,19 +365,19 @@ _facts/authoring/lists	packages/layout/src/repeat.js	93	      if (child.children
 _facts/authoring/lists	packages/layout/src/repeat.js	103	      if (count > 1 && !/\\{[in]\\}/.test(serialise(child))) {	      // used to flag — on the pattern the README recommends.	        warnings.push(
 _facts/authoring/lists	packages/layout/src/repeat.js	127	function serialise(el) {	 *  attributes and text, and every descendant's. */	  if (el.type === 'text') return el.text;
 _facts/authoring/lists	packages/layout/test/layout.test.js	1028	  assert.throws(	  // check, which names the slot — a better error than any rename magic.	    () => compileCss(
-_facts/authoring/lists	runtime/ps2ui.c	1686	 * so five digits and a terminator always fit `digits`, and every write	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * to `out` is guarded against `cap`. */
-_facts/authoring/lists	runtime/ps2ui.c	1704	/* Slide the window the minimum distance that puts sel back on screen.		 * Minimum, not centred: a list that recentres on every step makes the
-_facts/authoring/lists	runtime/ps2ui.c	1712	    else if ((uint32_t)list->sel >= (uint32_t)list->top + list->rows)	        list->top = list->sel;	        list->top = (uint16_t)(list->sel - list->rows + 1);
-_facts/authoring/lists	runtime/ps2ui.c	1726	void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows)		{
-_facts/authoring/lists	runtime/ps2ui.c	1736	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count)		{
-_facts/authoring/lists	runtime/ps2ui.c	1741	    if (list->sel >= count) list->sel = (uint16_t)(count - 1);	    if (count == 0) { list->sel = 0; list->top = 0; return; }	    list_scroll_into_view(list);
-_facts/authoring/lists	runtime/ps2ui.c	1746	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
-_facts/authoring/lists	runtime/ps2ui.c	1755	int ps2ui_list_selected_row(const ps2ui_list *list)		{
-_facts/authoring/lists	runtime/ps2ui.c	1768	 * slots — but it means the prefix does not match the baked names, which	 * fatal — the indices are still correct and the app can still fill the	 * is worth surfacing as a 0 return rather than silently doing nothing. */
-_facts/authoring/lists	runtime/ps2ui.c	1779	int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item)		{
-_facts/authoring/lists	runtime/ps2ui.c	1785	    list->sel = item >= list->count ? (uint16_t)(list->count - 1) : item;	    old_top = list->top;	    list_scroll_into_view(list);
-_facts/authoring/lists	runtime/ps2ui.c	1791	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)		{
-_facts/authoring/lists	runtime/ps2ui.c	1801	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)		{
+_facts/authoring/lists	runtime/ps2ui.c	1687	 * so five digits and a terminator always fit `digits`, and every write	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * to `out` is guarded against `cap`. */
+_facts/authoring/lists	runtime/ps2ui.c	1705	/* Slide the window the minimum distance that puts sel back on screen.		 * Minimum, not centred: a list that recentres on every step makes the
+_facts/authoring/lists	runtime/ps2ui.c	1713	    else if ((uint32_t)list->sel >= (uint32_t)list->top + list->rows)	        list->top = list->sel;	        list->top = (uint16_t)(list->sel - list->rows + 1);
+_facts/authoring/lists	runtime/ps2ui.c	1727	void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows)		{
+_facts/authoring/lists	runtime/ps2ui.c	1737	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count)		{
+_facts/authoring/lists	runtime/ps2ui.c	1742	    if (list->sel >= count) list->sel = (uint16_t)(count - 1);	    if (count == 0) { list->sel = 0; list->top = 0; return; }	    list_scroll_into_view(list);
+_facts/authoring/lists	runtime/ps2ui.c	1747	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
+_facts/authoring/lists	runtime/ps2ui.c	1756	int ps2ui_list_selected_row(const ps2ui_list *list)		{
+_facts/authoring/lists	runtime/ps2ui.c	1769	 * slots — but it means the prefix does not match the baked names, which	 * fatal — the indices are still correct and the app can still fill the	 * is worth surfacing as a 0 return rather than silently doing nothing. */
+_facts/authoring/lists	runtime/ps2ui.c	1780	int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item)		{
+_facts/authoring/lists	runtime/ps2ui.c	1786	    list->sel = item >= list->count ? (uint16_t)(list->count - 1) : item;	    old_top = list->top;	    list_scroll_into_view(list);
+_facts/authoring/lists	runtime/ps2ui.c	1792	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)		{
+_facts/authoring/lists	runtime/ps2ui.c	1802	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)		{
 _facts/authoring/lists	runtime/ps2ui.h	301	#define PS2UI_LIST_NAME_MAX     64	 * nothing to a UI that never uses a list. */	
 _facts/authoring/lists	runtime/ps2ui.h	770	/* ------------------------------------------------------- list window */		
 _facts/authoring/lists	runtime/ps2ui.h	781	 * ps2ui owns the indices and where focus sits. The app owns the data:	 *	 * after any move, fill row r from item (top + r) with ps2ui_slot_set,
@@ -417,15 +417,15 @@ _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/quads.py	579	   
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/quads.py	585	        canvas = named_irs[0][1]["canvas"]	        inside its own range."""	        for name, ir in named_irs:
 _facts/authoring/screens-and-overlays	packages/baker/ps2ui_bake/quads.py	607	            cmd_first = len(self.records)		            slot_first = len(self.slots)
 _facts/authoring/screens-and-overlays	packages/layout/src/css.js	924	      warnings.push(`css: line ${line}: property "${prop}" not supported on this target; ignored`);	      if (prop.startsWith('--')) return false;	      return false;
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	509	    ctx->focus = ctx->screen_table[0].initial_focus;	    ctx->screen = 0;	    if (ctx->focus != PS2UI_NONE && ctx->focus >= ctx->hdr->n_focus)
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	549	        ctx->screen_focus[i] = ctx->screen_table[i].initial_focus;	    for (i = 0; i < ctx->hdr->n_screen; i++)	    return PS2UI_OK;
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	979	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1203	    /* The baker guarantees balance; restore full-canvas scissor anyway	    }	     * so a malformed blob cannot poison the next frame. */
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1436	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1516	            if (i != ctx->screen) {	        if (strcmp(n, name) == 0) {	                ctx->screen_focus[ctx->screen] = ctx->focus;
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1596	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1632	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)		{
-_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1647	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)		{
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	510	    ctx->focus = ctx->screen_table[0].initial_focus;	    ctx->screen = 0;	    if (ctx->focus != PS2UI_NONE && ctx->focus >= ctx->hdr->n_focus)
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	550	        ctx->screen_focus[i] = ctx->screen_table[i].initial_focus;	    for (i = 0; i < ctx->hdr->n_screen; i++)	    return PS2UI_OK;
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	980	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1204	    /* The baker guarantees balance; restore full-canvas scissor anyway	    }	     * so a malformed blob cannot poison the next frame. */
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1437	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1517	            if (i != ctx->screen) {	        if (strcmp(n, name) == 0) {	                ctx->screen_focus[ctx->screen] = ctx->focus;
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1633	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)		{
+_facts/authoring/screens-and-overlays	runtime/ps2ui.c	1648	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)		{
 _facts/authoring/screens-and-overlays	runtime/ps2ui.h	610	/* Replay the current screen's command list for the current focus state.		 *
 _facts/authoring/screens-and-overlays	runtime/ps2ui.h	635	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
 _facts/authoring/screens-and-overlays	runtime/ps2ui.h	640	 * There is deliberately no ps2ui_overlay_push. The idiom above works	 *	 * today and costs nothing; an API would buy one thing the idiom cannot
@@ -482,8 +482,8 @@ _facts/authoring/text-and-fonts	packages/layout/src/text.js	183	export function 
 _facts/authoring/text-and-fonts	packages/layout/src/values.js	24	export function roundHalfUp(x) {	// floor(x + 0.5) so glyph advances agree between the two hosts.	  return Math.floor(x + 0.5);
 _facts/authoring/theming	README.md	25	One blob, two themes, swapped on the console at runtime by		`ps2ui_theme_set`. No rebuild, no second asset set: a theme is a row of
 _facts/authoring/theming	README.md	228	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
-_facts/authoring/theming	packages/baker/ps2ui_bake/check.py	670	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
-_facts/authoring/theming	packages/baker/ps2ui_bake/check.py	765	    if args.tints:		        print_tints(uib, args.uib)
+_facts/authoring/theming	packages/baker/ps2ui_bake/check.py	699	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
+_facts/authoring/theming	packages/baker/ps2ui_bake/check.py	794	    if args.tints:		        print_tints(uib, args.uib)
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	345	    if args.tints:		        names = ir.get("themes") or ["root"]
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	393	            preview_mod.render(uib).save(args.preview)	        if args.preview:	            print(f"ps2ui-bake: preview -> {args.preview}", file=sys.stderr)
 _facts/authoring/theming	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
@@ -533,8 +533,8 @@ _facts/authoring/theming	packages/layout/src/paint.js	30	function foldAlpha(vec,
 _facts/authoring/theming	packages/layout/src/paint.js	41	function vectorOf(themes, rgba, varName, nThemes, what) {	// previewer all agree, and only the second theme row is wrong.	  if (themes) {
 _facts/authoring/theming	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
 _facts/authoring/theming	runtime/ps2ui.c	324	    if (ctx->hdr->n_theme > 1	     * documenting: the wrong render would be plausible. */	        && !(ctx->hdr->feature_flags & PS2UI_FEAT_ROLE_TINTS))
-_facts/authoring/theming	runtime/ps2ui.c	778	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * re-sends 1,024 bytes of CT32 and leaves the atlas resident. */	                   const void *colors, unsigned ncolors)
-_facts/authoring/theming	runtime/ps2ui.c	819	int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme)		{
+_facts/authoring/theming	runtime/ps2ui.c	779	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * re-sends 1,024 bytes of CT32 and leaves the atlas resident. */	                   const void *colors, unsigned ncolors)
+_facts/authoring/theming	runtime/ps2ui.c	820	int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme)		{
 _facts/authoring/theming	runtime/ps2ui.h	62	#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)	 * site, which is a layout change and not this slice. */	#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \\
 _facts/authoring/theming	runtime/ps2ui.h	359	     * THE BAKER SETS PS2UI_FEAT_ROLE_TINTS AND HAS SINCE P3b. This	     *	     * comment said the opposite -- "still 0 on every blob this
 _facts/authoring/theming	runtime/ps2ui.h	429	/* The blob's counts are legal but the arena they add up to does not	#define PS2UI_ERR_BOUNDS     -4	 * fit this machine's address space. It stopped meaning "past a number
@@ -580,15 +580,15 @@ _facts/authoring/video-modes	packages/layout/src/lint.js	15	  // Title-safe area
 _facts/authoring/video-modes	packages/layout/src/lint.js	139	  if (opt.safeInsetX == null) opt.safeInsetX = Math.round(opt.canvasW * 0.05);	  const opt = { ...DEFAULT_LINT_OPTIONS, ...options };	  if (opt.safeInsetY == null) opt.safeInsetY = Math.round(opt.canvasH * 0.05);
 _facts/authoring/video-modes	packages/layout/src/lint.js	154	  if (Math.abs(opt.par - 1) > opt.maxShapeDistortion) {	  // on a stretched display.	    const rounded = commands.filter((c) => c.op === 'rect' && c.radius > 0).length;
 _facts/authoring/video-modes	packages/layout/src/lint.js	155	    const rounded = commands.filter((c) => c.op === 'rect' && c.radius > 0).length;	  if (Math.abs(opt.par - 1) > opt.maxShapeDistortion) {	    const images = commands.filter((c) => c.op === 'image').length;
-_facts/authoring/video-modes	runtime/ps2ui.c	1532	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx)		{
+_facts/authoring/video-modes	runtime/ps2ui.c	1533	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx)		{
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
 _facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
 _facts/authoring/vram-budget	CHANGELOG.md	1622	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	605	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	610	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	634	    if note and not ok:	    # look better tested than it is.	        for line in note:
-_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	736	    ap.add_argument("--version", action="version",	        description="Validate a baked .uib against what the C runtime assumes.")	                    version="ps2ui-check %s" % __version__)
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	619	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	624	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	648	    if note and not ok:	    # look better tested than it is.	        for line in note:
+_facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	765	    ap.add_argument("--version", action="version",	        description="Validate a baked .uib against what the C runtime assumes.")	                    version="ps2ui-check %s" % __version__)
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	160	    ap.add_argument("--vram-budget", type=int, default=None, metavar="BYTES",	                         "each entry -- the half of it only the baker knows")	                    help="texture VRAM budget (default: 4 MiB minus a "
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	312	    # VRAM accounting before writing anything: an over-budget UI should		    # die here with a breakdown, not on the console with an alloc error.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/cli.py	314	    vlines, _vtotal, _vbudget, vok = vram.report(	    # die here with a breakdown, not on the console with an alloc error.	        flat.textures, flat.cluts, ir["canvas"]["w"], ir["canvas"]["h"],
@@ -609,10 +609,10 @@ _facts/authoring/vram-budget	packages/baker/ps2ui_bake/vram.py	236	    default_u
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/vram.py	241	    payload_total = 0	    total = 0	    for i, t in enumerate(textures):
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/vram.py	250	        # Both numbers, and labelled, because they are the two counts	        #	        # the v6 model deliberately separates and an integrator needs
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/vram.py	271	    fb = framebuffer_size(canvas_w, canvas_h)	        lines.append(f"  clut[{i}] PSMCT32  256 entries        -> {size:7d} B in pages")	    lines.append(
-_facts/authoring/vram-budget	runtime/ps2ui.c	606	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
-_facts/authoring/vram-budget	runtime/ps2ui.c	628	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * state than a refused one. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
-_facts/authoring/vram-budget	runtime/ps2ui.c	684	         * transfer from. Its VRAM is already counted in the preflight	        /* A streamed slot the app has not filled yet has no source to	         * above -- the reservation is the point -- but binding it here
-_facts/authoring/vram-budget	runtime/ps2ui.c	1003	    int tex_ok = ctx->uploaded	     * textures to draw with", whichever way that came about. */	                 && ((uint64_t)gs->CurrentPointer + ctx->vram_need
+_facts/authoring/vram-budget	runtime/ps2ui.c	607	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
+_facts/authoring/vram-budget	runtime/ps2ui.c	629	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * state than a refused one. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
+_facts/authoring/vram-budget	runtime/ps2ui.c	685	         * transfer from. Its VRAM is already counted in the preflight	        /* A streamed slot the app has not filled yet has no source to	         * above -- the reservation is the point -- but binding it here
+_facts/authoring/vram-budget	runtime/ps2ui.c	1004	    int tex_ok = ctx->uploaded	     * textures to draw with", whichever way that came about. */	                 && ((uint64_t)gs->CurrentPointer + ctx->vram_need
 _facts/authoring/vram-budget	runtime/ps2ui.h	325	                                * ordinary state of a row that just	                                * streamed slot has no texels yet -- the	                                * scrolled in, not an error            */
 _facts/authoring/vram-budget	runtime/ps2ui.h	390	    /* Runtime slot text. Each slot owns capacity+1 bytes at	    int       uploaded;	     * slot_text + slot_off[i] -- the capacity the baker declared for
 _facts/authoring/vram-budget	runtime/ps2ui.h	468	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
@@ -671,28 +671,28 @@ _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	400	            print(f"p
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	404	            print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)	            preview_mod.montage(uib).save(args.montage)	    return 0
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	231	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
-_facts/cli/ps2ui-check	.github/workflows/ci.yml	546	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+_facts/cli/ps2ui-check	.github/workflows/ci.yml	551	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 _facts/cli/ps2ui-check	.github/workflows/hw.yml	121	          ./tools/check-blobs.sh	          # about what "valid" means for the same bytes.	          # conform.elf is built SCREEN=probe. That name lives in
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/caps.py	44	def parse_header(path: str = None) -> dict:		    """Caps from ps2ui.h, or FALLBACK when the header is not reachable."""
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	71	    def note(self, label: str) -> None:		        """A measured number with no threshold to fail against.
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	87	    def emit(self, out=sys.stdout) -> None:		        for label in self.notes:
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	88	        for label in self.notes:	    def emit(self, out=sys.stdout) -> None:	            print(f"# {label}", file=out)
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	152	    ee = arena.arena_size(uib, arena.EE_PTR)	    # this file exists to remove.	    rep.note(f"arena: {ee} bytes on the EE "
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	328	    limit = caps_mod.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"]	    """	    for sc in uib.screens:
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	343	        rep.error(peak < limit,	                    break	                  f"{sc['name']}: scissor nesting {peak} within "
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	385	TINT_RATIO_MIN_PAINTS = 100	# note-instead-of-skip it guards. Every shipped blob is 700+.	
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	417	    if paints < TINT_RATIO_MIN_PAINTS:	    # becomes a note (measured, never asserted) rather than an absence.	        rep.note(f"{n_tint} tints over {paints} painting commands: too few "
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	530	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	605	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	639	def check_blob(uib, budget=None, allow_dead: int = 0,		               allow_hairline: int = 0, console: bool = False) -> Report:
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	670	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	673	    WHAT THIS CANNOT SHOW IS THE NAME, and that is a property of the		    format rather than of this function. Tint entries are four bytes of
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	732	def main(argv=None) -> int:		    ap = argparse.ArgumentParser(
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	736	    ap.add_argument("--version", action="version",	        description="Validate a baked .uib against what the C runtime assumes.")	                    version="ps2ui-check %s" % __version__)
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	759	    try:		        uib = read_uib(args.uib)
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	765	    if args.tints:		        print_tints(uib, args.uib)
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	773	    aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"		    print(f"# {args.uib}: {uib.canvas_w}x{uib.canvas_h} at {aspect}, "
-_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	778	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	342	    limit = caps_mod.parse_header()["PS2UI_MAX_SCISSOR_DEPTH"]	    """	    for sc in uib.screens:
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	357	        rep.error(peak < limit,	                    break	                  f"{sc['name']}: scissor nesting {peak} within "
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	399	TINT_RATIO_MIN_PAINTS = 100	# note-instead-of-skip it guards. Every shipped blob is 700+.	
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	431	    if paints < TINT_RATIO_MIN_PAINTS:	    # becomes a note (measured, never asserted) rather than an absence.	        rep.note(f"{n_tint} tints over {paints} painting commands: too few "
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	544	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	619	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	653	def check_blob(uib, budget=None, allow_dead: int = 0,		               allow_hairline: int = 0, console: bool = False) -> Report:
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	699	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	702	    WHAT THIS CANNOT SHOW IS THE NAME, and that is a property of the		    format rather than of this function. Tint entries are four bytes of
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	761	def main(argv=None) -> int:		    ap = argparse.ArgumentParser(
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	765	    ap.add_argument("--version", action="version",	        description="Validate a baked .uib against what the C runtime assumes.")	                    version="ps2ui-check %s" % __version__)
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	788	    try:		        uib = read_uib(args.uib)
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	794	    if args.tints:		        print_tints(uib, args.uib)
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	802	    aspect = f"{uib.display_aspect[0]}:{uib.display_aspect[1]}"		    print(f"# {args.uib}: {uib.canvas_w}x{uib.canvas_h} at {aspect}, "
+_facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	807	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/cli.py	383	    ee = arena.arena_size(read_uib(args.out), arena.EE_PTR)	    # failure mode of guessing low is PS2UI_ERR_ARENA at boot.	    print(
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/ps2ui.py	308	def cmd_check(args):		    proj = load(args.project)
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/uib.py	493	        raise ValueError(f"{path}: truncated header")	    if len(data) < _HEADER.size:	    (magic, version, feature_flags, cw, ch, n_tex, n_clut, n_cmd, n_focus,
@@ -939,9 +939,9 @@ _facts/reference/compatibility	runtime/ps2ui.h	427	#define PS2UI_ERR_VERSION    
 _facts/reference/compatibility	runtime/vendor/README.md	3	`gsKit/` contains verbatim copies of the public headers from		[ps2dev/gsKit](https://github.com/ps2dev/gsKit) at commit
 _facts/reference/diagnostics	CHANGELOG.md	1563	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/caps.py	83	    if records is not None:		        # >= because the runtime's guard is `depth + 1 >= MAX`, so the
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	759	    try:		        uib = read_uib(args.uib)
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	763	        return 2	        print(f"ps2ui-check: {exc}", file=sys.stderr)	
-_facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	778	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	788	    try:		        uib = read_uib(args.uib)
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	792	        return 2	        print(f"ps2ui-check: {exc}", file=sys.stderr)	
+_facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	807	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	212	            print(f"error: {path}: IR version {ir.get('version')}, expected 1",	        if ir.get("version") != 1:	                  file=sys.stderr)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	256	        print(f"ps2ui-bake: {exc}", file=sys.stderr)	        # line they can act on.	        return 1
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/cli.py	295	    if cap_errors:	              f"their clip and could never draw", file=sys.stderr)	        for e in cap_errors:
@@ -1056,7 +1056,7 @@ _facts/reference/ir-format	packages/layout/src/paint.js	329	  const seen = new S
 _facts/reference/uib-format	docs/PLAN.md	87	Cross-language pen agreement is tested	counts three paragraphs above, and the reason none is written back.	glyph-by-glyph (Node↔Python) and against an independent linear scan
 _facts/reference/uib-format	docs/format-uib.md	466	  because it carried no padding at all. Neither the stride nor the	  existed to reach two qwords. The slot entry **shrank**, 32 → 28,	  meaning of a field survives a v6 reader, so this is a version bump.
 _facts/reference/uib-format	packages/baker/ps2ui_bake/check.py	193	    rep.error(ob % 16 == 0,	    ob = getattr(uib, "off_blob", 0)	              f"blob section starts 16-aligned in the file (off_blob={ob})")
-_facts/reference/uib-format	packages/baker/ps2ui_bake/check.py	385	TINT_RATIO_MIN_PAINTS = 100	# note-instead-of-skip it guards. Every shipped blob is 700+.	
+_facts/reference/uib-format	packages/baker/ps2ui_bake/check.py	399	TINT_RATIO_MIN_PAINTS = 100	# note-instead-of-skip it guards. Every shipped blob is 700+.	
 _facts/reference/uib-format	packages/baker/ps2ui_bake/ps2ui.py	598	    vr = sub.add_parser("vendor-runtime",	    # puts that skew on somebody else's machine.	                        help="write ps2ui.c and ps2ui.h into your project")
 _facts/reference/uib-format	packages/baker/ps2ui_bake/uib.py	48	MAGIC = 0x31424955  # "UIB1"		VERSION = 7
 _facts/reference/uib-format	packages/baker/ps2ui_bake/uib.py	51	FEAT_DYNAMIC_TEXT = 1 << 0		FEAT_KERNING = 1 << 1
@@ -1096,44 +1096,44 @@ _facts/runtime/api-reference	runtime/ps2ui.c	264	size_t ps2ui_arena_size(const v
 _facts/runtime/api-reference	runtime/ps2ui.c	278	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,		               void *arena, size_t arena_size)
 _facts/runtime/api-reference	runtime/ps2ui.c	283	    memset(ctx, 0, sizeof *ctx);	    uint32_t i;	    if (size < sizeof(ps2ui_header))
 _facts/runtime/api-reference	runtime/ps2ui.c	297	    if (ctx->hdr->version != PS2UI_VERSION)	        return PS2UI_ERR_MAGIC;	        return PS2UI_ERR_VERSION;
-_facts/runtime/api-reference	runtime/ps2ui.c	555	uint32_t ps2ui_clut_csm1(uint32_t index)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	606	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	636	        return -1;	    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)	    ctx->vram_need = (uint32_t)need;
-_facts/runtime/api-reference	runtime/ps2ui.c	687	         * the first bind instead, when there is something to send. */	         * would hand the GIF a null DMA source. ps2ui_tex_set performs	        if (g->Mem == NULL)
-_facts/runtime/api-reference	runtime/ps2ui.c	692	    ctx->uploaded = 1;	    }	    return 0;
-_facts/runtime/api-reference	runtime/ps2ui.c	693	    return 0;	    ctx->uploaded = 1;	}
-_facts/runtime/api-reference	runtime/ps2ui.c	697	 * and this runs when a cover arrives rather than per frame, so a	/* Find a texture by name. Linear: n_tex is a uint16_t in the header,	 * sorted table would be machinery for nothing. */
-_facts/runtime/api-reference	runtime/ps2ui.c	699	static uint32_t tex_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * sorted table would be machinery for nothing. */	{
-_facts/runtime/api-reference	runtime/ps2ui.c	714	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,		                  const void *texels, size_t len)
-_facts/runtime/api-reference	runtime/ps2ui.c	778	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * re-sends 1,024 bytes of CT32 and leaves the atlas resident. */	                   const void *colors, unsigned ncolors)
-_facts/runtime/api-reference	runtime/ps2ui.c	791	    if (!ctx->uploaded)	     * though ps2ui_tex_set has the same shape via tex_index_by_name. */	        return PS2UI_ERR_STATE;
-_facts/runtime/api-reference	runtime/ps2ui.c	819	int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	979	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1436	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1475	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1498	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1508	int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1527	const char *ps2ui_screen_name(const ps2ui_ctx *ctx)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1532	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1545	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1596	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
-_facts/runtime/api-reference	runtime/ps2ui.c	1613	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1626	void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1632	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1647	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1658	void ps2ui_visible_reset(ps2ui_ctx *ctx)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1665	const char *ps2ui_focus_name(const ps2ui_ctx *ctx)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1672	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1685	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
-_facts/runtime/api-reference	runtime/ps2ui.c	1724	static int list_sync_focus(ps2ui_ctx *ctx, const ps2ui_list *list);		
-_facts/runtime/api-reference	runtime/ps2ui.c	1736	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1746	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1755	int ps2ui_list_selected_row(const ps2ui_list *list)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1774	    if (!ctx || row < 0) return 0;	    int row = ps2ui_list_selected_row(list);	    list_row_name(list, (uint16_t)row, name, sizeof name);
-_facts/runtime/api-reference	runtime/ps2ui.c	1779	int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1791	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1801	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)		{
-_facts/runtime/api-reference	runtime/ps2ui.c	1807	    for (r = 0; r < list->rows; r++) {	        return;	        list_row_name(list, r, name, sizeof name);
+_facts/runtime/api-reference	runtime/ps2ui.c	556	uint32_t ps2ui_clut_csm1(uint32_t index)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	607	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	637	        return -1;	    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)	    ctx->vram_need = (uint32_t)need;
+_facts/runtime/api-reference	runtime/ps2ui.c	688	         * the first bind instead, when there is something to send. */	         * would hand the GIF a null DMA source. ps2ui_tex_set performs	        if (g->Mem == NULL)
+_facts/runtime/api-reference	runtime/ps2ui.c	693	    ctx->uploaded = 1;	    }	    return 0;
+_facts/runtime/api-reference	runtime/ps2ui.c	694	    return 0;	    ctx->uploaded = 1;	}
+_facts/runtime/api-reference	runtime/ps2ui.c	698	 * and this runs when a cover arrives rather than per frame, so a	/* Find a texture by name. Linear: n_tex is a uint16_t in the header,	 * sorted table would be machinery for nothing. */
+_facts/runtime/api-reference	runtime/ps2ui.c	700	static uint32_t tex_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * sorted table would be machinery for nothing. */	{
+_facts/runtime/api-reference	runtime/ps2ui.c	715	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,		                  const void *texels, size_t len)
+_facts/runtime/api-reference	runtime/ps2ui.c	779	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * re-sends 1,024 bytes of CT32 and leaves the atlas resident. */	                   const void *colors, unsigned ncolors)
+_facts/runtime/api-reference	runtime/ps2ui.c	792	    if (!ctx->uploaded)	     * though ps2ui_tex_set has the same shape via tex_index_by_name. */	        return PS2UI_ERR_STATE;
+_facts/runtime/api-reference	runtime/ps2ui.c	820	int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	980	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1437	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1476	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1499	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1509	int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1528	const char *ps2ui_screen_name(const ps2ui_ctx *ctx)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1533	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1546	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
+_facts/runtime/api-reference	runtime/ps2ui.c	1614	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1627	void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1633	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1648	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1659	void ps2ui_visible_reset(ps2ui_ctx *ctx)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1666	const char *ps2ui_focus_name(const ps2ui_ctx *ctx)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1673	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1686	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
+_facts/runtime/api-reference	runtime/ps2ui.c	1725	static int list_sync_focus(ps2ui_ctx *ctx, const ps2ui_list *list);		
+_facts/runtime/api-reference	runtime/ps2ui.c	1737	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1747	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1756	int ps2ui_list_selected_row(const ps2ui_list *list)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1775	    if (!ctx || row < 0) return 0;	    int row = ps2ui_list_selected_row(list);	    list_row_name(list, (uint16_t)row, name, sizeof name);
+_facts/runtime/api-reference	runtime/ps2ui.c	1780	int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1792	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1802	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)		{
+_facts/runtime/api-reference	runtime/ps2ui.c	1808	    for (r = 0; r < list->rows; r++) {	        return;	        list_row_name(list, r, name, sizeof name);
 _facts/runtime/api-reference	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/runtime/api-reference	runtime/ps2ui.h	278	typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_dir;		
 _facts/runtime/api-reference	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * rather than wrapping it. */	/* Longest row focus name a list can build: prefix + index + NUL. Only
@@ -1283,34 +1283,34 @@ _facts/runtime/errors-and-constants	runtime/ps2ui.c	381	            return PS2UI
 _facts/runtime/errors-and-constants	runtime/ps2ui.c	388	            if (!(ctx->hdr->feature_flags & PS2UI_FEAT_STREAMED_TEX))	             * is exactly what the feature bit exists to prevent. */	                return PS2UI_ERR_FEATURES;
 _facts/runtime/errors-and-constants	runtime/ps2ui.c	389	                return PS2UI_ERR_FEATURES;	            if (!(ctx->hdr->feature_flags & PS2UI_FEAT_STREAMED_TEX))	            if (t->data_len == 0)
 _facts/runtime/errors-and-constants	runtime/ps2ui.c	397	            return PS2UI_ERR_ALIGN;	        } else if (t->data_off & 15u) {  /* DMA'd in place; see the blob check */	        }
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	513	    /* Only now, with the blob fully validated, is the arena touched --		     * so a rejected blob cannot leave a half-initialized arena behind,
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	524	        return PS2UI_ERR_TOO_MANY;	    if (!arena_compute(ctx->data, size, &L))	    if (arena == NULL || arena_size < L.total)
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	526	        return PS2UI_ERR_ARENA;	    if (arena == NULL || arena_size < L.total)	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	528	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))	
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	576	#ifndef PS2UI_CLUT_PERMUTE	 * is two ELFs rather than a source edit at a bench. */	#define PS2UI_CLUT_PERMUTE 1
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	635	    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)	    }	        return -1;
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	693	    return 0;	    ctx->uploaded = 1;	}
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	697	 * and this runs when a cover arrives rather than per frame, so a	/* Find a texture by name. Linear: n_tex is a uint16_t in the header,	 * sorted table would be machinery for nothing. */
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	714	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,		                  const void *texels, size_t len)
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	722	        return PS2UI_ERR_NOT_STREAMED;	    if (!ctx || !gs || !texels)	    i = tex_index_by_name(ctx, name);
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	737	        return PS2UI_ERR_SIZE;	    if (len != (size_t)t->data_len)	    /* The GIF reads this address directly. A DMA source truncates
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	743	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)texels) & 15u)	
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	756	#ifdef PS2UI_SKIP_SYNCDCACHE	     * write happened. */	    /* The bench's falsification arm (make -C runtime/sample NO_SYNC=1),
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	786	        return PS2UI_ERR_BOUNDS;	    if (ctx == NULL || colors == NULL)	    /* State BEFORE the header dereference. The guard exists to catch
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	792	        return PS2UI_ERR_STATE;	    if (!ctx->uploaded)	    if (clut_index >= ctx->hdr->n_clut)
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	794	        return PS2UI_ERR_RANGE;	    if (clut_index >= ctx->hdr->n_clut)	    c = &ctx->clut[clut_index];
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	801	        return PS2UI_ERR_SIZE;	    if (ncolors > c->ncolors)	
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	822	        return PS2UI_ERR_BOUNDS;	    if (ctx == NULL)	    /* Range against n_theme, which ps2ui_load has already refused to
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	830	        return PS2UI_ERR_RANGE;	    if (theme >= ctx->hdr->n_theme)	    ctx->theme = (uint16_t)theme;
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	981	    scissor_rect stack[PS2UI_MAX_SCISSOR_DEPTH];	{	    int depth = 0;
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1090	#ifdef PS2UI_PRIMALPHA_OFF	     * whether the format's alpha exists. */	    /* Bring-up step 4b's reference arm. Not a fix and not a fallback:
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1114	            if (depth + 1 >= PS2UI_MAX_SCISSOR_DEPTH) {	            scissor_rect r, *top = &stack[depth];	                /* Fail soft: the subtree draws under the enclosing clip,
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1282	#define PS2UI_ELLIPSIS_CP 0x2026u		
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1613	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy)		{
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1615	    if (!ctx) return PS2UI_ERR_BOUNDS;	{	    /* Rejected rather than truncated. A wrapped offset draws a frame
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1620	        return PS2UI_ERR_RANGE;	    if (dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767)	    ctx->off_x = (int16_t)dx;
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1685	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
-_facts/runtime/errors-and-constants	runtime/ps2ui.c	1746	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	514	    /* Only now, with the blob fully validated, is the arena touched --		     * so a rejected blob cannot leave a half-initialized arena behind,
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	525	        return PS2UI_ERR_TOO_MANY;	    if (!arena_compute(ctx->data, size, &L))	    if (arena == NULL || arena_size < L.total)
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	527	        return PS2UI_ERR_ARENA;	    if (arena == NULL || arena_size < L.total)	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	529	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))	
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	577	#ifndef PS2UI_CLUT_PERMUTE	 * is two ELFs rather than a source edit at a bench. */	#define PS2UI_CLUT_PERMUTE 1
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	636	    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)	    }	        return -1;
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	694	    return 0;	    ctx->uploaded = 1;	}
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	698	 * and this runs when a cover arrives rather than per frame, so a	/* Find a texture by name. Linear: n_tex is a uint16_t in the header,	 * sorted table would be machinery for nothing. */
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	715	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,		                  const void *texels, size_t len)
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	723	        return PS2UI_ERR_NOT_STREAMED;	    if (!ctx || !gs || !texels)	    i = tex_index_by_name(ctx, name);
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	738	        return PS2UI_ERR_SIZE;	    if (len != (size_t)t->data_len)	    /* The GIF reads this address directly. A DMA source truncates
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	744	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)texels) & 15u)	
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	757	#ifdef PS2UI_SKIP_SYNCDCACHE	     * write happened. */	    /* The bench's falsification arm (make -C runtime/sample NO_SYNC=1),
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	787	        return PS2UI_ERR_BOUNDS;	    if (ctx == NULL || colors == NULL)	    /* State BEFORE the header dereference. The guard exists to catch
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	793	        return PS2UI_ERR_STATE;	    if (!ctx->uploaded)	    if (clut_index >= ctx->hdr->n_clut)
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	795	        return PS2UI_ERR_RANGE;	    if (clut_index >= ctx->hdr->n_clut)	    c = &ctx->clut[clut_index];
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	802	        return PS2UI_ERR_SIZE;	    if (ncolors > c->ncolors)	
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	823	        return PS2UI_ERR_BOUNDS;	    if (ctx == NULL)	    /* Range against n_theme, which ps2ui_load has already refused to
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	831	        return PS2UI_ERR_RANGE;	    if (theme >= ctx->hdr->n_theme)	    ctx->theme = (uint16_t)theme;
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	982	    scissor_rect stack[PS2UI_MAX_SCISSOR_DEPTH];	{	    int depth = 0;
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1091	#ifdef PS2UI_PRIMALPHA_OFF	     * whether the format's alpha exists. */	    /* Bring-up step 4b's reference arm. Not a fix and not a fallback:
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1115	            if (depth + 1 >= PS2UI_MAX_SCISSOR_DEPTH) {	            scissor_rect r, *top = &stack[depth];	                /* Fail soft: the subtree draws under the enclosing clip,
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1283	#define PS2UI_ELLIPSIS_CP 0x2026u		
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1614	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy)		{
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1616	    if (!ctx) return PS2UI_ERR_BOUNDS;	{	    /* Rejected rather than truncated. A wrapped offset draws a frame
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1621	        return PS2UI_ERR_RANGE;	    if (dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767)	    ctx->off_x = (int16_t)dx;
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1686	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
+_facts/runtime/errors-and-constants	runtime/ps2ui.c	1747	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
 _facts/runtime/errors-and-constants	runtime/ps2ui.h	36	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */		#define PS2UI_VERSION 7
 _facts/runtime/errors-and-constants	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/runtime/errors-and-constants	runtime/ps2ui.h	42	#define PS2UI_FEAT_DYNAMIC_TEXT (1u << 0)	 * subtly wrong. */	#define PS2UI_FEAT_KERNING      (1u << 1)
@@ -1344,26 +1344,26 @@ _facts/runtime/frame-loop	packages/baker/ps2ui_bake/cli.py	379	    # The arena a
 _facts/runtime/frame-loop	runtime/ps2ui.c	187	static int arena_compute(const uint8_t *data, size_t size, arena_layout *L)	 * this machine cannot address. */	{
 _facts/runtime/frame-loop	runtime/ps2ui.c	264	size_t ps2ui_arena_size(const void *data, size_t size)		{
 _facts/runtime/frame-loop	runtime/ps2ui.c	297	    if (ctx->hdr->version != PS2UI_VERSION)	        return PS2UI_ERR_MAGIC;	        return PS2UI_ERR_VERSION;
-_facts/runtime/frame-loop	runtime/ps2ui.c	513	    /* Only now, with the blob fully validated, is the arena touched --		     * so a rejected blob cannot leave a half-initialized arena behind,
-_facts/runtime/frame-loop	runtime/ps2ui.c	524	        return PS2UI_ERR_TOO_MANY;	    if (!arena_compute(ctx->data, size, &L))	    if (arena == NULL || arena_size < L.total)
-_facts/runtime/frame-loop	runtime/ps2ui.c	606	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
-_facts/runtime/frame-loop	runtime/ps2ui.c	608	    uint32_t i;	{	    uint64_t need = 0;
-_facts/runtime/frame-loop	runtime/ps2ui.c	622	     * -- and a freshly initialised manager owns one contiguous block	     * (+csize for indexed) per texture, gsKit_texture_size both times	     * from CurrentPointer to 4 MB, so fit-by-sum is fit-in-fact: the
-_facts/runtime/frame-loop	runtime/ps2ui.c	683	        /* A streamed slot the app has not filled yet has no source to	         * it, which is where review said it should end up. */	         * transfer from. Its VRAM is already counted in the preflight
-_facts/runtime/frame-loop	runtime/ps2ui.c	692	    ctx->uploaded = 1;	    }	    return 0;
-_facts/runtime/frame-loop	runtime/ps2ui.c	979	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
-_facts/runtime/frame-loop	runtime/ps2ui.c	982	    int depth = 0;	    scissor_rect stack[PS2UI_MAX_SCISSOR_DEPTH];	    /* Does the uploaded footprint still fit? The render-time re-binds
-_facts/runtime/frame-loop	runtime/ps2ui.c	1027	    memset(&ctx->stats, 0, sizeof ctx->stats);		    ctx->stats.vram_lost = tex_ok ? 0u : 1u;
-_facts/runtime/frame-loop	runtime/ps2ui.c	1066	    gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);	     */	
-_facts/runtime/frame-loop	runtime/ps2ui.c	1068	    /* PrimAlphaEnable, for the same reason and one more.		     *
-_facts/runtime/frame-loop	runtime/ps2ui.c	1092	     * it forces the fault so the bench has a picture of what a dead	    /* Bring-up step 4b's reference arm. Not a fix and not a fallback:	     * texture-alpha channel looks like, to compare against a screen. */
-_facts/runtime/frame-loop	runtime/ps2ui.c	1094	    gs->PrimAlphaEnable = GS_SETTING_OFF;	     * texture-alpha channel looks like, to compare against a screen. */	#else
-_facts/runtime/frame-loop	runtime/ps2ui.c	1097	#endif	    gs->PrimAlphaEnable = GS_SETTING_ON;	
-_facts/runtime/frame-loop	runtime/ps2ui.c	1103	    apply_scissor(gs, &stack[0]);	    stack[0].y1 = ctx->hdr->canvas_h;	
-_facts/runtime/frame-loop	runtime/ps2ui.c	1191	            if (ctx->gs_tex[c->tex].Mem == NULL) {	             * error worth a counter. */	                ctx->stats.tex_unfilled++;
-_facts/runtime/frame-loop	runtime/ps2ui.c	1195	            gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);	            }	            draw_texquad(gs, ctx, &ctx->gs_tex[c->tex],
-_facts/runtime/frame-loop	runtime/ps2ui.c	1203	    /* The baker guarantees balance; restore full-canvas scissor anyway	    }	     * so a malformed blob cannot poison the next frame. */
-_facts/runtime/frame-loop	runtime/ps2ui.c	1205	    apply_scissor(gs, &stack[0]);	     * so a malformed blob cannot poison the next frame. */	
+_facts/runtime/frame-loop	runtime/ps2ui.c	514	    /* Only now, with the blob fully validated, is the arena touched --		     * so a rejected blob cannot leave a half-initialized arena behind,
+_facts/runtime/frame-loop	runtime/ps2ui.c	525	        return PS2UI_ERR_TOO_MANY;	    if (!arena_compute(ctx->data, size, &L))	    if (arena == NULL || arena_size < L.total)
+_facts/runtime/frame-loop	runtime/ps2ui.c	607	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
+_facts/runtime/frame-loop	runtime/ps2ui.c	609	    uint32_t i;	{	    uint64_t need = 0;
+_facts/runtime/frame-loop	runtime/ps2ui.c	623	     * -- and a freshly initialised manager owns one contiguous block	     * (+csize for indexed) per texture, gsKit_texture_size both times	     * from CurrentPointer to 4 MB, so fit-by-sum is fit-in-fact: the
+_facts/runtime/frame-loop	runtime/ps2ui.c	684	        /* A streamed slot the app has not filled yet has no source to	         * it, which is where review said it should end up. */	         * transfer from. Its VRAM is already counted in the preflight
+_facts/runtime/frame-loop	runtime/ps2ui.c	693	    ctx->uploaded = 1;	    }	    return 0;
+_facts/runtime/frame-loop	runtime/ps2ui.c	980	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
+_facts/runtime/frame-loop	runtime/ps2ui.c	983	    int depth = 0;	    scissor_rect stack[PS2UI_MAX_SCISSOR_DEPTH];	    /* Does the uploaded footprint still fit? The render-time re-binds
+_facts/runtime/frame-loop	runtime/ps2ui.c	1028	    memset(&ctx->stats, 0, sizeof ctx->stats);		    ctx->stats.vram_lost = tex_ok ? 0u : 1u;
+_facts/runtime/frame-loop	runtime/ps2ui.c	1067	    gsKit_set_primalpha(gs, GS_SETREG_ALPHA(0, 1, 0, 1, 0), 0);	     */	
+_facts/runtime/frame-loop	runtime/ps2ui.c	1069	    /* PrimAlphaEnable, for the same reason and one more.		     *
+_facts/runtime/frame-loop	runtime/ps2ui.c	1093	     * it forces the fault so the bench has a picture of what a dead	    /* Bring-up step 4b's reference arm. Not a fix and not a fallback:	     * texture-alpha channel looks like, to compare against a screen. */
+_facts/runtime/frame-loop	runtime/ps2ui.c	1095	    gs->PrimAlphaEnable = GS_SETTING_OFF;	     * texture-alpha channel looks like, to compare against a screen. */	#else
+_facts/runtime/frame-loop	runtime/ps2ui.c	1098	#endif	    gs->PrimAlphaEnable = GS_SETTING_ON;	
+_facts/runtime/frame-loop	runtime/ps2ui.c	1104	    apply_scissor(gs, &stack[0]);	    stack[0].y1 = ctx->hdr->canvas_h;	
+_facts/runtime/frame-loop	runtime/ps2ui.c	1192	            if (ctx->gs_tex[c->tex].Mem == NULL) {	             * error worth a counter. */	                ctx->stats.tex_unfilled++;
+_facts/runtime/frame-loop	runtime/ps2ui.c	1196	            gsKit_TexManager_bind(gs, &ctx->gs_tex[c->tex]);	            }	            draw_texquad(gs, ctx, &ctx->gs_tex[c->tex],
+_facts/runtime/frame-loop	runtime/ps2ui.c	1204	    /* The baker guarantees balance; restore full-canvas scissor anyway	    }	     * so a malformed blob cannot poison the next frame. */
+_facts/runtime/frame-loop	runtime/ps2ui.c	1206	    apply_scissor(gs, &stack[0]);	     * so a malformed blob cannot poison the next frame. */	
 _facts/runtime/frame-loop	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/runtime/frame-loop	runtime/ps2ui.h	369	     * So a multi-theme blob is ordinary output, not a hand-written	     *	     * fixture, and README.md's own first screenshots are one blob
 _facts/runtime/frame-loop	runtime/ps2ui.h	443	/* The arena's required alignment. The CLUT region at its start is a		 * DMA source, and DMA source addresses truncate silently below qword
@@ -1410,7 +1410,7 @@ _facts/runtime/integrating	runtime/Makefile	246	# does not survive a `for v in` 
 _facts/runtime/integrating	runtime/Makefile	284	BAKER_SRC  = $(wildcard ../packages/baker/ps2ui_bake/*.py)	LAYOUT_SRC = $(wildcard ../packages/layout/src/*.js)	METRICS    = $(wildcard ../fonts/*.metrics.json)
 _facts/runtime/integrating	runtime/Makefile	285	METRICS    = $(wildcard ../fonts/*.metrics.json)	BAKER_SRC  = $(wildcard ../packages/baker/ps2ui_bake/*.py)	
 _facts/runtime/integrating	runtime/Makefile	288	             $(LAYOUT_SRC) $(BAKER_SRC) $(METRICS)	$(LIST_UIB): tests/fixture/list.html tests/fixture/list.css \\	\t@mkdir -p build
-_facts/runtime/integrating	runtime/ps2ui.c	646	        /* Nothing sets TEX0.TFX here, and nothing can: gsKit has no	        g->Filter = GS_FILTER_NEAREST; /* baked at exact size; bilinear only blurs */	         * per-texture TFX field, and every one of its GS_SETREG_TEX0
+_facts/runtime/integrating	runtime/ps2ui.c	647	        /* Nothing sets TEX0.TFX here, and nothing can: gsKit has no	        g->Filter = GS_FILTER_NEAREST; /* baked at exact size; bilinear only blurs */	         * per-texture TFX field, and every one of its GS_SETREG_TEX0
 _facts/runtime/integrating	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/runtime/integrating	runtime/sample/Makefile	8	EE_BIN  = ps2ui_sample.elf		EE_OBJS = main.o ps2ui.o ui_uib.o
 _facts/runtime/integrating	runtime/sample/Makefile	11	# gsKit installs under $PS2DEV/gsKit in the ps2dev toolchain image,	EE_LIBS = -lgskit -ldmakit	# not inside $PS2SDK/ports.
@@ -1450,26 +1450,26 @@ _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	313	def rend
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	882	        ok += 1	        print("ok - an unknown route is 404", file=sys.stderr)	
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	899	            uib, st = srv.uib, srv.state	        with srv.lock:	        was = st.aspect
 _facts/runtime/moving-and-hiding	packages/layout/src/box.js	176	  if (style.display === 'none') return null;	  );	
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	905	/* THE OFFSET IS APPLIED HERE, AT THE SINK, AND NOT BY THE CALLERS.	 * defect would come back. */	 *
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	922	    x += ctx->off_x;	{	    y += ctx->off_y;
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	936	static int node_hidden(const ps2ui_ctx *ctx, uint16_t idx)	 * unfocused variant". */	{
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	938	    /* The bits are sized from n_focus, so every validated index has a	{	     * bit; the old "past the hideable ceiling" case no longer exists. */
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	979	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1122	            /* THE SUBTLE ONE. A scissor derived from a command is	            }	             * part of the UI -- a panel's clip slides with the panel --
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1132	                int cx = c->x + ctx->off_x, cy = c->y + ctx->off_y;	            {	                r.x0 = cx > top->x0 ? cx : top->x0;
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1156	        if (node_hidden(ctx, c->focus)) {	            continue;	            ctx->stats.skipped_hidden++;
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1172	                (float)(c->x + ctx->off_x), (float)(c->y + ctx->off_y),	            gsKit_prim_sprite(gs,	                (float)(c->x + ctx->off_x + c->w),
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1354	        /* Slots live outside the command list, so the visibility check	        const char *text;	         * in the command loop does not reach them. Without this, hiding
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1358	        if (node_hidden(ctx, s->focus)) {	         * the background — worse than not hiding it at all. */	            ctx->stats.slots_hidden++;
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1408	                draw_texquad(gs, ctx, &ctx->gs_tex[font->tex],	                ctx->stats.slot_glyphs++;	                    pen + g->bearing_x, s->text_y + g->bearing_y,
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1426	                draw_texquad(gs, ctx, &ctx->gs_tex[font->tex],	                ctx->stats.slot_glyphs++;	                    pen + g->bearing_x, s->text_y + g->bearing_y,
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1564	        while (next != PS2UI_NONE && node_hidden(ctx, next) && guard--) {	        uint32_t guard = ctx->hdr->n_focus + 1;	            const ps2ui_focus_node *h = &ctx->focus_nodes[next];
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1596	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1613	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy)		{
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1626	void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy)		{
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1632	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)		{
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1641	        ctx->hidden[idx >> 5] &= ~(1u << (idx & 31u));	    if (visible)	    else
-_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1658	void ps2ui_visible_reset(ps2ui_ctx *ctx)		{
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	906	/* THE OFFSET IS APPLIED HERE, AT THE SINK, AND NOT BY THE CALLERS.	 * defect would come back. */	 *
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	923	    x += ctx->off_x;	{	    y += ctx->off_y;
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	937	static int node_hidden(const ps2ui_ctx *ctx, uint16_t idx)	 * unfocused variant". */	{
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	939	    /* The bits are sized from n_focus, so every validated index has a	{	     * bit; the old "past the hideable ceiling" case no longer exists. */
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	980	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs)		{
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1123	            /* THE SUBTLE ONE. A scissor derived from a command is	            }	             * part of the UI -- a panel's clip slides with the panel --
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1133	                int cx = c->x + ctx->off_x, cy = c->y + ctx->off_y;	            {	                r.x0 = cx > top->x0 ? cx : top->x0;
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1157	        if (node_hidden(ctx, c->focus)) {	            continue;	            ctx->stats.skipped_hidden++;
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1173	                (float)(c->x + ctx->off_x), (float)(c->y + ctx->off_y),	            gsKit_prim_sprite(gs,	                (float)(c->x + ctx->off_x + c->w),
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1355	        /* Slots live outside the command list, so the visibility check	        const char *text;	         * in the command loop does not reach them. Without this, hiding
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1359	        if (node_hidden(ctx, s->focus)) {	         * the background — worse than not hiding it at all. */	            ctx->stats.slots_hidden++;
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1409	                draw_texquad(gs, ctx, &ctx->gs_tex[font->tex],	                ctx->stats.slot_glyphs++;	                    pen + g->bearing_x, s->text_y + g->bearing_y,
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1427	                draw_texquad(gs, ctx, &ctx->gs_tex[font->tex],	                ctx->stats.slot_glyphs++;	                    pen + g->bearing_x, s->text_y + g->bearing_y,
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1565	        while (next != PS2UI_NONE && node_hidden(ctx, next) && guard--) {	        uint32_t guard = ctx->hdr->n_focus + 1;	            const ps2ui_focus_node *h = &ctx->focus_nodes[next];
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1614	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy)		{
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1627	void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy)		{
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1633	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)		{
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1642	        ctx->hidden[idx >> 5] &= ~(1u << (idx & 31u));	    if (visible)	    else
+_facts/runtime/moving-and-hiding	runtime/ps2ui.c	1659	void ps2ui_visible_reset(ps2ui_ctx *ctx)		{
 _facts/runtime/moving-and-hiding	runtime/ps2ui.h	310	typedef struct ps2ui_stats {	 * primitive drawn -- proportional to the frame, not to the API. */	    uint32_t cmds;             /* command records walked                */
 _facts/runtime/moving-and-hiding	runtime/ps2ui.h	408	    /* A draw-time translation applied to every command's position, and	    uint32_t  vram_need;	     * to every scissor rect derived from one -- but NOT to the canvas
 _facts/runtime/moving-and-hiding	runtime/ps2ui.h	693	/* Hide or show a focusable subtree at runtime (backlog F21).		 *
@@ -1491,27 +1491,27 @@ _facts/runtime/streaming-art	packages/baker/ps2ui_bake/quads.py	468	            
 _facts/runtime/streaming-art	packages/baker/ps2ui_bake/vram.py	241	    payload_total = 0	    total = 0	    for i, t in enumerate(textures):
 _facts/runtime/streaming-art	packages/layout/src/box.js	227	    const texSlot = el.attrs['data-tex-slot'];	    // geometry, a name and a reservation (uib format v6).	    if (texSlot !== undefined) {
 _facts/runtime/streaming-art	packages/layout/src/box.js	254	      if ('palettize' in el.attrs) {	      }	        throw new Error(
-_facts/runtime/streaming-art	runtime/ps2ui.c	582	static void permute_clut(const uint8_t *linear, uint16_t ncolors, uint8_t *out)	 * wants CSM1 storage order on upload. Permute into `out` (256*4 bytes). */	{
-_facts/runtime/streaming-art	runtime/ps2ui.c	585	    memset(out, 0, 256 * 4);	    uint32_t i;	    for (i = 0; i < ncolors && i < 256; i++) {
-_facts/runtime/streaming-art	runtime/ps2ui.c	628	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * state than a refused one. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
-_facts/runtime/streaming-art	runtime/ps2ui.c	654	         * step 4. */	         * ps2dev container fails on `t.Function`. See docs/bringup.md	        if (t->format == PS2UI_TEXFMT_PSMCT32) {
-_facts/runtime/streaming-art	runtime/ps2ui.c	683	        /* A streamed slot the app has not filled yet has no source to	         * it, which is where review said it should end up. */	         * transfer from. Its VRAM is already counted in the preflight
-_facts/runtime/streaming-art	runtime/ps2ui.c	692	    ctx->uploaded = 1;	    }	    return 0;
-_facts/runtime/streaming-art	runtime/ps2ui.c	714	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,		                  const void *texels, size_t len)
-_facts/runtime/streaming-art	runtime/ps2ui.c	721	    if (!ctx || !gs || !texels)		        return PS2UI_ERR_NOT_STREAMED;
-_facts/runtime/streaming-art	runtime/ps2ui.c	731	    if (t->kind != PS2UI_TEXKIND_STREAMED)	     * can fill". */	        return PS2UI_ERR_NOT_STREAMED;
-_facts/runtime/streaming-art	runtime/ps2ui.c	736	    if (len != (size_t)t->data_len)	     * geometry, which is worth failing rather than silently cropping. */	        return PS2UI_ERR_SIZE;
-_facts/runtime/streaming-art	runtime/ps2ui.c	742	    if (((uintptr_t)texels) & 15u)	     * drawn shifted by a few texels. */	        return PS2UI_ERR_ALIGN;
-_facts/runtime/streaming-art	runtime/ps2ui.c	749	    g->Mem = (u32 *)texels;	     * already has for every baked texture. */	    /* The app just wrote these texels with the CPU, which on the EE
-_facts/runtime/streaming-art	runtime/ps2ui.c	765	    SyncDCache((void *)texels, (void *)((uint8_t *)(void *)(uintptr_t)texels + len));	#else	#endif
-_facts/runtime/streaming-art	runtime/ps2ui.c	771	    gsKit_TexManager_invalidate(gs, g);	     * new pointer. Invalidate says "resident, but wrong". */	    return PS2UI_OK;
-_facts/runtime/streaming-art	runtime/ps2ui.c	778	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * re-sends 1,024 bytes of CT32 and leaves the atlas resident. */	                   const void *colors, unsigned ncolors)
-_facts/runtime/streaming-art	runtime/ps2ui.c	791	    if (!ctx->uploaded)	     * though ps2ui_tex_set has the same shape via tex_index_by_name. */	        return PS2UI_ERR_STATE;
-_facts/runtime/streaming-art	runtime/ps2ui.c	793	    if (clut_index >= ctx->hdr->n_clut)	        return PS2UI_ERR_STATE;	        return PS2UI_ERR_RANGE;
-_facts/runtime/streaming-art	runtime/ps2ui.c	800	    if (ncolors > c->ncolors)	     * look like it worked and change nothing on screen. */	        return PS2UI_ERR_SIZE;
-_facts/runtime/streaming-art	runtime/ps2ui.c	804	    permute_clut((const uint8_t *)colors, (uint16_t)ncolors, buf);	    buf = ctx->clut_pool + (size_t)clut_index * 256 * 4;	
-_facts/runtime/streaming-art	runtime/ps2ui.c	809	     * property it exists for. */	     * the atlas along; that is the one line that would cost this the	    for (i = 0; i < ctx->hdr->n_tex; i++) {
-_facts/runtime/streaming-art	runtime/ps2ui.c	1186	            /* An unfilled streamed slot draws nothing rather than	             * that no longer fits does not fail, it never returns. */	             * sampling a null source. Silent by design: the app fills
+_facts/runtime/streaming-art	runtime/ps2ui.c	583	static void permute_clut(const uint8_t *linear, uint16_t ncolors, uint8_t *out)	 * wants CSM1 storage order on upload. Permute into `out` (256*4 bytes). */	{
+_facts/runtime/streaming-art	runtime/ps2ui.c	586	    memset(out, 0, 256 * 4);	    uint32_t i;	    for (i = 0; i < ncolors && i < 256; i++) {
+_facts/runtime/streaming-art	runtime/ps2ui.c	629	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * state than a refused one. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
+_facts/runtime/streaming-art	runtime/ps2ui.c	655	         * step 4. */	         * ps2dev container fails on `t.Function`. See docs/bringup.md	        if (t->format == PS2UI_TEXFMT_PSMCT32) {
+_facts/runtime/streaming-art	runtime/ps2ui.c	684	        /* A streamed slot the app has not filled yet has no source to	         * it, which is where review said it should end up. */	         * transfer from. Its VRAM is already counted in the preflight
+_facts/runtime/streaming-art	runtime/ps2ui.c	693	    ctx->uploaded = 1;	    }	    return 0;
+_facts/runtime/streaming-art	runtime/ps2ui.c	715	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,		                  const void *texels, size_t len)
+_facts/runtime/streaming-art	runtime/ps2ui.c	722	    if (!ctx || !gs || !texels)		        return PS2UI_ERR_NOT_STREAMED;
+_facts/runtime/streaming-art	runtime/ps2ui.c	732	    if (t->kind != PS2UI_TEXKIND_STREAMED)	     * can fill". */	        return PS2UI_ERR_NOT_STREAMED;
+_facts/runtime/streaming-art	runtime/ps2ui.c	737	    if (len != (size_t)t->data_len)	     * geometry, which is worth failing rather than silently cropping. */	        return PS2UI_ERR_SIZE;
+_facts/runtime/streaming-art	runtime/ps2ui.c	743	    if (((uintptr_t)texels) & 15u)	     * drawn shifted by a few texels. */	        return PS2UI_ERR_ALIGN;
+_facts/runtime/streaming-art	runtime/ps2ui.c	750	    g->Mem = (u32 *)texels;	     * already has for every baked texture. */	    /* The app just wrote these texels with the CPU, which on the EE
+_facts/runtime/streaming-art	runtime/ps2ui.c	766	    SyncDCache((void *)texels, (void *)((uint8_t *)(void *)(uintptr_t)texels + len));	#else	#endif
+_facts/runtime/streaming-art	runtime/ps2ui.c	772	    gsKit_TexManager_invalidate(gs, g);	     * new pointer. Invalidate says "resident, but wrong". */	    return PS2UI_OK;
+_facts/runtime/streaming-art	runtime/ps2ui.c	779	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * re-sends 1,024 bytes of CT32 and leaves the atlas resident. */	                   const void *colors, unsigned ncolors)
+_facts/runtime/streaming-art	runtime/ps2ui.c	792	    if (!ctx->uploaded)	     * though ps2ui_tex_set has the same shape via tex_index_by_name. */	        return PS2UI_ERR_STATE;
+_facts/runtime/streaming-art	runtime/ps2ui.c	794	    if (clut_index >= ctx->hdr->n_clut)	        return PS2UI_ERR_STATE;	        return PS2UI_ERR_RANGE;
+_facts/runtime/streaming-art	runtime/ps2ui.c	801	    if (ncolors > c->ncolors)	     * look like it worked and change nothing on screen. */	        return PS2UI_ERR_SIZE;
+_facts/runtime/streaming-art	runtime/ps2ui.c	805	    permute_clut((const uint8_t *)colors, (uint16_t)ncolors, buf);	    buf = ctx->clut_pool + (size_t)clut_index * 256 * 4;	
+_facts/runtime/streaming-art	runtime/ps2ui.c	810	     * property it exists for. */	     * the atlas along; that is the one line that would cost this the	    for (i = 0; i < ctx->hdr->n_tex; i++) {
+_facts/runtime/streaming-art	runtime/ps2ui.c	1187	            /* An unfilled streamed slot draws nothing rather than	             * that no longer fits does not fail, it never returns. */	             * sampling a null source. Silent by design: the app fills
 _facts/runtime/streaming-art	runtime/ps2ui.h	141	     * data_len is the exact payload ps2ui_tex_set will demand, so the	    /* BAKED: where the texels are. STREAMED: data_off is unused and	     * app is told the number rather than deriving it and getting the
 _facts/runtime/streaming-art	runtime/ps2ui.h	323	    uint32_t tex_unfilled;     /* textured draws skipped because their	                                * past the baker somehow               */	                                * streamed slot has no texels yet -- the
 _facts/runtime/streaming-art	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
@@ -1536,17 +1536,17 @@ _facts/runtime/streaming-art	tools/make_cover_raw.py	49	def convert(path: str, w
 _facts/runtime/streaming-art	tools/make_cover_raw.py	68	    """A cover with no art behind it, for a bench with no drive.	def synthetic(index: int, w: int, h: int) -> bytes:	
 _facts/runtime/telemetry	runtime/Makefile	40	SAMPLE_VARIANTS = "" -DPS2UI_SAMPLE_STATIC -DPS2UI_SAMPLE_MINIMAL -DPS2UI_SAMPLE_PROBE -DPS2UI_SAMPLE_PROBE6 -DPS2UI_SAMPLE_TELEMETRY -DPS2UI_SAMPLE_COVERS -DPS2UI_SAMPLE_PROGRESSIVE -DPS2UI_SAMPLE_LADDER -DPS2UI_SAMPLE_LADDER2 -DPS2UI_SAMPLE_OPLENV	# anything touching PS2SDK; see runtime/vendor/README.md.	
 _facts/runtime/telemetry	runtime/Makefile	81	# constraint, and on arm64 a u32 in an "=r" slot is a 32-bit value in a	# It stops clang PARSING `mfc0`; the frontend still reads the operand	# 64-bit register. Apple clang raises -Wasm-operand-widths and suggests
-_facts/runtime/telemetry	runtime/ps2ui.c	1027	    memset(&ctx->stats, 0, sizeof ctx->stats);		    ctx->stats.vram_lost = tex_ok ? 0u : 1u;
-_facts/runtime/telemetry	runtime/ps2ui.c	1028	    ctx->stats.vram_lost = tex_ok ? 0u : 1u;	    memset(&ctx->stats, 0, sizeof ctx->stats);	
-_facts/runtime/telemetry	runtime/ps2ui.c	1110	        ctx->stats.cmds++;	        const ps2ui_cmd *c = &ctx->cmd[i];	
-_facts/runtime/telemetry	runtime/ps2ui.c	1119	                ctx->stats.scissor_overflow++;	                overflow++;	                continue;
-_facts/runtime/telemetry	runtime/ps2ui.c	1157	            ctx->stats.skipped_hidden++;	        if (node_hidden(ctx, c->focus)) {	            continue;
-_facts/runtime/telemetry	runtime/ps2ui.c	1170	            ctx->stats.prims++;	        if (c->op == PS2UI_OP_QUAD) {	            gsKit_prim_sprite(gs,
-_facts/runtime/telemetry	runtime/ps2ui.c	1177	            ctx->stats.prims++;	        } else if (tex_ok) { /* PS2UI_OP_TEXQUAD */	            /* Re-bind per draw, the way Open-PS2-Loader does. Resident
-_facts/runtime/telemetry	runtime/ps2ui.c	1192	                ctx->stats.tex_unfilled++;	            if (ctx->gs_tex[c->tex].Mem == NULL) {	                continue;
-_facts/runtime/telemetry	runtime/ps2ui.c	1359	            ctx->stats.slots_hidden++;	        if (node_hidden(ctx, s->focus)) {	            continue;
-_facts/runtime/telemetry	runtime/ps2ui.c	1406	                ctx->stats.prims++;	            if (g->w > 0) {	                ctx->stats.slot_glyphs++;
-_facts/runtime/telemetry	runtime/ps2ui.c	1424	                ctx->stats.prims++;	            if (g && g->w > 0) {	                ctx->stats.slot_glyphs++;
+_facts/runtime/telemetry	runtime/ps2ui.c	1028	    memset(&ctx->stats, 0, sizeof ctx->stats);		    ctx->stats.vram_lost = tex_ok ? 0u : 1u;
+_facts/runtime/telemetry	runtime/ps2ui.c	1029	    ctx->stats.vram_lost = tex_ok ? 0u : 1u;	    memset(&ctx->stats, 0, sizeof ctx->stats);	
+_facts/runtime/telemetry	runtime/ps2ui.c	1111	        ctx->stats.cmds++;	        const ps2ui_cmd *c = &ctx->cmd[i];	
+_facts/runtime/telemetry	runtime/ps2ui.c	1120	                ctx->stats.scissor_overflow++;	                overflow++;	                continue;
+_facts/runtime/telemetry	runtime/ps2ui.c	1158	            ctx->stats.skipped_hidden++;	        if (node_hidden(ctx, c->focus)) {	            continue;
+_facts/runtime/telemetry	runtime/ps2ui.c	1171	            ctx->stats.prims++;	        if (c->op == PS2UI_OP_QUAD) {	            gsKit_prim_sprite(gs,
+_facts/runtime/telemetry	runtime/ps2ui.c	1178	            ctx->stats.prims++;	        } else if (tex_ok) { /* PS2UI_OP_TEXQUAD */	            /* Re-bind per draw, the way Open-PS2-Loader does. Resident
+_facts/runtime/telemetry	runtime/ps2ui.c	1193	                ctx->stats.tex_unfilled++;	            if (ctx->gs_tex[c->tex].Mem == NULL) {	                continue;
+_facts/runtime/telemetry	runtime/ps2ui.c	1360	            ctx->stats.slots_hidden++;	        if (node_hidden(ctx, s->focus)) {	            continue;
+_facts/runtime/telemetry	runtime/ps2ui.c	1407	                ctx->stats.prims++;	            if (g->w > 0) {	                ctx->stats.slot_glyphs++;
+_facts/runtime/telemetry	runtime/ps2ui.c	1425	                ctx->stats.prims++;	            if (g && g->w > 0) {	                ctx->stats.slot_glyphs++;
 _facts/runtime/telemetry	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * rather than wrapping it. */	/* Longest row focus name a list can build: prefix + index + NUL. Only
 _facts/runtime/telemetry	runtime/ps2ui.h	303	/* Per-frame render telemetry, reset at the top of every ps2ui_render		 * and complete when it returns. Counters only: the runtime does no
 _facts/runtime/telemetry	runtime/ps2ui.h	306	 * have no EE) and no I/O (where a log goes — UDP, USB, screen, PCSX2's	 * timing (the EE cycle counter is the app's to read, and host tests	 * console capture — is the app's decision, same split as slot data).
@@ -1585,7 +1585,7 @@ cli/ps2ui-bake	packages/baker/ps2ui_bake/caps.py	77	def check(textures, cluts, s
 cli/ps2ui-bake	packages/baker/tests/test_baker.py	761	    def test_the_formats_own_uint16_count_still_bounds_the_tables(self):		        """What replaced them is not "nothing".
 cli/ps2ui-bake	packages/baker/tests/test_baker.py	2003	    def test_indexed_png_refuses_to_be_resized(self):		        # A quiet fall-back to quantizing is the failure this feature
 cli/ps2ui-bake	packages/baker/tests/test_baker.py	4066	    def test_bake_creates_its_output_directories(self):		        require_ttf()
-cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	639	def check_blob(uib, budget=None, allow_dead: int = 0,		               allow_hairline: int = 0, console: bool = False) -> Report:
+cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	653	def check_blob(uib, budget=None, allow_dead: int = 0,		               allow_hairline: int = 0, console: bool = False) -> Report:
 cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 cli/ps2ui-check	tools/check-blobs.sh	88	    PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.check \\	    # shellcheck disable=SC2086	        "$repo/$blob" $flags
 cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	83	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
@@ -1598,8 +1598,8 @@ cli/ps2ui-fontgen	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:mai
 cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenNeedsNoRaqm(unittest.TestCase):		    """F47: fontgen measures through uharfbuzz, not Pillow's Raqm.
 cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 examples/channel6	.github/workflows/ci.yml	253	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
-examples/channel6	.github/workflows/ci.yml	475	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
-examples/channel6	.github/workflows/ci.yml	546	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+examples/channel6	.github/workflows/ci.yml	480	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
+examples/channel6	.github/workflows/ci.yml	551	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
@@ -1669,9 +1669,9 @@ reference/uib-format	runtime/tests/test_runtime.c	170	    /* ---- struct layout 
 reference/uib-format	tools/check-format-frozen.py	87	FROZEN_STRUCTS = {	# path list four times.	    "_HEADER": ("<IHHHHHHIHHIIIIIIIHHIIHHIIHHHH", 84),
 reference/uib-format	tools/check-versions.py	400	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
 runtime/api-reference	runtime/Makefile	5	CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2	CC      ?= cc	UIB     ?= ../examples/memcard/build/ui.uib
-runtime/api-reference	runtime/ps2ui.c	1436	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
-runtime/api-reference	runtime/ps2ui.c	1596	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
-runtime/api-reference	runtime/ps2ui.c	1685	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
+runtime/api-reference	runtime/ps2ui.c	1437	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
+runtime/api-reference	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
+runtime/api-reference	runtime/ps2ui.c	1686	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
 runtime/console-launcher	console/README.md	145	## What the screen says		
 runtime/console-launcher	console/README.md	179	## Building		
 runtime/console-launcher	console/README.md	225	## Bench cases		
@@ -1703,26 +1703,26 @@ runtime/errors-and-constants	runtime/ps2ui.c	352	        return PS2UI_ERR_CRC;	 
 runtime/errors-and-constants	runtime/ps2ui.c	374	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)(const void *)ctx->blob) & 15u)	
 runtime/errors-and-constants	runtime/ps2ui.c	389	                return PS2UI_ERR_FEATURES;	            if (!(ctx->hdr->feature_flags & PS2UI_FEAT_STREAMED_TEX))	            if (t->data_len == 0)
 runtime/errors-and-constants	runtime/ps2ui.c	397	            return PS2UI_ERR_ALIGN;	        } else if (t->data_off & 15u) {  /* DMA'd in place; see the blob check */	        }
-runtime/errors-and-constants	runtime/ps2ui.c	511	        return PS2UI_ERR_BOUNDS;	    if (ctx->focus != PS2UI_NONE && ctx->focus >= ctx->hdr->n_focus)	
-runtime/errors-and-constants	runtime/ps2ui.c	524	        return PS2UI_ERR_TOO_MANY;	    if (!arena_compute(ctx->data, size, &L))	    if (arena == NULL || arena_size < L.total)
-runtime/errors-and-constants	runtime/ps2ui.c	526	        return PS2UI_ERR_ARENA;	    if (arena == NULL || arena_size < L.total)	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))
-runtime/errors-and-constants	runtime/ps2ui.c	528	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))	
-runtime/errors-and-constants	runtime/ps2ui.c	576	#ifndef PS2UI_CLUT_PERMUTE	 * is two ELFs rather than a source edit at a bench. */	#define PS2UI_CLUT_PERMUTE 1
-runtime/errors-and-constants	runtime/ps2ui.c	636	        return -1;	    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)	    ctx->vram_need = (uint32_t)need;
-runtime/errors-and-constants	runtime/ps2ui.c	697	 * and this runs when a cover arrives rather than per frame, so a	/* Find a texture by name. Linear: n_tex is a uint16_t in the header,	 * sorted table would be machinery for nothing. */
-runtime/errors-and-constants	runtime/ps2ui.c	722	        return PS2UI_ERR_NOT_STREAMED;	    if (!ctx || !gs || !texels)	    i = tex_index_by_name(ctx, name);
-runtime/errors-and-constants	runtime/ps2ui.c	732	        return PS2UI_ERR_NOT_STREAMED;	    if (t->kind != PS2UI_TEXKIND_STREAMED)	    /* Exact, not "at least": a short buffer would DMA past its end and
-runtime/errors-and-constants	runtime/ps2ui.c	737	        return PS2UI_ERR_SIZE;	    if (len != (size_t)t->data_len)	    /* The GIF reads this address directly. A DMA source truncates
-runtime/errors-and-constants	runtime/ps2ui.c	743	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)texels) & 15u)	
-runtime/errors-and-constants	runtime/ps2ui.c	756	#ifdef PS2UI_SKIP_SYNCDCACHE	     * write happened. */	    /* The bench's falsification arm (make -C runtime/sample NO_SYNC=1),
-runtime/errors-and-constants	runtime/ps2ui.c	792	        return PS2UI_ERR_STATE;	    if (!ctx->uploaded)	    if (clut_index >= ctx->hdr->n_clut)
-runtime/errors-and-constants	runtime/ps2ui.c	794	        return PS2UI_ERR_RANGE;	    if (clut_index >= ctx->hdr->n_clut)	    c = &ctx->clut[clut_index];
-runtime/errors-and-constants	runtime/ps2ui.c	801	        return PS2UI_ERR_SIZE;	    if (ncolors > c->ncolors)	
-runtime/errors-and-constants	runtime/ps2ui.c	830	        return PS2UI_ERR_RANGE;	    if (theme >= ctx->hdr->n_theme)	    ctx->theme = (uint16_t)theme;
-runtime/errors-and-constants	runtime/ps2ui.c	1090	#ifdef PS2UI_PRIMALPHA_OFF	     * whether the format's alpha exists. */	    /* Bring-up step 4b's reference arm. Not a fix and not a fallback:
-runtime/errors-and-constants	runtime/ps2ui.c	1620	        return PS2UI_ERR_RANGE;	    if (dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767)	    ctx->off_x = (int16_t)dx;
-runtime/errors-and-constants	runtime/ps2ui.c	1685	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
-runtime/errors-and-constants	runtime/ps2ui.c	1746	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
+runtime/errors-and-constants	runtime/ps2ui.c	512	        return PS2UI_ERR_BOUNDS;	    if (ctx->focus != PS2UI_NONE && ctx->focus >= ctx->hdr->n_focus)	
+runtime/errors-and-constants	runtime/ps2ui.c	525	        return PS2UI_ERR_TOO_MANY;	    if (!arena_compute(ctx->data, size, &L))	    if (arena == NULL || arena_size < L.total)
+runtime/errors-and-constants	runtime/ps2ui.c	527	        return PS2UI_ERR_ARENA;	    if (arena == NULL || arena_size < L.total)	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))
+runtime/errors-and-constants	runtime/ps2ui.c	529	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)arena) & (PS2UI_ARENA_ALIGN - 1))	
+runtime/errors-and-constants	runtime/ps2ui.c	577	#ifndef PS2UI_CLUT_PERMUTE	 * is two ELFs rather than a source edit at a bench. */	#define PS2UI_CLUT_PERMUTE 1
+runtime/errors-and-constants	runtime/ps2ui.c	637	        return -1;	    if ((uint64_t)gs->CurrentPointer + need > 4u * 1024u * 1024u)	    ctx->vram_need = (uint32_t)need;
+runtime/errors-and-constants	runtime/ps2ui.c	698	 * and this runs when a cover arrives rather than per frame, so a	/* Find a texture by name. Linear: n_tex is a uint16_t in the header,	 * sorted table would be machinery for nothing. */
+runtime/errors-and-constants	runtime/ps2ui.c	723	        return PS2UI_ERR_NOT_STREAMED;	    if (!ctx || !gs || !texels)	    i = tex_index_by_name(ctx, name);
+runtime/errors-and-constants	runtime/ps2ui.c	733	        return PS2UI_ERR_NOT_STREAMED;	    if (t->kind != PS2UI_TEXKIND_STREAMED)	    /* Exact, not "at least": a short buffer would DMA past its end and
+runtime/errors-and-constants	runtime/ps2ui.c	738	        return PS2UI_ERR_SIZE;	    if (len != (size_t)t->data_len)	    /* The GIF reads this address directly. A DMA source truncates
+runtime/errors-and-constants	runtime/ps2ui.c	744	        return PS2UI_ERR_ALIGN;	    if (((uintptr_t)texels) & 15u)	
+runtime/errors-and-constants	runtime/ps2ui.c	757	#ifdef PS2UI_SKIP_SYNCDCACHE	     * write happened. */	    /* The bench's falsification arm (make -C runtime/sample NO_SYNC=1),
+runtime/errors-and-constants	runtime/ps2ui.c	793	        return PS2UI_ERR_STATE;	    if (!ctx->uploaded)	    if (clut_index >= ctx->hdr->n_clut)
+runtime/errors-and-constants	runtime/ps2ui.c	795	        return PS2UI_ERR_RANGE;	    if (clut_index >= ctx->hdr->n_clut)	    c = &ctx->clut[clut_index];
+runtime/errors-and-constants	runtime/ps2ui.c	802	        return PS2UI_ERR_SIZE;	    if (ncolors > c->ncolors)	
+runtime/errors-and-constants	runtime/ps2ui.c	831	        return PS2UI_ERR_RANGE;	    if (theme >= ctx->hdr->n_theme)	    ctx->theme = (uint16_t)theme;
+runtime/errors-and-constants	runtime/ps2ui.c	1091	#ifdef PS2UI_PRIMALPHA_OFF	     * whether the format's alpha exists. */	    /* Bring-up step 4b's reference arm. Not a fix and not a fallback:
+runtime/errors-and-constants	runtime/ps2ui.c	1621	        return PS2UI_ERR_RANGE;	    if (dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767)	    ctx->off_x = (int16_t)dx;
+runtime/errors-and-constants	runtime/ps2ui.c	1686	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
+runtime/errors-and-constants	runtime/ps2ui.c	1747	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row)		{
 runtime/errors-and-constants	runtime/ps2ui.h	63	#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \\	#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)	                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX \\
 runtime/errors-and-constants	runtime/ps2ui.h	283	 * runtime: ps2ui_render keeps a scissor stack of this depth, so a	/* Real storage, and the only remaining fixed-size thing in the	 * blob nesting `overflow: hidden` deeper than this draws the inner
 runtime/errors-and-constants	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
@@ -1738,15 +1738,15 @@ runtime/moving-and-hiding	packages/baker/ps2ui_bake/serve.py	36	WHAT THIS DOES N
 runtime/moving-and-hiding	runtime/tests/test_runtime.c	3561	    /* ---- F27: a draw-time offset moves what is drawn, not the screen ----		     *
 runtime/streaming-art	fixtures/bench-stream/ui/bench.css	11	.cell img { width: 128px; height: 128px; }	.cell  { display: flex; flex-direction: column; width: 128px; }	.cap   { font-size: 14px; color: #9fb0d8; height: 20px; }
 runtime/streaming-art	fixtures/bench-stream/ui/covers.html	6	      <div class="cell"><img data-tex-slot="cover0"><div class="cap" data-slot="c0">0</div></div>	    <div class="row">	      <div class="cell"><img data-tex-slot="cover1"><div class="cap" data-slot="c1">1</div></div>
-runtime/streaming-art	runtime/ps2ui.c	585	    memset(out, 0, 256 * 4);	    uint32_t i;	    for (i = 0; i < ncolors && i < 256; i++) {
-runtime/streaming-art	runtime/ps2ui.c	731	    if (t->kind != PS2UI_TEXKIND_STREAMED)	     * can fill". */	        return PS2UI_ERR_NOT_STREAMED;
-runtime/streaming-art	runtime/ps2ui.c	736	    if (len != (size_t)t->data_len)	     * geometry, which is worth failing rather than silently cropping. */	        return PS2UI_ERR_SIZE;
-runtime/streaming-art	runtime/ps2ui.c	742	    if (((uintptr_t)texels) & 15u)	     * drawn shifted by a few texels. */	        return PS2UI_ERR_ALIGN;
-runtime/streaming-art	runtime/ps2ui.c	765	    SyncDCache((void *)texels, (void *)((uint8_t *)(void *)(uintptr_t)texels + len));	#else	#endif
-runtime/streaming-art	runtime/ps2ui.c	791	    if (!ctx->uploaded)	     * though ps2ui_tex_set has the same shape via tex_index_by_name. */	        return PS2UI_ERR_STATE;
-runtime/streaming-art	runtime/ps2ui.c	800	    if (ncolors > c->ncolors)	     * look like it worked and change nothing on screen. */	        return PS2UI_ERR_SIZE;
-runtime/streaming-art	runtime/ps2ui.c	804	    permute_clut((const uint8_t *)colors, (uint16_t)ncolors, buf);	    buf = ctx->clut_pool + (size_t)clut_index * 256 * 4;	
-runtime/streaming-art	runtime/ps2ui.c	810	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * property it exists for. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
+runtime/streaming-art	runtime/ps2ui.c	586	    memset(out, 0, 256 * 4);	    uint32_t i;	    for (i = 0; i < ncolors && i < 256; i++) {
+runtime/streaming-art	runtime/ps2ui.c	732	    if (t->kind != PS2UI_TEXKIND_STREAMED)	     * can fill". */	        return PS2UI_ERR_NOT_STREAMED;
+runtime/streaming-art	runtime/ps2ui.c	737	    if (len != (size_t)t->data_len)	     * geometry, which is worth failing rather than silently cropping. */	        return PS2UI_ERR_SIZE;
+runtime/streaming-art	runtime/ps2ui.c	743	    if (((uintptr_t)texels) & 15u)	     * drawn shifted by a few texels. */	        return PS2UI_ERR_ALIGN;
+runtime/streaming-art	runtime/ps2ui.c	766	    SyncDCache((void *)texels, (void *)((uint8_t *)(void *)(uintptr_t)texels + len));	#else	#endif
+runtime/streaming-art	runtime/ps2ui.c	792	    if (!ctx->uploaded)	     * though ps2ui_tex_set has the same shape via tex_index_by_name. */	        return PS2UI_ERR_STATE;
+runtime/streaming-art	runtime/ps2ui.c	801	    if (ncolors > c->ncolors)	     * look like it worked and change nothing on screen. */	        return PS2UI_ERR_SIZE;
+runtime/streaming-art	runtime/ps2ui.c	805	    permute_clut((const uint8_t *)colors, (uint16_t)ncolors, buf);	    buf = ctx->clut_pool + (size_t)clut_index * 256 * 4;	
+runtime/streaming-art	runtime/ps2ui.c	811	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * property it exists for. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
 runtime/streaming-art	runtime/ps2ui.h	492	 * unmoved for as long as the slot can be drawn -- gsKit re-reads it	 * `texels` becomes this slot's DMA source, so it must stay alive and	 * whenever the texture manager re-binds an evicted texture, which is
 runtime/streaming-art	runtime/ps2ui.h	551	 * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.	 *	 * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
 runtime/streaming-art	runtime/ps2ui.h	567	 * The swap takes effect on the next bind, which is what ps2ui_render	 *	 * does for every texture it draws. clut_set does not bind by itself.

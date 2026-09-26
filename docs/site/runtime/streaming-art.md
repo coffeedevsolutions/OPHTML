@@ -73,22 +73,22 @@ Six constraints hold for every `ps2ui_tex_set` call.
 
 | constraint | consequence of breaking it |
 |---|---|
-| `len` equals the entry's reservation exactly | `PS2UI_ERR_SIZE`. A short buffer would DMA past its end; a long one means the app and the bake disagree about the geometry ([ps2ui.c](repo:runtime/ps2ui.c#L736)). |
-| `texels` is 16-byte aligned | `PS2UI_ERR_ALIGN`. A DMA source address truncates silently below qword alignment ([ps2ui.c](repo:runtime/ps2ui.c#L742)). |
-| `name` is a streamed slot in this blob | `PS2UI_ERR_NOT_STREAMED`. A baked texture and an unknown name return the same code ([ps2ui.c](repo:runtime/ps2ui.c#L731)). |
+| `len` equals the entry's reservation exactly | `PS2UI_ERR_SIZE`. A short buffer would DMA past its end; a long one means the app and the bake disagree about the geometry ([ps2ui.c](repo:runtime/ps2ui.c#L737)). |
+| `texels` is 16-byte aligned | `PS2UI_ERR_ALIGN`. A DMA source address truncates silently below qword alignment ([ps2ui.c](repo:runtime/ps2ui.c#L743)). |
+| `name` is a streamed slot in this blob | `PS2UI_ERR_NOT_STREAMED`. A baked texture and an unknown name return the same code ([ps2ui.c](repo:runtime/ps2ui.c#L732)). |
 | `texels` stays alive and unmoved while the slot can be drawn | gsKit re-reads the pointer at render time when it re-binds an evicted texture. A freed buffer draws whatever replaced it, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L492)). |
 | `texels` holds PSMCT32 with alpha in 0 to 128 | The GS reads 0x80 as opaque. Alpha 255 asks for about twice the coverage the texel has and composites overbright. |
-| the texels are written before the call | `ps2ui_tex_set` flushes `len` bytes from the EE cache at call time ([ps2ui.c](repo:runtime/ps2ui.c#L765)). A CPU write made after the call is not flushed. |
+| the texels are written before the call | `ps2ui_tex_set` flushes `len` bytes from the EE cache at call time ([ps2ui.c](repo:runtime/ps2ui.c#L766)). A CPU write made after the call is not flushed. |
 
 `ps2ui_clut_set` repoints a palette without moving a texel. It is the other half of runtime art, for blobs that carry PSMT8 textures.
 
 | rule | effect |
 |---|---|
-| Call it after `ps2ui_upload` | Before upload it returns `PS2UI_ERR_STATE`. Upload re-permutes every palette from the blob, so an early swap would be overwritten in silence ([ps2ui.c](repo:runtime/ps2ui.c#L791)). |
-| Pass a linear palette | The CSM1 permutation is applied on the way into the pool, exactly as `ps2ui_upload` does ([ps2ui.c](repo:runtime/ps2ui.c#L804)). |
-| `ncolors` is at most the baked width | A wider palette returns `PS2UI_ERR_SIZE` rather than recolouring indices no texel references ([ps2ui.c](repo:runtime/ps2ui.c#L800)). |
-| A short palette blanks the tail | `permute_clut` opens with `memset(out, 0, 256 * 4)`. A 16-entry palette handed to a 256-entry CLUT erases the other 240 to transparent black ([ps2ui.c](repo:runtime/ps2ui.c#L585)). |
-| Every texture sharing the index changes together | One palette recolours every atlas drawn from it. Two that must diverge need two CLUTs at bake time ([ps2ui.c](repo:runtime/ps2ui.c#L810)). |
+| Call it after `ps2ui_upload` | Before upload it returns `PS2UI_ERR_STATE`. Upload re-permutes every palette from the blob, so an early swap would be overwritten in silence ([ps2ui.c](repo:runtime/ps2ui.c#L792)). |
+| Pass a linear palette | The CSM1 permutation is applied on the way into the pool, exactly as `ps2ui_upload` does ([ps2ui.c](repo:runtime/ps2ui.c#L805)). |
+| `ncolors` is at most the baked width | A wider palette returns `PS2UI_ERR_SIZE` rather than recolouring indices no texel references ([ps2ui.c](repo:runtime/ps2ui.c#L801)). |
+| A short palette blanks the tail | `permute_clut` opens with `memset(out, 0, 256 * 4)`. A 16-entry palette handed to a 256-entry CLUT erases the other 240 to transparent black ([ps2ui.c](repo:runtime/ps2ui.c#L586)). |
+| Every texture sharing the index changes together | One palette recolours every atlas drawn from it. Two that must diverge need two CLUTs at bake time ([ps2ui.c](repo:runtime/ps2ui.c#L811)). |
 | A swap does not survive an upload | A second `ps2ui_upload` re-permutes every CLUT from the blob and reverts the swap, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L551)). |
 | The swap takes effect on the next bind | `ps2ui_render` binds every texture it draws. `ps2ui_clut_set` does not bind by itself ([ps2ui.h](repo:runtime/ps2ui.h#L567)). |
 

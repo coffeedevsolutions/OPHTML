@@ -22,6 +22,9 @@ on:
 
 permissions:
   contents: read
+  # To delete last night's corpus cache before saving tonight's: cache
+  # keys are immutable, so one fixed key has to be freed to be reused.
+  actions: write
 
 concurrency:
   group: fuzz
@@ -54,18 +57,26 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: runtime/build/fuzz-corpus
-          key: fuzz-corpus-${{ github.run_id }}
-          restore-keys: fuzz-corpus-
+          key: fuzz-corpus
       - name: Fuzz
         env:
           SECONDS_TO_RUN: ${{ inputs.seconds || '1800' }}
         run: make -C runtime fuzz FUZZ_CC=clang-18 FUZZ_TIME="$SECONDS_TO_RUN"
+      # ONE ENTRY, NOT ONE A NIGHT. The corpus is 24-42 MB, and a key
+      # per run_id left a new entry every night for LRU eviction to
+      # clear (review of #182). Delete-then-save keeps exactly one.
+      - name: Free the corpus key
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh cache delete fuzz-corpus || true
       - name: Keep the corpus for the next run
         if: always()
         uses: actions/cache/save@v6
         with:
           path: runtime/build/fuzz-corpus
-          key: fuzz-corpus-${{ github.run_id }}
+          key: fuzz-corpus
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

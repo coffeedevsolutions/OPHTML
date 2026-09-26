@@ -116,7 +116,7 @@ The figure belongs to that blob. The channel6 blob prints `10624 bytes on the EE
 
 ### The catalogue
 
-Checks run in ten groups, in the order below. The tenth, the console contract, runs only on a blob with a numbered `game-N` row or slot, or under `--console`. A label pattern in braces is filled from the blob. A bracketed suffix appears only on failure and names the first five offenders. Groups are the functions in [check.py](repo:packages/baker/ps2ui_bake/check.py#L639).
+Checks run in ten groups, in the order below. The tenth, the console contract, runs only on a blob with a numbered `game-N` row or slot, or under `--console`. A label pattern in braces is filled from the blob. A bracketed suffix appears only on failure and names the first five offenders. Groups are the functions in [check.py](repo:packages/baker/ps2ui_bake/check.py#L653).
 
 | label pattern | severity | meaning | change |
 |---|---|---|---|

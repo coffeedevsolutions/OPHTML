@@ -147,12 +147,68 @@ class TestTheFixedSites(_Scratch):
         self.assertTrue(any("partition the command table" in label and not ok
                             for ok, _, label in rep.results))
 
+    def test_a_kern_table_the_runtime_refuses_is_a_valueerror(self):
+        # A font entry is tex, size, weight, ascent, line_height,
+        # glyph_count (uint16 each), glyphs_off (uint32), kern_count,
+        # a pad (uint16 each), then kerns_off (uint32) at byte 20.
+        self.assertEqual(U._FONT.format, "<HHHHHHIH2xI")
+        d = bytearray(self.seed)
+        base = _get(d, "off_font")
+        with_kerns = [i for i in range(_get(d, "n_font"))
+                      if struct.unpack_from("<H", d, base + i * U._FONT.size + 16)[0]]
+        self.assertTrue(with_kerns, "memcard has a font with kern pairs")
+        at = base + with_kerns[0] * U._FONT.size + 20
+        struct.pack_into("<I", d, at, struct.unpack_from("<I", d, at)[0] + 2)
+        self.assertRefused(d, "font %d's kern table" % with_kerns[0],
+                           "multiple of 4", "PS2UI_ERR_ALIGN")
+
     def test_a_font_naming_no_texture_is_a_verdict(self):
         d = bytearray(self.seed)
         struct.pack_into("<H", d, _get(d, "off_font"), 0x7FFF)
         rep = check_blob(self.read(d))
         self.assertTrue(any("font 0 names a real atlas texture" in label
                             and not ok for ok, _, label in rep.results))
+
+
+class TestTheStop(_Scratch):
+    """check_blob stops before the checks that subscript through
+    references only when a reference or a screen range is bad, and says
+    so. Review of #182 found the first version stopping on ANY error."""
+
+    def setUp(self):
+        super().setUp()
+        self.seed = bytearray(raw(MEMCARD))
+
+    def test_a_stranded_focus_node_keeps_every_later_check(self):
+        # The layout compiler only warns about an unreachable node, so
+        # a non-strict build bakes one. Review of #182's repro: point
+        # every edge into save-okami back at its source.
+        u = self.read(self.seed)
+        full = len(check_blob(u).results)
+        target = [n["index"] for n in u.focus if n["name"] == "save-okami"]
+        self.assertEqual(len(target), 1)
+        for n in u.focus:
+            for edge in ("up", "down", "left", "right"):
+                if n[edge] == target[0]:
+                    n[edge] = n["index"]
+        rep = check_blob(u)
+        self.assertEqual(len(rep.results), full,
+                         "an error that makes nothing unsafe must not "
+                         "shorten the report")
+        self.assertEqual([label for ok, _, label in rep.results if not ok],
+                         ["saves: every focusable reachable by D-pad; "
+                          "stranded: save-okami"])
+        self.assertFalse(any("stopped before" in n for n in rep.notes))
+
+    def test_a_stop_says_so(self):
+        d = bytearray(self.seed)
+        at = _get(d, "off_screen") + 8          # screen 0's cmd_count
+        struct.pack_into("<I", d, at, struct.unpack_from("<I", d, at)[0] + 500)
+        rep = check_blob(self.read(d))
+        stops = [n for n in rep.notes if "stopped before" in n]
+        self.assertEqual(len(stops), 1, rep.notes)
+        self.assertIn("the screens do not tile the tables", stops[0])
+        self.assertIn("VRAM", stops[0])
 
 
 class TestMutatedBlobs(_Scratch):

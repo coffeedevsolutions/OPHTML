@@ -121,13 +121,25 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     ps2ui_ctx ctx;
     GSGLOBAL gs;
-    uint8_t *blob;
+    uint8_t *buf, *blob;
     void *arena;
-    size_t need, alloc;
+    size_t need, alloc, shift = 0;
 
-    blob = malloc(size ? size : 1);
-    if (blob == NULL)
+    /* SOMETIMES AT A MISALIGNED ADDRESS. malloc always returns an
+     * aligned buffer, so the first version of this harness could never
+     * reach the `data & 3` checks in arena_compute and ps2ui_load, and
+     * review of #182 found both removable with nothing failing. When
+     * bits 4 and 5 of the last input byte are both set (a quarter of
+     * inputs), bits 1-2 shift the blob 0-3 bytes into a padded buffer,
+     * so UBSan sees a header read at an address the EE would fault on.
+     * The blob still ends at the buffer's end, so ASan still sees a
+     * read one byte past it. */
+    if (size && (data[size - 1] & 0x30u) == 0x30u)
+        shift = (data[size - 1] >> 1) & 3u;
+    buf = malloc(size + shift ? size + shift : 1);
+    if (buf == NULL)
         return 0;
+    blob = buf + shift;
     memcpy(blob, data, size);
 
     /* A hostile blob carries a valid CRC: anyone can compute one. So the
@@ -150,7 +162,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
      * arena check runs as well. */
     need = ps2ui_arena_size(blob, size);
     if (need > FUZZ_ARENA_MAX) {
-        free(blob);
+        free(buf);
         return 0;
     }
     alloc = need ? need : 64;
@@ -158,7 +170,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                           (alloc + PS2UI_ARENA_ALIGN - 1) &
                           ~(size_t)(PS2UI_ARENA_ALIGN - 1));
     if (arena == NULL) {
-        free(blob);
+        free(buf);
         return 0;
     }
     if (need && size && (data[size - 1] & 1u))
@@ -177,6 +189,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         exercise(&ctx, &gs);
 
     free(arena);
-    free(blob);
+    free(buf);
     return 0;
 }

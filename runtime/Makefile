@@ -358,8 +358,12 @@ build/test_runtime: ps2ui.c stub/gskit_stub.c tests/test_runtime.c ps2ui.h \
 #
 # `make fuzz` is CI's short pass. `make fuzz FUZZ_TIME=3600` is a long
 # one, and keeps what it finds in build/fuzz-corpus for the next run.
+# FUZZ_ARGS goes to libFuzzer as-is: ci.yml passes -seed=1, so its pass
+# walks the same inputs every run instead of a new random walk that
+# could surface an old bug on an unrelated pull request (review of #182).
 FUZZ_CC   ?= clang
 FUZZ_TIME ?= 60
+FUZZ_ARGS ?=
 FUZZ_SEEDS = $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) \
              $(wildcard ../examples/*/build/*.uib) \
              $(wildcard ../fixtures/*/build/*.uib)
@@ -384,7 +388,7 @@ fuzz: build/fuzz_load
 	echo "fuzz: $$n seed blob(s), $(FUZZ_TIME) s"
 	./build/fuzz_load build/fuzz-corpus build/fuzz-seeds \
 		-max_total_time=$(FUZZ_TIME) -max_len=262144 \
-		-artifact_prefix=build/fuzz-crashes/ -print_final_stats=1
+		-artifact_prefix=build/fuzz-crashes/ -print_final_stats=1 $(FUZZ_ARGS)
 
 clean:
 	rm -rf build

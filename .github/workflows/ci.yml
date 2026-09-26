@@ -330,13 +330,18 @@ jobs:
       # inputs this change makes reachable get a minute. Its first run
       # found a misaligned read in ps2ui_arena_size within seconds. The
       # long runs are fuzz.yml's, nightly.
+      #
+      # -seed=1 makes it a gate rather than a lottery: the same inputs in
+      # the same order on every run, so a failure belongs to the change
+      # that caused it and a re-run reproduces it. Exploring is
+      # fuzz.yml's job, with libFuzzer's time-based seed.
       - name: Fuzz the .uib loader (short pass)
         run: |
           dpkg -s libclang-rt-18-dev >/dev/null 2>&1 || {
             sudo apt-get update -q
             sudo apt-get install -y -q libclang-rt-18-dev
           }
-          make -C runtime fuzz FUZZ_CC=clang-18 FUZZ_TIME=60
+          make -C runtime fuzz FUZZ_CC=clang-18 FUZZ_TIME=60 FUZZ_ARGS=-seed=1
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
