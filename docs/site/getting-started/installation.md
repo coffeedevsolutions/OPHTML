@@ -19,8 +19,9 @@ Python baker: `ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen`.
 HTML and CSS, then calls the baker directly for everything else.
 
 Nothing here needs a PS2 or an emulator. Building a `.uib` blob and
-checking it run entirely on the host. Only the console half, compiling and
-running the C runtime on real hardware, needs the ps2dev toolchain.
+checking it run entirely on the host. Only a console program of your own,
+compiling and running the C runtime on real hardware, needs the ps2dev
+toolchain. The ready-made console launcher needs none.
 
 ## Minimal example
 

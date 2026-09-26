@@ -9,8 +9,8 @@ malformed `ps2ui.json` files) and `badproj/` (a project whose stylesheet does
 not compile). Nothing under `examples/*/build/` was written; the memcard blob
 was read only.
 
-Suites run here: `make -C runtime test` printed `1..410` and
-`PASS: 410 checks, 0 failure(s)`. `cd packages/baker && python3 -m unittest
+Suites run here: `make -C runtime test` printed `1..418` and
+`PASS: 418 checks, 0 failure(s)`. `cd packages/baker && python3 -m unittest
 discover -s tests -p test_baker.py -k TestFontgenNeedsNoRaqm` printed
 `Ran 3 tests ... OK` (F47; it replaced `TestFontgenRefusesWithoutRaqm`).
 

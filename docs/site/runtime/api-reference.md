@@ -45,7 +45,7 @@ Four conventions cover every function. The returns column of each table names th
 
 | signature | returns | scope | notes |
 |---|---|---|---|
-| `size_t ps2ui_arena_size(const void *data, size_t size)` | bytes, or 0 when the header or tables do not fit in `size` | blob | Reads counts only. Does not validate the blob or touch the GS. |
+| `size_t ps2ui_arena_size(const void *data, size_t size)` | bytes, or 0 when the header is unreadable, the magic, version or alignment is wrong, or the tables do not fit in `size` | blob | Reads counts only. Checks no CRC, reference or record, and does not touch the GS. |
 | `int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size, void *arena, size_t arena_size)` | code | blob | Zeroes `ctx`, validates, points `ctx` into `data` and `arena`. A refused blob never writes the arena. `arena` must be `PS2UI_ARENA_ALIGN` aligned and at least `ps2ui_arena_size()` bytes. |
 | `int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs)` | 0 / -1 | blob | Sums VRAM for every texture first. On -1 nothing is transferred and `ctx->uploaded` stays 0. Streamed slots are budgeted but not bound until `tex_set`. |
 

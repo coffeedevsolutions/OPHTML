@@ -96,8 +96,9 @@ $ ps2ui-check ui.uib
 ```
 
 `ps2ui_arena_size` answers the same question at runtime from the blob in
-hand. It returns 0 when the header is unreadable or the tables do not fit
-the buffer, which also reads as "do not call load".
+hand. It returns 0 when the header is unreadable, the magic, version or
+table alignment is wrong, or the tables do not fit the buffer, which also
+reads as "do not call load".
 
 ## Reference table
 
@@ -137,8 +138,8 @@ ok 272 - and render issued no clear, which is the guarantee the sum above only d
 ok 273 - and issued no residency ageing tick: nextFrame is the frame loop's, once per frame, or the overlay ages the base
 ok 274 - a composited frame leaves the scissor at full canvas, so the next drawer inherits the whole screen and not the last clip
 ...
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 ```
 
 | guarantee | consequence |

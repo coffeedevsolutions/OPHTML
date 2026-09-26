@@ -12,7 +12,9 @@ sources: [packages/baker/ps2ui_bake/vendor.py, packages/baker/setup.py, packages
 
 ## What it is
 
-The console half of OPHTML is two C files, `ps2ui.c` and `ps2ui.h`. Add
+For a console program of your own, the console half of OPHTML is two C
+files, `ps2ui.c` and `ps2ui.h`; the
+[console launcher](page:runtime/console-launcher) is a prebuilt one. Add
 them to a ps2sdk and gsKit project, include the header, and link the baked
 blob in beside them. Nothing else from this repository is compiled.
 
@@ -148,8 +150,8 @@ ok - sample compiles: -DPS2UI_OPLENV_CYCLE_EVERY=300
 PASS: 5 checks, 0 failure(s)
 ./build/test_runtime ../examples/memcard/build/ui.uib build/list.uib build/streamed.uib build/wide.uib build/huge.uib
 ...
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 ```
 
 The suite is also the check a contribution runs. See

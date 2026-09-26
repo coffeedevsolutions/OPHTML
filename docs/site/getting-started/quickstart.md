@@ -185,5 +185,7 @@ another terminal cannot collide with it.
 - [Tutorial: a game browser](page:getting-started/tutorial-game-browser#1-fonts-of-your-own)
   builds this same screen out further, with a second screen and real list data.
 - [ps2ui](page:cli/ps2ui#build) documents every subcommand and flag used above.
+- [Console launcher](page:runtime/console-launcher#minimal-example) runs a
+  baked theme on a console as a game launcher, with no C of your own.
 - [The project file](page:authoring/project-file#reference-table) lists
   every key `ps2ui.json` accepts, not only the four used here.

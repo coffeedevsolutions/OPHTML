@@ -28,7 +28,7 @@
 | fontgen.regen.manifest | `regen.sh` resolves the TTFs through `load_font_manifest(fonts/fonts.json)`, which takes the first existing candidate path, expanding `~` first and resolving relative candidates against the manifest's directory. | fonts/regen.sh:40-47; packages/baker/ps2ui_bake/cli.py:83-113 (`load_font_manifest`) | regen printed `regen: regular = /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`, the first candidate in `fonts/fonts.json` | verified |
 | fontgen.regen.vendor-identical | The vendored `fonts/vendor/DejaVuSans.ttf` and the system DejaVu produce identical metrics. | fonts/vendor/DejaVuSans.ttf; fonts/fonts.json | `ps2ui-fontgen fonts/vendor/DejaVuSans.ttf "DejaVu Sans" 400 <scratch>` then `cmp` against `fonts/default.metrics.json`: identical | verified |
 | fontgen.exit.uncaught | A non-integer `<weight>` raises `ValueError` and a missing or unreadable TTF raises `OSError: cannot open resource`; both are uncaught tracebacks with exit 1 and no output file. | packages/baker/ps2ui_bake/fontgen.py:158,123 | `ps2ui-fontgen <ttf> "DejaVu Sans" bold <out>` exit 1 with `ValueError`; `ps2ui-fontgen <absent> "DejaVu Sans" 400 <out>` exit 1 with `OSError`; neither output file created | verified |
-| fontgen.readme | README.md lines 131, 140 and 313 name `ps2ui-fontgen` as a bare command, show `ps2ui fontgen <regular> <bold>`, and show `./fonts/regen.sh`; all agree with the code. | README.md:133,142,315 | compared with the runs above | verified |
+| fontgen.readme | README.md lines 131, 140 and 313 name `ps2ui-fontgen` as a bare command, show `ps2ui fontgen <regular> <bold>`, and show `./fonts/regen.sh`; all agree with the code. | README.md:135,144,317 | compared with the runs above | verified |
 
 ## findings
 

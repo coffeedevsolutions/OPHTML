@@ -137,7 +137,7 @@ prerelease in different ways.
 
 | registry | package | prerelease mechanism | current state |
 |---|---|---|---|
-| npm | `@ophtml/layout` | `publishConfig.tag` set to `next` while the version is a prerelease; a plain `npm install` resolves the `latest` dist-tag, so the prerelease stays unreachable by it | no `publishConfig.tag`, version 0.10.0 — a release, so `latest` is correct |
+| npm | `@ophtml/layout` | `publishConfig.tag` set to `next` while the version is a prerelease; a plain `npm install` resolves the `latest` dist-tag, so the prerelease stays unreachable by it | `latest` serves the 0.10.0 release; this tree's prerelease carries `tag: "next"`, so a publish of it would not take `latest` |
 | PyPI | `ophtml` | pip excludes a prerelease from a plain `pip install` unless no stable version satisfies the request | 0.10.0 is a release, so a plain `pip install ophtml` resolves it |
 
 A release drops `publishConfig.tag`, or sets it to `latest`; pip needs

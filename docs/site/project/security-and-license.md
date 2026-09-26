@@ -5,7 +5,7 @@ description: How to report a vulnerability, what the runtime and build tools do 
 section: project
 order: 72
 version: 0.10.0
-sources: [SECURITY.md, LICENSE, fonts/vendor/LICENSE.txt, runtime/vendor/README.md, runtime/vendor/gsKit/dmaCore.h, packages/baker/pyproject.toml, packages/layout/package.json, runtime/ps2ui.c, .github/workflows/ci.yml, .github/workflows/hw.yml, .github/workflows/registry.yml]
+sources: [SECURITY.md, LICENSE, fonts/vendor/LICENSE.txt, runtime/vendor/README.md, runtime/vendor/gsKit/dmaCore.h, packages/baker/pyproject.toml, packages/layout/package.json, runtime/ps2ui.c, .github/workflows/ci.yml, .github/workflows/hw.yml, .github/workflows/registry.yml, .github/workflows/docs.yml, .github/workflows/fuzz.yml, .github/workflows/console-release.yml, packages/layout/src/limits.js]
 ---
 
 # Security and license
@@ -29,25 +29,29 @@ someone else as untrusted input, the same as any other binary format a
 program parses.
 
 `ps2ui-layout` and `ps2ui-bake` run on the machine that invokes them and
-read whatever HTML, CSS or IR file is pointed at them. Neither tool caps
-memory or time against a hostile input today. Do not bake a project file
-you would not open in a text editor first.
+read whatever HTML, CSS or IR file is pointed at them. Both refuse a
+canvas, element count, nesting depth or source image past a hard cap,
+overridable per project ([resource caps](page:authoring/project-file#resource-caps)).
+Neither caps memory or time directly, so do not bake a project file you
+would not open in a text editor first. The loader is fuzzed in CI, because
+the console launcher loads any `theme.uib` it finds on a drive.
 
 ## CI
 
-CI never grants write access to the default token. `ci.yml` sets:
+Every workflow defaults the token to read-only. `ci.yml` sets:
 
 ```yaml
 permissions:
   contents: read
 ```
 
-`hw.yml` and `registry.yml` set the identical block. Every job in all three
-workflows runs on a GitHub-hosted runner: `ubuntu-24.04` in `ci.yml`,
-`ubuntu-24.04` in `hw.yml`, and hosted images in `registry.yml`
-(`macos-15`, `macos-15-intel` and `windows-2025`, through a `matrix.os`
-in three of its four jobs and a literal `runs-on` in the fourth). None
-of the three declares a self-hosted runner. A
+The other five workflows set the same block. Three widen it for one
+purpose each: `console-release.yml`'s `attach` job gets `contents: write`
+to put the ELFs on a release, `docs.yml`'s deploy gets `pages: write` and
+`id-token: write`, and `fuzz.yml` gets `actions: write` to replace its
+corpus cache. Every job runs on a GitHub-hosted runner: `ubuntu-24.04`,
+or in `registry.yml` also `macos-15`, `macos-15-intel` and
+`windows-2025`. None of the six declares a self-hosted runner. A
 workflow run from a first-time contributor's pull request needs a
 maintainer's approval before it starts, a GitHub repository setting rather
 than a line in these files. Do not attach a self-hosted runner to this

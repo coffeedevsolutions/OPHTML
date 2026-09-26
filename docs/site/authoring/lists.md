@@ -153,7 +153,7 @@ ok 154 - shrinking the list pulls the selection and window back in
 ok 155 - emptying the list resets it
 ok 156 - a prefix that matches no node still tracks indices
 ...
-PASS: 410 checks, 0 failure(s)
+PASS: 418 checks, 0 failure(s)
 ```
 
 ### Focus sync

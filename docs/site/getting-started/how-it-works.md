@@ -70,8 +70,8 @@ on the server. It ships the result as PNG bytes; the browser draws no UI
 pixel itself. Four aspect modes resample that one render: `framebuffer`,
 `authored`, `force-4:3`, `force-16:9`. See [the previewer](page:cli/previewer#limits)
 for the full list of what it draws. The previewer cannot show
-`ps2ui_visible_set` or the runtime's list window, because its renderer
-takes no visibility parameter. It cannot show a hardware fault the command
+`ps2ui_visible_set`, or the runtime's list window outside `--console`,
+because its renderer takes no visibility parameter. It cannot show a hardware fault the command
 list is innocent of, or two screens composited into one frame, because it
 renders one screen at a time. It cannot fill a streamed texture, because it
 supplies no texels. A warning it prints names a screen, never a command

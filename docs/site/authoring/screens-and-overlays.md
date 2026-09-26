@@ -167,8 +167,8 @@ ok 280 - and the base's focused node is not reachable from it, so the overlay is
 ok 281 - and dismissing restores the base's focus where the user left it
 ok 283 - a composited frame in steady state transfers no pixels: two renders share one residency generation, so an open overlay does not re-upload the base's atlases every frame
 ...
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 ```
 
 Rendering a screen does not consume it. After a composite, the overlay

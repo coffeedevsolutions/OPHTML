@@ -147,7 +147,7 @@ A problem the launcher can report goes to the `status` slot in words.
 | `No ISOs in DVD/ or CD/` | drives mounted, none with ISOs in those folders | move the ISOs into `DVD/` or `CD/` at the drive's root |
 | `Neutrino not found: put neutrino/ at a drive's root` | ✕ pressed, Neutrino in none of the places above | unzip Neutrino's `neutrino/` folder at a drive's root |
 | `Could not start Neutrino (<code>)` | Neutrino was found, and the loader returned instead of starting it | check that `neutrino/` is Neutrino's release folder unzipped as-is, with its modules beside `neutrino.elf` |
-| `This theme has no game-0 row to list games in` | games were found, and the theme has no `game-0` row to show them in | add rows with `id="game-{i}"` under `data-repeat`, and run `ps2ui check --console` on the blob |
+| `This theme has no game-0 row to list games in` | games were found, and the theme has no `game-0` row to show them in | add rows with `id="game-{i}"` under `data-repeat`, and run `ps2ui-check --console` on the blob |
 | `<path> refused (<code>); built-in theme` | your `theme.uib` failed to load | run `ps2ui check` on it, and read the code on [Errors and constants](page:runtime/errors-and-constants) |
 
 Before a theme draws, a solid colour is the only signal:

@@ -1,7 +1,7 @@
 ---
 id: project/faq
 title: FAQ
-description: Twenty questions the code answers, each linked to the page that proves it.
+description: Twenty-one questions the code answers, each linked to the page that proves it.
 section: project
 order: 73
 version: 0.10.0
@@ -82,8 +82,9 @@ The call reports a bare code and never states the size it expected. See
 `preview.render` and `ps2ui serve` take no visibility parameter, so a
 served page always draws the baked state. A node hidden with
 `ps2ui_visible_set` still looks focusable in the previewer and is not on
-the console. The runtime list window has the same gap: nothing shows
-`top` or `sel` moving. See [Previewer](page:cli/previewer#limits).
+the console. The runtime list window has the same gap, except under
+`ps2ui serve --console`, which walks a console theme's `game-N` list.
+See [Previewer](page:cli/previewer#limits).
 
 ### Can I draw over a game
 
@@ -174,8 +175,15 @@ slots with the screen name, as the sample's telemetry lines do. See
 ### Which test target do I run
 
 Run `make -C runtime test`, which chains `syntax-check`, `timing-check`
-and `test-narrow` before the 410-check `test_runtime` suite. Add
+and `test-narrow` before the 418-check `test_runtime` suite. Add
 `make -C runtime syntax-check CC=clang` to check the same sources under a
 second compiler. There is no `test-compat` target; running one fails with
 no rule to make it. See
 [Integrating the runtime](page:runtime/integrating#what-the-host-targets-prove).
+
+### Can I run a theme without writing C
+
+Yes. `ophtml.elf` loads a `theme.uib` from a drive and lists your ISOs
+through it, and `ps2ui serve --console` previews the theme filled with
+games first. It has run only in an emulator so far. See
+[Console launcher](page:runtime/console-launcher#minimal-example).

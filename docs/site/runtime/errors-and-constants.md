@@ -89,8 +89,8 @@ ok 71 - load refuses a misaligned arena: the CLUT region is a DMA source
 ok 372 - n_theme == 0 is refused: a themeless blob still has one row
 ok 373 - n_theme > 1 without FEAT_ROLE_TINTS is refused by name, not loaded into a theme switch that cannot be correct
 ...
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 ```
 
 ## Constants

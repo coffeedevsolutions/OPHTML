@@ -327,11 +327,11 @@ costs five `strncpy`s per D-pad press.
   column, the action buttons and the probe cells all share one look on
   purpose. Six covers cost six textures; the alpha ladder and flex bars
   are square because rounding them would have cost seven more to prove
-  what the RADIUS cell already proves. That is what keeps 22/32.
-- **The CRT contrast lint cannot see this.** It composites text against
-  the nearest rect's raw RGB and ignores that rect's alpha, so a scrim
-  at 60% lints identically to one at 100%. Over a bright game frame the
-  real contrast is worse than the linter believes. Judge the overlay
+  what the RADIUS cell already proves. That is what keeps it at 25 textures.
+- **The CRT contrast lint only half sees this.** It composites the
+  scrim's alpha, but against black and white backdrops, not your game
+  frame. Over a bright game frame the real contrast can be worse than
+  the linter believes. Judge the overlay
   from `in-game.png`, not from the lint being quiet.
 - **The browser does not wrap, the probe screen does.** One
   `--focus-wrap` flag, both of its behaviours, checked in `check.py`.

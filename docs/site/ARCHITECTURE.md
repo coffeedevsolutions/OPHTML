@@ -367,7 +367,7 @@ loses its closed items cannot be audited against the tree.
 | runtime/ps2ui.c tex_index_by_name | **fixed in #129** — a third comment naming PS2UI_MAX_TEXTURES, beyond the two in drift row D11 | authoring/vram-budget |
 | docs/format-ir.md | the streamed image form `{streamed, name}` is undocumented, beyond drift row D8 | reference/ir-format |
 | README.md "Moving things at runtime" | **fixed** — said ps2ui serve and ps2ui-bake --preview apply the same offset; neither exposes it, the served frame is always at (0, 0) | runtime/moving-and-hiding |
-| runtime/Makefile `test` target | test-narrow runs last, so `PASS: 5 checks` prints before `PASS: 410 checks` | runtime/integrating |
+| runtime/Makefile `test` target | test-narrow runs last, so `PASS: 5 checks` prints before `PASS: 418 checks` | runtime/integrating |
 | packages/baker/ps2ui_bake/vendor.py closing message | **fixed in #131** — printed the docker line before the reader had a Makefile; the sample Makefile is linked two paragraphs later | runtime/integrating |
 | tools/make_cover_raw.py convert() | a second deprecated `Image.getdata()` site, unreached by `--self-test` | runtime/streaming-art |
 | packages/baker/ps2ui_bake/serve.py BuildPipeline.build | redirect_stderr rebinds sys.stderr only, so the compiler subprocess's diagnostic never reaches the build banner | cli/previewer |
@@ -409,7 +409,7 @@ still writes to the contract.
 
 ## Verification
 
-Two committed tools, both run by CI:
+Three committed tools, all run by CI:
 
 ```sh
 python3 tools/check-site-pages.py   # ids, version stamps, page: and repo: links, citation drift, voice, images, word budgets

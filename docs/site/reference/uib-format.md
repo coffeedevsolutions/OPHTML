@@ -117,7 +117,7 @@ display_aspect_den  3
 | 80 | 2 | u16 | display_aspect_num | panel aspect numerator |
 | 82 | 2 | u16 | display_aspect_den | panel aspect denominator |
 
-The runtime derives the pixel aspect from the last two fields and the canvas size, see [ps2ui_pixel_aspect_x1000](repo:runtime/ps2ui.h#L689). The C struct for every record on this page is listed on [C API reference](page:runtime/api-reference#structs).
+The runtime derives the pixel aspect from the last two fields and the canvas size, see [ps2ui_pixel_aspect_x1000](repo:runtime/ps2ui.h#L690). The C struct for every record on this page is listed on [C API reference](page:runtime/api-reference#structs).
 
 ## Records
 
@@ -386,7 +386,7 @@ The C side is held separately. The runtime test `struct layout matches the on-di
 
 ### History
 
-Every struct-size change bumped the version. The entries for v5 to v7 are in [docs/format-uib.md](repo:docs/format-uib.md#L466); v1 to v4 are recorded in [docs/PLAN.md](repo:docs/PLAN.md#L92), and `check-versions.py` holds that line to run v1 through the current version.
+Every struct-size change bumped the version. The entries for v5 to v7 are in [docs/format-uib.md](repo:docs/format-uib.md#L466); v1 to v4 are recorded in [docs/PLAN.md](repo:docs/PLAN.md#L100), and `check-versions.py` holds that line to run v1 through the current version.
 
 | version | change | stride moved | feature bit |
 |---|---|---|---|

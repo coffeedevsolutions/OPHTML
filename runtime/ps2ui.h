@@ -446,10 +446,11 @@ typedef struct ps2ui_ctx {
 #define PS2UI_ARENA_ALIGN    16
 
 /* Bytes of scratch this blob needs. Reads the header and table counts
- * (and the slot/texture tables they locate) but does not validate the
- * blob and does not touch the GS. Returns 0 if the header is
- * unreadable or the tables do not fit in `size`, which is also the
- * answer for "do not bother calling load". */
+ * (and the slot/texture tables they locate) but checks no CRC,
+ * reference or record, and does not touch the GS. Returns 0 if the
+ * header is unreadable, the magic or version is wrong, the blob or a
+ * table is not 4-byte aligned, or the tables do not fit in `size`,
+ * which is also the answer for "do not bother calling load". */
 size_t ps2ui_arena_size(const void *data, size_t size);
 
 /* Validate a blob and point the context into it. The blob must stay
