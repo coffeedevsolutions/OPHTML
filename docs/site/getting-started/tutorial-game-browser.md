@@ -315,3 +315,5 @@ every command above stays true to the checkout.
   every key beyond the four used here.
 - [The frame loop](page:runtime/frame-loop#behaviour) covers load, upload
   and render in full, with every guarantee tabulated.
+- [Console launcher](page:runtime/console-launcher#minimal-example) runs a
+  theme that uses its names as a game launcher, with no C of your own.

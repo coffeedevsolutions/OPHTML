@@ -32,7 +32,7 @@ shared stylesheet across screens.
 | `:focus` changes only fill and border colour; geometry never does | [library.css](repo:examples/memcard/ui/library.css#L48) |
 | `data-slot` with `data-slot-capacity` for runtime-editable counts and titles | [library.html](repo:examples/memcard/ui/library.html#L25), [saves.html](repo:examples/memcard/ui/saves.html#L25) |
 | `white-space: nowrap` plus `text-overflow: ellipsis` truncates long titles | [library.css](repo:examples/memcard/ui/library.css#L138) |
-| `preview.render` per screen and `preview.montage` for one sheet of every focus state | [build.sh](repo:examples/memcard/build.sh#L33) |
+| `preview.render` per screen and `preview.montage` for one sheet of every focus state | [build.sh](repo:examples/memcard/build.sh#L34) |
 
 The project file names two screens, sets no `mode`, `canvas` or `focusWrap`,
 and leaves every one of those keys at the baker's default. Read the full key
@@ -51,8 +51,8 @@ The script compiles both screens, bakes them into one blob, runs
 committed screenshots from it. Its last lines:
 
 ```
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 make: Leaving directory '/home/user/OPHTML/runtime'
 ps2ui-bake: screenshots -> ./examples/memcard/screenshots/
 memcard example: ./examples/memcard/build/ui.uib
@@ -85,7 +85,7 @@ so a warning here is a CI failure:
 
 CI builds and checks this blob in the step named "Example builds end to end
 (includes runtime tests)", which is `./examples/memcard/build.sh` and nothing
-else ([ci.yml](repo:.github/workflows/ci.yml#L228-L229)).
+else ([ci.yml](repo:.github/workflows/ci.yml#L241-L242)).
 
 ## Numbers from the blob
 
@@ -108,14 +108,14 @@ figures differ.
 | arena, 64-bit host | 1750 bytes |
 | VRAM used | 160 KiB of 736 KiB budget (21%) |
 
-`make -C runtime test` runs its 410-check main suite and its 5-check narrow
+`make -C runtime test` runs its 418-check main suite and its 5-check narrow
 suite over this same blob, both listed as prerequisites of `test` but the
 narrow suite's line prints last:
 
 ```
 PASS: 5 checks, 0 failure(s)
 ...
-PASS: 410 checks, 0 failure(s)
+PASS: 418 checks, 0 failure(s)
 ```
 
 ## Source tour

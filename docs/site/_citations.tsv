@@ -2,7 +2,7 @@
 # Written by tools/check-site-pages.py --pin. Do not edit by hand.
 _facts/README	packages/layout/src/box.js	220	      capacity: parseInt(el.attrs['data-slot-capacity'] ?? '63', 10),	      name,	    };
 _facts/README	runtime/ps2ui.c	1437	static uint32_t slot_index_by_name(const ps2ui_ctx *ctx, const char *name)		{
-_facts/authoring/crt-linter	README.md	218	## Supported CSS		
+_facts/authoring/crt-linter	README.md	222	## Supported CSS		
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	544	def _declared_count(rep, n, declared, flag, noun, surplus_text, clean_text):		    """Report a count that was declared on the command line.
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	577	def check_crt(uib, rep: Report, canvas, allow_dead: int = 0,		              allow_hairline: int = 0) -> None:
 _facts/authoring/crt-linter	packages/baker/ps2ui_bake/check.py	807	    failed = rep.errors + (rep.warnings if args.strict else 0)		    verdict = "PASS" if failed == 0 else "FAIL"
@@ -20,10 +20,10 @@ _facts/authoring/crt-linter	packages/layout/bin/ps2ui-layout.js	106	  for (const
 _facts/authoring/crt-linter	packages/layout/src/box.js	99	  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',	const KNOWN_DATA_ATTRS = new Set([	  'data-tex-slot', 'data-repeat',
 _facts/authoring/crt-linter	packages/layout/src/box.js	201	  box.nocontrast = 'data-nocontrast' in el.attrs;	  // one has to be argued for each time.	  if ('data-slot' in el.attrs) {
 _facts/authoring/crt-linter	packages/layout/src/box.js	310	  // a rounded card that does not clip draws correctly, and a square	  // fires on the box that does both, because either alone is fine:	  // one that clips clips correctly.
-_facts/authoring/crt-linter	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
-_facts/authoring/crt-linter	packages/layout/src/index.js	273	  // in at the index it would have painted at. A data-slot draws no	  // forLint, not commands: it is the same list with slot text spliced	  // static command, so linting `commands` checked every colour in the
-_facts/authoring/crt-linter	packages/layout/src/index.js	276	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
-_facts/authoring/crt-linter	packages/layout/src/index.js	283	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
+_facts/authoring/crt-linter	packages/layout/src/index.js	278	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/authoring/crt-linter	packages/layout/src/index.js	280	  // in at the index it would have painted at. A data-slot draws no	  // forLint, not commands: it is the same list with slot text spliced	  // static command, so linting `commands` checked every colour in the
+_facts/authoring/crt-linter	packages/layout/src/index.js	283	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
+_facts/authoring/crt-linter	packages/layout/src/index.js	290	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
 _facts/authoring/crt-linter	packages/layout/src/lint.js	7	// statically. Lints are warnings, not errors — a homebrew author with an	// visible in a desktop browser preview, so the compiler checks for them	// LCD and component cables may ignore all of them deliberately.
 _facts/authoring/crt-linter	packages/layout/src/lint.js	12	export const DEFAULT_LINT_OPTIONS = Object.freeze({		  canvasW: 640,
 _facts/authoring/crt-linter	packages/layout/src/lint.js	22	  minContrast: 3.0,	  minFontSize: 14,	  // Pixel aspect ratio; 1.0 is square. Anything else distorts shapes.
@@ -59,9 +59,9 @@ _facts/authoring/crt-linter	packages/layout/src/lint.js	277	    if (x + w > safe
 _facts/authoring/crt-linter	packages/layout/src/lint.js	279	        rule: 'overscan',	      warnings.push({	        message: `focusable "${node.name}" extends past the action-safe area`,
 _facts/authoring/crt-linter	packages/layout/src/paint.js	156	      ...(box.nocontrast ? { nocontrast: true } : {}),	      focusId: box.focusId,	    });
 _facts/authoring/crt-linter	packages/layout/src/paint.js	255	        ...(box.nocontrast ? { nocontrast: true } : {}),	        focusId: box.focusId,	      });
-_facts/authoring/css	README.md	220	- Flexbox: `flex-direction`, `flex-wrap`, `flex-grow`/`-shrink`/`-basis` and the `flex` shorthand, `gap`/`row-gap`/`column-gap`, `justify-content`, `align-items`, `align-self`. **`flex-direction` has no default** (see below)		- Box model (border-box): `padding`, `margin`, borders, `border-radius` (one px length, baked as nine-patch textures)
-_facts/authoring/css	README.md	236	**Colors are not open-ended.** Hex (`#rgb`, `#rgba`, `#rrggbb`,		`#rrggbbaa`), `rgb()`/`rgba()` with numbers or percentages, and exactly
-_facts/authoring/css	README.md	250	**A `:focus` rule may change paint, and only paint.** Changing `width`,		`padding`, `flex-*`, `font-size`, `line-height` or `overflow` there is a
+_facts/authoring/css	README.md	224	- Flexbox: `flex-direction`, `flex-wrap`, `flex-grow`/`-shrink`/`-basis` and the `flex` shorthand, `gap`/`row-gap`/`column-gap`, `justify-content`, `align-items`, `align-self`. **`flex-direction` has no default** (see below)		- Box model (border-box): `padding`, `margin`, borders, `border-radius` (one px length, baked as nine-patch textures)
+_facts/authoring/css	README.md	240	**Colors are not open-ended.** Hex (`#rgb`, `#rgba`, `#rrggbb`,		`#rrggbbaa`), `rgb()`/`rgba()` with numbers or percentages, and exactly
+_facts/authoring/css	README.md	254	**A `:focus` rule may change paint, and only paint.** Changing `width`,		`padding`, `flex-*`, `font-size`, `line-height` or `overflow` there is a
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	72	def patch_key(radius: int, border_w: int, part: int):		    """A coverage patch is identified by its GEOMETRY and nothing else.
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	82	@dataclass		class NinePatch:
 _facts/authoring/css	packages/baker/ps2ui_bake/ninepatch.py	155	def slice_quads(patch: NinePatch, x: int, y: int, w: int, h: int):		    """Yield (dst_rect, src_rect) pairs mapping the nine cells onto a
@@ -149,8 +149,8 @@ _facts/authoring/css	packages/layout/src/flex.js	551	    // Ellipsize overflowin
 _facts/authoring/css	packages/layout/src/flex.js	552	    if (s.whiteSpace === 'nowrap' && s.textOverflow === 'ellipsis') {	    // Ellipsize overflowing nowrap lines when asked to.	      const font = ctx.fonts.resolve(s.fontWeight);
 _facts/authoring/css	packages/layout/src/flex.js	613	      // keeps its intrinsic aspect unless the cross size is explicit.	      // flex containers (distorting them); here a replaced element	      // Pixel art on a CRT beats spec fidelity on this one.
 _facts/authoring/css	packages/layout/src/index.js	62	  resolve(weight) {	  }	    return weight >= 600 ? this.bold : this.regular;
-_facts/authoring/css	packages/layout/src/index.js	207	  if (!root) throw new Error('layout: root element is display: none');	  if (cssErrors.length) throw cssError(cssErrors);	  if (boxEnv.undirected) {
-_facts/authoring/css	packages/layout/src/index.js	208	  if (boxEnv.undirected) {	  if (!root) throw new Error('layout: root element is display: none');	    // All of them at once: a document written against the old implicit
+_facts/authoring/css	packages/layout/src/index.js	214	  if (!root) throw new Error('layout: root element is display: none');	  if (cssErrors.length) throw cssError(cssErrors);	  if (boxEnv.undirected) {
+_facts/authoring/css	packages/layout/src/index.js	215	  if (boxEnv.undirected) {	  if (!root) throw new Error('layout: root element is display: none');	    // All of them at once: a document written against the old implicit
 _facts/authoring/css	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/authoring/css	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
 _facts/authoring/css	packages/layout/src/paint.js	71	  const fillVec = foldAlpha(	  // dead decision is theme 0's, and every row follows it.	    vectorOf(style.backgroundThemes, style.background, style.backgroundVar,
@@ -198,8 +198,8 @@ _facts/authoring/dynamic-text	runtime/ps2ui.c	1452	static void utf8_trim_partial
 _facts/authoring/dynamic-text	runtime/ps2ui.c	1476	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text)		{
 _facts/authoring/dynamic-text	runtime/ps2ui.c	1490	     * baker declared is the truncation point, not a global BUFSZ. */	    /* The slot's own buffer is capacity + 1 bytes; the capacity the	    cap = ctx->slots[i].capacity;
 _facts/authoring/dynamic-text	runtime/ps2ui.c	1499	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name)		{
-_facts/authoring/dynamic-text	runtime/ps2ui.h	667	 * at the slot's baked capacity without splitting a character). NULL	/* Set a dynamic-text slot's current string (UTF-8; copied, truncated	 * reverts to the baked placeholder; "" blanks the slot.
-_facts/authoring/dynamic-text	runtime/ps2ui.h	672	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	
+_facts/authoring/dynamic-text	runtime/ps2ui.h	669	 * at the slot's baked capacity without splitting a character). NULL	/* Set a dynamic-text slot's current string (UTF-8; copied, truncated	 * reverts to the baked placeholder; "" blanks the slot.
+_facts/authoring/dynamic-text	runtime/ps2ui.h	674	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	
 _facts/authoring/dynamic-text	runtime/sample/main.c	1756	        char telem[160];	         * announces itself, not a silent loss. */	        /* SLOT NAMES ARE SCREEN-SCOPED, and they have to be: slots are
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/check.py	101	    """Names reachable from a screen's initial focus by D-pad.	def _reachable(uib, sc) -> set:	
 _facts/authoring/focus-and-navigation	packages/baker/ps2ui_bake/check.py	292	    rep.error(len(set(names)) == len(names),	    names = [sc["name"] for sc in uib.screens]	              f"screen names are unique: {names}")
@@ -235,7 +235,7 @@ _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	125	  let ini
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	126	  for (const box of list) {	  let initial = null;	    if ('autofocus' in box.el.attrs) { initial = box.id; break; }
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	139	export function checkReachability(graph) {	 */	  const warnings = [];
 _facts/authoring/focus-and-navigation	packages/layout/src/focus.js	154	      warnings.push(`focus: "${n.name}" is unreachable from the initial focus by D-pad`);	    if (!seen.has(n.id)) {	    }
-_facts/authoring/focus-and-navigation	packages/layout/src/index.js	235	  for (const w of checkReachability(focus)) warnings.push(w);	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	
+_facts/authoring/focus-and-navigation	packages/layout/src/index.js	242	  for (const w of checkReachability(focus)) warnings.push(w);	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1546	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir)		{
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1562	     * cycle of hidden nodes must terminate, not spin. */	     * on something invisible. Bounded by the node count: a graph with a	    {
 _facts/authoring/focus-and-navigation	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
@@ -247,9 +247,9 @@ _facts/authoring/focus-and-navigation	runtime/ps2ui.h	190	typedef struct ps2ui_f
 _facts/authoring/focus-and-navigation	runtime/ps2ui.h	192	    uint16_t up, down, left, right; /* focus indices or PS2UI_NONE */	    uint16_t id;	    uint16_t pad0;
 _facts/authoring/focus-and-navigation	runtime/ps2ui.h	278	typedef enum ps2ui_dir { PS2UI_UP, PS2UI_DOWN, PS2UI_LEFT, PS2UI_RIGHT } ps2ui_dir;		
 _facts/authoring/focus-and-navigation	runtime/ps2ui.h	353	    uint16_t  focus;                 /* current focus index or PS2UI_NONE */	    uint16_t  screen;                /* current screen index */	    /* Which row of the tint table is live. Read it freely; write it
-_facts/authoring/focus-and-navigation	runtime/ps2ui.h	652	/* D-pad move. Returns 1 when focus changed. */		int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
-_facts/authoring/focus-and-navigation	runtime/ps2ui.h	655	/* Name of the focused node ("tile-okami"), or NULL. */		const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
-_facts/authoring/focus-and-navigation	runtime/ps2ui.h	658	/* Set focus by node name (the id/name attribute from the HTML).		 * Returns 1 on success, 0 if the *current screen* has no node with that
+_facts/authoring/focus-and-navigation	runtime/ps2ui.h	654	/* D-pad move. Returns 1 when focus changed. */		int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
+_facts/authoring/focus-and-navigation	runtime/ps2ui.h	657	/* Name of the focused node ("tile-okami"), or NULL. */		const char *ps2ui_focus_name(const ps2ui_ctx *ctx);
+_facts/authoring/focus-and-navigation	runtime/ps2ui.h	660	/* Set focus by node name (the id/name attribute from the HTML).		 * Returns 1 on success, 0 if the *current screen* has no node with that
 _facts/authoring/html	docs/tutorial-uc3.md	65	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 _facts/authoring/html	packages/layout/src/box.js	98	const KNOWN_DATA_ATTRS = new Set([	// overrunning it on a console. Neither said a word.	  'data-keep', 'data-nocontrast', 'data-slot', 'data-slot-capacity',
 _facts/authoring/html	packages/layout/src/box.js	126	function warnUnknownDataAttrs(el, warnings) {	/** Warn on a `data-` attribute nothing will ever read. */	  for (const name of Object.keys(el.attrs)) {
@@ -349,9 +349,9 @@ _facts/authoring/images	packages/layout/src/flex.js	247	    if (box.image.stream
 _facts/authoring/images	packages/layout/src/flex.js	613	      // keeps its intrinsic aspect unless the cross size is explicit.	      // flex containers (distorting them); here a replaced element	      // Pixel art on a CRT beats spec fidelity on this one.
 _facts/authoring/images	packages/layout/src/image.js	14	const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);		
 _facts/authoring/images	packages/layout/src/image.js	24	  } catch (err) {	    buf = readFileSync(path);	    throw new Error(`image: cannot read "${path}": ${err.code ?? err.message}`);
-_facts/authoring/images	packages/layout/src/index.js	344	export function compileFiles(htmlPath, cssPath, options = {}) {		  return compile(
+_facts/authoring/images	packages/layout/src/index.js	351	export function compileFiles(htmlPath, cssPath, options = {}) {		  return compile(
 _facts/authoring/lists	docs/tutorial-uc3.md	370	for (;;) {		    if (pad_down)  ps2ui_list_move(&ui, &list, +1);
-_facts/authoring/lists	packages/layout/src/index.js	173	  // Stamp out data-repeat templates before anything computes styles, so	  const dom = parseHTML(htmlSrc);	  // a repeated row is indistinguishable from one that was typed out.
+_facts/authoring/lists	packages/layout/src/index.js	180	  // Stamp out data-repeat templates before anything computes styles, so	  checkTree(dom, limits);	  // a repeated row is indistinguishable from one that was typed out.
 _facts/authoring/lists	packages/layout/src/repeat.js	16	// 1-based, in any attribute value and in text. Nothing is renamed behind	// Substitution is explicit. `{i}` is the 0-based index and `{n}` is	// your back: a `data-slot` without `{i}` produces N identical slot names,
 _facts/authoring/lists	packages/layout/src/repeat.js	21	const MAX_REPEAT = 256;		
 _facts/authoring/lists	packages/layout/src/repeat.js	24	export function substituteIndex(s, i) {	/** Substitute {i} / {n} in a string. */	  return s.replace(/\\{(i|n)\\}/g, (_, k) => String(k === 'i' ? i : i + 1));
@@ -379,30 +379,30 @@ _facts/authoring/lists	runtime/ps2ui.c	1786	    list->sel = item >= list->count 
 _facts/authoring/lists	runtime/ps2ui.c	1792	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta)		{
 _facts/authoring/lists	runtime/ps2ui.c	1802	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list)		{
 _facts/authoring/lists	runtime/ps2ui.h	301	#define PS2UI_LIST_NAME_MAX     64	 * nothing to a UI that never uses a list. */	
-_facts/authoring/lists	runtime/ps2ui.h	770	/* ------------------------------------------------------- list window */		
-_facts/authoring/lists	runtime/ps2ui.h	781	 * ps2ui owns the indices and where focus sits. The app owns the data:	 *	 * after any move, fill row r from item (top + r) with ps2ui_slot_set,
-_facts/authoring/lists	runtime/ps2ui.h	794	} ps2ui_list;	    uint16_t sel;       /* selected item index */	
-_facts/authoring/lists	runtime/ps2ui.h	796	/* Bind a list to `rows` baked rows whose focus names are prefix+index		 * ("row-" gives row-0, row-1, ...). Starts empty; call
-_facts/authoring/lists	runtime/ps2ui.h	798	 * ps2ui_list_set_count next. */	 * ("row-" gives row-0, row-1, ...). Starts empty; call	void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);
-_facts/authoring/lists	runtime/ps2ui.h	801	/* Tell the list how many items exist. Clamps the selection and the		 * window into range, so shrinking a list under a selection sitting past
-_facts/authoring/lists	runtime/ps2ui.h	802	 * window into range, so shrinking a list under a selection sitting past	/* Tell the list how many items exist. Clamps the selection and the	 * the new end lands somewhere valid rather than off the end — and moves
-_facts/authoring/lists	runtime/ps2ui.h	806	 * row the user cannot see selected. Pass NULL to move indices only. */	 * the highlight following is how the accept button ends up firing on a	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);
-_facts/authoring/lists	runtime/ps2ui.h	809	/* Move the selection by `delta` items (-1 up, +1 down, +/-rows for a		 * page). Clamps at both ends — a list does not wrap, because walking
-_facts/authoring/lists	runtime/ps2ui.h	811	 * off the end of a hundred saves and arriving at the top is disorienting	 * page). Clamps at both ends — a list does not wrap, because walking	 * in a way a six-tile grid never is. Scrolls the window to keep the
-_facts/authoring/lists	runtime/ps2ui.h	815	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);	 * and returns 1 if anything changed. */	
-_facts/authoring/lists	runtime/ps2ui.h	817	/* Select an absolute item index, scrolling to it. Returns 1 if		 * anything changed. Out-of-range indices clamp. */
-_facts/authoring/lists	runtime/ps2ui.h	821	/* The item index displayed in row `row`, or -1 when that row is past		 * the end of the data and should be blanked. This is the loop the app
-_facts/authoring/lists	runtime/ps2ui.h	822	 * the end of the data and should be blanked. This is the loop the app	/* The item index displayed in row `row`, or -1 when that row is past	 * runs after every move to refill the slots. */
-_facts/authoring/lists	runtime/ps2ui.h	826	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
-_facts/authoring/lists	runtime/ps2ui.h	830	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
-_facts/authoring/project-file	CHANGELOG.md	1622	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
-_facts/authoring/project-file	README.md	142	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
-_facts/authoring/project-file	README.md	663	the whole option list. Everything else (canvas, mode, display aspect,	`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is	fonts, output) comes from `ps2ui.json`, because that is what the
+_facts/authoring/lists	runtime/ps2ui.h	772	/* ------------------------------------------------------- list window */		
+_facts/authoring/lists	runtime/ps2ui.h	783	 * ps2ui owns the indices and where focus sits. The app owns the data:	 *	 * after any move, fill row r from item (top + r) with ps2ui_slot_set,
+_facts/authoring/lists	runtime/ps2ui.h	796	} ps2ui_list;	    uint16_t sel;       /* selected item index */	
+_facts/authoring/lists	runtime/ps2ui.h	798	/* Bind a list to `rows` baked rows whose focus names are prefix+index		 * ("row-" gives row-0, row-1, ...). Starts empty; call
+_facts/authoring/lists	runtime/ps2ui.h	800	 * ps2ui_list_set_count next. */	 * ("row-" gives row-0, row-1, ...). Starts empty; call	void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);
+_facts/authoring/lists	runtime/ps2ui.h	803	/* Tell the list how many items exist. Clamps the selection and the		 * window into range, so shrinking a list under a selection sitting past
+_facts/authoring/lists	runtime/ps2ui.h	804	 * window into range, so shrinking a list under a selection sitting past	/* Tell the list how many items exist. Clamps the selection and the	 * the new end lands somewhere valid rather than off the end — and moves
+_facts/authoring/lists	runtime/ps2ui.h	808	 * row the user cannot see selected. Pass NULL to move indices only. */	 * the highlight following is how the accept button ends up firing on a	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);
+_facts/authoring/lists	runtime/ps2ui.h	811	/* Move the selection by `delta` items (-1 up, +1 down, +/-rows for a		 * page). Clamps at both ends — a list does not wrap, because walking
+_facts/authoring/lists	runtime/ps2ui.h	813	 * off the end of a hundred saves and arriving at the top is disorienting	 * page). Clamps at both ends — a list does not wrap, because walking	 * in a way a six-tile grid never is. Scrolls the window to keep the
+_facts/authoring/lists	runtime/ps2ui.h	817	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);	 * and returns 1 if anything changed. */	
+_facts/authoring/lists	runtime/ps2ui.h	819	/* Select an absolute item index, scrolling to it. Returns 1 if		 * anything changed. Out-of-range indices clamp. */
+_facts/authoring/lists	runtime/ps2ui.h	823	/* The item index displayed in row `row`, or -1 when that row is past		 * the end of the data and should be blanked. This is the loop the app
+_facts/authoring/lists	runtime/ps2ui.h	824	 * the end of the data and should be blanked. This is the loop the app	/* The item index displayed in row `row`, or -1 when that row is past	 * runs after every move to refill the slots. */
+_facts/authoring/lists	runtime/ps2ui.h	828	/* Which baked row the selection currently occupies (0..rows-1), or -1		 * for an empty list. */
+_facts/authoring/lists	runtime/ps2ui.h	832	/* Hide the rows past the end of the data and show the rest.		 * Blanking a row's text leaves its panel and border drawn, which reads
+_facts/authoring/project-file	CHANGELOG.md	1670	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/project-file	README.md	146	{ "screens": ["ui/library.html"], "css": "ui/app.css" }	cat > ps2ui.json <<'EOF'	EOF
+_facts/authoring/project-file	README.md	669	[--no-watch] [--selftest]` is the whole option list. Everything else	`[--uib BLOB] [--port 8080] [--screen NAME] [--theme N] [--console]	(canvas, mode, display aspect, fonts, output) comes from `ps2ui.json`,
 _facts/authoring/project-file	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
 _facts/authoring/project-file	packages/baker/ps2ui_bake/cli.py	65	def default_fonts_path() -> str:		    """The repository's fonts/fonts.json -- a CANDIDATE, not a promise.
 _facts/authoring/project-file	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/authoring/project-file	packages/baker/ps2ui_bake/ps2ui.py	336	    argv = [rel(proj, proj.out_path)]	    # written; nothing passed it.	    if proj.vram_budget is not None:
-_facts/authoring/project-file	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/authoring/project-file	packages/layout/src/index.js	278	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
 _facts/authoring/screens-and-overlays	BACKLOG.md	574	F8 is a compiler change because the format never prevented overlap:		records carry `x, y, w, h`, `paint.js` emits them in document order,
 _facts/authoring/screens-and-overlays	BACKLOG.md	597	2. **A second screen composited over the first**, which is the	   instead of moving, so every card is laid out twice at two widths.	   documented overlay technique (`ps2ui_render` never clears, so a
 _facts/authoring/screens-and-overlays	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
@@ -426,10 +426,10 @@ _facts/authoring/screens-and-overlays	runtime/ps2ui.c	1517	            if (i != 
 _facts/authoring/screens-and-overlays	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(const ps2ui_ctx *ctx, const char *name)	 * this runs on a button press, not per frame. */	{
 _facts/authoring/screens-and-overlays	runtime/ps2ui.c	1633	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible)		{
 _facts/authoring/screens-and-overlays	runtime/ps2ui.c	1648	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name)		{
-_facts/authoring/screens-and-overlays	runtime/ps2ui.h	610	/* Replay the current screen's command list for the current focus state.		 *
-_facts/authoring/screens-and-overlays	runtime/ps2ui.h	635	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
-_facts/authoring/screens-and-overlays	runtime/ps2ui.h	640	 * There is deliberately no ps2ui_overlay_push. The idiom above works	 *	 * today and costs nothing; an API would buy one thing the idiom cannot
-_facts/authoring/screens-and-overlays	runtime/ps2ui.h	647	 * The scissor is left at the full canvas when this returns, so a	 *	 * caller drawing its own geometry afterwards inherits the whole
+_facts/authoring/screens-and-overlays	runtime/ps2ui.h	612	/* Replay the current screen's command list for the current focus state.		 *
+_facts/authoring/screens-and-overlays	runtime/ps2ui.h	637	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
+_facts/authoring/screens-and-overlays	runtime/ps2ui.h	642	 * There is deliberately no ps2ui_overlay_push. The idiom above works	 *	 * today and costs nothing; an API would buy one thing the idiom cannot
+_facts/authoring/screens-and-overlays	runtime/ps2ui.h	649	 * The scissor is left at the full canvas when this returns, so a	 *	 * caller drawing its own geometry afterwards inherits the whole
 _facts/authoring/screens-and-overlays	runtime/sample/main.c	2753	            ps2ui_screen_set(&ui, "covers");	            }	            ps2ui_render(&ui, gs);
 _facts/authoring/screens-and-overlays	runtime/tests/test_runtime.c	1921	        /* The other half of the same idea, and the one review caught	              "above only depends on");	         * undefended. gsKit_TexManager_nextFrame is the residency
 _facts/authoring/text-and-fonts	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
@@ -481,7 +481,7 @@ _facts/authoring/text-and-fonts	packages/layout/src/text.js	160	export function 
 _facts/authoring/text-and-fonts	packages/layout/src/text.js	183	export function resolveLineHeight(lineHeight, fontSize) {	/** Resolve line-height (px or unitless multiplier) to integral px. */	  if (lineHeight.unit === 'px') return roundHalfUp(lineHeight.value);
 _facts/authoring/text-and-fonts	packages/layout/src/values.js	24	export function roundHalfUp(x) {	// floor(x + 0.5) so glyph advances agree between the two hosts.	  return Math.floor(x + 0.5);
 _facts/authoring/theming	README.md	25	One blob, two themes, swapped on the console at runtime by		`ps2ui_theme_set`. No rebuild, no second asset set: a theme is a row of
-_facts/authoring/theming	README.md	228	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
+_facts/authoring/theming	README.md	232	- Custom properties on `:root`, `var()`, and `@theme` for a second palette	- `overflow: hidden` (GS scissor), `display: none`	- `<img>`, see below
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	699	def print_tints(uib, path) -> None:		    """The tint table, one row per entry, one column per theme.
 _facts/authoring/theming	packages/baker/ps2ui_bake/check.py	794	    if args.tints:		        print_tints(uib, args.uib)
 _facts/authoring/theming	packages/baker/ps2ui_bake/cli.py	345	    if args.tints:		        names = ir.get("themes") or ["root"]
@@ -524,11 +524,11 @@ _facts/authoring/theming	packages/layout/src/css.js	611	  const def = vars && va
 _facts/authoring/theming	packages/layout/src/css.js	625	/** A literal's vector: the same colour in every theme. */		export function themeVector(rgba, vars) {
 _facts/authoring/theming	packages/layout/src/css.js	631	export function themeCount(vars) {	/** How many themes this sheet declares, root included. Always >= 1. */	  if (!vars) return 1;
 _facts/authoring/theming	packages/layout/src/css.js	853	        if (p.startsWith('var(')) {	        // arrive here in two pieces.	          const { rgba, varName, rgbaThemes } = resolveColorValue(p, vars, prop, line);
-_facts/authoring/theming	packages/layout/src/index.js	231	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
-_facts/authoring/theming	packages/layout/src/index.js	269	  // too. The lint's own `rule` field already carries the distinction	  // trip: fix :root, rebuild, and only then discover light was broken	  // this comment was drawing in prose, so use it.
-_facts/authoring/theming	packages/layout/src/index.js	276	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
-_facts/authoring/theming	packages/layout/src/index.js	283	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
-_facts/authoring/theming	packages/layout/src/index.js	292	    canvas: {	    version: IR_VERSION,	      w: canvasW,
+_facts/authoring/theming	packages/layout/src/index.js	238	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
+_facts/authoring/theming	packages/layout/src/index.js	276	  // too. The lint's own `rule` field already carries the distinction	  // trip: fix :root, rebuild, and only then discover light was broken	  // this comment was drawing in prose, so use it.
+_facts/authoring/theming	packages/layout/src/index.js	283	  const lints = lintDocument(forLint, focus, lintOpts)	  // document EXCEPT the dynamic text -- 127 of them in opl-env.	    .map((l) => `${l.rule}: ${l.message}`);
+_facts/authoring/theming	packages/layout/src/index.js	290	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
+_facts/authoring/theming	packages/layout/src/index.js	299	    canvas: {	    version: IR_VERSION,	      w: canvasW,
 _facts/authoring/theming	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/authoring/theming	packages/layout/src/paint.js	41	function vectorOf(themes, rgba, varName, nThemes, what) {	// previewer all agree, and only the second theme row is wrong.	  if (themes) {
 _facts/authoring/theming	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
@@ -538,8 +538,8 @@ _facts/authoring/theming	runtime/ps2ui.c	820	int ps2ui_theme_set(ps2ui_ctx *ctx,
 _facts/authoring/theming	runtime/ps2ui.h	62	#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)	 * site, which is a layout change and not this slice. */	#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \\
 _facts/authoring/theming	runtime/ps2ui.h	359	     * THE BAKER SETS PS2UI_FEAT_ROLE_TINTS AND HAS SINCE P3b. This	     *	     * comment said the opposite -- "still 0 on every blob this
 _facts/authoring/theming	runtime/ps2ui.h	429	/* The blob's counts are legal but the arena they add up to does not	#define PS2UI_ERR_BOUNDS     -4	 * fit this machine's address space. It stopped meaning "past a number
-_facts/authoring/theming	runtime/ps2ui.h	564	 * caller handing a 16-entry palette to a 256-entry CLUT gets an erased	 * previous values. Consistent with ps2ui_upload, and worth stating: a	 * atlas, not a partial recolour.
-_facts/authoring/theming	runtime/ps2ui.h	576	/* Select which row of the tint table commands and slots index into.		 *
+_facts/authoring/theming	runtime/ps2ui.h	566	 * caller handing a 16-entry palette to a 256-entry CLUT gets an erased	 * previous values. Consistent with ps2ui_upload, and worth stating: a	 * atlas, not a partial recolour.
+_facts/authoring/theming	runtime/ps2ui.h	578	/* Select which row of the tint table commands and slots index into.		 *
 _facts/authoring/theming	runtime/sample/main.c	2095	            if (frame && frame % 241 == 0) {	             * unmeasurable and the frame is free now. */	                unsigned n = ui.hdr->n_theme;
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	139	    ap.add_argument("--version", action="version",	    # else, so it cannot become the next number that disagrees.	                    version="ps2ui-bake %s" % __version__)
 _facts/authoring/video-modes	packages/baker/ps2ui_bake/cli.py	149	    ap.add_argument("--preview-display", default=None, metavar="PNG",	    ap.add_argument("--montage", default=None, help="write a PNG sheet of every focus state")	                    help="write the preview resampled to the panel's aspect. "
@@ -574,7 +574,7 @@ _facts/authoring/video-modes	packages/layout/src/aspect.js	42	export function di
 _facts/authoring/video-modes	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
 _facts/authoring/video-modes	packages/layout/src/index.js	156	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
 _facts/authoring/video-modes	packages/layout/src/index.js	165	  const par = pixelAspect(canvasW, canvasH, displayAspect);	  const displayAspect = options.displayAspect ?? [4, 3];	  const fonts = options.fonts
-_facts/authoring/video-modes	packages/layout/src/index.js	290	  return {		    version: IR_VERSION,
+_facts/authoring/video-modes	packages/layout/src/index.js	297	  return {		    version: IR_VERSION,
 _facts/authoring/video-modes	packages/layout/src/lint.js	12	export const DEFAULT_LINT_OPTIONS = Object.freeze({		  canvasW: 640,
 _facts/authoring/video-modes	packages/layout/src/lint.js	15	  // Title-safe area: 5% inset per side, derived from the canvas so PAL	  canvasH: 448,	  // (640x512) gets its own numbers (SMPTE ST 2046 is stricter; 5%
 _facts/authoring/video-modes	packages/layout/src/lint.js	139	  if (opt.safeInsetX == null) opt.safeInsetX = Math.round(opt.canvasW * 0.05);	  const opt = { ...DEFAULT_LINT_OPTIONS, ...options };	  if (opt.safeInsetY == null) opt.safeInsetY = Math.round(opt.canvasH * 0.05);
@@ -583,8 +583,8 @@ _facts/authoring/video-modes	packages/layout/src/lint.js	155	    const rounded =
 _facts/authoring/video-modes	runtime/ps2ui.c	1533	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx)		{
 _facts/authoring/video-modes	runtime/ps2ui.h	84	    uint16_t canvas_w, canvas_h;	    uint16_t version, feature_flags;	    uint16_t n_tex, n_clut;
 _facts/authoring/video-modes	runtime/ps2ui.h	105	    /* The aspect the panel shows the framebuffer at, as an exact ratio.	    uint16_t n_theme, pad0;	     * The GS framebuffer is not square-pixel here even at 4:3, and PS2
-_facts/authoring/video-modes	runtime/ps2ui.h	685	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
-_facts/authoring/vram-budget	CHANGELOG.md	1622	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/authoring/video-modes	runtime/ps2ui.h	687	/* Pixel aspect ratio the blob was authored for, x1000 to stay integral		 * (933 = 4:3 at 640x448, 1244 = 16:9). Above 1000 means pixels draw
+_facts/authoring/vram-budget	CHANGELOG.md	1670	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	619	def check_vram(uib, rep: Report, budget=None) -> None:		    _lines, used, limit, ok = vram.report(uib.textures, uib.cluts,
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	624	    note = vram.budget_note(uib.canvas_w, uib.canvas_h) if budget is None else []	    # about whether the default is the problem.	    label = f"VRAM {used // 1024} KiB within budget {limit // 1024} KiB"
 _facts/authoring/vram-budget	packages/baker/ps2ui_bake/check.py	648	    if note and not ok:	    # look better tested than it is.	        for line in note:
@@ -615,9 +615,9 @@ _facts/authoring/vram-budget	runtime/ps2ui.c	685	         * transfer from. Its V
 _facts/authoring/vram-budget	runtime/ps2ui.c	1004	    int tex_ok = ctx->uploaded	     * textures to draw with", whichever way that came about. */	                 && ((uint64_t)gs->CurrentPointer + ctx->vram_need
 _facts/authoring/vram-budget	runtime/ps2ui.h	325	                                * ordinary state of a row that just	                                * streamed slot has no texels yet -- the	                                * scrolled in, not an error            */
 _facts/authoring/vram-budget	runtime/ps2ui.h	390	    /* Runtime slot text. Each slot owns capacity+1 bytes at	    int       uploaded;	     * slot_text + slot_off[i] -- the capacity the baker declared for
-_facts/authoring/vram-budget	runtime/ps2ui.h	468	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
-_facts/authoring/vram-budget	runtime/ps2ui.h	477	/* Point a streamed texture slot at the caller's texels.		 *
-_facts/cli/previewer	README.md	722	**Runtime visibility is not previewable in v1**, and that is a stated		boundary. The renderer is parameterised on screen, focus node, theme and
+_facts/authoring/vram-budget	runtime/ps2ui.h	470	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
+_facts/authoring/vram-budget	runtime/ps2ui.h	479	/* Point a streamed texture slot at the caller's texels.		 *
+_facts/cli/previewer	README.md	728	**Runtime visibility is not previewable in v1**, and that is a stated		boundary. The renderer is parameterised on screen, focus node, theme and
 _facts/cli/previewer	docs/tutorial-uc3.md	281	**It does not replace hardware testing**, and the finding that says so		is specific. F-048, gsKit's full-screen clear not paying the blended
 _facts/cli/previewer	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/cli/previewer	packages/baker/ps2ui_bake/ps2ui.py	564	    sv = sub.add_parser("serve", help="preview the project in a browser")	    # reaches. test_serve.py asserts it by running `build --help`.	    sv.add_argument("project", nargs="?", default="ps2ui.json")
@@ -627,8 +627,8 @@ _facts/cli/previewer	packages/baker/ps2ui_bake/serve_page.html	624	$('screenSel'
 _facts/cli/previewer	packages/baker/ps2ui_bake/serve_page.html	681	const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };		
 _facts/cli/previewer	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 _facts/cli/ps2ui	examples/channel6/build.sh	23	# block: everything a second blob needs differently is a flag.	# the same project, which is why the project file has no `variants`	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"
-_facts/cli/ps2ui	examples/memcard/build.sh	18	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
-_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui	examples/memcard/build.sh	19	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
+_facts/cli/ps2ui	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.11.0.dev0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	217	    ir_suffix = ""	    # have to guess where the suffix goes.	
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	250	def _not_a_project(path):		    """Why this file is not a ps2ui.json, naming the blob case."""
 _facts/cli/ps2ui	packages/baker/ps2ui_bake/project.py	284	    except UnicodeDecodeError:	            data = json.load(fh)	        # THE DOCSTRING ABOVE PROMISED THIS AND THE HANDLER DID NOT
@@ -671,7 +671,7 @@ _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	400	            print(f"p
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/cli.py	404	            print(f"ps2ui-bake: montage -> {args.montage}", file=sys.stderr)	            preview_mod.montage(uib).save(args.montage)	    return 0
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	133	def default_budget(canvas_w: int, canvas_h: int) -> int:		    """Conservative texture budget: total VRAM minus THREE framebuffer-
 _facts/cli/ps2ui-bake	packages/baker/ps2ui_bake/vram.py	231	def report(textures, cluts, canvas_w: int, canvas_h: int, budget: int = None):		    """Compute the footprint. Returns (lines, total_bytes, budget, ok);
-_facts/cli/ps2ui-check	.github/workflows/ci.yml	551	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+_facts/cli/ps2ui-check	.github/workflows/ci.yml	564	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 _facts/cli/ps2ui-check	.github/workflows/hw.yml	121	          ./tools/check-blobs.sh	          # about what "valid" means for the same bytes.	          # conform.elf is built SCREEN=probe. That name lives in
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/caps.py	44	def parse_header(path: str = None) -> dict:		    """Caps from ps2ui.h, or FALLBACK when the header is not reachable."""
 _facts/cli/ps2ui-check	packages/baker/ps2ui_bake/check.py	71	    def note(self, label: str) -> None:		        """A measured number with no threshold to fail against.
@@ -703,13 +703,13 @@ _facts/cli/ps2ui-check	runtime/ps2ui.h	297	#define PS2UI_MAX_SCISSOR_DEPTH 8	 * 
 _facts/cli/ps2ui-check	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
 _facts/cli/ps2ui-check	tools/check-blobs.sh	74	    if ! flags=$(known_flags "$blob"); then	for blob in $blobs; do	        echo "check-blobs: no rules for $blob" >&2
 _facts/cli/ps2ui-check	tools/check-blobs.sh	95	if [ "$checked" = 0 ]; then	# turn this whole step into a no-op that reports nothing and passes.	    echo "check-blobs: no blobs found -- nothing was validated" >&2
-_facts/cli/ps2ui-fontgen	README.md	131	`ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare		commands on `PATH`, and `-e` points them at this tree, so editing the
-_facts/cli/ps2ui-fontgen	README.md	140	ps2ui fontgen /path/DejaVuSans.ttf /path/DejaVuSans-Bold.ttf	```sh	cat > ps2ui.json <<'EOF'
-_facts/cli/ps2ui-fontgen	README.md	313	./fonts/regen.sh	```sh	```
+_facts/cli/ps2ui-fontgen	README.md	135	`ps2ui`, `ps2ui-bake`, `ps2ui-check` and `ps2ui-fontgen` are then bare		commands on `PATH`, and `-e` points them at this tree, so editing the
+_facts/cli/ps2ui-fontgen	README.md	144	ps2ui fontgen /path/DejaVuSans.ttf /path/DejaVuSans-Bold.ttf	```sh	cat > ps2ui.json <<'EOF'
+_facts/cli/ps2ui-fontgen	README.md	317	./fonts/regen.sh	```sh	```
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	38	python3 - "$here" <<'PY'		import sys, os
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	40	from ps2ui_bake.cli import load_font_manifest	import sys, os	from ps2ui_bake import fontgen
 _facts/cli/ps2ui-fontgen	fonts/regen.sh	49	    rc = fontgen.main([ttf, "DejaVu Sans", str(weight),	    print("regen: %s = %s" % (face, ttf))	                       os.path.join(here, out)])
-_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0"	# until the first real release was on PyPI.	
+_facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.11.0.dev0"	# until the first real release was on PyPI.	
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/cli.py	83	def load_font_manifest(path: str) -> dict:		    """fonts.json maps face -> {ttf: [candidate paths...], metrics: path}.
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	19	# Latin-1 printable + the punctuation the example UI actually uses.		# chr(32) explicitly: an invisible U+00A0 once impersonated the space
 _facts/cli/ps2ui-fontgen	packages/baker/ps2ui_bake/fontgen.py	23	DEFAULT_CHARSET = (	# codepoint number cannot be corrupted by an editor.	    chr(32) + string.printable.strip()
@@ -786,10 +786,10 @@ _facts/cli/ps2ui-layout	packages/layout/src/index.js	65	  static fromDir(dir = D
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	94	  static fromManifest(path) {	   */	    let manifest;
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	118	function missingFonts(dir, missing) {	/** What to tell someone whose font metrics are not where we looked. */	  return `no font metrics at ${missing}.\\n`
 _facts/cli/ps2ui-layout	packages/layout/src/index.js	156	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
-_facts/cli/ps2ui-layout	packages/layout/src/index.js	234	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	    root, themeNames.length);	  for (const w of checkReachability(focus)) warnings.push(w);
-_facts/cli/ps2ui-layout	packages/layout/src/index.js	271	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	241	  const focus = solveFocusGraph(focusables, { wrap: options.focusWrap ?? false });	    root, themeNames.length);	  for (const w of checkReachability(focus)) warnings.push(w);
+_facts/cli/ps2ui-layout	packages/layout/src/index.js	278	  const lintOpts = { canvasW, canvasH, par, ...options.lint };	  // this comment was drawing in prose, so use it.	  // forLint, not commands: it is the same list with slot text spliced
 _facts/cli/ps2ui-layout	packages/layout/src/lint.js	21	  minFontSize: 14,	  safeInsetY: null,	  minContrast: 3.0,
-_facts/examples/channel6	.github/workflows/ci.yml	253	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
+_facts/examples/channel6	.github/workflows/ci.yml	266	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
 _facts/examples/channel6	examples/channel6/README.md	106	its contract in TAP. 47 checks, and a red one names what broke. (The	Then it runs [check.py](check.py), which re-reads the blob and asserts	number was 24 and is derived from nothing — `check.py` prints its own
 _facts/examples/channel6	examples/channel6/README.md	108	total, `PASS: 47 checks, 0 failure(s)`, and no checker holds this	number was 24 and is derived from nothing — `check.py` prints its own	sentence to it. Re-read it from the run rather than trusting it.)
 _facts/examples/channel6	examples/channel6/README.md	143	```		runtime tables: 25 textures, 9 CLUTs, 15 slots, 2 screens
@@ -804,15 +804,15 @@ _facts/examples/channel6	examples/channel6/ui/channel6.css	395	/* Bring-up step 
 _facts/examples/channel6	examples/channel6/ui/channel6.css	474	 * used to name two: GSTEXTURE::Function and an unintended	 * are rendering at raw atlas white -- step 4, cause open. This comment	 * PS2UI_GSKIT_HAS_FUNCTION=0 build. NEITHER CAN HAPPEN. F-005 settled
 _facts/examples/channel6	examples/channel6/ui/probe.html	53	        <div class="tell-twin" data-keep></div>	        <p class="runner">Scissor clips this line at the padding edge</p>	        <div class="tell" data-keep></div>
 _facts/examples/channel6	tools/check-blobs.sh	43	        # The alignment card is made of 1px quads: four edge rules and	    examples/memcard/build/testcard.uib)	        # the step 8 interlace pair. The shimmer is the measurement.
-_facts/examples/memcard	.github/workflows/ci.yml	228	      - name: Example builds end to end (includes runtime tests)		        run: ./examples/memcard/build.sh
-_facts/examples/memcard	examples/memcard/build.sh	18	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
-_facts/examples/memcard	examples/memcard/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 - "$out" "$here/screenshots" <<'PY'	# ends up showing a renderer that no longer exists.	import sys
+_facts/examples/memcard	.github/workflows/ci.yml	241	      - name: Example builds end to end (includes runtime tests)		        run: ./examples/memcard/build.sh
+_facts/examples/memcard	examples/memcard/build.sh	19	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"		
+_facts/examples/memcard	examples/memcard/build.sh	27	PYTHONPATH="$repo/packages/baker" python3 - "$out" "$here/screenshots" <<'PY'	# ends up showing a renderer that no longer exists.	import sys
 _facts/examples/memcard	examples/memcard/ps2ui.json	1	{		  "screens": ["ui/library.html", "ui/saves.html"],
 _facts/examples/memcard	runtime/Makefile	6	UIB     ?= ../examples/memcard/build/ui.uib	CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2	# A data-repeat blob whose focus names are row-0..row-3 with one slot
 _facts/examples/memcard	runtime/Makefile	23	test: syntax-check timing-check build/test_runtime $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) test-narrow		\t./build/test_runtime $(UIB) $(LIST_UIB) $(STREAM_UIB) $(WIDE_UIB) $(HUGE_UIB)
 _facts/examples/memcard	runtime/Makefile	246	# does not survive a `for v in` expansion.	# Quoted separately for the reason SAMPLE_SCREEN is: a stringised name	\t@$(CC) -std=c99 -Wall -Werror -S $(HOST_NOASM) -o /dev/null \\
 _facts/examples/memcard	tools/check-blobs.sh	28	known_flags() {	# them are readable as a group rather than hunted for across files.	    case "$1" in
-_facts/examples/opl-env	.github/workflows/ci.yml	302	      - name: OPL environment end to end	      # cannot drift apart.	        run: ./examples/opl-env/build.sh
+_facts/examples/opl-env	.github/workflows/ci.yml	315	      - name: OPL environment end to end	      # cannot drift apart.	        run: ./examples/opl-env/build.sh
 _facts/examples/opl-env	examples/opl-env/README.md	110	Every figure here is `os.path.getsize` and `len()` over the two built		blobs read back with `read_uib`, which is the only way to state them:
 _facts/examples/opl-env	examples/opl-env/build.sh	1	#!/bin/sh		# Build the OPL-class environment end to end: five screens plus one
 _facts/examples/opl-env	examples/opl-env/build.sh	41	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json"	# the per-theme screenshots.	
@@ -828,47 +828,50 @@ _facts/examples/opl-env	tools/check-example-figures.py	1	#!/usr/bin/env python3	
 _facts/examples/opl-env	tools/check-example-figures.py	46	# 392 KiB footprint that P3b-6 had moved to 336, a Phase 2 record three	# read to decide what to build next. In one day it was found carrying a	# figures out of date, and a slot count of 127 against a blob holding
 _facts/examples/opl-env	tools/check-example-figures.py	111	    act = dict(act)	    text = open(path, encoding="utf-8").read()	    act["vram_kib"] = (
 _facts/getting-started/installation	.github/workflows/registry.yml	181	          python -m pip install ophtml	        run: |	          npm install -g @ophtml/layout
-_facts/getting-started/installation	CHANGELOG.md	240	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
-_facts/getting-started/installation	CHANGELOG.md	530	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/getting-started/installation	CHANGELOG.md	288	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
+_facts/getting-started/installation	CHANGELOG.md	578	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
 _facts/getting-started/installation	packages/baker/ps2ui_bake/ps2ui.py	37	def layout_command():		    """How to invoke ps2ui-layout, or a message saying how to get it."""
 _facts/getting-started/installation	packages/baker/ps2ui_bake/vendor.py	238	    print("runtime source: %s (%s)" % (src, label))		
 _facts/getting-started/installation	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9", "uharfbuzz>=0.51.7"]
 _facts/getting-started/installation	packages/baker/pyproject.toml	17	[project.scripts]		# One front door over a toolchain that had three. The three below stay:
-_facts/getting-started/installation	packages/layout/package.json	10	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
-_facts/getting-started/installation	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
+_facts/getting-started/installation	packages/layout/package.json	11	  "bin": {	  "type": "module",	    "ps2ui-layout": "bin/ps2ui-layout.js",
+_facts/getting-started/installation	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
 _facts/getting-started/quickstart	packages/baker/ps2ui_bake/project.py	39	DEFAULTS = {	# ignored key is a setting the author believes is in effect.	    "screens": None,          # required
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 _facts/getting-started/tutorial-game-browser	runtime/sample/main.c	2765	        ps2ui_render(&ui, gs);	#else	#endif
-_facts/project/changelog	CHANGELOG.md	17	### Added		
-_facts/project/changelog	CHANGELOG.md	19	- **The OPHTML console: any ps2ui theme, driven as a game launcher		  (`console/`).** Until now a baked UI could draw a game list and do
-_facts/project/changelog	CHANGELOG.md	41	- **A console theme can be checked, previewed and navigated before it		  reaches a console.** `ps2ui check` holds any blob with numbered
-_facts/project/changelog	CHANGELOG.md	63	- **Hard caps on what an untrusted theme may ask the compilers for.** A	  reference frames all read.	  theme is a file somebody else wrote, and the compilers accepted
-_facts/project/changelog	CHANGELOG.md	111	- **The console launcher can be downloaded, and the docs site says how		  to run it.** Until now `ophtml.elf` existed only as a CI artifact,
-_facts/project/changelog	CHANGELOG.md	127	- **A released CHANGELOG section is held to its tag.** A merge in #166		  put four entries into the released `## 0.8.0` section with no conflict
-_facts/project/changelog	CHANGELOG.md	137	- **The `.uib` loader is fuzzed (S2).** `runtime/tests/fuzz_load.c`		  runs libFuzzer over `ps2ui_arena_size`, `ps2ui_load` and everything a
-_facts/project/changelog	CHANGELOG.md	149	### Changed		
-_facts/project/changelog	CHANGELOG.md	151	- **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0		  is what a stranger installs.** It kept the macOS and Windows remedy
-_facts/project/changelog	CHANGELOG.md	166	### Fixed		
-_facts/project/changelog	CHANGELOG.md	168	- **A crafted `.uib` could crash the console before anything drew.**		  Nothing checked where a table sat, only that it fit, and every table
-_facts/project/changelog	CHANGELOG.md	181	- **`ps2ui check` printed a Python traceback for a malformed blob.**		  `read_uib` promises ValueError on a bad file, and `ps2ui check`
-_facts/project/changelog	CHANGELOG.md	192	- **A raised VRAM budget bought room for a framebuffer, which no budget		  can.** `--vram-budget` exists to let a project declare the texture
-_facts/project/changelog	CHANGELOG.md	202	- **A 439 KiB image could cost 432 MB and eleven seconds, or end the		  bake in a traceback.** An image is pre-scaled to its laid-out size, so
-_facts/project/changelog	CHANGELOG.md	211	- **Nesting deep enough reported `Maximum call stack size		  exceeded`.** That is V8's stack rather than a decision, so the real
-_facts/project/changelog	CHANGELOG.md	224	## 0.9.0 — 2026-09-23		
-_facts/project/changelog	CHANGELOG.md	240	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
-_facts/project/changelog	CHANGELOG.md	289	## 0.8.0 — 2026-09-23		
-_facts/project/changelog	CHANGELOG.md	305	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
-_facts/project/changelog	CHANGELOG.md	335	- **Three platforms had never run this toolchain, and the arm that		  covered the one non-Linux platform is now deprecated.**
-_facts/project/changelog	CHANGELOG.md	1249	## 0.7.0 — 2026-09-17		
-_facts/project/changelog	CHANGELOG.md	1265	- **`ps2ui vendor-runtime --starter` — the four files that build to a		  console binary, instead of the two that do not.** An install gave a
-_facts/project/changelog	CHANGELOG.md	1325	- **A `:focus` rule could bold a row that had been measured thin, and		  three other text properties it accepted did nothing at all.** The
-_facts/project/changelog	CHANGELOG.md	1370	- **Eight keyword-valued CSS properties accepted any string, and a typo		  bought you a different layout rather than an error.**
-_facts/project/changelog	CHANGELOG.md	1520	## 0.6.0 — 2026-09-12		
-_facts/project/changelog	CHANGELOG.md	1524	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/project/changelog	CHANGELOG.md	1622	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
-_facts/project/changelog	CHANGELOG.md	1712	## 0.5.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1762	## 0.4.0 — 2026-09-06		
-_facts/project/changelog	CHANGELOG.md	1852	## 0.3.0 — 2026-09-04		
+_facts/project/changelog	CHANGELOG.md	17	### Fixed		
+_facts/project/changelog	CHANGELOG.md	19	- **A tree too deep could still overflow V8's stack in `ps2ui-layout`.**		  0.10.0 made the depth cap an iterative walk so it could report a tree
+_facts/project/changelog	CHANGELOG.md	40	- **The baker suite failed on a clean checkout.** The test that holds		  the image cap to the corpus it was derived from walked `examples/`
+_facts/project/changelog	CHANGELOG.md	65	### Added		
+_facts/project/changelog	CHANGELOG.md	67	- **The OPHTML console: any ps2ui theme, driven as a game launcher		  (`console/`).** Until now a baked UI could draw a game list and do
+_facts/project/changelog	CHANGELOG.md	89	- **A console theme can be checked, previewed and navigated before it		  reaches a console.** `ps2ui check` holds any blob with numbered
+_facts/project/changelog	CHANGELOG.md	111	- **Hard caps on what an untrusted theme may ask the compilers for.** A	  reference frames all read.	  theme is a file somebody else wrote, and the compilers accepted
+_facts/project/changelog	CHANGELOG.md	159	- **The console launcher can be downloaded, and the docs site says how		  to run it.** Until now `ophtml.elf` existed only as a CI artifact,
+_facts/project/changelog	CHANGELOG.md	175	- **A released CHANGELOG section is held to its tag.** A merge in #166		  put four entries into the released `## 0.8.0` section with no conflict
+_facts/project/changelog	CHANGELOG.md	185	- **The `.uib` loader is fuzzed (S2).** `runtime/tests/fuzz_load.c`		  runs libFuzzer over `ps2ui_arena_size`, `ps2ui_load` and everything a
+_facts/project/changelog	CHANGELOG.md	197	### Changed		
+_facts/project/changelog	CHANGELOG.md	199	- **`registry.yml` stops carrying 0.8.0's fribidi remedy, now that 0.9.0		  is what a stranger installs.** It kept the macOS and Windows remedy
+_facts/project/changelog	CHANGELOG.md	214	### Fixed		
+_facts/project/changelog	CHANGELOG.md	216	- **A crafted `.uib` could crash the console before anything drew.**		  Nothing checked where a table sat, only that it fit, and every table
+_facts/project/changelog	CHANGELOG.md	229	- **`ps2ui check` printed a Python traceback for a malformed blob.**		  `read_uib` promises ValueError on a bad file, and `ps2ui check`
+_facts/project/changelog	CHANGELOG.md	240	- **A raised VRAM budget bought room for a framebuffer, which no budget		  can.** `--vram-budget` exists to let a project declare the texture
+_facts/project/changelog	CHANGELOG.md	250	- **A 439 KiB image could cost 432 MB and eleven seconds, or end the		  bake in a traceback.** An image is pre-scaled to its laid-out size, so
+_facts/project/changelog	CHANGELOG.md	259	- **Nesting deep enough reported `Maximum call stack size		  exceeded`.** That is V8's stack rather than a decision, so the real
+_facts/project/changelog	CHANGELOG.md	272	## 0.9.0 — 2026-09-23		
+_facts/project/changelog	CHANGELOG.md	288	- **`ps2ui fontgen` works on a stock Mac or Windows box, because it no		  longer asks Pillow to shape (F47).** It measured kerning through
+_facts/project/changelog	CHANGELOG.md	337	## 0.8.0 — 2026-09-23		
+_facts/project/changelog	CHANGELOG.md	353	- **A version a document prints is now held to the version something		  prints.** `check-site-pages.py` pins a citation to the line it names,
+_facts/project/changelog	CHANGELOG.md	383	- **Three platforms had never run this toolchain, and the arm that		  covered the one non-Linux platform is now deprecated.**
+_facts/project/changelog	CHANGELOG.md	1297	## 0.7.0 — 2026-09-17		
+_facts/project/changelog	CHANGELOG.md	1313	- **`ps2ui vendor-runtime --starter` — the four files that build to a		  console binary, instead of the two that do not.** An install gave a
+_facts/project/changelog	CHANGELOG.md	1373	- **A `:focus` rule could bold a row that had been measured thin, and		  three other text properties it accepted did nothing at all.** The
+_facts/project/changelog	CHANGELOG.md	1418	- **Eight keyword-valued CSS properties accepted any string, and a typo		  bought you a different layout rather than an error.**
+_facts/project/changelog	CHANGELOG.md	1568	## 0.6.0 — 2026-09-12		
+_facts/project/changelog	CHANGELOG.md	1572	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/project/changelog	CHANGELOG.md	1670	- **`ps2ui check` is given the settings `ps2ui build` was given.** One		  project, two commands that disagreed about the same numbers.
+_facts/project/changelog	CHANGELOG.md	1760	## 0.5.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1810	## 0.4.0 — 2026-09-06		
+_facts/project/changelog	CHANGELOG.md	1900	## 0.3.0 — 2026-09-04		
 _facts/project/internals	docs/PLAN.md	1	# ps2ui Foundation Plan		
 _facts/project/internals	docs/architecture.md	1	# ps2ui — architecture and decisions		
 _facts/project/internals	docs/bench-phase1.md	1	# Bench runbook — Phase 1, the streaming sitting		
@@ -900,7 +903,7 @@ _facts/project/internals	docs/site/runtime/frame-loop.md	76	### Sizing the arena
 _facts/project/internals	tools/check-findings.py	2	"""Enforce the findings graph in docs/findings.yaml.	#!/usr/bin/env python3	
 _facts/project/security-and-license	.github/workflows/ci.yml	9	permissions:	# The workflows only read the repo; never grant the default write token.	  contents: read
 _facts/project/security-and-license	.github/workflows/ci.yml	54	    runs-on: ${{ matrix.os }}	            python: "3.9"	    defaults:
-_facts/project/security-and-license	.github/workflows/ci.yml	95	    runs-on: ubuntu-24.04	    # apart on what "the CI machine" means.	    steps:
+_facts/project/security-and-license	.github/workflows/ci.yml	108	    runs-on: ubuntu-24.04	    # apart on what "the CI machine" means.	    steps:
 _facts/project/security-and-license	.github/workflows/hw.yml	31	permissions:		  contents: read
 _facts/project/security-and-license	.github/workflows/hw.yml	51	    runs-on: ubuntu-24.04	  bake:	    steps:
 _facts/project/security-and-license	.github/workflows/hw.yml	190	    runs-on: ubuntu-24.04	    needs: bake	    container: ghcr.io/ps2dev/ps2dev:latest
@@ -912,24 +915,24 @@ _facts/project/security-and-license	.github/workflows/registry.yml	267	    runs-
 _facts/project/security-and-license	.github/workflows/registry.yml	390	    runs-on: ${{ matrix.os }}	        os: [macos-15, macos-15-intel]	    steps:
 _facts/project/security-and-license	SECURITY.md	5	Report vulnerabilities privately via GitHub's "Report a vulnerability"		(Security tab) on this repository rather than a public issue.
 _facts/project/security-and-license	SECURITY.md	10	- **The C runtime parses `.uib` files.** `ps2ui_load` validates every		  offset, count, cross-reference and string terminator before the
-_facts/project/security-and-license	SECURITY.md	15	- **The build tools run on your machine.** `ps2ui-layout` and	  planned (backlog S2).	  `ps2ui-bake` read HTML/CSS/IR you point them at. Resource-exhaustion
+_facts/project/security-and-license	SECURITY.md	16	- **The build tools run on your machine.** `ps2ui-layout` and	  from strangers as untrusted input anyway.	  `ps2ui-bake` read HTML/CSS/IR you point them at. Both refuse a
 _facts/project/security-and-license	fonts/vendor/LICENSE.txt	1	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/		Upstream-Name: DejaVu fonts
 _facts/project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-_facts/project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+_facts/project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 _facts/project/security-and-license	runtime/ps2ui.c	282	    uint32_t i;	    arena_layout L;	    memset(ctx, 0, sizeof *ctx);
 _facts/project/security-and-license	runtime/vendor/README.md	1	# Vendored gsKit headers		
 _facts/project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
 _facts/reference/compatibility	.github/workflows/hw.yml	47	  # re-measure the band. ghcr.io/ps2dev/ps2dev:latest stays deliberately	  # the calibration comment on the gated diff step and expect to	  # UNpinned: the TFX compile probe exists to notice gsKit changing, and
 _facts/reference/compatibility	.github/workflows/registry.yml	194	  # A PLAIN PIP INSTALL, AND NOTHING ELSE, ON EACH MAC.		  #
 _facts/reference/compatibility	.github/workflows/registry.yml	255	  # THE SAME, ON WINDOWS.		  #
-_facts/reference/compatibility	CHANGELOG.md	530	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
-_facts/reference/compatibility	CHANGELOG.md	1563	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
-_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.10.0"	# until the first real release was on PyPI.	
+_facts/reference/compatibility	CHANGELOG.md	578	- **The remedy that ships inside the wheel sent Windows readers to		  build Pillow from source.** 0.7.0 removed a false claim from
+_facts/reference/compatibility	CHANGELOG.md	1611	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
+_facts/reference/compatibility	packages/baker/ps2ui_bake/__init__.py	39	__version__ = "0.11.0.dev0"	# until the first real release was on PyPI.	
 _facts/reference/compatibility	packages/baker/ps2ui_bake/vendor.py	15	the tree. Handing out a runtime fetched from anywhere else reintroduces	and check-versions.py holds the two together in the tree -- but only in	exactly the skew that fence exists to prevent, and it would do it at the
 _facts/reference/compatibility	packages/baker/pyproject.toml	11	requires-python = ">=3.9"	license = { text = "MIT" }	dependencies = ["Pillow>=9", "uharfbuzz>=0.51.7"]
-_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.10.0",	  "name": "@ophtml/layout",	  "publishConfig": {
-_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.10.0",	    "access": "public"
-_facts/reference/compatibility	packages/layout/package.json	21	    "node": ">=18"	  "engines": {	  },
+_facts/reference/compatibility	packages/layout/package.json	3	  "version": "0.11.0-dev.0",	  "name": "@ophtml/layout",	  "publishConfig": {
+_facts/reference/compatibility	packages/layout/package.json	4	  "publishConfig": {	  "version": "0.11.0-dev.0",	    "access": "public",
+_facts/reference/compatibility	packages/layout/package.json	22	    "node": ">=18"	  "engines": {	  },
 _facts/reference/compatibility	packages/layout/src/index.js	50	export const IR_VERSION = 1;		
 _facts/reference/compatibility	runtime/Makefile	4	CC      ?= cc		CFLAGS  ?= -std=c99 -Wall -Wextra -Werror -O2
 _facts/reference/compatibility	runtime/ps2ui.c	197	    if (h->magic != PS2UI_MAGIC || h->version != PS2UI_VERSION)	        return 0;	        return 0;
@@ -937,7 +940,7 @@ _facts/reference/compatibility	runtime/ps2ui.c	297	    if (ctx->hdr->version != 
 _facts/reference/compatibility	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/reference/compatibility	runtime/ps2ui.h	427	#define PS2UI_ERR_VERSION    -3	#define PS2UI_ERR_MAGIC      -2	#define PS2UI_ERR_BOUNDS     -4
 _facts/reference/compatibility	runtime/vendor/README.md	3	`gsKit/` contains verbatim copies of the public headers from		[ps2dev/gsKit](https://github.com/ps2dev/gsKit) at commit
-_facts/reference/diagnostics	CHANGELOG.md	1563	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
+_facts/reference/diagnostics	CHANGELOG.md	1611	- **`ps2ui-fontgen`'s Raqm remedy stated a platform rule, the rule was		  false, and the real cause is a cheaper fix.** It told every macOS
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/caps.py	83	    if records is not None:		        # >= because the runtime's guard is `depth + 1 >= MAX`, so the
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	788	    try:		        uib = read_uib(args.uib)
 _facts/reference/diagnostics	packages/baker/ps2ui_bake/check.py	792	        return 2	        print(f"ps2ui-check: {exc}", file=sys.stderr)	
@@ -1021,14 +1024,14 @@ _facts/reference/ir-format	packages/layout/src/focus.js	110	  const list = [...f
 _facts/reference/ir-format	packages/layout/src/index.js	50	export const IR_VERSION = 1;		
 _facts/reference/ir-format	packages/layout/src/index.js	156	  const canvasW = options.canvasW ?? 640;	export function compile(htmlSrc, cssSrc, options = {}) {	  const canvasH = options.canvasH ?? 448;
 _facts/reference/ir-format	packages/layout/src/index.js	170	  const warnings = [];	        : FontContext.fromDir(options.fontDir));	
-_facts/reference/ir-format	packages/layout/src/index.js	194	  // can fail in its own right -- a container with no children, a	  // built from here down is the one the author did not ask for, and it	  // percentage against nothing. When it does, the CSS errors are the
-_facts/reference/ir-format	packages/layout/src/index.js	231	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
-_facts/reference/ir-format	packages/layout/src/index.js	250	  // reported n_theme times, which teaches people to skim the list --	  // byte-identical strings in every row and would otherwise be	  // the same argument data-nocontrast makes in lint.js. The colour
-_facts/reference/ir-format	packages/layout/src/index.js	264	  // theme. Rounding to two decimals widens it well past the symmetric	  // Both fail at 1.07:1, one message, and nothing names the light	  // case -- any two pairs landing on the same 2dp ratio collapse.
-_facts/reference/ir-format	packages/layout/src/index.js	283	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
-_facts/reference/ir-format	packages/layout/src/index.js	290	  return {		    version: IR_VERSION,
-_facts/reference/ir-format	packages/layout/src/index.js	292	    canvas: {	    version: IR_VERSION,	      w: canvasW,
-_facts/reference/ir-format	packages/layout/src/index.js	301	    fonts: {	    },	      regular: { family: fonts.regular.family, weight: fonts.regular.weight },
+_facts/reference/ir-format	packages/layout/src/index.js	201	  // can fail in its own right -- a container with no children, a	  // built from here down is the one the author did not ask for, and it	  // percentage against nothing. When it does, the CSS errors are the
+_facts/reference/ir-format	packages/layout/src/index.js	238	  const themeNames = sheet.themeNames ?? ['root'];		  const { commands, focusables, slots, forLint } = buildDisplayList(
+_facts/reference/ir-format	packages/layout/src/index.js	257	  // reported n_theme times, which teaches people to skim the list --	  // byte-identical strings in every row and would otherwise be	  // the same argument data-nocontrast makes in lint.js. The colour
+_facts/reference/ir-format	packages/layout/src/index.js	271	  // theme. Rounding to two decimals widens it well past the symmetric	  // Both fail at 1.07:1, one message, and nothing names the light	  // case -- any two pairs landing on the same 2dp ratio collapse.
+_facts/reference/ir-format	packages/layout/src/index.js	290	        if (seen.has(line)) continue;	      if (!COLOUR_LINTS.has(l.rule)) {	        seen.add(line);
+_facts/reference/ir-format	packages/layout/src/index.js	297	  return {		    version: IR_VERSION,
+_facts/reference/ir-format	packages/layout/src/index.js	299	    canvas: {	    version: IR_VERSION,	      w: canvasW,
+_facts/reference/ir-format	packages/layout/src/index.js	308	    fonts: {	    },	      regular: { family: fonts.regular.family, weight: fonts.regular.weight },
 _facts/reference/ir-format	packages/layout/src/paint.js	7	//   state:   'always' | 'unfocused' | 'focused'	//	//   focusId: the focus scope it belongs to (null outside scopes)
 _facts/reference/ir-format	packages/layout/src/paint.js	30	function foldAlpha(vec, opacity) {	// path here that names a row.	  if (!vec) return null;
 _facts/reference/ir-format	packages/layout/src/paint.js	59	function paintOfBox(box, style, nThemes) {		  // The paint-relevant attributes of an element box under a given style,
@@ -1053,7 +1056,7 @@ _facts/reference/ir-format	packages/layout/src/paint.js	315	    const clip = !bo
 _facts/reference/ir-format	packages/layout/src/paint.js	318	        op: 'scissor_push',	      commands.push({	        x: box.x, y: box.y, w: box.width, h: box.height,
 _facts/reference/ir-format	packages/layout/src/paint.js	325	      commands.push({ op: 'scissor_pop', state: 'always', focusId: null });	    if (clip) {	    }
 _facts/reference/ir-format	packages/layout/src/paint.js	329	  const seen = new Set();	  visit(root);	  for (const s of slots) {
-_facts/reference/uib-format	docs/PLAN.md	87	Cross-language pen agreement is tested	counts three paragraphs above, and the reason none is written back.	glyph-by-glyph (Node↔Python) and against an independent linear scan
+_facts/reference/uib-format	docs/PLAN.md	95	Cross-language pen agreement is tested	counts three paragraphs above, and the reason none is written back.	glyph-by-glyph (Node↔Python) and against an independent linear scan
 _facts/reference/uib-format	docs/format-uib.md	466	  because it carried no padding at all. Neither the stride nor the	  existed to reach two qwords. The slot entry **shrank**, 32 → 28,	  meaning of a field survives a v6 reader, so this is a version bump.
 _facts/reference/uib-format	packages/baker/ps2ui_bake/check.py	193	    rep.error(ob % 16 == 0,	    ob = getattr(uib, "off_blob", 0)	              f"blob section starts 16-aligned in the file (off_blob={ob})")
 _facts/reference/uib-format	packages/baker/ps2ui_bake/check.py	399	TINT_RATIO_MIN_PAINTS = 100	# note-instead-of-skip it guards. Every shipped blob is 700+.	
@@ -1090,7 +1093,7 @@ _facts/reference/uib-format	tools/check-format-frozen.py	4	WHY THIS EXISTS. docs
 _facts/reference/uib-format	tools/check-format-frozen.py	80	PLEDGED_VERSION = 7		
 _facts/reference/uib-format	tools/check-format-frozen.py	184	    # 4. Assigned feature bits keep their values. New ones are the		    #    growth path and are allowed -- this loop is over the FROZEN
 _facts/reference/uib-format	tools/check-versions.py	400	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
-_facts/runtime/api-reference	README.md	434	  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by	- **Queries stay in UI coordinates.** The focused node's rect is	  the offset, so your own hit-testing keeps working; add the offset
+_facts/runtime/api-reference	README.md	438	  `ctx->focus_nodes[ctx->focus]`, and its `x, y, w, h` are unaffected by	- **Queries stay in UI coordinates.** The focused node's rect is	  the offset, so your own hit-testing keeps working; add the offset
 _facts/runtime/api-reference	runtime/ps2ui.c	39	uint32_t ps2ui_crc32(const void *data, size_t len)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	264	size_t ps2ui_arena_size(const void *data, size_t size)		{
 _facts/runtime/api-reference	runtime/ps2ui.c	278	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,		               void *arena, size_t arena_size)
@@ -1147,57 +1150,57 @@ _facts/runtime/api-reference	runtime/ps2ui.h	401	    uint32_t  *hidden;         
 _facts/runtime/api-reference	runtime/ps2ui.h	407	    uint32_t  vram_need;	     * not by binding. Meaningful only while `uploaded` is set. */	    /* A draw-time translation applied to every command's position, and
 _facts/runtime/api-reference	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
 _facts/runtime/api-reference	runtime/ps2ui.h	446	#define PS2UI_ARENA_ALIGN    16	 * alignment -- the exact fault class bringup.md 3c records. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but does not validate the
-_facts/runtime/api-reference	runtime/ps2ui.h	453	size_t ps2ui_arena_size(const void *data, size_t size);	 * answer for "do not bother calling load". */	
-_facts/runtime/api-reference	runtime/ps2ui.h	457	 * The arena must be at least ps2ui_arena_size() bytes and	 * alive and unmoved for the context's lifetime; nothing is copied.	 * PS2UI_ARENA_ALIGN-aligned; the context points into it, so its
-_facts/runtime/api-reference	runtime/ps2ui.h	461	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,	 * call. A blob that fails validation never touches the arena. */	               void *arena, size_t arena_size);
-_facts/runtime/api-reference	runtime/ps2ui.h	466	uint32_t ps2ui_clut_csm1(uint32_t index);	 * mirrors clut_csm1_order in packages/baker/ps2ui_bake/gs.py. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	475	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs);	 * from a null source. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	504	 * Returns PS2UI_OK, PS2UI_ERR_NOT_STREAMED (no such name, or the name	 *	 * is a baked texture), PS2UI_ERR_SIZE, or PS2UI_ERR_ALIGN. Safe to
-_facts/runtime/api-reference	runtime/ps2ui.h	508	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,	 * which is what scrolling a list does. */	                  const void *texels, size_t len);
-_facts/runtime/api-reference	runtime/ps2ui.h	538	 * MUST FOLLOW ps2ui_upload, and is refused before it. The first draft	 *	 * of this comment said the opposite -- "safe before upload, the pool is
-_facts/runtime/api-reference	runtime/ps2ui.h	573	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * PS2UI_ERR_STATE if called before ps2ui_upload. */	                   const void *colors, unsigned ncolors);
-_facts/runtime/api-reference	runtime/ps2ui.h	587	 *   - Callable BEFORE ps2ui_upload. clut_set is refused there because	 *	 *     upload re-permutes every palette from the blob and would
-_facts/runtime/api-reference	runtime/ps2ui.h	608	int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme);	 * n_theme. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	612	 * NEVER CLEARS. This is a guarantee, not an implementation detail:	 *	 * ps2ui_render adds to whatever is already in the framebuffer and
-_facts/runtime/api-reference	runtime/ps2ui.h	632	 *   - `ctx->stats` describes ONE render, not the frame. It is reset at	 *	 *     the top of every call, so a composited frame ends holding the
-_facts/runtime/api-reference	runtime/ps2ui.h	635	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
-_facts/runtime/api-reference	runtime/ps2ui.h	650	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs);	 * screen rather than the last clip inside the UI. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	652	/* D-pad move. Returns 1 when focus changed. */		int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
-_facts/runtime/api-reference	runtime/ps2ui.h	653	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);	/* D-pad move. Returns 1 when focus changed. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	656	const char *ps2ui_focus_name(const ps2ui_ctx *ctx);	/* Name of the focused node ("tile-okami"), or NULL. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	660	 * name. Scoped to the screen deliberately: names are only unique within	 * Returns 1 on success, 0 if the *current screen* has no node with that	 * one, and data-repeat makes two screens each using row-{i} a natural
-_facts/runtime/api-reference	runtime/ps2ui.h	663	 * after a screen swap or to implement shortcuts. */	 * thing to write rather than an accident. Use this to restore focus	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
-_facts/runtime/api-reference	runtime/ps2ui.h	664	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);	 * after a screen swap or to implement shortcuts. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	668	 * reverts to the baked placeholder; "" blanks the slot.	 * at the slot's baked capacity without splitting a character). NULL	 * Returns 1 on success, 0 if no slot has that name.
-_facts/runtime/api-reference	runtime/ps2ui.h	671	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	 * The runtime lays the glyphs out per frame from the baked glyph	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);
-_facts/runtime/api-reference	runtime/ps2ui.h	672	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	675	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name);	/* Current string of a slot (runtime text, else placeholder), or NULL. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	680	int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name);	 * Returns 1 on success, 0 if no screen has that name. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	683	const char *ps2ui_screen_name(const ps2ui_ctx *ctx);	/* Name of the current screen ("library"), never NULL after load. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	689	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	705	 * A hidden node is also skipped by ps2ui_move, so the D-pad cannot land	 *	 * on something invisible. That is the half an app reimplementing this
-_facts/runtime/api-reference	runtime/ps2ui.h	716	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible);	 * a blob declares can be hidden. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	726	#define PS2UI_VISIBLE_UNKNOWN (-1)	 * answer, and -1 cannot be confused with a visibility. */	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
-_facts/runtime/api-reference	runtime/ps2ui.h	727	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);	#define PS2UI_VISIBLE_UNKNOWN (-1)	
-_facts/runtime/api-reference	runtime/ps2ui.h	730	void ps2ui_visible_reset(ps2ui_ctx *ctx);	/* Show every node again. Cheap enough to call on a screen change. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	748	 * RENDER-TIME ONLY, DELIBERATELY. Everything that reports geometry	 *	 * keeps answering in UI coordinates -- the coordinates the blob was
-_facts/runtime/api-reference	runtime/ps2ui.h	764	 * frame in the wrong place. */	 * truncated, because a silently wrapped offset draws a correct-looking	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy);
-_facts/runtime/api-reference	runtime/ps2ui.h	767	/* The current offset, for an app placing its own art beside the UI's. */		void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy);
-_facts/runtime/api-reference	runtime/ps2ui.h	787	 * a UI that does not use it. */	 * already baked, so this needs no format version and costs nothing to	typedef struct {
-_facts/runtime/api-reference	runtime/ps2ui.h	796	/* Bind a list to `rows` baked rows whose focus names are prefix+index		 * ("row-" gives row-0, row-1, ...). Starts empty; call
-_facts/runtime/api-reference	runtime/ps2ui.h	799	void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);	 * ps2ui_list_set_count next. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	802	 * window into range, so shrinking a list under a selection sitting past	/* Tell the list how many items exist. Clamps the selection and the	 * the new end lands somewhere valid rather than off the end — and moves
-_facts/runtime/api-reference	runtime/ps2ui.h	806	 * row the user cannot see selected. Pass NULL to move indices only. */	 * the highlight following is how the accept button ends up firing on a	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);
-_facts/runtime/api-reference	runtime/ps2ui.h	807	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);	 * row the user cannot see selected. Pass NULL to move indices only. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	811	 * off the end of a hundred saves and arriving at the top is disorienting	 * page). Clamps at both ends — a list does not wrap, because walking	 * in a way a six-tile grid never is. Scrolls the window to keep the
-_facts/runtime/api-reference	runtime/ps2ui.h	815	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);	 * and returns 1 if anything changed. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	819	int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item);	 * anything changed. Out-of-range indices clamp. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	824	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row);	 * runs after every move to refill the slots. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	828	int ps2ui_list_selected_row(const ps2ui_list *list);	 * for an empty list. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	832	 * as an empty row rather than as no row; this is what makes a short list	 * Blanking a row's text leaves its panel and border drawn, which reads	 * look short. Call it after set_count and after any move. Needs the row
-_facts/runtime/api-reference	runtime/ps2ui.h	835	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list);	 * focus names to match the list's prefix. */	
-_facts/runtime/api-reference	runtime/ps2ui.h	838	 * for tests. */	/* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed	uint32_t ps2ui_crc32(const void *data, size_t len);
+_facts/runtime/api-reference	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but checks no CRC,
+_facts/runtime/api-reference	runtime/ps2ui.h	455	size_t ps2ui_arena_size(const void *data, size_t size);	 * holds. Each is also the answer for "do not bother calling load". */	
+_facts/runtime/api-reference	runtime/ps2ui.h	459	 * The arena must be at least ps2ui_arena_size() bytes and	 * alive and unmoved for the context's lifetime; nothing is copied.	 * PS2UI_ARENA_ALIGN-aligned; the context points into it, so its
+_facts/runtime/api-reference	runtime/ps2ui.h	463	int ps2ui_load(ps2ui_ctx *ctx, const void *data, size_t size,	 * call. A blob that fails validation never touches the arena. */	               void *arena, size_t arena_size);
+_facts/runtime/api-reference	runtime/ps2ui.h	468	uint32_t ps2ui_clut_csm1(uint32_t index);	 * mirrors clut_csm1_order in packages/baker/ps2ui_bake/gs.py. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	477	int ps2ui_upload(ps2ui_ctx *ctx, GSGLOBAL *gs);	 * from a null source. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	506	 * Returns PS2UI_OK, PS2UI_ERR_NOT_STREAMED (no such name, or the name	 *	 * is a baked texture), PS2UI_ERR_SIZE, or PS2UI_ERR_ALIGN. Safe to
+_facts/runtime/api-reference	runtime/ps2ui.h	510	int ps2ui_tex_set(ps2ui_ctx *ctx, GSGLOBAL *gs, const char *name,	 * which is what scrolling a list does. */	                  const void *texels, size_t len);
+_facts/runtime/api-reference	runtime/ps2ui.h	540	 * MUST FOLLOW ps2ui_upload, and is refused before it. The first draft	 *	 * of this comment said the opposite -- "safe before upload, the pool is
+_facts/runtime/api-reference	runtime/ps2ui.h	575	int ps2ui_clut_set(ps2ui_ctx *ctx, GSGLOBAL *gs, unsigned clut_index,	 * PS2UI_ERR_STATE if called before ps2ui_upload. */	                   const void *colors, unsigned ncolors);
+_facts/runtime/api-reference	runtime/ps2ui.h	589	 *   - Callable BEFORE ps2ui_upload. clut_set is refused there because	 *	 *     upload re-permutes every palette from the blob and would
+_facts/runtime/api-reference	runtime/ps2ui.h	610	int ps2ui_theme_set(ps2ui_ctx *ctx, unsigned theme);	 * n_theme. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	614	 * NEVER CLEARS. This is a guarantee, not an implementation detail:	 *	 * ps2ui_render adds to whatever is already in the framebuffer and
+_facts/runtime/api-reference	runtime/ps2ui.h	634	 *   - `ctx->stats` describes ONE render, not the frame. It is reset at	 *	 *     the top of every call, so a composited frame ends holding the
+_facts/runtime/api-reference	runtime/ps2ui.h	637	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
+_facts/runtime/api-reference	runtime/ps2ui.h	652	void ps2ui_render(ps2ui_ctx *ctx, GSGLOBAL *gs);	 * screen rather than the last clip inside the UI. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	654	/* D-pad move. Returns 1 when focus changed. */		int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);
+_facts/runtime/api-reference	runtime/ps2ui.h	655	int ps2ui_move(ps2ui_ctx *ctx, ps2ui_dir dir);	/* D-pad move. Returns 1 when focus changed. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	658	const char *ps2ui_focus_name(const ps2ui_ctx *ctx);	/* Name of the focused node ("tile-okami"), or NULL. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	662	 * name. Scoped to the screen deliberately: names are only unique within	 * Returns 1 on success, 0 if the *current screen* has no node with that	 * one, and data-repeat makes two screens each using row-{i} a natural
+_facts/runtime/api-reference	runtime/ps2ui.h	665	 * after a screen swap or to implement shortcuts. */	 * thing to write rather than an accident. Use this to restore focus	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);
+_facts/runtime/api-reference	runtime/ps2ui.h	666	int ps2ui_focus_set(ps2ui_ctx *ctx, const char *name);	 * after a screen swap or to implement shortcuts. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	670	 * reverts to the baked placeholder; "" blanks the slot.	 * at the slot's baked capacity without splitting a character). NULL	 * Returns 1 on success, 0 if no slot has that name.
+_facts/runtime/api-reference	runtime/ps2ui.h	673	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	 * The runtime lays the glyphs out per frame from the baked glyph	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);
+_facts/runtime/api-reference	runtime/ps2ui.h	674	int ps2ui_slot_set(ps2ui_ctx *ctx, const char *name, const char *text);	 * table: advance walk + optional ellipsis, no wrapping, no allocation. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	677	const char *ps2ui_slot_get(const ps2ui_ctx *ctx, const char *name);	/* Current string of a slot (runtime text, else placeholder), or NULL. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	682	int ps2ui_screen_set(ps2ui_ctx *ctx, const char *name);	 * Returns 1 on success, 0 if no screen has that name. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	685	const char *ps2ui_screen_name(const ps2ui_ctx *ctx);	/* Name of the current screen ("library"), never NULL after load. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	691	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	707	 * A hidden node is also skipped by ps2ui_move, so the D-pad cannot land	 *	 * on something invisible. That is the half an app reimplementing this
+_facts/runtime/api-reference	runtime/ps2ui.h	718	int ps2ui_visible_set(ps2ui_ctx *ctx, const char *name, int visible);	 * a blob declares can be hidden. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	728	#define PS2UI_VISIBLE_UNKNOWN (-1)	 * answer, and -1 cannot be confused with a visibility. */	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
+_facts/runtime/api-reference	runtime/ps2ui.h	729	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);	#define PS2UI_VISIBLE_UNKNOWN (-1)	
+_facts/runtime/api-reference	runtime/ps2ui.h	732	void ps2ui_visible_reset(ps2ui_ctx *ctx);	/* Show every node again. Cheap enough to call on a screen change. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	750	 * RENDER-TIME ONLY, DELIBERATELY. Everything that reports geometry	 *	 * keeps answering in UI coordinates -- the coordinates the blob was
+_facts/runtime/api-reference	runtime/ps2ui.h	766	 * frame in the wrong place. */	 * truncated, because a silently wrapped offset draws a correct-looking	int ps2ui_offset_set(ps2ui_ctx *ctx, int dx, int dy);
+_facts/runtime/api-reference	runtime/ps2ui.h	769	/* The current offset, for an app placing its own art beside the UI's. */		void ps2ui_offset_get(const ps2ui_ctx *ctx, int *dx, int *dy);
+_facts/runtime/api-reference	runtime/ps2ui.h	789	 * a UI that does not use it. */	 * already baked, so this needs no format version and costs nothing to	typedef struct {
+_facts/runtime/api-reference	runtime/ps2ui.h	798	/* Bind a list to `rows` baked rows whose focus names are prefix+index		 * ("row-" gives row-0, row-1, ...). Starts empty; call
+_facts/runtime/api-reference	runtime/ps2ui.h	801	void ps2ui_list_init(ps2ui_list *list, const char *prefix, uint16_t rows);	 * ps2ui_list_set_count next. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	804	 * window into range, so shrinking a list under a selection sitting past	/* Tell the list how many items exist. Clamps the selection and the	 * the new end lands somewhere valid rather than off the end — and moves
+_facts/runtime/api-reference	runtime/ps2ui.h	808	 * row the user cannot see selected. Pass NULL to move indices only. */	 * the highlight following is how the accept button ends up firing on a	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);
+_facts/runtime/api-reference	runtime/ps2ui.h	809	void ps2ui_list_set_count(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t count);	 * row the user cannot see selected. Pass NULL to move indices only. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	813	 * off the end of a hundred saves and arriving at the top is disorienting	 * page). Clamps at both ends — a list does not wrap, because walking	 * in a way a six-tile grid never is. Scrolls the window to keep the
+_facts/runtime/api-reference	runtime/ps2ui.h	817	int ps2ui_list_move(ps2ui_ctx *ctx, ps2ui_list *list, int delta);	 * and returns 1 if anything changed. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	821	int ps2ui_list_select(ps2ui_ctx *ctx, ps2ui_list *list, uint16_t item);	 * anything changed. Out-of-range indices clamp. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	826	int ps2ui_list_item_at(const ps2ui_list *list, uint16_t row);	 * runs after every move to refill the slots. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	830	int ps2ui_list_selected_row(const ps2ui_list *list);	 * for an empty list. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	834	 * as an empty row rather than as no row; this is what makes a short list	 * Blanking a row's text leaves its panel and border drawn, which reads	 * look short. Call it after set_count and after any move. Needs the row
+_facts/runtime/api-reference	runtime/ps2ui.h	837	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list);	 * focus names to match the list's prefix. */	
+_facts/runtime/api-reference	runtime/ps2ui.h	840	 * for tests. */	/* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed	uint32_t ps2ui_crc32(const void *data, size_t len);
 _facts/runtime/console-launcher	.github/workflows/console-release.yml	24	    tags: ['v[0-9]*', '[0-9]*.[0-9]*.[0-9]*']	  push:	  workflow_dispatch:
 _facts/runtime/console-launcher	.github/workflows/console-release.yml	98	          cp console/ophtml.elf console/ophtml-mock.elf dist/	          mkdir -p dist	          cd dist && sha256sum ophtml.elf ophtml-mock.elf > SHA256SUMS
 _facts/runtime/console-launcher	.github/workflows/console-release.yml	127	            gh release create "$TAG" --draft --verify-tag --title "$TAG" \\	            # the dispatch input must not mint a new tag on main.	              --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
@@ -1233,11 +1236,11 @@ _facts/runtime/console-launcher	console/storage.c	67	    { "bdmfs_fatfs",     NE
 _facts/runtime/console-launcher	console/tests/mock_expected.py	24	def main(argv=None):		    ap = argparse.ArgumentParser(description=__doc__.split("\\n")[0])
 _facts/runtime/deploying	.github/workflows/hw.yml	10	#               in the Play! emulator (HLE BIOS, so legally runnable in	#   emulator  — GATING since the DMA-alignment fix (#40): boots the ELF	#               CI), captures a frame, and image-diffs it against the
 _facts/runtime/deploying	.github/workflows/hw.yml	676	          # NOPAD=1 first: that build loads no IOP service and holds	          #	          # the baked focus, which is the one the host syntax check can
-_facts/runtime/deploying	docs/deploying.md	8	**How to read the claims in this file.** This project distinguishes what		it has measured from what it has not, so each path below carries one of
-_facts/runtime/deploying	docs/deploying.md	23	## What you are actually copying		
-_facts/runtime/deploying	docs/deploying.md	31	The one exception is **streamed textures**. If your UI fills texture		slots at runtime with `ps2ui_tex_set`, those bytes are read from
-_facts/runtime/deploying	docs/deploying.md	38	## Try it in an emulator first		
-_facts/runtime/deploying	docs/deploying.md	111	  nothing appears on screen, this tells you whether the boot path or the	- `MINIMAL=1` builds bring-up step 1 alone (clear, hold, exit). If	  drawing failed, which is the first question worth answering.
+_facts/runtime/deploying	docs/deploying.md	13	**How to read the claims in this file.** This project distinguishes what		it has measured from what it has not, so each path below carries one of
+_facts/runtime/deploying	docs/deploying.md	28	## What you are actually copying		
+_facts/runtime/deploying	docs/deploying.md	36	The one exception is **streamed textures**. If your UI fills texture		slots at runtime with `ps2ui_tex_set`, those bytes are read from
+_facts/runtime/deploying	docs/deploying.md	43	## Try it in an emulator first		
+_facts/runtime/deploying	docs/deploying.md	116	  nothing appears on screen, this tells you whether the boot path or the	- `MINIMAL=1` builds bring-up step 1 alone (clear, hold, exit). If	  drawing failed, which is the first question worth answering.
 _facts/runtime/deploying	runtime/sample/Makefile	8	EE_BIN  = ps2ui_sample.elf		EE_OBJS = main.o ps2ui.o ui_uib.o
 _facts/runtime/deploying	runtime/sample/Makefile	16	ifdef STATIC	# timed screenshot always catches the same frame the previewer renders.	EE_CFLAGS += -DPS2UI_SAMPLE_STATIC
 _facts/runtime/deploying	runtime/sample/Makefile	30	ifdef MINIMAL	# The smallest thing that can prove the boot and video path.	EE_CFLAGS += -DPS2UI_SAMPLE_MINIMAL
@@ -1325,7 +1328,7 @@ _facts/runtime/errors-and-constants	runtime/ps2ui.h	301	#define PS2UI_LIST_NAME_
 _facts/runtime/errors-and-constants	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
 _facts/runtime/errors-and-constants	runtime/ps2ui.h	429	/* The blob's counts are legal but the arena they add up to does not	#define PS2UI_ERR_BOUNDS     -4	 * fit this machine's address space. It stopped meaning "past a number
 _facts/runtime/errors-and-constants	runtime/ps2ui.h	446	#define PS2UI_ARENA_ALIGN    16	 * alignment -- the exact fault class bringup.md 3c records. */	
-_facts/runtime/errors-and-constants	runtime/ps2ui.h	726	#define PS2UI_VISIBLE_UNKNOWN (-1)	 * answer, and -1 cannot be confused with a visibility. */	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
+_facts/runtime/errors-and-constants	runtime/ps2ui.h	728	#define PS2UI_VISIBLE_UNKNOWN (-1)	 * answer, and -1 cannot be confused with a visibility. */	int ps2ui_visible_get(const ps2ui_ctx *ctx, const char *name);
 _facts/runtime/errors-and-constants	runtime/sample/Makefile	58	ifdef LINEAR_CLUT	# side-by-side says which side of it this build is on.	EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 _facts/runtime/errors-and-constants	runtime/sample/Makefile	243	ifdef NO_SYNC	# rather than guessing when a cover comes out wrong.	EE_CFLAGS += -DPS2UI_SKIP_SYNCDCACHE
 _facts/runtime/errors-and-constants	runtime/tests/test_runtime.c	45	/* Re-stamp the CRC of a deliberately mutated blob.	 * reason named rather than for want of an arena. */	 *
@@ -1367,15 +1370,15 @@ _facts/runtime/frame-loop	runtime/ps2ui.c	1206	    apply_scissor(gs, &stack[0]);
 _facts/runtime/frame-loop	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 _facts/runtime/frame-loop	runtime/ps2ui.h	369	     * So a multi-theme blob is ordinary output, not a hand-written	     *	     * fixture, and README.md's own first screenshots are one blob
 _facts/runtime/frame-loop	runtime/ps2ui.h	443	/* The arena's required alignment. The CLUT region at its start is a		 * DMA source, and DMA source addresses truncate silently below qword
-_facts/runtime/frame-loop	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but does not validate the
-_facts/runtime/frame-loop	runtime/ps2ui.h	453	size_t ps2ui_arena_size(const void *data, size_t size);	 * answer for "do not bother calling load". */	
-_facts/runtime/frame-loop	runtime/ps2ui.h	468	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
-_facts/runtime/frame-loop	runtime/ps2ui.h	551	 * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.	 *	 * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
-_facts/runtime/frame-loop	runtime/ps2ui.h	612	 * NEVER CLEARS. This is a guarantee, not an implementation detail:	 *	 * ps2ui_render adds to whatever is already in the framebuffer and
-_facts/runtime/frame-loop	runtime/ps2ui.h	618	 *     overlay with no ground of its own beyond a scrim.	 *     a game frame -- which is what the channel-6 example is, an	 *   - Two screens in one frame COMPOSITE, and that is the dialog and
-_facts/runtime/frame-loop	runtime/ps2ui.h	632	 *   - `ctx->stats` describes ONE render, not the frame. It is reset at	 *	 *     the top of every call, so a composited frame ends holding the
-_facts/runtime/frame-loop	runtime/ps2ui.h	635	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
-_facts/runtime/frame-loop	runtime/ps2ui.h	647	 * The scissor is left at the full canvas when this returns, so a	 *	 * caller drawing its own geometry afterwards inherits the whole
+_facts/runtime/frame-loop	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but checks no CRC,
+_facts/runtime/frame-loop	runtime/ps2ui.h	455	size_t ps2ui_arena_size(const void *data, size_t size);	 * holds. Each is also the answer for "do not bother calling load". */	
+_facts/runtime/frame-loop	runtime/ps2ui.h	470	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
+_facts/runtime/frame-loop	runtime/ps2ui.h	553	 * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.	 *	 * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
+_facts/runtime/frame-loop	runtime/ps2ui.h	614	 * NEVER CLEARS. This is a guarantee, not an implementation detail:	 *	 * ps2ui_render adds to whatever is already in the framebuffer and
+_facts/runtime/frame-loop	runtime/ps2ui.h	620	 *     overlay with no ground of its own beyond a scrim.	 *     a game frame -- which is what the channel-6 example is, an	 *   - Two screens in one frame COMPOSITE, and that is the dialog and
+_facts/runtime/frame-loop	runtime/ps2ui.h	634	 *   - `ctx->stats` describes ONE render, not the frame. It is reset at	 *	 *     the top of every call, so a composited frame ends holding the
+_facts/runtime/frame-loop	runtime/ps2ui.h	637	 *   - Residency is per FRAME. Call gsKit_TexManager_nextFrame once	 *     overlay's counters. Read them between renders to sum a frame.	 *     after the flip, not between the two renders, or the second ages
+_facts/runtime/frame-loop	runtime/ps2ui.h	649	 * The scissor is left at the full canvas when this returns, so a	 *	 * caller drawing its own geometry afterwards inherits the whole
 _facts/runtime/frame-loop	runtime/sample/main.c	215	 * the DESTINATION -- the previous framebuffer, i.e. black -- rather	 * ABE on at alpha 0x80, and under gsKit's default that composites to	 * than to the clear colour. Untextured geometry drew all along and then
 _facts/runtime/frame-loop	runtime/sample/main.c	1657	    /* The v6 arena: one caller-provided block, sized from the blob.		     * A static buffer rather than a malloc, because that is the shape
 _facts/runtime/frame-loop	runtime/sample/main.c	1671	    static uint8_t arena[16 * 1024] __attribute__((aligned(PS2UI_ARENA_ALIGN)));	     * quietly hand the GS a dangling CLUT pointer. */	
@@ -1439,9 +1442,9 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/moving-and-hiding	CHANGELOG.md	1524	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
-_facts/runtime/moving-and-hiding	CHANGELOG.md	2058	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
-_facts/runtime/moving-and-hiding	README.md	441	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
+_facts/runtime/moving-and-hiding	CHANGELOG.md	1572	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
+_facts/runtime/moving-and-hiding	CHANGELOG.md	2106	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
+_facts/runtime/moving-and-hiding	README.md	445	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	126	def render(uib: UibFile, focus_current: int = None, background=(10, 14, 26, 255),		           slot_text: dict = None, screen=0, tex_fills: dict = None,
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	143	    # The same range ps2ui_offset_set enforces, and refused here for the	                         f"{max(1, len(uib.themes))}-row tint table")	    # same reason the theme index is: a previewer that will draw a frame
 _facts/runtime/moving-and-hiding	packages/baker/ps2ui_bake/preview.py	171	    # The canvas rect, and it does NOT take the offset: it is the screen	    tex_cache = {}	    # edge, the same role stack[0] has in ps2ui_render. Content pushed
@@ -1472,15 +1475,15 @@ _facts/runtime/moving-and-hiding	runtime/ps2ui.c	1642	        ctx->hidden[idx >>
 _facts/runtime/moving-and-hiding	runtime/ps2ui.c	1659	void ps2ui_visible_reset(ps2ui_ctx *ctx)		{
 _facts/runtime/moving-and-hiding	runtime/ps2ui.h	310	typedef struct ps2ui_stats {	 * primitive drawn -- proportional to the frame, not to the API. */	    uint32_t cmds;             /* command records walked                */
 _facts/runtime/moving-and-hiding	runtime/ps2ui.h	408	    /* A draw-time translation applied to every command's position, and	    uint32_t  vram_need;	     * to every scissor rect derived from one -- but NOT to the canvas
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	693	/* Hide or show a focusable subtree at runtime (backlog F21).		 *
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	695	 * `display: none` is compile-time: it deletes the box before layout, so	 *	 * the geometry closes up around it. This is the other thing, and the
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	703	 * the subtree goes with it, slots included.	 * want: a list row, a button, a panel the app can turn off. Text inside	 *
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	710	 * must not blank another screen's identically-named row.	 * Scoped to the current screen, like ps2ui_focus_set: hiding "row-2"	 *
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	732	/* -------------------------------------------------- draw-time offset */		
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	744	 * NO FORMAT CHANGE. This is a draw-time transform over commands that	 *	 * already exist, so it works on blobs baked by any 0.x toolchain and
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	748	 * RENDER-TIME ONLY, DELIBERATELY. Everything that reports geometry	 *	 * keeps answering in UI coordinates -- the coordinates the blob was
-_facts/runtime/moving-and-hiding	runtime/ps2ui.h	758	 * the page behind it moves: ps2ui_render never clears, so set an	 * COMPOSITION STILL WORKS, and this is how an overlay stays put while	 * offset, render the scrolling screen, set (0, 0), render the dialog.
-_facts/runtime/streaming-art	docs/deploying.md	23	## What you are actually copying		
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	695	/* Hide or show a focusable subtree at runtime (backlog F21).		 *
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	697	 * `display: none` is compile-time: it deletes the box before layout, so	 *	 * the geometry closes up around it. This is the other thing, and the
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	705	 * the subtree goes with it, slots included.	 * want: a list row, a button, a panel the app can turn off. Text inside	 *
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	712	 * must not blank another screen's identically-named row.	 * Scoped to the current screen, like ps2ui_focus_set: hiding "row-2"	 *
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	734	/* -------------------------------------------------- draw-time offset */		
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	746	 * NO FORMAT CHANGE. This is a draw-time transform over commands that	 *	 * already exist, so it works on blobs baked by any 0.x toolchain and
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	750	 * RENDER-TIME ONLY, DELIBERATELY. Everything that reports geometry	 *	 * keeps answering in UI coordinates -- the coordinates the blob was
+_facts/runtime/moving-and-hiding	runtime/ps2ui.h	760	 * the page behind it moves: ps2ui_render never clears, so set an	 * COMPOSITION STILL WORKS, and this is how an overlay stays put while	 * offset, render the scrolling screen, set (0, 0), render the dialog.
+_facts/runtime/streaming-art	docs/deploying.md	28	## What you are actually copying		
 _facts/runtime/streaming-art	fixtures/bench-stream/ui/bench.css	9	.row   { display: flex; flex-direction: row; height: 156px; }	   title-safe area a CRT keeps. The bench is read off a television. */	.cell  { display: flex; flex-direction: column; width: 128px; }
 _facts/runtime/streaming-art	fixtures/bench-stream/ui/covers.html	6	      <div class="cell"><img data-tex-slot="cover0"><div class="cap" data-slot="c0">0</div></div>	    <div class="row">	      <div class="cell"><img data-tex-slot="cover1"><div class="cap" data-slot="c1">1</div></div>
 _facts/runtime/streaming-art	packages/baker/ps2ui_bake/quads.py	443	    def _streamed_texture(self, name: str, w: int, h: int) -> int:		        """A slot the app fills at runtime: geometry, a name and a
@@ -1515,14 +1518,14 @@ _facts/runtime/streaming-art	runtime/ps2ui.c	1187	            /* An unfilled str
 _facts/runtime/streaming-art	runtime/ps2ui.h	141	     * data_len is the exact payload ps2ui_tex_set will demand, so the	    /* BAKED: where the texels are. STREAMED: data_off is unused and	     * app is told the number rather than deriving it and getting the
 _facts/runtime/streaming-art	runtime/ps2ui.h	323	    uint32_t tex_unfilled;     /* textured draws skipped because their	                                * past the baker somehow               */	                                * streamed slot has no texels yet -- the
 _facts/runtime/streaming-art	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
-_facts/runtime/streaming-art	runtime/ps2ui.h	468	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
-_facts/runtime/streaming-art	runtime/ps2ui.h	477	/* Point a streamed texture slot at the caller's texels.		 *
-_facts/runtime/streaming-art	runtime/ps2ui.h	494	 * render time, not this call. It must also be 16-aligned, because a	 * whenever the texture manager re-binds an evicted texture, which is	 * DMA source address truncates silently below qword alignment.
-_facts/runtime/streaming-art	runtime/ps2ui.h	506	 * call before ps2ui_upload; safe to call again to swap the texels,	 * is a baked texture), PS2UI_ERR_SIZE, or PS2UI_ERR_ALIGN. Safe to	 * which is what scrolling a list does. */
-_facts/runtime/streaming-art	runtime/ps2ui.h	511	/* Repoint one CLUT at a different palette, without touching a texel.		 *
-_facts/runtime/streaming-art	runtime/ps2ui.h	538	 * MUST FOLLOW ps2ui_upload, and is refused before it. The first draft	 *	 * of this comment said the opposite -- "safe before upload, the pool is
-_facts/runtime/streaming-art	runtime/ps2ui.h	560	 * A SHORT PALETTE BLANKS THE TAIL. permute_clut opens with	 *	 * memset(out, 0, 256*4), so passing ncolors < the baked width leaves
-_facts/runtime/streaming-art	runtime/ps2ui.h	576	/* Select which row of the tint table commands and slots index into.		 *
+_facts/runtime/streaming-art	runtime/ps2ui.h	470	/* Allocate VRAM and upload every texture + permuted CLUT.		 *
+_facts/runtime/streaming-art	runtime/ps2ui.h	479	/* Point a streamed texture slot at the caller's texels.		 *
+_facts/runtime/streaming-art	runtime/ps2ui.h	496	 * render time, not this call. It must also be 16-aligned, because a	 * whenever the texture manager re-binds an evicted texture, which is	 * DMA source address truncates silently below qword alignment.
+_facts/runtime/streaming-art	runtime/ps2ui.h	508	 * call before ps2ui_upload; safe to call again to swap the texels,	 * is a baked texture), PS2UI_ERR_SIZE, or PS2UI_ERR_ALIGN. Safe to	 * which is what scrolling a list does. */
+_facts/runtime/streaming-art	runtime/ps2ui.h	513	/* Repoint one CLUT at a different palette, without touching a texel.		 *
+_facts/runtime/streaming-art	runtime/ps2ui.h	540	 * MUST FOLLOW ps2ui_upload, and is refused before it. The first draft	 *	 * of this comment said the opposite -- "safe before upload, the pool is
+_facts/runtime/streaming-art	runtime/ps2ui.h	562	 * A SHORT PALETTE BLANKS THE TAIL. permute_clut opens with	 *	 * memset(out, 0, 256*4), so passing ncolors < the baked width leaves
+_facts/runtime/streaming-art	runtime/ps2ui.h	578	/* Select which row of the tint table commands and slots index into.		 *
 _facts/runtime/streaming-art	runtime/sample/main.c	1269	/* 16-aligned because ps2ui_tex_set refuses anything else: a DMA source		 * address truncates silently below qword alignment, which is the exact
 _facts/runtime/streaming-art	runtime/sample/main.c	1346	        int fd = open("mass:/ps2ui/cover0.raw", O_RDONLY);	    for (tries = 0; tries < 120; tries++) {	        if (fd >= 0) { close(fd); return 1; }
 _facts/runtime/streaming-art	runtime/sample/main.c	1357	     * printed the same sentence. A sitting read that message and could	     * itself, so "no drive" and "a mounted drive with no /ps2ui on it"	     * not tell which of two unrelated fixes it needed.
@@ -1568,7 +1571,7 @@ authoring/images	examples/channel6/ui/games.html	19	        <img class="cover" s
 authoring/lists	docs/tutorial-uc3.md	65	<screen name="library">	cat > ui/library.html <<'EOF'	  <div class="page">
 authoring/lists	docs/tutorial-uc3.md	366	ps2ui_list list;		ps2ui_list_init(&list, "row-", 6);           /* the six baked rows */
 authoring/lists	packages/layout/test/layout.test.js	954	test('repeat: copies lay out as if they had been typed out', () => {		  const css = '.s { flex-direction: column; background: #0a0e1a; gap: 4px }'
-authoring/project-file	CHANGELOG.md	1608	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
+authoring/project-file	CHANGELOG.md	1656	  drift count.** "zero moves ... since 0.4.0" passed on a tree whose	- **Rule 10 reads the drift anchor and the release tag, not just the	  newest released section was 0.5.0, and `tagged \\`v0.5.0\\`` could be
 authoring/project-file	docs/tutorial-uc3.md	134	cat > ps2ui.json <<'EOF'	```sh	{
 authoring/project-file	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 authoring/project-file	examples/channel6/ps2ui.json	4	    { "html": "ui/probe.html", "focusWrap": true }	    "ui/games.html",	  ],
@@ -1597,9 +1600,9 @@ cli/ps2ui-fontgen	packages/baker/ps2ui_bake/ps2ui.py	370	def cmd_fontgen(args):	
 cli/ps2ui-fontgen	packages/baker/pyproject.toml	21	ps2ui = "ps2ui_bake.ps2ui:main"	# to run that stage.	ps2ui-bake = "ps2ui_bake.cli:main"
 cli/ps2ui-fontgen	packages/baker/tests/test_baker.py	157	class TestFontgenNeedsNoRaqm(unittest.TestCase):		    """F47: fontgen measures through uharfbuzz, not Pillow's Raqm.
 cli/ps2ui-layout	packages/layout/src/aspect.js	47	export const MODES = {	/** Video-mode presets. Canvas is the framebuffer; aspect is the panel. */	  ntsc: { w: 640, h: 448, aspect: [4, 3] },
-examples/channel6	.github/workflows/ci.yml	253	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
-examples/channel6	.github/workflows/ci.yml	480	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
-examples/channel6	.github/workflows/ci.yml	551	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
+examples/channel6	.github/workflows/ci.yml	266	      - name: Channel-6 browser end to end	      # neither the layout compiler nor the baker knows about.	        run: ./examples/channel6/build.sh
+examples/channel6	.github/workflows/ci.yml	493	      - name: Committed screenshots match the renderer	      # shows up here rather than living in the README forever.	        # A block scalar, NOT a plain one. YAML folds a plain scalar's
+examples/channel6	.github/workflows/ci.yml	564	      - name: Validate every blob against the runtime's assumptions	      # one reads the file, the other reads what the baker wrote.	        # Which warnings each blob may carry, and how many, live in the
 examples/channel6	examples/channel6/build.sh	26	PYTHONPATH="$repo/packages/baker" python3 -m ps2ui_bake.ps2ui build "$here/ps2ui.json" \\		    --mode ntsc16x9 -o build/ui-16x9.uib \\
 examples/channel6	examples/channel6/check.py	109	def main(path: str) -> int:		    uib = read_uib(path)  # raises on bad magic/version/CRC/feature bits
 examples/channel6	examples/channel6/preview_in_game.py	87	def main(uib_path: str, out_path: str) -> int:		    uib = read_uib(uib_path)
@@ -1610,8 +1613,8 @@ examples/channel6	examples/channel6/ui/games.html	18	      <div class="tile" id=
 examples/channel6	examples/channel6/ui/probe.html	12	      <p class="value" data-slot="build" data-slot-capacity="12">ps2ui</p>	      <p class="label">BUILD</p>	    </div>
 examples/channel6	examples/channel6/ui/probe.html	17	    <div class="cell" id="probe-alpha" focusable autofocus>	  <div class="probe-grid">	      <p class="cell-label">ALPHA</p>
 examples/channel6	examples/channel6/ui/probe.html	53	        <div class="tell-twin" data-keep></div>	        <p class="runner">Scissor clips this line at the padding edge</p>	        <div class="tell" data-keep></div>
-examples/memcard	.github/workflows/ci.yml	228	      - name: Example builds end to end (includes runtime tests)		        run: ./examples/memcard/build.sh
-examples/memcard	examples/memcard/build.sh	33	preview.render(uib, screen="library").save(f"{shots}/preview.png")	uib = read_uib(f"{out}/ui.uib")	preview.render(uib, screen="saves").save(f"{shots}/saves.png")
+examples/memcard	.github/workflows/ci.yml	241	      - name: Example builds end to end (includes runtime tests)		        run: ./examples/memcard/build.sh
+examples/memcard	examples/memcard/build.sh	34	preview.render(uib, screen="library").save(f"{shots}/preview.png")	uib = read_uib(f"{out}/ui.uib")	preview.render(uib, screen="saves").save(f"{shots}/saves.png")
 examples/memcard	examples/memcard/ps2ui.json	2	  "screens": ["ui/library.html", "ui/saves.html"],	{	  "css": "ui/library.css",
 examples/memcard	examples/memcard/ui/library.css	48	.nav-btn:focus {		  background: #10203a;
 examples/memcard	examples/memcard/ui/library.css	138	  white-space: nowrap;	  color: #e8ecf4;	  text-overflow: ellipsis;
@@ -1642,10 +1645,10 @@ project/internals	docs/findings.md	1	<!-- GENERATED by tools/check-findings.py -
 project/internals	docs/method.md	1	# How this project tests itself, and the ways it has failed to		
 project/internals	docs/releasing.md	1	# Releasing		
 project/security-and-license	packages/baker/pyproject.toml	10	license = { text = "MIT" }	readme = "README.md"	requires-python = ">=3.9"
-project/security-and-license	packages/layout/package.json	8	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
+project/security-and-license	packages/layout/package.json	9	  "license": "MIT",	  "description": "Compiles HTML + CSS into the ps2ui intermediate representation (ui.json). Zero runtime dependencies.",	  "type": "module",
 project/security-and-license	runtime/vendor/README.md	7	Academic Free License version 2.0 — see the notice each file carries.	(`ee/gs/include/*.h` and `ee/dma/include/*.h`), licensed under the	
 project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
-reference/uib-format	docs/PLAN.md	92	**Format history:** v1 initial → v2 CRC-32 + feature bits + dynamic-text		tables → v3 multi-screen + images (0.2.0) → v4 display aspect (76-byte
+reference/uib-format	docs/PLAN.md	100	**Format history:** v1 initial → v2 CRC-32 + feature bits + dynamic-text		tables → v3 multi-screen + images (0.2.0) → v4 display aspect (76-byte
 reference/uib-format	docs/format-uib.md	466	  because it carried no padding at all. Neither the stride nor the	  existed to reach two qwords. The slot entry **shrank**, 32 → 28,	  meaning of a field survives a v6 reader, so this is a version bump.
 reference/uib-format	packages/baker/ps2ui_bake/uib.py	74	FEAT_KNOWN = (FEAT_DYNAMIC_TEXT | FEAT_KERNING | FEAT_SLOT_SPACING	FEAT_ROLE_TINTS = 1 << 4	              | FEAT_STREAMED_TEX | FEAT_ROLE_TINTS)
 reference/uib-format	packages/baker/ps2ui_bake/uib.py	117	def write_uib(path, canvas, records, textures, cluts, focus_nodes,		              initial_focus, fonts=(), slots=(), screens=None,
@@ -1664,7 +1667,7 @@ reference/uib-format	runtime/ps2ui.c	396	        } else if (t->data_off & 15u) {
 reference/uib-format	runtime/ps2ui.h	37	#define PS2UI_VERSION 7	#define PS2UI_MAGIC   0x31424955u /* "UIB1" */	
 reference/uib-format	runtime/ps2ui.h	63	#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \\	#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)	                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX \\
 reference/uib-format	runtime/ps2ui.h	81	typedef struct ps2ui_header {		    uint32_t magic;
-reference/uib-format	runtime/ps2ui.h	689	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
+reference/uib-format	runtime/ps2ui.h	691	uint32_t ps2ui_pixel_aspect_x1000(const ps2ui_ctx *ctx);	 * blob; ps2ui itself draws in framebuffer pixels regardless. */	
 reference/uib-format	runtime/tests/test_runtime.c	170	    /* ---- struct layout matches the on-disk format ---- */		    CHECK(sizeof(ps2ui_header) == 84, "header struct is 84 bytes (v7: tint table)");
 reference/uib-format	tools/check-format-frozen.py	87	FROZEN_STRUCTS = {	# path list four times.	    "_HEADER": ("<IHHHHHHIHHIIIIIIIHHIIHHIIHHHH", 84),
 reference/uib-format	tools/check-versions.py	400	    rt = int(literal("runtime/ps2ui.h",	    # 3. The reader and the writer agree on the format they speak.	                     r"^#define\\s+PS2UI_VERSION\\s+(\\d+)\\s*$",
@@ -1726,7 +1729,7 @@ runtime/errors-and-constants	runtime/ps2ui.c	1747	int ps2ui_list_item_at(const p
 runtime/errors-and-constants	runtime/ps2ui.h	63	#define PS2UI_FEAT_KNOWN     (PS2UI_FEAT_DYNAMIC_TEXT | PS2UI_FEAT_KERNING \\	#define PS2UI_FEAT_ROLE_TINTS   (1u << 4)	                              | PS2UI_FEAT_SLOT_SPACING | PS2UI_FEAT_STREAMED_TEX \\
 runtime/errors-and-constants	runtime/ps2ui.h	283	 * runtime: ps2ui_render keeps a scissor stack of this depth, so a	/* Real storage, and the only remaining fixed-size thing in the	 * blob nesting `overflow: hidden` deeper than this draws the inner
 runtime/errors-and-constants	runtime/ps2ui.h	424	#define PS2UI_OK              0	/* Errors returned by ps2ui_load. */	#define PS2UI_ERR_TRUNCATED  -1
-runtime/errors-and-constants	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but does not validate the
+runtime/errors-and-constants	runtime/ps2ui.h	448	/* Bytes of scratch this blob needs. Reads the header and table counts		 * (and the slot/texture tables they locate) but checks no CRC,
 runtime/errors-and-constants	runtime/sample/Makefile	58	ifdef LINEAR_CLUT	# side-by-side says which side of it this build is on.	EE_CFLAGS += -DPS2UI_CLUT_PERMUTE=0
 runtime/errors-and-constants	runtime/sample/main.c	1673	    rc = ps2ui_load(&ui, ui_uib, size_ui_uib, arena, sizeof arena);		    if (rc != PS2UI_OK) {
 runtime/errors-and-constants	runtime/tests/test_runtime.c	52	static void recrc(void *blob, size_t len)	 * zeroing it and hashing the whole file reproduces the same value. */	{
@@ -1747,6 +1750,6 @@ runtime/streaming-art	runtime/ps2ui.c	792	    if (!ctx->uploaded)	     * though 
 runtime/streaming-art	runtime/ps2ui.c	801	    if (ncolors > c->ncolors)	     * look like it worked and change nothing on screen. */	        return PS2UI_ERR_SIZE;
 runtime/streaming-art	runtime/ps2ui.c	805	    permute_clut((const uint8_t *)colors, (uint16_t)ncolors, buf);	    buf = ctx->clut_pool + (size_t)clut_index * 256 * 4;	
 runtime/streaming-art	runtime/ps2ui.c	811	    for (i = 0; i < ctx->hdr->n_tex; i++) {	     * property it exists for. */	        const ps2ui_tex_entry *t = &ctx->tex[i];
-runtime/streaming-art	runtime/ps2ui.h	492	 * unmoved for as long as the slot can be drawn -- gsKit re-reads it	 * `texels` becomes this slot's DMA source, so it must stay alive and	 * whenever the texture manager re-binds an evicted texture, which is
-runtime/streaming-art	runtime/ps2ui.h	551	 * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.	 *	 * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
-runtime/streaming-art	runtime/ps2ui.h	567	 * The swap takes effect on the next bind, which is what ps2ui_render	 *	 * does for every texture it draws. clut_set does not bind by itself.
+runtime/streaming-art	runtime/ps2ui.h	494	 * unmoved for as long as the slot can be drawn -- gsKit re-reads it	 * `texels` becomes this slot's DMA source, so it must stay alive and	 * whenever the texture manager re-binds an evicted texture, which is
+runtime/streaming-art	runtime/ps2ui.h	553	 * AND THE HAZARD IS SYMMETRIC, which the refusal above does not say.	 *	 * ps2ui_upload sets ctx->uploaded and never reads it, so a SECOND
+runtime/streaming-art	runtime/ps2ui.h	569	 * The swap takes effect on the next bind, which is what ps2ui_render	 *	 * does for every texture it draws. clut_set does not bind by itself.

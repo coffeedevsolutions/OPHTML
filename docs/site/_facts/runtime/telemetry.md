@@ -2,7 +2,7 @@
 
 Session commands behind the rows below:
 
-- `make -C runtime test` printed `PASS: 5 checks, 0 failure(s)` (test_narrow) and `PASS: 410 checks, 0 failure(s)` (test_runtime). "ok N" below is the test_runtime numbering as printed in this session.
+- `make -C runtime test` printed `PASS: 5 checks, 0 failure(s)` (test_narrow) and `PASS: 418 checks, 0 failure(s)` (test_runtime). "ok N" below is the test_runtime numbering as printed in this session.
 - `make -C runtime syntax-check` printed `ok - sample compiles: -DPS2UI_SAMPLE_TELEMETRY` among its lines, exit 0.
 - `grep -n "TELEMETRY" runtime/sample/Makefile` and `grep -n "EE_BIN" runtime/sample/Makefile` read in this session.
 

@@ -43,11 +43,10 @@ ui/*.html,css ──▶ @ophtml/layout ──▶ ui.json (IR) ──▶ ps2ui-ba
 
 Host toolchain verified end to end: layout tests, baker tests, and host runtime checks (the real `ps2ui.c` compiled `-Werror` against a stub gsKit and run over a real baked blob).
 
-The gsKit rendering path is **not hardware-verified**. The loader, focus graph, format handling and command walk are covered; the gsKit calls themselves are written against the documented API. Texture tinting is not a variable: gsKit has no per-texture TFX field and hardcodes `TEX0.TFX = 0` (MODULATE) at every `GS_SETREG_TEX0` site, so the modulate the glyph atlas needs is what it gets. The open texture-state bit is `TEX0.TCC`, which gsKit ties to `PrimAlphaEnable` — see docs/bringup.md step 4. Texture residency goes through `gsKit_TexManager_bind` — the API gsKit recommends and Open-PS2-Loader uses — bound per draw so residency heals after a host-side reset; `ps2ui_upload` preflights the VRAM budget itself because the manager's allocator hangs rather than fails on exhaustion.
+The gsKit rendering path is **hardware-verified**: bring-up steps 1–7, 9 and 10 pass on a SCPH-50000 under the gsKit commit CI pins, and step 8 is void on an LCD bench panel (docs/bringup.md). The OPHTML console launcher built on it (`console/`) has run only in the Play! emulator; its bench cases are in console/README.md. The loader, focus graph, format handling and command walk are covered; the gsKit calls themselves are written against the documented API. Texture tinting is not a variable: gsKit has no per-texture TFX field and hardcodes `TEX0.TFX = 0` (MODULATE) at every `GS_SETREG_TEX0` site, so the modulate the glyph atlas needs is what it gets. The open texture-state bit is `TEX0.TCC`, which gsKit ties to `PrimAlphaEnable` — see docs/bringup.md step 4. Texture residency goes through `gsKit_TexManager_bind` — the API gsKit recommends and Open-PS2-Loader uses — bound per draw so residency heals after a host-side reset; `ps2ui_upload` preflights the VRAM budget itself because the manager's allocator hangs rather than fails on exhaustion.
 
 ## Next steps
 
-* Run it on hardware or PCSX2; adjust the gsKit path.
-* Multi-screen documents and transitions between them.
+* Transitions between screens.
 * Precompiled GIF/DMA chains instead of per-quad gsKit calls (the big performance win — near-zero CPU per frame).
 * Localization: layout is frozen per build, so each locale needs its own pass.

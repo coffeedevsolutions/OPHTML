@@ -5,7 +5,7 @@ description: Alphabetical terms from the toolchain and runtime, each linked to t
 section: project
 order: 74
 version: 0.10.0
-sources: [docs/site/ARCHITECTURE.md, docs/site/_facts/reference/uib-format.md, docs/site/_facts/runtime/frame-loop.md, docs/site/_facts/authoring/theming.md, docs/site/_facts/authoring/text-and-fonts.md, docs/site/_facts/authoring/crt-linter.md, docs/site/_facts/cli/previewer.md, docs/site/_facts/authoring/lists.md, docs/site/_facts/authoring/dynamic-text.md, docs/site/_facts/authoring/images.md, docs/site/_facts/authoring/vram-budget.md, docs/site/_facts/authoring/video-modes.md, docs/site/_facts/authoring/focus-and-navigation.md, docs/site/_facts/authoring/screens-and-overlays.md, docs/site/_facts/reference/ir-format.md, docs/site/_facts/runtime/api-reference.md, docs/site/_facts/runtime/moving-and-hiding.md, docs/site/_facts/runtime/streaming-art.md, docs/site/reference/uib-format.md, docs/site/runtime/frame-loop.md, docs/site/authoring/theming.md, docs/site/authoring/text-and-fonts.md, docs/site/authoring/crt-linter.md, docs/site/cli/previewer.md, docs/site/authoring/lists.md, docs/site/authoring/dynamic-text.md, docs/site/authoring/images.md, docs/site/authoring/vram-budget.md, docs/site/authoring/video-modes.md, docs/site/authoring/focus-and-navigation.md, docs/site/authoring/screens-and-overlays.md, docs/site/reference/ir-format.md, docs/site/runtime/api-reference.md, docs/site/runtime/streaming-art.md, docs/site/cli/ps2ui-bake.md, docs/site/cli/ps2ui-layout.md, docs/site/runtime/integrating.md]
+sources: [docs/site/ARCHITECTURE.md, docs/site/_facts/reference/uib-format.md, docs/site/_facts/runtime/frame-loop.md, docs/site/_facts/authoring/theming.md, docs/site/_facts/authoring/text-and-fonts.md, docs/site/_facts/authoring/crt-linter.md, docs/site/_facts/cli/previewer.md, docs/site/_facts/authoring/lists.md, docs/site/_facts/authoring/dynamic-text.md, docs/site/_facts/authoring/images.md, docs/site/_facts/authoring/vram-budget.md, docs/site/_facts/authoring/video-modes.md, docs/site/_facts/authoring/focus-and-navigation.md, docs/site/_facts/authoring/screens-and-overlays.md, docs/site/_facts/reference/ir-format.md, docs/site/_facts/runtime/api-reference.md, docs/site/_facts/runtime/moving-and-hiding.md, docs/site/_facts/runtime/streaming-art.md, docs/site/reference/uib-format.md, docs/site/runtime/frame-loop.md, docs/site/authoring/theming.md, docs/site/authoring/text-and-fonts.md, docs/site/authoring/crt-linter.md, docs/site/cli/previewer.md, docs/site/authoring/lists.md, docs/site/authoring/dynamic-text.md, docs/site/authoring/images.md, docs/site/authoring/vram-budget.md, docs/site/authoring/video-modes.md, docs/site/authoring/focus-and-navigation.md, docs/site/authoring/screens-and-overlays.md, docs/site/reference/ir-format.md, docs/site/runtime/api-reference.md, docs/site/runtime/streaming-art.md, docs/site/cli/ps2ui-bake.md, docs/site/cli/ps2ui-layout.md, docs/site/runtime/integrating.md, docs/site/runtime/console-launcher.md, docs/site/authoring/project-file.md]
 ---
 
 # Glossary
@@ -64,6 +64,12 @@ Two `screen_set`/`render` pairs drawn into one frame with no clear between
 them, the technique behind a dialog over a base screen. `ctx->stats` and
 `gsKit_TexManager_nextFrame` both describe only the last render. See
 [screens and overlays](page:authoring/screens-and-overlays#compositing).
+
+### console launcher
+
+`ophtml.elf`, a finished PS2 program that fills a theme's `game-{i}` names
+with the ISOs on the console's drives and starts one with Neutrino. See
+[console launcher](page:runtime/console-launcher).
 
 ### display aspect
 
@@ -164,6 +170,12 @@ PSMCT32 CLUT. See [.uib](page:reference/uib-format#texture-entry).
 The default 32-bit GS texture format: four bytes per texel, alpha in the GS
 0-to-128 domain, no CLUT. See
 [.uib](page:reference/uib-format#texture-entry).
+
+### resource cap
+
+One of four hard limits, `canvasDim`, `nodes`, `depth` and `imagePixels`,
+that a theme may not pass without a `limits` override. See
+[the project file](page:authoring/project-file#resource-caps).
 
 ### role
 

@@ -1,5 +1,53 @@
 # Changelog
 
+## Unreleased — 0.11.0.dev0
+
+`.uib` format **version 7**, unchanged from the release below.
+Zero format moves have landed since 0.10.0, which is what a section
+opened straight after a release should say: the release under it
+shipped the format this tree still writes, so a blob baked here loads
+under a 0.10.0 runtime and the other way round.
+
+That count is the one number in this file that starts correct and
+decays. It becomes one the moment a format move lands, and
+`tools/check-versions.py` derives it from the section below rather than
+reading it back, so the check fails the change that moves the format
+without moving this line.
+
+### Fixed
+
+- **A tree too deep could still overflow V8's stack in `ps2ui-layout`.**
+  0.10.0 made the depth cap an iterative walk so it could report a tree
+  nested thousands deep instead of dying in one, and then ran it after
+  `expandRepeats`, whose walk is recursive. So a tree thousands deep
+  under a `data-repeat` still died in `repeat.js` with `Maximum call
+  stack size exceeded` -- the exact failure the 0.10.0 entry says was
+  closed -- on any platform, at Node's default stack on Linux too. The
+  test 0.10.0 shipped used a bare tree, which `repeat.js` walks less
+  deeply per level, so it passed on Linux; macOS arm64 gives out sooner
+  and failed even on that, which is how `registry.yml`'s contributor
+  leg on `macos-15` found it after the release (review of #184 found
+  the `data-repeat` case). The cap now also runs before expansion,
+  which is safe because `data-repeat` adds siblings and never depth,
+  and only ever adds nodes (a count below 1 is refused), so the early
+  check refuses nothing the later one accepts. A new test compiles the
+  tree, bare and under a `data-repeat`, in a child process with a
+  quarter of V8's default stack: against 0.10.0's order it fails in
+  `repeat.js`, and it passes at 120 KB with this one. And `ci.yml`'s
+  `macos-15` job now runs the layout suite on every pull request, so
+  this class of failure no longer waits for the weekly registry run.
+
+- **The baker suite failed on a clean checkout.** The test that holds
+  the image cap to the corpus it was derived from walked `examples/`
+  including each example's gitignored `build/` output, and its guard
+  against a vacuous walk wanted 30 images. The repository ships 28;
+  the example builds add 16. `ci.yml` builds the examples before the
+  suite, so it passed there, and CONTRIBUTING.md's order runs the
+  suite first, so it failed for a contributor -- found by
+  `registry.yml`'s contributor leg on `macos-15-intel`, 28 of 30. The
+  walk now skips `build/`, so it counts the same 28 on either tree,
+  and the guard is 25.
+
 ## 0.10.0 — 2026-09-26
 
 `.uib` format **version 7**, unchanged from the release below.
