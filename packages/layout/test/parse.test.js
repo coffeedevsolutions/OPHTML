@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import { parseHTML, Element, TextNode } from '../src/html.js';
 import { expandRepeats } from '../src/repeat.js';
@@ -825,6 +826,33 @@ test('limits: a tree too deep is refused by this compiler, not by V8', () => {
   // The deepest screen shipped with ps2ui is 5.
   const ok = `<screen>${'<box>'.repeat(8)}x${'</box>'.repeat(8)}</screen>`;
   assert.ok(compile(ok, 'box { width: 4px; height: 4px }', { fonts }));
+});
+
+test('limits: the depth cap speaks before any recursive walk, on a small stack', () => {
+  // 0.10.0 ran the cap after expandRepeats, whose walk is recursive, so
+  // on macOS arm64 the test above died in repeat.js with V8's "Maximum
+  // call stack size exceeded" while Linux, with more stack, stayed
+  // green (registry.yml's contributor leg found it after the release).
+  // A child with a quarter of the default stack puts that machine on
+  // every runner. The second tree hides the depth inside a data-repeat,
+  // where hasRepeat and clone recurse as well.
+  const run = (html) => spawnSync(process.execPath, [
+    '--stack-size=250', '--input-type=module', '-e',
+    `import { compile, FontContext } from ${JSON.stringify(
+      new URL('../src/index.js', import.meta.url).href)};
+     try {
+       compile(${JSON.stringify(html)}, 'box { width: 4px; height: 4px }',
+               { fonts: FontContext.fromDir() });
+       console.log('compiled');
+     } catch (e) { console.log(String(e.message)); }`,
+  ], { encoding: 'utf8' });
+  const deep = '<box>'.repeat(4000) + 'x' + '</box>'.repeat(4000);
+  for (const html of [`<screen>${deep}</screen>`,
+                      `<screen><row data-repeat="2">${deep}</row></screen>`]) {
+    const r = run(html);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /nested 400[01] deep .* past the limit of 64/);
+  }
 });
 
 test('limits: node count is counted AFTER data-repeat expands', () => {

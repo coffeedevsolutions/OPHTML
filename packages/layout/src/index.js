@@ -170,6 +170,13 @@ export function compile(htmlSrc, cssSrc, options = {}) {
   const warnings = [];
 
   const dom = parseHTML(htmlSrc);
+  // BEFORE EXPANSION TOO, because expandRepeats walks the tree
+  // recursively. 0.10.0 checked only after it, so a tree 4000 deep
+  // overflowed V8's stack in repeat.js before the depth cap could
+  // speak -- on macOS arm64, whose stack gives out first, while Linux
+  // stayed green. Expansion adds siblings and never depth, and only
+  // ever adds nodes, so this refuses nothing the check below accepts.
+  checkTree(dom, limits);
   // Stamp out data-repeat templates before anything computes styles, so
   // a repeated row is indistinguishable from one that was typed out.
   expandRepeats(dom, { Element, TextNode }, warnings);
