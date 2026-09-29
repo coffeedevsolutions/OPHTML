@@ -906,7 +906,7 @@ on a photograph is the failure mode this file exists to prevent, so
 
 # Bench S15 — the content sweep, F-038, F-040's discriminator, P3b on silicon, and F-046 from the sofa
 
-SCPH-50000, HW #309, into a Hisense 58R6+. Twenty-two photographs
+SCPH-50000, HW #309, into a 58-inch 4K LCD. Twenty-two photographs
 across five arms. Every prediction in the section above was written
 before this sitting; where one was wrong, it says so below rather than
 being quietly restated.

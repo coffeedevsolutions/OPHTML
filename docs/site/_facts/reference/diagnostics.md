@@ -1,8 +1,7 @@
 # facts: reference/diagnostics
 
 Every command was run from the repository root in this session unless a row
-says otherwise. `<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/reference-diagnostics`.
+says otherwise. `<scratch>` is a scratch directory outside the repository.
 Three scratch trees live there: `err/` (a one-screen project plus the
 malformed HTML, CSS, IR and `.uib` files each refusal needs), `proj/` (ten
 malformed `ps2ui.json` files) and `badproj/` (a project whose stylesheet does

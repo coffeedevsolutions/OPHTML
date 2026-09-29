@@ -25,6 +25,39 @@ from the system. Two self-contained wheels serve the rule's purpose;
 one wheel with a system half did not. A third dependency has to clear
 the same bar, and says so in the CHANGELOG when it does.
 
+### Install the commit hook, once per clone
+
+```sh
+git config core.hooksPath tools/git-hooks
+```
+
+**This is a public repository, and commit metadata is published the
+instant it is pushed.** An exposure audit found a work email on 3
+commits and `<account>@<hostname>.lan` on 26 more, both from a
+machine's default `user.email`. Neither can be taken back: those
+addresses are indexed, and anyone's existing clone or fork still holds
+them. The hook refuses a commit whose author or committer address is
+not in `tools/git-hooks/allowed-emails`, before the object exists.
+
+A hook is opt-in per clone and `--no-verify` skips it, so CI checks the
+same list over the commits a branch adds
+(`tools/check-commit-identities.py`). That one is a **detector**: by the
+time it runs the address is already on GitHub, and its worth is that the
+next one is found while amending is still one commit's work.
+
+**The setting that actually prevents this is on github.com, not here.**
+Under *Settings → Emails*, turn on **Keep my email addresses private**
+and **Block command line pushes that expose my email**. The second would
+have prevented both findings on its own.
+
+Two related checks run on every PR and are worth knowing about before
+you paste a transcript into a fact table, which this project asks you to
+do: `tools/check-host-paths.py` fails on a path naming the machine a
+command ran on — an agent scratchpad, a `/opt` install location, a real
+home directory — and on a tracked PNG carrying the XMP packet its editor
+wrote. Use the `<scratch>` token for a working directory, and
+`$(npm root -g)` or `$PLAYWRIGHT_BROWSERS_PATH` for a tool's location.
+
 ## Run the tests (all three, before every PR)
 
 ```sh

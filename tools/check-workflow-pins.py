@@ -44,6 +44,23 @@ next edit reverses it silently and every check stays green.
     part a checker can hold: a workflow may pass FUZZ_ARGS a literal
     and may not pass it one of its own inputs.
 
+  * WHERE THE WRITE SCOPES SIT. `SECURITY.md` said for months that
+    every workflow was read-only, and by the time 0.10.0 shipped three
+    of six had widened the token -- nothing read the claim, and nothing
+    read the workflows. Two of the grants were fine and one was not:
+    `fuzz.yml` held `actions: write` at the WORKFLOW level, so an
+    apt-get, a pip install, five build.sh scripts and half an hour of
+    libFuzzer all ran with a token that can delete workflow runs and
+    their logs (an anti-forensics tool: the first move after abusing the
+    job is to erase the run that shows it) and create workflow
+    dispatches, which reaches `console-release.yml`. One step needed it.
+
+    So the grants are a table here, the same shape as the container
+    policies: every workflow must be `contents: read` at the top, and
+    every job-level grant must be one this file names with its reason.
+    A new write scope anywhere fails rather than being inherited from
+    whichever neighbour it was copied from.
+
   * THE DRAFT GATE on `console-release.yml`'s `attach` job. The gate
     used to be a side effect of the create path: the script asked only
     "does a release exist", which is also what a release a person
@@ -77,6 +94,26 @@ CONTAINER_POLICY = {
     (".github/workflows/console-release.yml", "elf"): "digest",
     (".github/workflows/hw.yml", "elf"): "floating",
 }
+# Job-level write scopes, and the one reason each exists. A job absent
+# from here may hold no `permissions:` block at all, and every workflow
+# must be `contents: read` at the top.
+WRITE_SCOPES = {
+    (".github/workflows/console-release.yml", "attach"): {
+        "contents: write":
+            "to create the tag's draft release and upload the launcher to it. "
+            "This job runs no checkout, so the token never sits beside a "
+            "working tree."},
+    (".github/workflows/docs.yml", "deploy"): {
+        "pages: write": "to deploy the built site to GitHub Pages",
+        "id-token: write": "for the Pages deployment's OIDC token"},
+    (".github/workflows/fuzz.yml", "rotate-corpus"): {
+        "actions: write":
+            "to delete the fixed fuzz-corpus cache key before saving tonight's "
+            "under it; cache keys are immutable and GitHub offers nothing "
+            "narrower. This job installs nothing and runs no repository code."},
+}
+TOP_LEVEL_PERMISSIONS = {"contents: read"}
+
 FLOATING_TAG = "ghcr.io/ps2dev/ps2dev:latest"
 DIGEST_RE = re.compile(r"^ghcr\.io/ps2dev/ps2dev@sha256:[0-9a-f]{64}$")
 
@@ -173,6 +210,90 @@ for (wf, job), policy in sorted(CONTAINER_POLICY.items()):
               "way to delete a check here silently. If the image really must "
               "move, say what watches gsKit instead."
               % (wf, job, image, FLOATING_TAG))
+
+# 3.5 THE WRITE SCOPES ARE A DECLARED SET, top level and per job.
+def permission_blocks(workflow):
+    """(None, {scopes}) for the workflow block and (job, {scopes}) per job."""
+    out = []
+    job = None
+    in_jobs = False
+    lines = open(os.path.join(WORKFLOW_DIR, workflow), encoding="utf-8").read()
+    lines = lines.split("\n")
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        if re.match(r"^jobs:\s*$", ln):
+            in_jobs, job = True, None
+        elif re.match(r"^\S", ln):
+            if not ln.startswith("permissions:"):
+                in_jobs = False
+        if in_jobs:
+            m = re.match(r"^  ([A-Za-z_][\w-]*):\s*$", ln)
+            if m:
+                job = m.group(1)
+        indent = "      " if (in_jobs and job) else "  "
+        if ln.strip() == "permissions:" and ln.startswith(indent[:-2]):
+            scopes = set()
+            for nxt in lines[i + 1:]:
+                if not nxt.strip() or nxt.lstrip().startswith("#"):
+                    if nxt.strip():
+                        continue
+                    continue
+                if not nxt.startswith(indent):
+                    break
+                mm = re.match(r"^\s*([a-z-]+):\s*(read|write|none)\s*$", nxt)
+                if not mm:
+                    break
+                scopes.add("%s: %s" % (mm.group(1), mm.group(2)))
+            out.append((job if (in_jobs and job) else None, scopes))
+        i += 1
+    return out
+
+
+for name in sorted(os.listdir(WORKFLOW_DIR)):
+    if not name.endswith((".yml", ".yaml")):
+        continue
+    rel = ".github/workflows/" + name
+    blocks = permission_blocks(name)
+    top = [sc for j, sc in blocks if j is None]
+    check(len(top) == 1 and top[0] == TOP_LEVEL_PERMISSIONS,
+          "%s is %s at the top" % (rel, ", ".join(sorted(TOP_LEVEL_PERMISSIONS))),
+          "%s declares %s at the workflow level, and every workflow here must "
+          "declare exactly %s. A write scope at the top is held by every step "
+          "of every job in the file, including the installs and the long runs; "
+          "put it on the one job that needs it."
+          % (rel, top or "no top-level permissions block",
+             sorted(TOP_LEVEL_PERMISSIONS)))
+    for job, scopes in blocks:
+        if job is None:
+            continue
+        want = WRITE_SCOPES.get((rel, job))
+        check(want is not None and scopes == set(want),
+              "%s job `%s` holds exactly %s"
+              % (rel, job, ", ".join(sorted(scopes))),
+              "%s job `%s` declares %s. %s"
+              % (rel, job, sorted(scopes),
+                 ("That job has no entry in WRITE_SCOPES, so nothing in this "
+                  "tree says why it may widen the token. Add it with the "
+                  "reason, or take the block off."
+                  if want is None else
+                  "WRITE_SCOPES says it may hold exactly %s, each for a stated "
+                  "reason: %s" % (sorted(want),
+                                  "; ".join("%s -- %s" % kv
+                                            for kv in sorted(want.items()))))))
+
+declared = set(WRITE_SCOPES)
+seen_jobs = set()
+for name in sorted(os.listdir(WORKFLOW_DIR)):
+    if name.endswith((".yml", ".yaml")):
+        rel = ".github/workflows/" + name
+        seen_jobs |= {(rel, j) for j, _ in permission_blocks(name) if j}
+check(declared == seen_jobs,
+      "every declared write scope is still on a real job (%d)" % len(declared),
+      "WRITE_SCOPES names %s, which no longer carries a permissions block. A "
+      "grant that was removed should lose its entry here too, so the table "
+      "stays a description of the tree rather than of its history."
+      % sorted(declared - seen_jobs))
 
 # 4. FUZZ_ARGS TAKES LITERALS ONLY. It is word-split by design, so a
 #    workflow input routed into it lands in a shell as text.
@@ -427,6 +548,76 @@ missing_wiring = [why for text, why in wiring if text not in fz]
 check(not missing_wiring,
       "the corpus health step reads the real cache-hit output",
       "fuzz.yml: " + "; ".join(missing_wiring))
+
+# AND THE DESTRUCTIVE HALF OF THE ROTATION IS EXECUTED. Splitting
+# `actions: write` onto its own job moved the corpus across a runner
+# boundary as an artifact, and that introduced a fault the old shape
+# could not have: an empty hand plus a `gh cache delete` throws away
+# every night of accumulated coverage and saves nothing in its place.
+# The guard against it is three lines of shell that only ever run on the
+# night something else already went wrong, which is the worst kind of
+# code to leave unexecuted.
+ROTATE_STEP = "Rotate the key, but only with a corpus in hand"
+rot = extract_run(".github/workflows/fuzz.yml", ROTATE_STEP)
+if rot is None:
+    problems.append(
+        ".github/workflows/fuzz.yml has no `run: |` under a step named %r, so "
+        "the cache-key rotation guard cannot be extracted and nothing here "
+        "runs it." % ROTATE_STEP)
+else:
+    for files, want_delete in ((0, False), (3, True)):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "bin"))
+            gh = os.path.join(tmp, "bin", "gh")
+            with open(gh, "w", encoding="utf-8") as fh:
+                fh.write(GH_STUB)
+            os.chmod(gh, 0o755)
+            corpus = os.path.join(tmp, CORPUS_DIR)
+            os.makedirs(corpus)
+            for k in range(files):
+                with open(os.path.join(corpus, "blob%d" % k), "wb") as fh:
+                    fh.write(b"\0" * 16)
+            sh = os.path.join(tmp, "rotate.sh")
+            with open(sh, "w", encoding="utf-8") as fh:
+                fh.write(rot)
+            log = os.path.join(tmp, "gh.log")
+            open(log, "w").close()
+            env = dict(os.environ)
+            env.update({
+                "PATH": os.path.join(tmp, "bin") + os.pathsep + env["PATH"],
+                "GH_LOG": log,
+                "STUB_STATE": "draft",
+                "STUB_PREV_SUMS": "",
+                "GITHUB_ENV": os.path.join(tmp, "env"),
+            })
+            open(env["GITHUB_ENV"], "w").close()
+            run = subprocess.run(["bash", "-e", sh], cwd=tmp, env=env,
+                                 capture_output=True, text=True)
+            calls = open(log, encoding="utf-8").read()
+            wrote = open(env["GITHUB_ENV"], encoding="utf-8").read()
+            said = run.stdout + run.stderr
+            deleted = "cache delete" in calls
+            wrong = []
+            if run.returncode != 0:
+                wrong.append("exited %d" % run.returncode)
+            if deleted != want_delete:
+                wrong.append("%s the cache key"
+                             % ("deleted" if deleted else "did not delete"))
+            want_env = "ROTATE=yes" if want_delete else "ROTATE=no"
+            if want_env not in wrote:
+                wrong.append("wrote %r to GITHUB_ENV, wanted %s"
+                             % (wrote.strip(), want_env))
+            if not want_delete and "::warning::" not in said:
+                wrong.append("deleted nothing without saying so")
+            check(not wrong,
+                  "the cache-key rotation, run for real: %d file(s) in hand"
+                  % files,
+                  "the `%s` step, extracted from fuzz.yml and run with %d "
+                  "file(s) of corpus: %s. With nothing in hand it must delete "
+                  "NOTHING -- the cache entry is the only copy of every "
+                  "previous night's coverage.\n--- gh calls ---\n%s\n"
+                  "--- output ---\n%s"
+                  % (ROTATE_STEP, files, "; ".join(wrong), calls, said[-1500:]))
 
 # 8. THE GUARD IS RUN, NOT READ. A `make fuzz` with a shell payload in
 #    FUZZ_TIME must refuse it, must refuse it BY NAME, and must not run

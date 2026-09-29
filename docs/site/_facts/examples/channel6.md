@@ -1,7 +1,6 @@
 # facts: examples/channel6
 
-Session commands ran from the repository root, `/home/user/OPHTML`. `<scratch>`
-is `/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/examples-channel6`
+Session commands ran from the repository root, `/home/user/OPHTML`. `<scratch>` is a scratch directory outside the repository
 (created but unused: every command below reads or writes only inside
 `examples/channel6/` and `docs/site/assets/examples/channel6/`).
 `./examples/channel6/build.sh` was run exactly once, per this brief's explicit

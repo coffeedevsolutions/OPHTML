@@ -1441,7 +1441,7 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/integrating	tools/check-workflow-pins.py	74	# The image both jobs build in, and the opposite thing each wants from		# it. (workflow, job) -> "digest" or "floating".
+_facts/runtime/integrating	tools/check-workflow-pins.py	91	# The image both jobs build in, and the opposite thing each wants from		# it. (workflow, job) -> "digest" or "floating".
 _facts/runtime/moving-and-hiding	CHANGELOG.md	1524	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
 _facts/runtime/moving-and-hiding	CHANGELOG.md	2058	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
 _facts/runtime/moving-and-hiding	README.md	441	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame

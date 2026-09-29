@@ -2,8 +2,7 @@
 
 Session: all eight `docs/tutorial-uc3.md` blocks (fontgen, the three heredocs,
 build, check, `serve --selftest`, `vendor-runtime`) ran in one shell under
-`sh -e` from an empty scratch directory,
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/getting-started/quickstart/run/browser`,
+`sh -e` from an empty scratch directory outside the repository,
 with `TTF_REGULAR=/home/user/OPHTML/fonts/vendor/DejaVuSans.ttf` and
 `TTF_BOLD=/home/user/OPHTML/fonts/vendor/DejaVuSans-Bold.ttf`. Exit 0. Nothing
 under `examples/*/build/` was touched. `ps2ui serve --port 8600` (no

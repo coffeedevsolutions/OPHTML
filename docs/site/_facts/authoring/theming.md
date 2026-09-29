@@ -1,8 +1,7 @@
 # facts: authoring/theming
 
 Every command was run from the repository root in this session unless a row
-says otherwise. `<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring/theming`.
+says otherwise. `<scratch>` is a scratch directory outside the repository.
 The compile command is
 `ps2ui-layout theme.html <name>.css --fonts fonts/fonts.json -o out-<name>.json`
 run from `<scratch>`, where `fonts/` is a copy of the repository's `fonts/`.

@@ -1,8 +1,7 @@
 # facts: runtime/streaming-art
 
 Session commands behind the rows below. All were run from the repository
-root unless a row says otherwise. `<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/runtime/streaming-art`.
+root unless a row says otherwise. `<scratch>` is a scratch directory outside the repository.
 
 - `make -C runtime test` printed `PASS: 5 checks, 0 failure(s)` (test_narrow)
   and `PASS: 410 checks, 0 failure(s)` (test_runtime). "ok N" below is the
