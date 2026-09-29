@@ -919,7 +919,7 @@ _facts/project/security-and-license	packages/layout/package.json	8	  "license": 
 _facts/project/security-and-license	runtime/ps2ui.c	282	    uint32_t i;	    arena_layout L;	    memset(ctx, 0, sizeof *ctx);
 _facts/project/security-and-license	runtime/vendor/README.md	1	# Vendored gsKit headers		
 _facts/project/security-and-license	runtime/vendor/gsKit/dmaCore.h	6	// Licenced under Academic Free License version 2.0	// Copyright 2004 - Chris "Neovanglist" Gilbert <Neovanglist@LainOS.org>	// Review gsKit README & LICENSE files for further details.
-_facts/reference/compatibility	.github/workflows/console-release.yml	95	    container: ghcr.io/ps2dev/ps2dev@sha256:1511fde1e42e2c8c192e08a308d9c90d3d69613f6c8022ec71aac7202d477336	    # its digest, and fails if hw.yml gains one.	    steps:
+_facts/reference/compatibility	.github/workflows/console-release.yml	111	    container: ghcr.io/ps2dev/ps2dev@sha256:1511fde1e42e2c8c192e08a308d9c90d3d69613f6c8022ec71aac7202d477336	    # its digest, and fails if hw.yml gains one.	    steps:
 _facts/reference/compatibility	.github/workflows/hw.yml	47	  # re-measure the band. ghcr.io/ps2dev/ps2dev:latest stays deliberately	  # the calibration comment on the gated diff step and expect to	  # UNpinned: the TFX compile probe exists to notice gsKit changing, and
 _facts/reference/compatibility	.github/workflows/registry.yml	194	  # A PLAIN PIP INSTALL, AND NOTHING ELSE, ON EACH MAC.		  #
 _facts/reference/compatibility	.github/workflows/registry.yml	255	  # THE SAME, ON WINDOWS.		  #
@@ -1199,10 +1199,10 @@ _facts/runtime/api-reference	runtime/ps2ui.h	828	int ps2ui_list_selected_row(con
 _facts/runtime/api-reference	runtime/ps2ui.h	832	 * as an empty row rather than as no row; this is what makes a short list	 * Blanking a row's text leaves its panel and border drawn, which reads	 * look short. Call it after set_count and after any move. Needs the row
 _facts/runtime/api-reference	runtime/ps2ui.h	835	void ps2ui_list_apply_visibility(ps2ui_ctx *ctx, const ps2ui_list *list);	 * focus names to match the list's prefix. */	
 _facts/runtime/api-reference	runtime/ps2ui.h	838	 * for tests. */	/* CRC-32 (IEEE, reflected) used by the .uib integrity check; exposed	uint32_t ps2ui_crc32(const void *data, size_t len);
-_facts/runtime/console-launcher	.github/workflows/console-release.yml	24	    tags: ['v[0-9]*', '[0-9]*.[0-9]*.[0-9]*']	  push:	  workflow_dispatch:
-_facts/runtime/console-launcher	.github/workflows/console-release.yml	125	          cp console/ophtml.elf console/ophtml-mock.elf dist/	          mkdir -p dist	          cd dist && sha256sum ophtml.elf ophtml-mock.elf > SHA256SUMS
-_facts/runtime/console-launcher	.github/workflows/console-release.yml	154	            gh release create "$TAG" --draft --verify-tag --title "$TAG" \\	            # the dispatch input must not mint a new tag on main.	              --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
-_facts/runtime/console-launcher	.github/workflows/console-release.yml	161	          gh release upload "$TAG" dist/ophtml.elf dist/ophtml-mock.elf \\	          fi	            dist/SHA256SUMS --clobber
+_facts/runtime/console-launcher	.github/workflows/console-release.yml	33	    tags: ['v[0-9]*', '[0-9]*.[0-9]*.[0-9]*']	  push:	  workflow_dispatch:
+_facts/runtime/console-launcher	.github/workflows/console-release.yml	141	          cp console/ophtml.elf console/ophtml-mock.elf dist/	          mkdir -p dist	          cd dist && sha256sum ophtml.elf ophtml-mock.elf > SHA256SUMS
+_facts/runtime/console-launcher	.github/workflows/console-release.yml	192	              gh release create "$TAG" --draft --verify-tag --title "$TAG" \\	              # the dispatch input must not mint a new tag on main.	                --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
+_facts/runtime/console-launcher	.github/workflows/console-release.yml	238	          gh release upload "$TAG" dist/ophtml.elf dist/ophtml-mock.elf \\		            dist/SHA256SUMS --clobber
 _facts/runtime/console-launcher	console/README.md	225	## Bench cases		
 _facts/runtime/console-launcher	console/launch.c	52	int console_find_neutrino(const char *launch_dir,		                          const console_device *devs, int n_devs,
 _facts/runtime/console-launcher	console/launch.c	67	    for (d = 0; d < n_devs; d++)	    }	        if (try_path(out, cap, devs[d].mount, "/neutrino/neutrino.elf"))
@@ -1392,7 +1392,7 @@ _facts/runtime/frame-loop	runtime/sample/main.c	2768	        gsKit_sync_flip(gs)
 _facts/runtime/frame-loop	runtime/sample/main.c	2769	        /* Age the texture manager's use counts once per frame, the way	        gsKit_sync_flip(gs);	         * Open-PS2-Loader's frame loop does. With ps2ui's static UI it
 _facts/runtime/frame-loop	runtime/sample/main.c	2775	        gsKit_TexManager_nextFrame(gs);	         * counters honest, and the sample is the reference for hosts. */	#ifdef PS2UI_SAMPLE_TELEMETRY
 _facts/runtime/frame-loop	runtime/tests/test_runtime.c	795	    /* ---- render: geometry stays on canvas ---- */		    {
-_facts/runtime/integrating	.github/workflows/console-release.yml	69	    # PINNED BY DIGEST, and hw.yml's identical container deliberately is	    runs-on: ubuntu-24.04	    # not. The two jobs want opposite things from the same image:
+_facts/runtime/integrating	.github/workflows/console-release.yml	85	    # PINNED BY DIGEST, and hw.yml's identical container deliberately is	    runs-on: ubuntu-24.04	    # not. The two jobs want opposite things from the same image:
 _facts/runtime/integrating	.github/workflows/hw.yml	47	  # re-measure the band. ghcr.io/ps2dev/ps2dev:latest stays deliberately	  # the calibration comment on the gated diff step and expect to	  # UNpinned: the TFX compile probe exists to notice gsKit changing, and
 _facts/runtime/integrating	.github/workflows/hw.yml	191	    container: ghcr.io/ps2dev/ps2dev:latest	    runs-on: ubuntu-24.04	    steps:
 _facts/runtime/integrating	.github/workflows/hw.yml	221	      - name: gsKit still has no per-texture TFX field	          test -f fixtures/bench-stream/build/bench.uib	        continue-on-error: true
@@ -1441,7 +1441,7 @@ _facts/runtime/integrating	runtime/vendor/README.md	18	The console build never s
 _facts/runtime/integrating	runtime/vendor/README.md	25	`gsKit/src/gsTexture.c` is likewise verbatim from `ee/gs/src/`. The		host build compiles it with only `-DF_gsKit_texture_size` defined —
 _facts/runtime/integrating	runtime/vendor/README.md	34	## What this guarantee does and does not cover		
 _facts/runtime/integrating	tools/check-runtime-shipped.py	64	STARTER_SRC = os.path.join(BAKER, "ps2ui_bake", "starter")	STARTER_FILES = ("main.c", "Makefile")	
-_facts/runtime/integrating	tools/check-workflow-pins.py	58	# The image both jobs build in, and the opposite thing each wants from		# it. (workflow, job) -> "digest" or "floating".
+_facts/runtime/integrating	tools/check-workflow-pins.py	74	# The image both jobs build in, and the opposite thing each wants from		# it. (workflow, job) -> "digest" or "floating".
 _facts/runtime/moving-and-hiding	CHANGELOG.md	1524	- **`ps2ui_offset_set(ctx, dx, dy)` — the runtime can finally change		  *where* something is drawn.** Focus, theme, slot text, textures,
 _facts/runtime/moving-and-hiding	CHANGELOG.md	2058	- **Runtime visibility** — `ps2ui_visible_set` / `_get` / `_reset`,	  `_apply_visibility`.	  so an app can hide a row it has no data for instead of blanking
 _facts/runtime/moving-and-hiding	README.md	441	`preview.render()` takes the same offset (`offset=(dx, dy)`) and applies		it exactly as the runtime does, so a host render of an offset frame

@@ -551,7 +551,15 @@ written twice to avoid.
    The workflow never publishes and never edits a release's notes, so a
    release you already wrote is safe from it. If it failed, or the tag
    predates it, run it by hand: **Actions → console-release → Run
-   workflow**, with the tag. It replaces the files it attached before.
+   workflow**, with the tag. It replaces the files it attached before
+   **only while the release is still a draft.** Once you have published
+   it, the `attach` job refuses and says so, because uploading there
+   would replace a download people can already have, under the same
+   version number, and the old bytes would be gone. Re-dispatching with
+   `replace_published: true` is the way to say you meant it. Either way
+   the run logs the checksums already on the release beside the ones it
+   just built, so you can see whether the rebuild produced the same
+   bytes before anything is overwritten.
 
 9. **Back to development**, once the tag is pushed. This is the other
    half of the old step 4, and it is four edits that move together:

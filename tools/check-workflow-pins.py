@@ -44,6 +44,22 @@ next edit reverses it silently and every check stays green.
     part a checker can hold: a workflow may pass FUZZ_ARGS a literal
     and may not pass it one of its own inputs.
 
+  * THE DRAFT GATE on `console-release.yml`'s `attach` job. The gate
+    used to be a side effect of the create path: the script asked only
+    "does a release exist", which is also what a release a person
+    PUBLISHED looks like, so that case fell through to
+    `gh release upload --clobber` against a live public download with no
+    gate at all. It now reads `isDraft` and refuses a published release
+    unless the dispatch says `replace_published: true`.
+
+    A three-state gate written in shell inside a YAML block is the kind
+    of thing nothing ever runs until the day it matters. So this checker
+    EXTRACTS that script and EXECUTES it, against a stub `gh` on PATH,
+    in all four combinations of release state and the input -- which is
+    the same reason the FUZZ_TIME guard below is run rather than
+    grepped, and the same reason that one's first version passed with
+    the guard deleted.
+
 Run by ci.yml. Exits 0 with one `ok -` line per check, or 1 naming
 every failure.
 """
@@ -178,7 +194,241 @@ check(not bad_args,
       "it through FUZZ_TIME's shape instead, or quote it in the Makefile and "
       "give up the word splitting." % "; ".join(bad_args))
 
-# 5. THE GUARD IS RUN, NOT READ. A `make fuzz` with a shell payload in
+# 5. THE DRAFT GATE IS EXECUTED. Extracted from the workflow and run
+#    against a stub `gh`, because the alternative is asserting that a
+#    three-state shell gate contains some strings.
+ATTACH_STEP = "Attach to the tag's release, creating a draft if it has none"
+
+
+def extract_run(workflow, step_name):
+    """The `run:` block of one named step, dedented, or None.
+
+    Line-based for the reason containers() is: no YAML library is a
+    dependency of anything else in this tree, and a `run: |` block is
+    two fixed indents and a scalar.
+    """
+    lines = open(os.path.join(ROOT, workflow), encoding="utf-8").read().split("\n")
+    i = next((k for k, ln in enumerate(lines)
+              if ln.strip() == "- name: " + step_name), None)
+    if i is None:
+        return None
+    j = next((k for k in range(i + 1, len(lines))
+              if lines[k].rstrip() == "        run: |"), None)
+    if j is None:
+        return None
+    body = []
+    for ln in lines[j + 1:]:
+        if ln.strip() and not ln.startswith("          "):
+            break
+        body.append(ln)
+    while body and not body[-1].strip():
+        body.pop()
+    return "\n".join(ln[10:] if ln.startswith("          ") else ln
+                      for ln in body) + "\n"
+
+
+GH_STUB = r"""#!/bin/bash
+# A stub `gh`. Logs the argv it was given and answers from $STUB_STATE.
+printf '%s\n' "$*" >> "$GH_LOG"
+if [ "$1" = release ] && [ "$2" = view ]; then
+    case " $* " in
+        *" isDraft "*)
+            case "$STUB_STATE" in
+                missing)   exit 1 ;;
+                draft)     echo true ;;
+                published) echo false ;;
+            esac ;;
+        *) echo ophtml.elf ;;
+    esac
+    exit 0
+fi
+if [ "$1" = release ] && [ "$2" = download ]; then
+    [ "$STUB_STATE" = missing ] && exit 1
+    dir=""; prev=""
+    for a in "$@"; do [ "$prev" = --dir ] && dir=$a; prev=$a; done
+    mkdir -p "$dir"
+    printf '%s\n' "$STUB_PREV_SUMS" > "$dir/SHA256SUMS"
+    exit 0
+fi
+exit 0
+"""
+
+SCENARIOS = [
+    # state,      replace_published, prev sums,  expect exit 0, expect create, expect upload, must say
+    ("missing",   "false", "",          True,  True,  True,  "no SHA256SUMS"),
+    ("draft",     "false", "same",      True,  False, True,  "rebuilt the same bytes"),
+    ("draft",     "false", "different", True,  False, True,  "::warning::the checksums differ"),
+    ("published", "false", "same",      False, False, False, "is PUBLISHED"),
+    ("published", "true",  "same",      True,  False, True,  "::warning::v9.9.9 is published"),
+]
+
+script = extract_run(".github/workflows/console-release.yml", ATTACH_STEP)
+if script is None:
+    problems.append(
+        ".github/workflows/console-release.yml has no `run: |` under a step "
+        "named %r, so the draft gate cannot be extracted and nothing here "
+        "runs it. If the step was renamed, rename ATTACH_STEP with it."
+        % ATTACH_STEP)
+else:
+    OURS = "abc123  ophtml.elf\n"
+    for state, replace, prev, want_ok, want_create, want_upload, must_say in SCENARIOS:
+        label = "%s release, replace_published=%s%s" % (
+            state, replace, "" if not prev else ", prev sums %s" % prev)
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "bin"))
+            gh = os.path.join(tmp, "bin", "gh")
+            with open(gh, "w", encoding="utf-8") as fh:
+                fh.write(GH_STUB)
+            os.chmod(gh, 0o755)
+            os.makedirs(os.path.join(tmp, "dist"))
+            with open(os.path.join(tmp, "dist", "SHA256SUMS"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(OURS)
+            sh = os.path.join(tmp, "attach.sh")
+            with open(sh, "w", encoding="utf-8") as fh:
+                fh.write(script)
+            log = os.path.join(tmp, "gh.log")
+            open(log, "w").close()
+            env = dict(os.environ)
+            env.update({
+                "PATH": os.path.join(tmp, "bin") + os.pathsep + env["PATH"],
+                "TAG": "v9.9.9",
+                "REPLACE_PUBLISHED": replace,
+                "RUNNER_TEMP": os.path.join(tmp, "rt"),
+                "STUB_STATE": state,
+                "STUB_PREV_SUMS": (OURS.strip() if prev == "same"
+                                   else "999999  ophtml.elf"),
+                "GH_LOG": log,
+            })
+            os.makedirs(env["RUNNER_TEMP"], exist_ok=True)
+            run = subprocess.run(["bash", "-e", sh], cwd=tmp, env=env,
+                                 capture_output=True, text=True)
+            calls = open(log, encoding="utf-8").read()
+            said = run.stdout + run.stderr
+            got_create = "release create" in calls
+            got_upload = "release upload" in calls
+            wrong = []
+            # A create must carry BOTH: --draft so this workflow never
+            # publishes, and --verify-tag so a typo in the dispatch
+            # input cannot mint a tag on main.
+            if got_create:
+                created = [ln for ln in calls.split("\n")
+                           if "release create" in ln]
+                for flag in ("--draft", "--verify-tag"):
+                    if not any(flag in ln for ln in created):
+                        wrong.append("created a release without %s" % flag)
+            if (run.returncode == 0) != want_ok:
+                wrong.append("exited %d, wanted %s"
+                             % (run.returncode,
+                                "0" if want_ok else "non-zero"))
+            if got_create != want_create:
+                wrong.append("%s a draft" % ("created" if got_create
+                                             else "did not create"))
+            if got_upload != want_upload:
+                wrong.append("%s the files" % ("uploaded" if got_upload
+                                               else "did not upload"))
+            if must_say not in said:
+                wrong.append("never said %r" % must_say)
+            check(not wrong,
+                  "the attach gate, run for real: %s" % label,
+                  "the attach script, extracted from console-release.yml and "
+                  "run against a stub gh for a %s: %s. THE PUBLISHED CASE IS "
+                  "THE ONE THAT MATTERS -- uploading there replaces a "
+                  "download people already have, under the same version "
+                  "number.\n--- gh calls ---\n%s\n--- output ---\n%s"
+                  % (label, "; ".join(wrong), calls, said[-2000:]))
+
+# 6. THE CORPUS HEALTH CHECKS ARE EXECUTED TOO, and for the same
+#    reason they exist: the thing they guard against is the nightly
+#    fuzzer reporting half an hour of health while testing almost
+#    nothing. A check written to catch that, which nobody ever runs, is
+#    the same defect one level up.
+#
+#    An empty restored cache and a shrinking corpus are both states
+#    that cannot be produced on demand in CI, so they are produced here.
+CORPUS_DIR = os.path.join("runtime", "build", "fuzz-corpus")
+
+CORPUS_SCENARIOS = [
+    # step,             files, env,                          ok,    must say
+    ("Say what the corpus arrived as", 3, {"CACHE_HIT": "true"},
+     True,  "3 file(s)"),
+    ("Say what the corpus arrived as", 0, {"CACHE_HIT": "true"},
+     False, "::error::"),
+    ("Say what the corpus arrived as", 0, {"CACHE_HIT": ""},
+     True,  "::warning::no fuzz-corpus cache entry"),
+    ("Say what the corpus arrived as", 2, {"CACHE_HIT": "false"},
+     True,  "::warning::no fuzz-corpus cache entry"),
+    ("The corpus did not shrink", 5, {"CORPUS_BEFORE_FILES": "3"},
+     True,  "5 file(s)"),
+    ("The corpus did not shrink", 3, {"CORPUS_BEFORE_FILES": "5"},
+     False, "::error::the corpus lost files"),
+]
+
+for step_name, files, extra, want_ok, must_say in CORPUS_SCENARIOS:
+    body = extract_run(".github/workflows/fuzz.yml", step_name)
+    if body is None:
+        problems.append(
+            ".github/workflows/fuzz.yml has no `run: |` under a step named "
+            "%r, so the corpus health check cannot be extracted and nothing "
+            "here runs it." % step_name)
+        continue
+    label = "%s, %d file(s), %s" % (
+        step_name, files,
+        ", ".join("%s=%r" % kv for kv in sorted(extra.items())))
+    with tempfile.TemporaryDirectory() as tmp:
+        corpus = os.path.join(tmp, CORPUS_DIR)
+        os.makedirs(corpus)
+        for k in range(files):
+            with open(os.path.join(corpus, "blob%d" % k), "wb") as fh:
+                fh.write(b"\0" * 16)
+        sh = os.path.join(tmp, "step.sh")
+        with open(sh, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        env = dict(os.environ)
+        env.update(extra)
+        env["GITHUB_ENV"] = os.path.join(tmp, "env")
+        env["GITHUB_STEP_SUMMARY"] = os.path.join(tmp, "summary")
+        open(env["GITHUB_ENV"], "w").close()
+        open(env["GITHUB_STEP_SUMMARY"], "w").close()
+        run = subprocess.run(["bash", "-e", sh], cwd=tmp, env=env,
+                             capture_output=True, text=True)
+        said = run.stdout + run.stderr
+        wrong = []
+        if (run.returncode == 0) != want_ok:
+            wrong.append("exited %d, wanted %s"
+                         % (run.returncode, "0" if want_ok else "non-zero"))
+        if must_say not in said:
+            wrong.append("never said %r" % must_say)
+        check(not wrong,
+              "corpus health, run for real: %s" % label,
+              "the `%s` step, extracted from fuzz.yml and run over a corpus "
+              "of %d file(s): %s. This is the check that stops a nightly run "
+              "looking healthy while exercising almost "
+              "nothing.\n--- output ---\n%s"
+              % (step_name, files, "; ".join(wrong), said[-2000:]))
+
+# AND THE WIRING BETWEEN THEM, which running the step cannot see. The
+# harness above sets CACHE_HIT itself, so a workflow that hardcodes it
+# passes every scenario while the real cache-hit output goes unread --
+# found by falsifying exactly that. This is the one assertion here that
+# is about text, because wiring is text.
+fz = open(os.path.join(ROOT, ".github", "workflows", "fuzz.yml"),
+          encoding="utf-8").read()
+wiring = [
+    ("id: corpus",
+     "the cache/restore step must carry `id: corpus` for its cache-hit "
+     "output to be referable"),
+    ("CACHE_HIT: ${{ steps.corpus.outputs.cache-hit }}",
+     "the health step must read CACHE_HIT from that step's output, not from "
+     "a literal: a hardcoded value passes every behavioural scenario above "
+     "and reports on a cache state nobody looked at"),
+]
+missing_wiring = [why for text, why in wiring if text not in fz]
+check(not missing_wiring,
+      "the corpus health step reads the real cache-hit output",
+      "fuzz.yml: " + "; ".join(missing_wiring))
+
+# 8. THE GUARD IS RUN, NOT READ. A `make fuzz` with a shell payload in
 #    FUZZ_TIME must refuse it, must refuse it BY NAME, and must not run
 #    it; a whole number must still get through.
 #
