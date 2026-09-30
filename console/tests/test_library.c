@@ -371,6 +371,80 @@ static void test_resolver(void)
     console_set_resolver(NULL);   /* leave the global clean for later tests */
 }
 
+static void test_opl_cfg(void)
+{
+    console_settings s;
+    console_game g;
+    char path[CONSOLE_PATH_MAX];
+
+    /* Mode 2 | Mode 3 == 0x06 == 6: both map, ascending. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$Compatibility=6\n", 17, &s) == 1 &&
+          strcmp(s.gc, "23") == 0, "$Compatibility 6 -> gc 23");
+
+    /* Mode 2 | Mode 5 == 0x12 == 18: digits stay in ascending order. */
+    memset(&s, 0, sizeof s);
+    console_opl_cfg("$Compatibility=18\n", 18, &s);
+    CHECK(strcmp(s.gc, "25") == 0, "$Compatibility 18 -> gc 25, in order");
+
+    /* Mode 7 alone (0x40 == 64): recognised, but mapped to nothing --
+     * OPL Mode 7 is not Neutrino 7. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$Compatibility=64\n", 18, &s) == 1 &&
+          s.gc[0] == '\0', "OPL Mode 7 is dropped, not mapped to -gc 7");
+
+    /* Mode 1 alone (0x01): no -gc counterpart, dropped. */
+    memset(&s, 0, sizeof s);
+    console_opl_cfg("$Compatibility=1\n", 17, &s);
+    CHECK(s.gc[0] == '\0', "OPL Mode 1 has no -gc counterpart");
+
+    /* All eight bits set (255): only 2, 3, 5 survive. */
+    memset(&s, 0, sizeof s);
+    console_opl_cfg("$Compatibility=255\n", 19, &s);
+    CHECK(strcmp(s.gc, "235") == 0, "every bit set maps to exactly 235");
+
+    /* Value 0 is a present key with no modes: recognised, empty gc. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$Compatibility=0\n", 17, &s) == 1 &&
+          s.gc[0] == '\0', "$Compatibility 0 is found but maps to nothing");
+
+    /* Other keys are ignored; the compat line is still found among them,
+     * and CRLF line endings parse. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$DMA=1\r\n$Compatibility=4\r\n", 26, &s) == 1 &&
+          strcmp(s.gc, "3") == 0, "other keys ignored, CRLF fine");
+
+    /* No compat key at all: nothing found, nothing set. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$DMA=1\n", 7, &s) == 0 && s.gc[0] == '\0',
+          "a CFG with no $Compatibility resolves nothing");
+
+    /* Path derivation from a DVD game with an ID. */
+    memset(&g, 0, sizeof g);
+    strcpy(g.path, "mass0:/DVD/Shadow of the Colossus.iso");
+    strcpy(g.id, "SLUS_200.02");
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 1 &&
+          strcmp(path, "mass0:/CFG/SLUS_200.02.cfg") == 0,
+          "CFG path is root + /CFG/<ID>.cfg");
+
+    /* A CD game roots off "/CD/" the same way. */
+    strcpy(g.path, "mass1:/CD/Ape Escape.iso");
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 1 &&
+          strcmp(path, "mass1:/CFG/SLUS_200.02.cfg") == 0,
+          "a CD game roots off /CD/");
+
+    /* No ID: no CFG to find. */
+    g.id[0] = '\0';
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 0,
+          "a game with no ID has no CFG path");
+
+    /* A path with no media folder cannot be rooted. */
+    strcpy(g.id, "SLUS_200.02");
+    strcpy(g.path, "mass0:/loose/Game.iso");
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 0,
+          "a path with no /DVD/ or /CD/ has no CFG path");
+}
+
 /* The MOCK=1 build's list, as main.c builds it. The previewer takes
  * these lines in file order and the console sorts them, so the file has
  * to already be in console_sort's order or the emulator frame and the
@@ -496,6 +570,7 @@ int main(void)
     test_sort();
     test_neutrino();
     test_resolver();
+    test_opl_cfg();
     test_scan();
     test_mock_sorted();
     printf("1..%d\n", checks);

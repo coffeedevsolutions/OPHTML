@@ -313,3 +313,94 @@ void console_resolve(const console_game *game, console_settings *out)
     memset(out, 0, sizeof *out);
     if (the_resolver) the_resolver(game, out);
 }
+
+/* Parse a run of decimal digits at [p, end) into an unsigned value,
+ * stopping at the first non-digit. Leading spaces are skipped. OPL
+ * writes these values in decimal. */
+static unsigned parse_uint(const char *p, const char *end)
+{
+    unsigned v = 0;
+    while (p < end && (*p == ' ' || *p == '\t')) p++;
+    while (p < end && *p >= '0' && *p <= '9') {
+        v = v * 10u + (unsigned)(*p - '0');
+        p++;
+    }
+    return v;
+}
+
+/* True if [key, key+klen) is exactly `lit` (no trailing spaces: OPL
+ * keys carry none). */
+static int key_is(const char *key, size_t klen, const char *lit)
+{
+    return klen == strlen(lit) && memcmp(key, lit, klen) == 0;
+}
+
+/* Map an OPL $Compatibility bitmask to the Neutrino -gc digit string,
+ * ascending. See the header in library.h for why only these three
+ * bits, and why OPL Mode 7 is deliberately not among them. */
+static void map_compat(unsigned bits, char *gc, size_t cap)
+{
+    static const struct { unsigned bit; char digit; } m[] = {
+        { 0x02, '2' },  /* OPL Mode 2 sync reads      == Neutrino 2 */
+        { 0x04, '3' },  /* OPL Mode 3 unhook syscalls == Neutrino 3 */
+        { 0x10, '5' },  /* OPL Mode 5 emulate DVD-DL  == Neutrino 5 */
+    };
+    size_t n = 0, k;
+    for (k = 0; k < sizeof m / sizeof m[0]; k++)
+        if ((bits & m[k].bit) && n + 1 < cap)
+            gc[n++] = m[k].digit;
+    gc[n] = '\0';
+}
+
+int console_opl_cfg(const char *cfg, size_t len, console_settings *out)
+{
+    size_t i = 0;
+    int found = 0;
+
+    while (i < len) {
+        size_t line = i, end = i, eq;
+
+        while (end < len && cfg[end] != '\n' && cfg[end] != '\r') end++;
+        for (eq = line; eq < end && cfg[eq] != '='; eq++) ;
+        if (eq < end && key_is(cfg + line, eq - line, "$Compatibility")) {
+            map_compat(parse_uint(cfg + eq + 1, cfg + end),
+                       out->gc, sizeof out->gc);
+            found = 1;
+        }
+        i = end;
+        while (i < len && (cfg[i] == '\n' || cfg[i] == '\r')) i++;
+    }
+    return found;
+}
+
+/* Find "/DVD/" or "/CD/" in `path` and return the length of the part
+ * before it (the drive root), or 0 if neither is present. A game name
+ * cannot contain '/', and a mount ("mass0:") cannot contain these, so
+ * the first occurrence is the only one. */
+static size_t root_len(const char *path)
+{
+    const char *dvd = strstr(path, "/DVD/");
+    const char *cd = strstr(path, "/CD/");
+    const char *sep = dvd ? dvd : cd;
+    if (dvd && cd && cd < dvd) sep = cd;
+    return sep ? (size_t)(sep - path) : 0;
+}
+
+int console_opl_cfg_path(const console_game *game, char *out, size_t cap)
+{
+    size_t rl = root_len(game->path);
+    size_t idl, need;
+
+    if (game->id[0] == '\0' || rl == 0) return 0;
+    idl = strlen(game->id);
+    /* root + "/CFG/" + id + ".cfg" + NUL */
+    need = rl + 5 + idl + 4 + 1;
+    if (need > cap) return 0;
+
+    memcpy(out, game->path, rl);
+    memcpy(out + rl, "/CFG/", 5);
+    memcpy(out + rl + 5, game->id, idl);
+    memcpy(out + rl + 5 + idl, ".cfg", 4);
+    out[rl + 5 + idl + 4] = '\0';
+    return 1;
+}

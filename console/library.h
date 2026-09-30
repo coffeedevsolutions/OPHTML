@@ -179,4 +179,34 @@ void console_set_resolver(console_resolver fn);
  * launcher calls this, then hands `out` to console_launch. */
 void console_resolve(const console_game *game, console_settings *out);
 
+/* Read what OPHTML can map from an OPL per-game CFG's text into `out`
+ * (only the fields it recognises; it does not zero the rest). Buffer
+ * in, like console_cnf_id, so the mapping is host-testable apart from
+ * the file read. Returns 1 if a recognised key was present.
+ *
+ * TODAY IT MAPS COMPATIBILITY ONLY. OPL's `$Compatibility` is a bitmask
+ * of its eight game-compat modes; this maps the three whose Neutrino
+ * `-gc` equivalent is CERTAIN -- same meaning AND same number -- into
+ * the gc digit string:
+ *
+ *   OPL Mode 2 (0x02) sync reads     -> -gc digit 2
+ *   OPL Mode 3 (0x04) unhook syscalls-> -gc digit 3
+ *   OPL Mode 5 (0x10) emulate DVD-DL -> -gc digit 5
+ *
+ * Every other OPL mode is dropped on purpose: 1/4/6/8 have no `-gc`
+ * counterpart, and OPL Mode 7 (0x40, "high module storage") is NOT
+ * Neutrino's 7 ("fix game buffer overrun") -- the numbers collide but
+ * the meanings do not, so mapping by number would be wrong. GSM
+ * (`$GSMVMode`/`$GSMFIELDFix`) and VMC (`$VMC`) are left for a later
+ * slice, once their value encodings are verified the same way. */
+int console_opl_cfg(const char *cfg, size_t len, console_settings *out);
+
+/* Build the path of a game's OPL CFG file: the drive root (the part of
+ * `game->path` before its "/DVD/" or "/CD/") joined with
+ * "/CFG/<ID>.cfg". Returns 1 on success, 0 if the game has no ID, its
+ * path has no media folder to root from, or the result would not fit.
+ * Pure string work; the read that uses it lives outside this file,
+ * which touches no files (see the header at the top). */
+int console_opl_cfg_path(const console_game *game, char *out, size_t cap);
+
 #endif /* CONSOLE_LIBRARY_H */
