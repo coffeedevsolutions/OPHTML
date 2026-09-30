@@ -298,3 +298,18 @@ int console_neutrino_args(const console_game *game,
                  "-qb", "")) return -1;
     return argc;
 }
+
+/* One registered resolver, or NULL. A plain global: the console is
+ * single-threaded and registers once at startup, before it scans. */
+static console_resolver the_resolver = NULL;
+
+void console_set_resolver(console_resolver fn)
+{
+    the_resolver = fn;
+}
+
+void console_resolve(const console_game *game, console_settings *out)
+{
+    memset(out, 0, sizeof *out);
+    if (the_resolver) the_resolver(game, out);
+}

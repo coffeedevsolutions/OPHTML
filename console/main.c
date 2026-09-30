@@ -387,6 +387,7 @@ static void launch_selected(void)
 {
     char path[CONSOLE_PATH_MAX], line[80];
     const console_game *g = &games[list.sel];
+    console_settings settings;
     int i, rc;
 
     if (!console_find_neutrino(launch_dir, devs, n_devs, path, sizeof path)) {
@@ -400,9 +401,12 @@ static void launch_selected(void)
     for (i = 0; i < 2; i++) frame();
 
     input_end();
-    /* NULL settings for now: a plain launch, as before. The resolver
-     * slice (F55) fills a console_settings here from the game's ID. */
-    rc = console_launch(path, g, NULL);
+    /* Resolve the game's settings through whatever resolver is
+     * registered. OPHTML's own console registers none, so this is
+     * all-empty -- a plain launch. A downstream launcher registers a
+     * resolver (console_set_resolver) that reads its database. */
+    console_resolve(g, &settings);
+    rc = console_launch(path, g, &settings);
     input_init();
     snprintf(line, sizeof line, "Could not start Neutrino (%d)", rc);
     status(line);

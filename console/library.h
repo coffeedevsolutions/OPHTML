@@ -156,4 +156,27 @@ int console_neutrino_args(const console_game *game,
                           char *store, size_t store_cap,
                           char **argv, int argv_cap);
 
+/* A resolver decides a game's settings, keyed by whatever it likes --
+ * usually `game->id`. It writes into `out` (already zeroed when called,
+ * so it only sets the fields it knows) and returns 1 if it found
+ * anything, 0 if the game is unknown to it. The return is advisory:
+ * console_resolve produces a valid settings either way.
+ *
+ * This is the seam the product plugs into. OPHTML's console links no
+ * resolver of its own yet -- the default is "none", which is a plain
+ * launch -- so a downstream launcher registers one that reads its
+ * database and this file never learns what a database is. */
+typedef int (*console_resolver)(const console_game *game,
+                                console_settings *out);
+
+/* Register the resolver console_resolve will call, or NULL to clear it.
+ * One resolver at a time; the last registered wins. */
+void console_set_resolver(console_resolver fn);
+
+/* Fill `out` with `game`'s settings: zero it, then let the registered
+ * resolver (if any) set what it knows. With no resolver, `out` is left
+ * all-empty, which console_neutrino_args treats exactly as NULL. A
+ * launcher calls this, then hands `out` to console_launch. */
+void console_resolve(const console_game *game, console_settings *out);
+
 #endif /* CONSOLE_LIBRARY_H */

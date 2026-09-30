@@ -324,6 +324,53 @@ static void test_neutrino(void)
           "an option that would overflow argv is refused, not truncated");
 }
 
+/* A resolver a launcher could register: it sets gc for one id and
+ * leaves every other game alone, so the test sees both a hit and a
+ * miss through the same seam. */
+static int stub_resolver(const console_game *game, console_settings *out)
+{
+    if (strcmp(game->id, "SLUS_200.02") == 0) {
+        strcpy(out->gc, "3");
+        return 1;
+    }
+    return 0;
+}
+
+static void test_resolver(void)
+{
+    console_game g;
+    console_settings s;
+
+    memset(&g, 0, sizeof g);
+
+    /* No resolver: resolve yields all-empty settings, a plain launch.
+     * The 0xff poison proves resolve zeroes the struct rather than
+     * trusting the caller to. */
+    console_set_resolver(NULL);
+    memset(&s, 0xff, sizeof s);
+    console_resolve(&g, &s);
+    CHECK(s.gc[0] == '\0' && s.gsm[0] == '\0' && s.vmc0[0] == '\0' &&
+          s.vmc1[0] == '\0', "no resolver: settings come back all-empty");
+
+    /* A registered resolver fills what it knows for a game it knows. */
+    console_set_resolver(stub_resolver);
+    strcpy(g.id, "SLUS_200.02");
+    memset(&s, 0xff, sizeof s);
+    console_resolve(&g, &s);
+    CHECK(strcmp(s.gc, "3") == 0, "a known game gets the resolver's settings");
+    CHECK(s.gsm[0] == '\0', "fields the resolver did not set stay empty");
+
+    /* A game the resolver does not know comes back empty, not poisoned
+     * and not carrying the previous game's settings. */
+    strcpy(g.id, "SLES_500.00");
+    memset(&s, 0xff, sizeof s);
+    console_resolve(&g, &s);
+    CHECK(s.gc[0] == '\0',
+          "an unknown game gets empty settings, not stale ones");
+
+    console_set_resolver(NULL);   /* leave the global clean for later tests */
+}
+
 /* The MOCK=1 build's list, as main.c builds it. The previewer takes
  * these lines in file order and the console sorts them, so the file has
  * to already be in console_sort's order or the emulator frame and the
@@ -448,6 +495,7 @@ int main(void)
     test_iso_id();
     test_sort();
     test_neutrino();
+    test_resolver();
     test_scan();
     test_mock_sorted();
     printf("1..%d\n", checks);
