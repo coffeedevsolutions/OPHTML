@@ -20,14 +20,16 @@ int console_find_neutrino(const char *launch_dir,
                           const console_device *devs, int n_devs,
                           char *out, size_t cap);
 
-/* Start `game` under the Neutrino at `neutrino`. Does not return on
- * success. Returns a negative number if the command line could not be
- * built or the loader refused the file.
+/* Start `game` under the Neutrino at `neutrino`, applying `settings`
+ * (NULL for a plain launch with no per-game options). Does not return
+ * on success. Returns a negative number if the command line could not
+ * be built or the loader refused the file.
  *
  * THE CALLER MUST STOP THE PAD FIRST (padPortClose + padEnd). The pad
  * driver on the IOP keeps DMAing controller state into the EE buffer
  * it was given, every frame, and the loader is about to wipe EE memory
  * and put Neutrino there. A pad left running writes into Neutrino. */
-int console_launch(const char *neutrino, const console_game *game);
+int console_launch(const char *neutrino, const console_game *game,
+                   const console_settings *settings);
 
 #endif /* CONSOLE_LAUNCH_H */

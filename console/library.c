@@ -231,37 +231,70 @@ void console_sort(console_game *games, size_t n)
     if (n > 1) qsort(games, n, sizeof *games, title_cmp);
 }
 
+/* Append "<fmt><val>" as one NUL-terminated argv entry. Returns 0, or
+ * -1 if either the store or the argv array is full -- the same refusal
+ * the whole builder returns, so a caller only has to check once. */
+static int arg_emit(char *store, size_t store_cap, size_t *used,
+                    char **argv, int argv_cap, int *argc,
+                    const char *fmt, const char *val)
+{
+    size_t a = strlen(fmt), b = strlen(val);
+    if (*argc >= argv_cap) return -1;
+    if (*used + a + b + 1 > store_cap) return -1;
+    argv[*argc] = store + *used;
+    memcpy(store + *used, fmt, a);
+    memcpy(store + *used + a, val, b);
+    store[*used + a + b] = '\0';
+    *used += a + b + 1;
+    (*argc)++;
+    return 0;
+}
+
 int console_neutrino_args(const console_game *game,
+                          const console_settings *settings,
                           char *store, size_t store_cap,
                           char **argv, int argv_cap)
 {
     const char *bsd = console_bsd_arg((console_bsd)game->bsd);
-    /* -qb is Neutrino's quick boot: it skips the IOP reboot into its
+    size_t used = 0;
+    int argc = 0;
+
+    if (bsd == NULL || game->path[0] == '\0') return -1;
+
+    /* -bsd and -dvd first, then any per-game options, then -qb last.
+     * -qb is Neutrino's quick boot: it skips the IOP reboot into its
      * own load environment and reads the image through the modules
      * that are ALREADY loaded -- ours. That makes the console's driver
      * set part of the launch, not just the scan: the device the game
      * is on must still be mounted, through fileXio, when Neutrino
      * starts (neutrino ee/loader/src/main.c, the bQuickBoot branches).
      * NHDDL passes it for every BDM and MMCE launch; it is the faster
-     * path and the one that frontend runs on hardware. */
-    const char *fmt[3] = { "-bsd=", "-dvd=", "-qb" };
-    const char *val[3];
-    size_t used = 0;
-    int i;
-
-    val[0] = bsd;
-    val[1] = game->path;
-    val[2] = "";
-    if (bsd == NULL || game->path[0] == '\0' || argv_cap < 3) return -1;
-
-    for (i = 0; i < 3; i++) {
-        size_t a = strlen(fmt[i]), b = strlen(val[i]);
-        if (used + a + b + 1 > store_cap) return -1;
-        argv[i] = store + used;
-        memcpy(store + used, fmt[i], a);
-        memcpy(store + used + a, val[i], b);
-        store[used + a + b] = '\0';
-        used += a + b + 1;
+     * path and the one that frontend runs on hardware.
+     *
+     * The order of the middle options does not matter to Neutrino's
+     * parser; they are emitted in struct order so a bench photo of the
+     * command line reads the same way every time. An empty field emits
+     * nothing, so `settings` NULL and `settings` all-empty are the same
+     * three-argument line. */
+    if (arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                 "-bsd=", bsd)) return -1;
+    if (arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                 "-dvd=", game->path)) return -1;
+    if (settings) {
+        if (settings->gc[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-gc=", settings->gc)) return -1;
+        if (settings->gsm[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-gsm=", settings->gsm)) return -1;
+        if (settings->vmc0[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-mc0=", settings->vmc0)) return -1;
+        if (settings->vmc1[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-mc1=", settings->vmc1)) return -1;
     }
-    return 3;
+    if (arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                 "-qb", "")) return -1;
+    return argc;
 }

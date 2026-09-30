@@ -255,6 +255,7 @@ static void test_sort(void)
 static void test_neutrino(void)
 {
     console_game g;
+    console_settings s;
     char store[512], tiny[16];
     char *argv[8];
     int argc;
@@ -262,22 +263,65 @@ static void test_neutrino(void)
     memset(&g, 0, sizeof g);
     strcpy(g.path, "mass0:/DVD/Shadow of the Colossus.iso");
     g.bsd = CONSOLE_BSD_ATA;
-    argc = console_neutrino_args(&g, store, sizeof store, argv, 8);
+
+    /* NULL settings is the plain three-argument launch, unchanged. */
+    argc = console_neutrino_args(&g, NULL, store, sizeof store, argv, 8);
     CHECK(argc == 3, "three arguments");
     CHECK(argc == 3 && strcmp(argv[0], "-bsd=ata") == 0, "-bsd= names the device");
     CHECK(argc == 3 && strcmp(argv[1], "-dvd=mass0:/DVD/Shadow of the Colossus.iso") == 0,
           "-dvd= carries the full path, spaces and all, as one argument");
     CHECK(argc == 3 && strcmp(argv[2], "-qb") == 0, "quick boot");
 
+    /* All-empty settings is identical to NULL: no option is emitted. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_neutrino_args(&g, &s, store, sizeof store, argv, 8) == 3,
+          "empty settings emit the same three arguments as NULL");
+
+    /* A field that is set adds its option, between -dvd and -qb, with
+     * the option's "-flag=" prefix and the field's value. */
+    strcpy(s.gc, "23");
+    argc = console_neutrino_args(&g, &s, store, sizeof store, argv, 8);
+    CHECK(argc == 4 && strcmp(argv[2], "-gc=23") == 0,
+          "-gc= carries the compat digits and sits before -qb");
+    CHECK(argc == 4 && strcmp(argv[3], "-qb") == 0, "-qb stays last");
+
+    /* Every option, in struct order: gc, gsm, mc0, mc1. */
+    strcpy(s.gsm, "fp2:1");
+    strcpy(s.vmc0, "mass0:/VMC/a.bin");
+    strcpy(s.vmc1, "mass0:/VMC/b.bin");
+    argc = console_neutrino_args(&g, &s, store, sizeof store, argv, 8);
+    CHECK(argc == 7, "bsd, dvd, gc, gsm, mc0, mc1, qb");
+    CHECK(argc == 7 && strcmp(argv[2], "-gc=23") == 0 &&
+          strcmp(argv[3], "-gsm=fp2:1") == 0 &&
+          strcmp(argv[4], "-mc0=mass0:/VMC/a.bin") == 0 &&
+          strcmp(argv[5], "-mc1=mass0:/VMC/b.bin") == 0 &&
+          strcmp(argv[6], "-qb") == 0,
+          "options appear in struct order with their prefixes");
+
+    /* gsm without gc: the gap is closed, not left as an empty slot. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.gsm, "fp1");
+    argc = console_neutrino_args(&g, &s, store, sizeof store, argv, 8);
+    CHECK(argc == 4 && strcmp(argv[2], "-gsm=fp1") == 0,
+          "an unset earlier field leaves no hole");
+
     g.bsd = CONSOLE_BSD_NONE;
-    CHECK(console_neutrino_args(&g, store, sizeof store, argv, 8) == -1,
+    CHECK(console_neutrino_args(&g, NULL, store, sizeof store, argv, 8) == -1,
           "an unknown device is refused, not launched as something else");
 
     g.bsd = CONSOLE_BSD_USB;
-    CHECK(console_neutrino_args(&g, tiny, sizeof tiny, argv, 8) == -1,
+    CHECK(console_neutrino_args(&g, NULL, tiny, sizeof tiny, argv, 8) == -1,
           "a command line that does not fit is refused, not truncated");
-    CHECK(console_neutrino_args(&g, store, sizeof store, argv, 2) == -1,
+    CHECK(console_neutrino_args(&g, NULL, store, sizeof store, argv, 2) == -1,
           "too few argv slots is refused");
+
+    /* argv overflow counts the option arguments too: seven needed, six
+     * offered, refused rather than written past the array. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.gc, "3"); strcpy(s.gsm, "fp2");
+    strcpy(s.vmc0, "mass0:/VMC/a.bin"); strcpy(s.vmc1, "mass0:/VMC/b.bin");
+    CHECK(console_neutrino_args(&g, &s, store, sizeof store, argv, 6) == -1,
+          "an option that would overflow argv is refused, not truncated");
 }
 
 /* The MOCK=1 build's list, as main.c builds it. The previewer takes

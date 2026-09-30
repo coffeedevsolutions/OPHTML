@@ -400,7 +400,9 @@ static void launch_selected(void)
     for (i = 0; i < 2; i++) frame();
 
     input_end();
-    rc = console_launch(path, g);
+    /* NULL settings for now: a plain launch, as before. The resolver
+     * slice (F55) fills a console_settings here from the game's ID. */
+    rc = console_launch(path, g, NULL);
     input_init();
     snprintf(line, sizeof line, "Could not start Neutrino (%d)", rc);
     status(line);

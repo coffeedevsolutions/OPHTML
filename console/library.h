@@ -110,15 +110,49 @@ int console_iso_id(console_read_fn read, void *user,
  * copies of one game on two drives keep a stable order. */
 void console_sort(console_game *games, size_t n);
 
+/* Per-game settings a resolver decides and the launch applies, one
+ * field per Neutrino option, each holding the option's VALUE (not its
+ * "-flag=" prefix) or "" to leave the option off. The strings are what
+ * Neutrino's command line takes verbatim, so a resolver's only job is
+ * to fill them; console_neutrino_args does the quoting.
+ *
+ *   gc    game compatibility, a run of mode digits Neutrino concatenates
+ *         (0 fast reads, 2 sync reads, 3 unhook syscalls, 5 DVD-DL,
+ *         7 fix buffer overrun; 1 is a dummy). "-gc=23" is two of them.
+ *         OPL stores these as a BITMASK, so the OPL->Neutrino resolver
+ *         translates bits to this digit string -- that mapping is the
+ *         resolver's work, not this file's.
+ *   gsm   video mode as "v:c": v forces the mode (fp1 240p/288p,
+ *         fp2 480p/576p, 1080ix1..3), c is field-flip compat (1,2,3).
+ *         "fp2" alone is legal; "fp2:1" sets both.
+ *   vmc0  virtual memory card image for slot 0, a path on a mounted
+ *   vmc1  drive, or "" for the real card. This is card-IMAGE emulation
+ *         (Neutrino's -mc0=/-mc1=), a different thing from gc's compat.
+ *
+ * Patches (Neutrino cheats) are deliberately absent: they are not in
+ * the core option set this struct mirrors, and belong to a later slice.
+ *
+ * A caller that wants today's plain launch passes NULL for settings,
+ * which is exactly "every field empty". */
+typedef struct {
+    char gc[8];                /* "23", or "" */
+    char gsm[16];              /* "fp2:1", or "" */
+    char vmc0[CONSOLE_PATH_MAX];
+    char vmc1[CONSOLE_PATH_MAX];
+} console_settings;
+
 /* Build the command line that hands `game` to Neutrino:
  *
- *   -bsd=<device> -dvd=<path> -qb
+ *   -bsd=<device> -dvd=<path> [-gc=..] [-gsm=..] [-mc0=..] [-mc1=..] -qb
  *
- * The strings are written into `store` and `argv` points into it.
- * argv[0] is NOT included: the loader supplies it from the ELF's own
- * path. Returns argc, or -1 if the game's device has no -bsd= or
- * something does not fit. */
+ * The bracketed options appear only for a `settings` field that is set;
+ * `settings` may be NULL, which is the same as all-empty and reproduces
+ * the plain three-argument launch. The strings are written into `store`
+ * and `argv` points into it. argv[0] is NOT included: the loader
+ * supplies it from the ELF's own path. Returns argc, or -1 if the
+ * game's device has no -bsd=, or the store or argv would overflow. */
 int console_neutrino_args(const console_game *game,
+                          const console_settings *settings,
                           char *store, size_t store_cap,
                           char **argv, int argv_cap);
 
