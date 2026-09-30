@@ -10,9 +10,9 @@ CFLAGS ?= -std=c99 -Wall -Wextra -Werror -O2
 test: build/test_library
 	./build/test_library
 
-build/test_library: test_library.c ../library.c ../library.h ../scan.c ../scan.h ../mock_library.h
+build/test_library: test_library.c ../library.c ../library.h ../scan.c ../scan.h ../resolver.c ../resolver.h ../mock_library.h
 	mkdir -p build
-	$(CC) $(CFLAGS) -o $@ test_library.c ../library.c ../scan.c
+	$(CC) $(CFLAGS) -o $@ test_library.c ../library.c ../scan.c ../resolver.c
 
 # The same suite under ASan and UBSan, fatal on the first report. This
 # code parses bytes off somebody's drive -- file names, ISO9660 records,
@@ -26,9 +26,9 @@ SANITIZE = -std=c99 -Wall -Wextra -Werror -O1 -g \
 test-sanitize: build/test_library_san
 	./build/test_library_san
 
-build/test_library_san: test_library.c ../library.c ../library.h ../scan.c ../scan.h ../mock_library.h
+build/test_library_san: test_library.c ../library.c ../library.h ../scan.c ../scan.h ../resolver.c ../resolver.h ../mock_library.h
 	mkdir -p build
-	$(CC) $(SANITIZE) -o $@ test_library.c ../library.c ../scan.c
+	$(CC) $(SANITIZE) -o $@ test_library.c ../library.c ../scan.c ../resolver.c
 
 clean:
 	rm -rf build

@@ -13,6 +13,7 @@
 
 #include "../library.h"
 #include "../scan.h"
+#include "../resolver.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -445,6 +446,42 @@ static void test_opl_cfg(void)
           "a path with no /DVD/ or /CD/ has no CFG path");
 }
 
+/* Defined with the scan helpers further down; used here too. */
+static void touch(const char *path, const void *data, size_t len);
+
+/* The OPL resolver end to end, reading a real CFG off a temp tree the
+ * same way scan.c reads a drive -- so the file read, the path
+ * derivation and the compat mapping are exercised together, through
+ * console_resolve, exactly as main.c calls it. */
+static void test_opl_resolver(void)
+{
+    console_game g;
+    console_settings s;
+    char root[] = "/tmp/console-cfg-XXXXXX", p[512];
+
+    if (mkdtemp(root) == NULL) { perror("mkdtemp"); exit(2); }
+    snprintf(p, sizeof p, "%s/CFG", root); mkdir(p, 0755);
+    snprintf(p, sizeof p, "%s/CFG/SLUS_200.02.cfg", root);
+    touch(p, "$Compatibility=6\n", 17);
+
+    memset(&g, 0, sizeof g);
+    snprintf(g.path, sizeof g.path, "%s/DVD/Ico.iso", root);
+    strcpy(g.id, "SLUS_200.02");
+
+    console_set_resolver(console_opl_resolver);
+    console_resolve(&g, &s);
+    CHECK(strcmp(s.gc, "23") == 0,
+          "the OPL resolver reads CFG/<ID>.cfg and maps its compat");
+
+    /* A game with no CFG file resolves to empty, not an error, and
+     * console_resolve's zeroing means no stale settings leak in. */
+    strcpy(g.id, "SLES_999.99");
+    console_resolve(&g, &s);
+    CHECK(s.gc[0] == '\0', "a game with no CFG file resolves to empty");
+
+    console_set_resolver(NULL);
+}
+
 /* The MOCK=1 build's list, as main.c builds it. The previewer takes
  * these lines in file order and the console sorts them, so the file has
  * to already be in console_sort's order or the emulator frame and the
@@ -571,6 +608,7 @@ int main(void)
     test_neutrino();
     test_resolver();
     test_opl_cfg();
+    test_opl_resolver();
     test_scan();
     test_mock_sorted();
     printf("1..%d\n", checks);

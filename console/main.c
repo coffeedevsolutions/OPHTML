@@ -51,6 +51,7 @@
 #include "storage.h"
 #include "scan.h"
 #include "launch.h"
+#include "resolver.h"
 
 /* The built-in theme, examples/console, linked in by bin2c. */
 extern unsigned char theme_uib[];
@@ -451,6 +452,11 @@ int main(int argc, char *argv[])
     int have;
 
     set_launch_dir(argc > 0 ? argv[0] : NULL);
+
+    /* The default resolver: an existing OPL library's per-game CFG
+     * files. A downstream launcher overrides it by registering its own
+     * after this (console_set_resolver, last wins). */
+    console_set_resolver(console_opl_resolver);
 
     gs_init();
     blank();
