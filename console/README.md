@@ -209,6 +209,56 @@ ROM pair can't share the bus with the card-slot drivers, so this build
 has no memory card, MMCE or MX4SIO. Never ship it: the real ELF uses
 `freepad`, as NHDDL does on consoles.
 
+## Building a launcher on the core
+
+**Not yet exercised by an out-of-tree build.** F56's open gate is a
+consumer that links the archive with its own `main`; until it lands,
+`console/` itself is the only thing proven to link `libophtml-console.a`
+(end to end, in CI's `elf` job). The recipe below is that build,
+described for a second consumer.
+
+`make -C console` first archives the reusable launcher core into
+`libophtml-console.a` -- `library.o scan.o storage.o launch.o
+resolver.o`, the machinery with no UI and no `main` -- and then links
+`ophtml.elf` against it. `main.c` is that archive's first consumer and
+nothing more; a different launcher brings its own `main`.
+
+To build your own launcher on the core, include the one umbrella header
+
+```c
+#include "ophtml_console.h"
+```
+
+and link the archive plus the three things it deliberately does not
+contain:
+
+| You supply | How |
+|---|---|
+| a `main` | bring up the GS, choose/upload a theme, poll the pad, drive the list -- `console/main.c` is a worked example |
+| the `ps2ui` runtime + a theme blob | `ps2ui vendor-runtime <dir>` writes the runtime in; `ps2ui build` bakes a theme, `bin2c` embeds it |
+| the IOP module table | `sh console/embed_irx.sh . <modules…>` generates `irx_table.c`, defining the `irx_modules`/`n_irx_modules` that `storage.o` resolves by name at run time. Use **this tree's** `embed_irx.sh`: the archive's `storage.o` is compiled against the `irx_table.h` it generates, so a table from another copy is only ABI-safe if the header matches |
+
+**Which modules the table must contain.** Pass `console/Makefile`'s
+`IRX =` list verbatim -- it is the set `storage.c` expects. A missing
+module does **not** fail the link; `storage.c` finds each by name at run
+time, so an omission shows only on a console. The mandatory set is
+`iomanX fileXio sio2man mcman mcserv freepad bdm bdmfs_fatfs` -- drop any
+one and `console_storage_start` returns -1 and the screen holds grey
+(no words, because the theme is not up yet). The rest are per-device and
+optional: `usbd_mini`+`usbmass_bd_mini` (USB), `ps2dev9`+`ata_bd` (the
+exFAT HDD), `mx4sio_bd_mini` (MX4SIO) and `mmceman` (MMCE) -- leave one
+out and only that device is gone.
+
+Then link your objects, the generated `irx_table.o` and the vendored
+`ps2ui.o` ahead of `-L<dir> -lophtml-console` and the system libraries
+(`-lgskit -ldmakit -lpad -lpatches -lfileXio -lelf-loader`), exactly as
+`console/Makefile` does. Link the archive from a plain `make -C console`:
+`libophtml-console.a` is rebuilt per variant, so a `MOCK=1 ROMPAD=1`
+build leaves the ROM-pad `storage.o` archived, which (like the
+`ophtml-nav.elf` it builds) must never ship. A registered resolver
+(`console_set_resolver`) decides each game's settings; register yours
+after the default to override it.
+
 ## How it works
 
 `main.c` explains the boot order and why it is fixed. In short:

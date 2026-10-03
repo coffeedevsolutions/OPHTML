@@ -20,7 +20,7 @@ boots it. The theme is an ordinary `.uib`. Nothing in C is yours to write.
 **It has not yet been run on a console.** CI boots it in the Play! emulator,
 where it draws, fills its list and follows the pad. Play! has no USB, HDD or
 memory card slot, so no real drive has been read and no game has been started.
-The bench cases in [console/README.md](repo:console/README.md#L232) are the
+The bench cases in [console/README.md](repo:console/README.md#L282) are the
 hardware checks, and each stays open until a sitting reports it. Treat any
 failure on a console as a gap in the launcher, and report it as an issue.
 
