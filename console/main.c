@@ -51,6 +51,7 @@
 #include "storage.h"
 #include "scan.h"
 #include "launch.h"
+#include "resolver.h"
 
 /* The built-in theme, examples/console, linked in by bin2c. */
 extern unsigned char theme_uib[];
@@ -387,6 +388,7 @@ static void launch_selected(void)
 {
     char path[CONSOLE_PATH_MAX], line[80];
     const console_game *g = &games[list.sel];
+    console_settings settings;
     int i, rc;
 
     if (!console_find_neutrino(launch_dir, devs, n_devs, path, sizeof path)) {
@@ -400,7 +402,13 @@ static void launch_selected(void)
     for (i = 0; i < 2; i++) frame();
 
     input_end();
-    rc = console_launch(path, g);
+    /* Resolve the game's settings through the registered resolver.
+     * main() registers console_opl_resolver, so by default this reads
+     * the game's OPL CFG and a game with a mapped compat mode launches
+     * with -gc set. A downstream launcher registers its own resolver
+     * (console_set_resolver) to read a database instead. */
+    console_resolve(g, &settings);
+    rc = console_launch(path, g, &settings);
     input_init();
     snprintf(line, sizeof line, "Could not start Neutrino (%d)", rc);
     status(line);
@@ -445,6 +453,11 @@ int main(int argc, char *argv[])
     int have;
 
     set_launch_dir(argc > 0 ? argv[0] : NULL);
+
+    /* The default resolver: an existing OPL library's per-game CFG
+     * files. A downstream launcher overrides it by registering its own
+     * after this (console_set_resolver, last wins). */
+    console_set_resolver(console_opl_resolver);
 
     gs_init();
     blank();

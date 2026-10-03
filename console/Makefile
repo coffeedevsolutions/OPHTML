@@ -16,7 +16,7 @@ EE_BIN = ophtml.elf
 # when there is none.
 THEME ?= ../examples/console/build/ui.uib
 
-EE_OBJS = main.o library.o scan.o storage.o launch.o ps2ui.o \
+EE_OBJS = main.o library.o scan.o storage.o launch.o resolver.o ps2ui.o \
           theme_uib.o irx_table.o
 
 # In load order. storage.c keeps the same list with what each one's

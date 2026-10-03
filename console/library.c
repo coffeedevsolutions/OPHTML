@@ -231,37 +231,176 @@ void console_sort(console_game *games, size_t n)
     if (n > 1) qsort(games, n, sizeof *games, title_cmp);
 }
 
+/* Append "<fmt><val>" as one NUL-terminated argv entry. Returns 0, or
+ * -1 if either the store or the argv array is full -- the same refusal
+ * the whole builder returns, so a caller only has to check once. */
+static int arg_emit(char *store, size_t store_cap, size_t *used,
+                    char **argv, int argv_cap, int *argc,
+                    const char *fmt, const char *val)
+{
+    size_t a = strlen(fmt), b = strlen(val);
+    if (*argc >= argv_cap) return -1;
+    if (*used + a + b + 1 > store_cap) return -1;
+    argv[*argc] = store + *used;
+    memcpy(store + *used, fmt, a);
+    memcpy(store + *used + a, val, b);
+    store[*used + a + b] = '\0';
+    *used += a + b + 1;
+    (*argc)++;
+    return 0;
+}
+
 int console_neutrino_args(const console_game *game,
+                          const console_settings *settings,
                           char *store, size_t store_cap,
                           char **argv, int argv_cap)
 {
     const char *bsd = console_bsd_arg((console_bsd)game->bsd);
-    /* -qb is Neutrino's quick boot: it skips the IOP reboot into its
+    size_t used = 0;
+    int argc = 0;
+
+    if (bsd == NULL || game->path[0] == '\0') return -1;
+
+    /* -bsd and -dvd first, then any per-game options, then -qb last.
+     * -qb is Neutrino's quick boot: it skips the IOP reboot into its
      * own load environment and reads the image through the modules
      * that are ALREADY loaded -- ours. That makes the console's driver
      * set part of the launch, not just the scan: the device the game
      * is on must still be mounted, through fileXio, when Neutrino
      * starts (neutrino ee/loader/src/main.c, the bQuickBoot branches).
      * NHDDL passes it for every BDM and MMCE launch; it is the faster
-     * path and the one that frontend runs on hardware. */
-    const char *fmt[3] = { "-bsd=", "-dvd=", "-qb" };
-    const char *val[3];
-    size_t used = 0;
-    int i;
-
-    val[0] = bsd;
-    val[1] = game->path;
-    val[2] = "";
-    if (bsd == NULL || game->path[0] == '\0' || argv_cap < 3) return -1;
-
-    for (i = 0; i < 3; i++) {
-        size_t a = strlen(fmt[i]), b = strlen(val[i]);
-        if (used + a + b + 1 > store_cap) return -1;
-        argv[i] = store + used;
-        memcpy(store + used, fmt[i], a);
-        memcpy(store + used + a, val[i], b);
-        store[used + a + b] = '\0';
-        used += a + b + 1;
+     * path and the one that frontend runs on hardware.
+     *
+     * The order of the middle options does not matter to Neutrino's
+     * parser; they are emitted in struct order so a bench photo of the
+     * command line reads the same way every time. An empty field emits
+     * nothing, so `settings` NULL and `settings` all-empty are the same
+     * three-argument line. */
+    if (arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                 "-bsd=", bsd)) return -1;
+    if (arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                 "-dvd=", game->path)) return -1;
+    if (settings) {
+        if (settings->gc[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-gc=", settings->gc)) return -1;
+        if (settings->gsm[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-gsm=", settings->gsm)) return -1;
+        if (settings->vmc0[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-mc0=", settings->vmc0)) return -1;
+        if (settings->vmc1[0] &&
+            arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                     "-mc1=", settings->vmc1)) return -1;
     }
-    return 3;
+    if (arg_emit(store, store_cap, &used, argv, argv_cap, &argc,
+                 "-qb", "")) return -1;
+    return argc;
+}
+
+/* One registered resolver, or NULL. A plain global: the console is
+ * single-threaded and registers once at startup, before it scans. */
+static console_resolver the_resolver = NULL;
+
+void console_set_resolver(console_resolver fn)
+{
+    the_resolver = fn;
+}
+
+void console_resolve(const console_game *game, console_settings *out)
+{
+    memset(out, 0, sizeof *out);
+    if (the_resolver) the_resolver(game, out);
+}
+
+/* Parse a run of decimal digits at [p, end) into an unsigned value,
+ * stopping at the first non-digit. Leading spaces are skipped. OPL
+ * writes these values in decimal. */
+static unsigned parse_uint(const char *p, const char *end)
+{
+    unsigned v = 0;
+    while (p < end && (*p == ' ' || *p == '\t')) p++;
+    while (p < end && *p >= '0' && *p <= '9') {
+        v = v * 10u + (unsigned)(*p - '0');
+        p++;
+    }
+    return v;
+}
+
+/* True if [key, key+klen) is exactly `lit` (no trailing spaces: OPL
+ * keys carry none). */
+static int key_is(const char *key, size_t klen, const char *lit)
+{
+    return klen == strlen(lit) && memcmp(key, lit, klen) == 0;
+}
+
+/* Map an OPL $Compatibility bitmask to the Neutrino -gc digit string,
+ * ascending. See the header in library.h for why only these three
+ * bits, and why OPL Mode 7 is deliberately not among them. */
+static void map_compat(unsigned bits, char *gc, size_t cap)
+{
+    static const struct { unsigned bit; char digit; } m[] = {
+        { 0x02, '2' },  /* OPL Mode 2 sync reads      == Neutrino 2 */
+        { 0x04, '3' },  /* OPL Mode 3 unhook syscalls == Neutrino 3 */
+        { 0x10, '5' },  /* OPL Mode 5 emulate DVD-DL  == Neutrino 5 */
+    };
+    size_t n = 0, k;
+    for (k = 0; k < sizeof m / sizeof m[0]; k++)
+        if ((bits & m[k].bit) && n + 1 < cap)
+            gc[n++] = m[k].digit;
+    gc[n] = '\0';
+}
+
+int console_opl_cfg(const char *cfg, size_t len, console_settings *out)
+{
+    size_t i = 0;
+    int found = 0;
+
+    while (i < len) {
+        size_t line = i, end = i, eq;
+
+        while (end < len && cfg[end] != '\n' && cfg[end] != '\r') end++;
+        for (eq = line; eq < end && cfg[eq] != '='; eq++) ;
+        if (eq < end && key_is(cfg + line, eq - line, "$Compatibility")) {
+            map_compat(parse_uint(cfg + eq + 1, cfg + end),
+                       out->gc, sizeof out->gc);
+            found = 1;
+        }
+        i = end;
+        while (i < len && (cfg[i] == '\n' || cfg[i] == '\r')) i++;
+    }
+    return found;
+}
+
+/* Find "/DVD/" or "/CD/" in `path` and return the length of the part
+ * before it (the drive root), or 0 if neither is present. A game name
+ * cannot contain '/', and a mount ("mass0:") cannot contain these, so
+ * the first occurrence is the only one. */
+static size_t root_len(const char *path)
+{
+    const char *dvd = strstr(path, "/DVD/");
+    const char *cd = strstr(path, "/CD/");
+    const char *sep = dvd ? dvd : cd;
+    if (dvd && cd && cd < dvd) sep = cd;
+    return sep ? (size_t)(sep - path) : 0;
+}
+
+int console_opl_cfg_path(const console_game *game, char *out, size_t cap)
+{
+    size_t rl = root_len(game->path);
+    size_t idl, need;
+
+    if (game->id[0] == '\0' || rl == 0) return 0;
+    idl = strlen(game->id);
+    /* root + "/CFG/" + id + ".cfg" + NUL */
+    need = rl + 5 + idl + 4 + 1;
+    if (need > cap) return 0;
+
+    memcpy(out, game->path, rl);
+    memcpy(out + rl, "/CFG/", 5);
+    memcpy(out + rl + 5, game->id, idl);
+    memcpy(out + rl + 5 + idl, ".cfg", 4);
+    out[rl + 5 + idl + 4] = '\0';
+    return 1;
 }

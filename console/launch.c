@@ -72,11 +72,15 @@ int console_find_neutrino(const char *launch_dir,
     return 0;
 }
 
-int console_launch(const char *neutrino, const console_game *game)
+int console_launch(const char *neutrino, const console_game *game,
+                   const console_settings *settings)
 {
-    static char store[CONSOLE_PATH_MAX + 64];
-    char *argv[4];
-    int argc = console_neutrino_args(game, store, sizeof store, argv, 4);
+    /* Room for -bsd, -dvd and the game path, both VMC image paths, the
+     * short -gc/-gsm flags and -qb, with their prefixes and NULs. */
+    static char store[CONSOLE_PATH_MAX * 3 + 128];
+    char *argv[8];
+    int argc = console_neutrino_args(game, settings, store, sizeof store,
+                                     argv, 8);
 
     if (argc < 0) return -1;
     /* Neutrino finds its modules and config relative to its own
