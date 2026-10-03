@@ -19,6 +19,10 @@ filling a slot with `ps2ui_tex_set` reads bytes from `mass:/ps2ui/`, so a UI
 that streams art needs USB attached. Convert the art on
 [the host](page:runtime/streaming-art#converting-on-the-host) first.
 
+To run a theme without building an ELF, download `ophtml.elf` from a
+release. It reads `theme.uib` from a drive; see
+[Console launcher](page:runtime/console-launcher#minimal-example).
+
 Everything below a card or a launcher is described with one of two markers.
 
 | marker | meaning |
@@ -162,3 +166,4 @@ flat colour and which one it is.
 | [First boot](page:runtime/first-boot#steps-1-10) | the ten-step checklist for a screen that is not one of the four flat colours |
 | [Streaming art](page:runtime/streaming-art#converting-on-the-host) | converting art to texels and getting them onto the drive the USB path reads |
 | [channel6](page:examples/channel6#source-tour) | the channel layout the multi-channel memory-card path is named after |
+| [Console launcher](page:runtime/console-launcher) | a ready-made ELF that loads your theme from a drive |

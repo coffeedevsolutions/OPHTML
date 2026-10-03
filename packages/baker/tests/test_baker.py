@@ -5469,10 +5469,17 @@ class TestResourceLimits(unittest.TestCase):
                           "focus": {"nodes": []}}, {})
         self.assertEqual(flat.max_image_pixels, cap)
 
-        # THE CORPUS, measured here rather than quoted.
+        # THE CORPUS, measured here rather than quoted: the images the
+        # repository ships, NOT the `build/` output beside them. 0.10.0
+        # walked both, and the 16 PNGs the example builds write were what
+        # carried it past the guard below -- so on a clean checkout, with
+        # 28 tracked images, it failed, which is what CONTRIBUTING.md's
+        # order hands a contributor. registry.yml's macos-15-intel leg
+        # found it; ci.yml builds the examples first and never could.
         biggest, seen = (0, None, 0, 0), 0
         for top in ("examples", "fixtures"):
-            for dirpath, _dirs, names in os.walk(os.path.join(REPO, top)):
+            for dirpath, dirs, names in os.walk(os.path.join(REPO, top)):
+                dirs[:] = [d for d in dirs if d != "build"]
                 for name in names:
                     if not name.lower().endswith((".png", ".jpg", ".jpeg")):
                         continue
@@ -5485,7 +5492,7 @@ class TestResourceLimits(unittest.TestCase):
                     seen += 1
                     if w * h > biggest[0]:
                         biggest = (w * h, path, w, h)
-        self.assertGreaterEqual(seen, 30, "the corpus walk found almost "
+        self.assertGreaterEqual(seen, 25, "the corpus walk found almost "
                                 "nothing, so this test would pass vacuously")
         self.assertEqual(
             (biggest[2], biggest[3]), (1984, 1408),

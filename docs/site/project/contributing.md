@@ -19,15 +19,16 @@ from Pillow alone, because Pillow's Raqm needed fribidi from the system.
 
 ## Tests
 
-Run all five before every pull request, from the repository root.
+Run all six before every pull request, from the repository root.
 
 | command | covers |
 |---|---|
-| `cd packages/layout && npm test` | the layout compiler: HTML and CSS parsing, the box model, focus, themes, lists. 122 tests. |
-| `cd packages/baker && PS2UI_REQUIRE_CROSSCHECK=1 PS2UI_REQUIRE_EXAMPLES=1 PS2UI_REQUIRE_FONTS=1 python3 -m unittest discover -s tests` | the baker, the previewer, the serve state machine, the arena cross-check against a compiled gsKit struct, the three shipped example blobs, and font metrics against DejaVu. 277 tests. The three env vars turn a skip into a failure when the fixture behind it is absent; set them only after the examples and fonts they require are in place. |
+| `cd packages/layout && npm test` | the layout compiler: HTML and CSS parsing, the box model, focus, themes, lists. 162 tests. |
+| `cd packages/baker && PS2UI_REQUIRE_CROSSCHECK=1 PS2UI_REQUIRE_EXAMPLES=1 PS2UI_REQUIRE_FONTS=1 python3 -m unittest discover -s tests` | the baker, the previewer, the serve state machine, the arena cross-check against a compiled gsKit struct, the three shipped example blobs, and font metrics against DejaVu. 359 tests. The three env vars turn a skip into a failure when the fixture behind it is absent; set them only after the examples and fonts they require are in place. |
 | `./examples/memcard/build.sh` | one project end to end: compiles both screens, bakes the blob, runs the C runtime suite over that exact blob, and refreshes the three committed screenshots. |
 | `make -C runtime test` | the C runtime suite: `syntax-check`, `timing-check`, `test-narrow`, then the runtime test binary over five blobs. |
 | `make -C runtime syntax-check CC=clang` | the same 27 sample and runtime compiles, under a second compiler. |
+| `make -C console/tests test` | the console launcher's host tests: file names, ISO9660, `SYSTEM.CNF`, the directory scan and Neutrino's command line. |
 
 New in 0.10.0. For a change to the loader in `runtime/ps2ui.c`, also run `make -C runtime fuzz`. It fuzzes `ps2ui_load` for 60 seconds from the blobs the commands above build, and needs clang's libFuzzer runtime (`libclang-rt-18-dev` on Ubuntu). CI runs it on every change and for half an hour nightly.
 
@@ -36,10 +37,10 @@ Tails from this session:
 ```sh
 $ cd packages/layout && npm test
 ...
-1..122
-# tests 122
+1..162
+# tests 162
 # suites 0
-# pass 122
+# pass 162
 # fail 0
 # cancelled 0
 # skipped 0
@@ -50,7 +51,7 @@ $ cd packages/layout && npm test
 $ cd packages/baker && PS2UI_REQUIRE_CROSSCHECK=1 PS2UI_REQUIRE_EXAMPLES=1 PS2UI_REQUIRE_FONTS=1 python3 -m unittest discover -s tests
 ...
 ----------------------------------------------------------------------
-Ran 277 tests in 18.948s
+Ran 359 tests in 26.858s
 
 OK
 ```
@@ -58,8 +59,8 @@ OK
 ```sh
 $ ./examples/memcard/build.sh
 ...
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 make: Leaving directory '/home/user/OPHTML/runtime'
 ps2ui-bake: screenshots -> ./examples/memcard/screenshots/
 memcard example: ./examples/memcard/build/ui.uib
@@ -78,8 +79,8 @@ committed ones.
 ```sh
 $ make -C runtime test
 ...
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 make: Leaving directory '/home/user/OPHTML/runtime'
 ```
 
@@ -94,7 +95,7 @@ make: Leaving directory '/home/user/OPHTML/runtime'
 ```
 
 `make -C runtime test` prints its `PASS: 5 checks` line from `test-narrow`
-before its `PASS: 410 checks` line from the full suite. Read the second
+before its `PASS: 418 checks` line from the full suite. Read the second
 line as the suite's total, not the first. Both targets are covered on
 [the runtime test targets](page:runtime/integrating#reference-table).
 There is no `make -C runtime test-compat` target and no
@@ -147,7 +148,7 @@ Every script below exists under `tools/`.
 | `tools/check-example-figures.py` | a shipped example's README figures match its built blob. |
 | `tools/check-sweep-table.py` | the P3d content-sweep table is derived from the blob and the sample driver, not typed by hand. |
 | `tools/check-deploying.py` | the deployment guide matches the source it describes. |
-| `tools/check-tutorial.py` | runs `docs/tutorial-uc3.md` as a stranger would, every command block in order from an empty directory, and checks its stated output. It targets that document, not the site's `getting-started/tutorial-game-browser` page. |
+| `tools/check-tutorial.py` | runs `docs/tutorial-uc3.md` as a stranger would, every command block in order from an empty directory, and checks its stated output, for that document and the site's `getting-started/tutorial-game-browser` page alike. |
 | `tools/check-site-assets.py` | re-renders every `checked: true` entry in `docs/site/assets/assets.json` into a scratch directory and diffs the bytes against the committed PNG. |
 | `tools/check-findings.py` | the findings graph in `docs/findings.yaml`: no cycle, no confirmed finding resting on an overturned one, no document citing an overturned finding unmarked. |
 | `tools/check-vram-model.py` | the Python VRAM model against the gsKit function it ports, compiled and diffed over 45,000 sizes. |
@@ -199,5 +200,5 @@ rule, or a bench instrument; it names the seven ways a check can pass
 without proving what it claims.
 
 Every workflow [runs on a GitHub-hosted runner](page:project/security-and-license#ci)
-with a read-only token. Never attach a self-hosted runner to this
+with a read-only token by default. Never attach a self-hosted runner to this
 repository.

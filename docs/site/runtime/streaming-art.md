@@ -76,7 +76,7 @@ Six constraints hold for every `ps2ui_tex_set` call.
 | `len` equals the entry's reservation exactly | `PS2UI_ERR_SIZE`. A short buffer would DMA past its end; a long one means the app and the bake disagree about the geometry ([ps2ui.c](repo:runtime/ps2ui.c#L737)). |
 | `texels` is 16-byte aligned | `PS2UI_ERR_ALIGN`. A DMA source address truncates silently below qword alignment ([ps2ui.c](repo:runtime/ps2ui.c#L743)). |
 | `name` is a streamed slot in this blob | `PS2UI_ERR_NOT_STREAMED`. A baked texture and an unknown name return the same code ([ps2ui.c](repo:runtime/ps2ui.c#L732)). |
-| `texels` stays alive and unmoved while the slot can be drawn | gsKit re-reads the pointer at render time when it re-binds an evicted texture. A freed buffer draws whatever replaced it, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L492)). |
+| `texels` stays alive and unmoved while the slot can be drawn | gsKit re-reads the pointer at render time when it re-binds an evicted texture. A freed buffer draws whatever replaced it, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L494)). |
 | `texels` holds PSMCT32 with alpha in 0 to 128 | The GS reads 0x80 as opaque. Alpha 255 asks for about twice the coverage the texel has and composites overbright. |
 | the texels are written before the call | `ps2ui_tex_set` flushes `len` bytes from the EE cache at call time ([ps2ui.c](repo:runtime/ps2ui.c#L766)). A CPU write made after the call is not flushed. |
 
@@ -89,8 +89,8 @@ Six constraints hold for every `ps2ui_tex_set` call.
 | `ncolors` is at most the baked width | A wider palette returns `PS2UI_ERR_SIZE` rather than recolouring indices no texel references ([ps2ui.c](repo:runtime/ps2ui.c#L801)). |
 | A short palette blanks the tail | `permute_clut` opens with `memset(out, 0, 256 * 4)`. A 16-entry palette handed to a 256-entry CLUT erases the other 240 to transparent black ([ps2ui.c](repo:runtime/ps2ui.c#L586)). |
 | Every texture sharing the index changes together | One palette recolours every atlas drawn from it. Two that must diverge need two CLUTs at bake time ([ps2ui.c](repo:runtime/ps2ui.c#L811)). |
-| A swap does not survive an upload | A second `ps2ui_upload` re-permutes every CLUT from the blob and reverts the swap, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L551)). |
-| The swap takes effect on the next bind | `ps2ui_render` binds every texture it draws. `ps2ui_clut_set` does not bind by itself ([ps2ui.h](repo:runtime/ps2ui.h#L567)). |
+| A swap does not survive an upload | A second `ps2ui_upload` re-permutes every CLUT from the blob and reverts the swap, with no error ([ps2ui.h](repo:runtime/ps2ui.h#L553)). |
+| The swap takes effect on the next bind | `ps2ui_render` binds every texture it draws. `ps2ui_clut_set` does not bind by itself ([ps2ui.h](repo:runtime/ps2ui.h#L569)). |
 
 For tints against palettes, see [Theming](page:authoring/theming#runtime). `ps2ui_theme_set` moves a pointer and schedules no transfer. `ps2ui_clut_set` sends 1 KiB per sharing texture. An app that uses both does the CLUT swap last.
 

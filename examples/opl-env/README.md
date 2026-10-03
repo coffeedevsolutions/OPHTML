@@ -114,10 +114,10 @@ count that has moved and a quantity the blob does not carry. Records
 are what `ps2ui-bake` prints; paint commands are the compiler's count
 and are 132 for memcard, which is neither number.
 
-**Frame time and prim counts on hardware are not measured yet.** They
-need the runtime driver, and the exit gate wants them; until then this
-example proves the environment *bakes and loads*, not that it runs at
-field rate.
+**Frame time and prim counts were measured on a SCPH-50000.** It runs
+at full field rate, 16.73 ms on a 16.683 ms NTSC field with 562-570
+primitives while streaming covers (F-034 in `docs/findings.md`), and
+uses about an eighth of a field on the EE (F-036).
 
 ## Findings
 
