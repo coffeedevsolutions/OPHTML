@@ -209,6 +209,36 @@ ROM pair can't share the bus with the card-slot drivers, so this build
 has no memory card, MMCE or MX4SIO. Never ship it: the real ELF uses
 `freepad`, as NHDDL does on consoles.
 
+## Building a launcher on the core
+
+`make -C console` first archives the reusable launcher core into
+`libophtml-console.a` -- `library.o scan.o storage.o launch.o
+resolver.o`, the machinery with no UI and no `main` -- and then links
+`ophtml.elf` against it. `main.c` is that archive's first consumer and
+nothing more; a different launcher brings its own `main`.
+
+To build your own launcher on the core, include the one umbrella header
+
+```c
+#include "ophtml_console.h"
+```
+
+and link the archive plus the three things it deliberately does not
+contain:
+
+| You supply | How |
+|---|---|
+| a `main` | bring up the GS, choose/upload a theme, poll the pad, drive the list -- `console/main.c` is a worked example |
+| the `ps2ui` runtime + a theme blob | `ps2ui vendor-runtime <dir>` writes the runtime in; `ps2ui build` bakes a theme, `bin2c` embeds it |
+| the IOP module table | `sh console/embed_irx.sh . <modules…>` generates `irx_table.c`, which defines the `irx_modules`/`n_irx_modules` that `storage.o` links against. The modules are PS2SDK-version-specific, which is why the archive does not carry them |
+
+Then link your objects, the generated `irx_table.o` and the vendored
+`ps2ui.o` ahead of `-L<dir> -lophtml-console` and the system libraries
+(`-lgskit -ldmakit -lpad -lpatches -lfileXio -lelf-loader`), exactly as
+`console/Makefile` does. A registered resolver
+(`console_set_resolver`) decides each game's settings; register yours
+after the default to override it.
+
 ## How it works
 
 `main.c` explains the boot order and why it is fixed. In short:
