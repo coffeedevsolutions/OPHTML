@@ -61,6 +61,12 @@ endif
 
 all: $(EE_BIN)
 
+# The IOP module list, for a consumer that generates its own table from
+# this one rather than a copy (examples/console-min does). `make -s -C
+# console print-irx` prints it on one line.
+print-irx:
+	@echo $(IRX)
+
 # Archive the core objects. The ELF links it through -lophtml-console
 # (EE_LIBS), so the link needs it built first. $(EE_AR) is Makefile.pref's
 # ar for the EE toolchain.
