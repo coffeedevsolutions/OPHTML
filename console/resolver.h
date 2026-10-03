@@ -19,8 +19,11 @@
 
 /* Resolve `game` from its OPL CFG file. Fills only the fields the CFG
  * carries (the caller zeroes `out` first -- console_resolve does).
- * Returns 1 if a CFG was read and a recognised key found, else 0 (no
- * ID, no CFG file, or nothing in it OPHTML maps). */
+ * Returns what console_opl_cfg returns: 1 if the CFG was read and a
+ * recognised key was present (the mapped settings may still be empty --
+ * e.g. a compat value with only unmapped modes), 0 if there is no ID,
+ * no CFG file, or no recognised key. The return is advisory; a 1 does
+ * not promise any field was set. */
 int console_opl_resolver(const console_game *game, console_settings *out);
 
 #endif /* CONSOLE_RESOLVER_H */

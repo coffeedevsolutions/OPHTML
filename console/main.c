@@ -402,10 +402,11 @@ static void launch_selected(void)
     for (i = 0; i < 2; i++) frame();
 
     input_end();
-    /* Resolve the game's settings through whatever resolver is
-     * registered. OPHTML's own console registers none, so this is
-     * all-empty -- a plain launch. A downstream launcher registers a
-     * resolver (console_set_resolver) that reads its database. */
+    /* Resolve the game's settings through the registered resolver.
+     * main() registers console_opl_resolver, so by default this reads
+     * the game's OPL CFG and a game with a mapped compat mode launches
+     * with -gc set. A downstream launcher registers its own resolver
+     * (console_set_resolver) to read a database instead. */
     console_resolve(g, &settings);
     rc = console_launch(path, g, &settings);
     input_init();

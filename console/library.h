@@ -162,10 +162,10 @@ int console_neutrino_args(const console_game *game,
  * anything, 0 if the game is unknown to it. The return is advisory:
  * console_resolve produces a valid settings either way.
  *
- * This is the seam the product plugs into. OPHTML's console links no
- * resolver of its own yet -- the default is "none", which is a plain
- * launch -- so a downstream launcher registers one that reads its
- * database and this file never learns what a database is. */
+ * This is the seam the product plugs into. OPHTML's console registers
+ * one by default -- console_opl_resolver, which reads OPL CFG files
+ * (resolver.c) -- and a downstream launcher registers its own after it
+ * (last wins), so this file never learns what a database is. */
 typedef int (*console_resolver)(const console_game *game,
                                 console_settings *out);
 
@@ -198,7 +198,21 @@ void console_resolve(const console_game *game, console_settings *out);
  * Neutrino's 7 ("fix game buffer overrun") -- the numbers collide but
  * the meanings do not, so mapping by number would be wrong. GSM
  * (`$GSMVMode`/`$GSMFIELDFix`) and VMC (`$VMC`) are left for a later
- * slice, once their value encodings are verified the same way. */
+ * slice, once their value encodings are verified the same way.
+ *
+ * SOURCES, so a later reader can re-check the three correspondences if
+ * either project renumbers a mode:
+ *   - Neutrino `-gc` mode numbers and meanings: the command-line
+ *     reference in rickgaiser/neutrino's README (the `-gc` option
+ *     lists 0 fast reads, 2 sync reads, 3 unhook syscalls, 5 emulate
+ *     DVD-DL, 7 fix buffer overrun; 1 is a dummy).
+ *   - OPL's `$Compatibility` key: ps2homebrew/Open-PS2-Loader
+ *     `include/config.h` (`CONFIG_ITEM_COMPAT`); the eight mode
+ *     meanings are OPL's documented game-settings modes 1..8, stored
+ *     one per bit.
+ * The map below is only the three where BOTH sources agree on meaning
+ * and number; the Mode-7 case is pinned by a test so the one known
+ * collision cannot be re-added silently. */
 int console_opl_cfg(const char *cfg, size_t len, console_settings *out);
 
 /* Build the path of a game's OPL CFG file: the drive root (the part of

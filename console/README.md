@@ -44,8 +44,15 @@ The layout is OPL's, so an existing OPL library works as it is:
   DVD/                  Name.iso, or SLUS_200.02.Name.iso
   CD/                   the same, for CD games
   neutrino/             the Neutrino release folder, unzipped as-is
+  CFG/<ID>.cfg          optional: OPL per-game settings, applied if present
   OPHTML/theme.uib      optional: your theme
 ```
+
+An existing OPL library's `CFG/<ID>.cfg` is read by default: a game
+whose `$Compatibility` sets a mode Neutrino also has (sync reads, unhook
+syscalls, emulate DVD-DL) launches with the matching `-gc`. Other OPL
+compat modes, and GSM and VMC, are not mapped yet. A game with no CFG,
+or none OPHTML maps, launches as it did before.
 
 Put `ophtml.elf` wherever you launch programs from: a memory card
 through FMCB or wLaunchELF, or a USB stick. A `theme.uib` beside the

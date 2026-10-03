@@ -18,6 +18,16 @@ measurements; this page carries what changed.
 
 Unreleased; 0.10.0, below, is what installs.
 
+### Added
+
+- The console launcher hands Neutrino per-game settings, chosen by a
+  resolver it calls for each game, and reads them by default from an
+  existing OPL library's `CFG/<ID>.cfg`. A game whose CFG sets a
+  `$Compatibility` mode Neutrino also has (sync reads, unhook syscalls,
+  emulate DVD-DL) launches with the matching `-gc`; a game with no CFG
+  launches as before. A downstream launcher can register its own
+  resolver to read a database instead.
+
 ### Fixed
 
 - `ps2ui-layout` refuses a tree nested past the depth cap with its own

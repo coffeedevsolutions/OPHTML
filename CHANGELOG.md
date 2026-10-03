@@ -14,6 +14,24 @@ decays. It becomes one the moment a format move lands, and
 reading it back, so the check fails the change that moves the format
 without moving this line.
 
+### Added
+
+- **The console launcher applies per-game settings, and reads them from an
+  existing OPL library by default.** The launcher can now hand Neutrino
+  per-game options (`-gc`, `-gsm`, `-mc0`/`-mc1`) instead of only
+  `-bsd`/`-dvd`/`-qb`, chosen by a resolver the launcher calls for each
+  game. A downstream launcher registers its own resolver
+  (`console_set_resolver`) to read a database; OPHTML's console registers
+  a default that reads OPL's `CFG/<ID>.cfg`. So an existing OPL library's
+  per-game compatibility now takes effect: a game whose CFG sets a
+  `$Compatibility` mode Neutrino also has -- sync reads, unhook syscalls,
+  or emulate DVD-DL -- launches with the matching `-gc` digit. Other OPL
+  modes, and GSM and VMC, are not mapped yet; OPL Mode 7 is deliberately
+  not mapped, since it is not Neutrino's mode 7. A game with no CFG, or
+  none OPHTML maps, launches exactly as it did before. The portable half
+  (the argument builder, the resolver seam, the CFG mapping and path
+  derivation) is covered by the console host tests.
+
 ### Fixed
 
 - **A tree too deep could still overflow V8's stack in `ps2ui-layout`.**
