@@ -31,6 +31,16 @@ without moving this line.
   none OPHTML maps, launches exactly as it did before. The portable half
   (the argument builder, the resolver seam, the CFG mapping and path
   derivation) is covered by the console host tests.
+- **The console's launcher core is a linkable library, `libophtml-console.a`.**
+  The reusable machinery -- drive scan, title-ID parsing, the Neutrino
+  command-line builder, the settings struct and resolver seam, OPL CFG
+  mapping, storage bring-up and the launch handoff -- is archived from
+  `console/`, and `console/main.c` links it as its first consumer rather
+  than compiling it in. A downstream launcher includes the one umbrella
+  header `ophtml_console.h` and links the archive, supplying its own
+  `main`, theme and `irx_table`; it never forks the core. `console/README.md`
+  carries the link recipe, and `examples/console-min/` is a minimal
+  out-of-tree consumer that CI's `elf` job links against the archive.
 
 ### Fixed
 

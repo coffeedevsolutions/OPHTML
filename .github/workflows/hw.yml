@@ -718,6 +718,25 @@ jobs:
           make -C console objclean
           make -C console MOCK=1 ROMPAD=1 EE_BIN=ophtml-nav.elf
           test -f console/ophtml-nav.elf
+      - name: A second, out-of-tree main links the core archive (F56 gate)
+        run: |
+          # F56's exit gate. examples/console-min has its own tiny main
+          # and its own Makefile, neither built by console/. It builds
+          # libophtml-console.a in the console tree and links its main
+          # against it; an ELF out means the archive is a real
+          # dependency surface a downstream launcher can link, not just
+          # console/'s internal split. COMPILED, NOT BOOTED: an
+          # archive-linked ELF already boots in the emulator job
+          # (ophtml-mock.elf is one), so this adds the one thing that
+          # job does not -- a consumer the console Makefile never saw.
+          #
+          # objclean console first: the nav build above left ROMPAD
+          # objects, and the archive rule would otherwise pack the
+          # ROM-pad storage.o. objclean keeps the three ELFs, so the
+          # upload below still has them.
+          make -C console objclean
+          make -C examples/console-min
+          test -f examples/console-min/console-min.elf
       - uses: actions/upload-artifact@v7
         with:
           name: ophtml-console-elf
