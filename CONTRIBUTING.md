@@ -25,13 +25,17 @@ from the system. Two self-contained wheels serve the rule's purpose;
 one wheel with a system half did not. A third dependency has to clear
 the same bar, and says so in the CHANGELOG when it does.
 
-## Run the tests (all three, before every PR)
+## Run the tests (all four, before every PR)
 
 ```sh
 cd packages/layout && node --test test/*.test.js
 cd packages/baker  && python3 -m unittest discover -s tests
 ./examples/memcard/build.sh        # end-to-end + C runtime tests
+make -C console/tests test         # the console launcher's portable C (needs only cc)
 ```
+
+For a change to the loader in `runtime/ps2ui.c`, also run
+`make -C runtime fuzz`, which needs clang's libFuzzer runtime.
 
 `make -C runtime test-compat` used to be a fourth line here. There is no
 such target and there has not been since #39 (`499212c`) removed the
@@ -104,12 +108,10 @@ Three things it cannot do, so do not read a clean run as a clean bill:
   ought to describe it.
 - **A document that names no paths is invisible to it.** Prose about
   behaviour cannot be reached from a diff.
-- **A bare filename is not a path**, and this is the one that bites on
-  the question the tool is for. A document writing `ps2ui.h` rather
-  than `runtime/ps2ui.h` is not reached by a change to that header —
-  and 14 documents in this tree do exactly that, `README.md` and
-  `CHANGELOG.md` among them. Resolving them is F30's work; knowing it
-  is you.
+
+A bare filename used to be a fourth. F30 resolved it: a document
+writing `ps2ui.h` rather than `runtime/ps2ui.h` is reached when exactly
+one tracked file answers to the name, and reported when several do.
 
 The board is four months of what happens without this: a header comment
 that outlived its macro by 20 days, a README naming a Makefile target

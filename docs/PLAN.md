@@ -29,7 +29,7 @@ and asks nothing of what it lacks.
 
 ```
 ui/*.html,css ─▶ @ophtml/layout ─▶ ui.json ─▶ ps2ui-bake ─▶ ui.uib ─▶ runtime
-                 Node, zero deps            Python+Pillow            C99+gsKit
+                 Node, zero deps            Python+Pillow+HarfBuzz   C99+gsKit
                  ~2,600 lines               ~2,500 lines             ~1,360 lines
 ```
 
@@ -71,6 +71,14 @@ distortion); bake refusal over table caps / VRAM budget / scissor depth;
 dead-geometry trim; Python previewer replaying the baked command list;
 `ps2ui-check` standalone validator; frame fingerprint tool.
 
+**Added in 0.10.0:** `console/`, a finished launcher (`ophtml.elf`) that
+scans USB, exFAT HDD, MX4SIO and MMCE drives for ISOs, fills any theme
+that uses its names, and boots the selection through Neutrino. It has run
+only in Play!; the §9 risk table carries it. Beside it: hard compiler
+caps on canvas, element count, depth and source-image size for untrusted
+themes (S3), and a libFuzzer harness over the `.uib` loader (S2), whose
+first run found a misaligned-read crash, now `PS2UI_ERR_ALIGN`.
+
 **Verification:** the layout, baker and runtime suites, each example's
 contract checks, and `ps2ui-check` over every example blob. This phase's
 verification used to say the runtime suite was *"run twice (modern gsKit
@@ -105,7 +113,7 @@ already the authority for what is pending.
 
 ## §3 What is not proven
 
-**The renderer has never run on a PlayStation 2.** The loader, focus graph,
+**The renderer had never run on a PlayStation 2** when this section was first written; it now has, below. The loader, focus graph,
 format handling, command walk, slot pen, and list machinery are covered
 by the runtime suite against a stub gsKit — `make -C runtime test`
 prints its size, which is why one is not quoted here. The gsKit calls themselves have
@@ -1560,10 +1568,10 @@ Two jobs, in opposite directions. `tutorial` runs the document against
 whatever the registries hand out today, on ubuntu and on macOS with
 the remedy `fontgen` prints applied exactly as printed -- so the
 printed remedy stops being true the moment that job goes red, which is
-the only way this project would find out. `macos-plain` asserts the
-*absence*: a plain `pip install ophtml` on macOS still has no Raqm and
-still refuses. A red there is good news that makes two documents
-wrong, and it says so in the failure.
+the only way this project would find out. `macos-plain` asserted the
+*absence* through 0.8.0: a plain `pip install ophtml` on macOS had no
+Raqm and refused. Since 0.9.0 it asserts the opposite, that a plain
+install runs `fontgen` and writes the committed tables.
 
 **The division of labour caught its own author.** The first draft of
 `macos-plain` asserted the refusal prints `brew install libraqm`. That
@@ -1727,8 +1735,9 @@ because it scores well.
 
 **Runtime geometry — animation and transitions.** Geometry is baked, and
 the whole runtime surface is `visible_set`, `slot_set`, `tex_set`,
-`clut_set`, `theme_set`, `screen_set`, `focus_set` and `list_*`. Nothing
-moves, scales or fades a node, so a cascade, a coverflow, a slide
+`clut_set`, `theme_set`, `screen_set`, `focus_set`, `list_*` and
+`offset_set`, which translates a whole screen. Nothing moves, scales
+or fades a single node, so a cascade, a coverflow, a slide
 transition or a focus ring that travels cannot be expressed at all — an
 app can only cut between baked states. It is a polish gap rather than a
 correctness one: what ps2ui draws is right, it just arrives instantly.
@@ -1858,7 +1867,8 @@ CHANGELOG entry; BACKLOG updated as ledger, not scoreboard.
 
 | Risk | Standing | Mitigation |
 |---|---|---|
-| Renderer unproven on silicon | **top risk, now partly realised** | Phase 0 found a real fault at bring-up step 2 before any UI ran, which is what the gate is for |
+| Console launcher (`console/`, 0.10.0) unproven on silicon | **top risk** | booted, filled and navigated in Play! only; Play! emulates no USB, HDD or memory-card drive, so bench cases C1–C8 in `console/README.md` are the evidence, and all are open |
+| ~~Renderer unproven on silicon~~ | **closed** | Phase 0 found a real fault at bring-up step 2 before any UI ran, which is what the gate is for; steps 1–7, 9 and 10 now pass on a SCPH-50000 |
 | ~~Nothing in `runtime/` ever writes the GS `ALPHA`, `TEST` or `PABE` registers~~ | **closed — confirmed cause, fixed, and verified on hardware** | the baker computed alpha in the 0..128 domain assuming `(Cs - Cd) * As >> 7 + Cd`; the runtime inherited gsKit's `GS_BLEND_BACK2FRONT`, which is that equation with the operands swapped, so alpha ran inverted. probe v3 isolated it and a SCPH-50000 confirmed it. `ps2ui_render` now asserts the equation every frame and two runtime checks fail if it stops. **Residual:** the alpha TEST is still inherited — defensible (`ATE` defaults off, a discard was positively ruled out) and reasoned in `ps2ui.c`, but it is the same shape of exposure |
 | Emulator not an oracle; PCSX2 needs a BIOS | standing | emulator job kept as characterisation, not verdict; fingerprint tool makes captures comparable |
 | Phase 1 is a breaking rework | accepted | that is why it happens before packaging creates external consumers; one v6 move |
@@ -1888,7 +1898,7 @@ log. Nothing downstream is provisional on that account any more.
 **What is immediate now** is Phase 4's remaining clause, and it is not
 a commit: a person who is not us, with a PlayStation 2, reproducing the
 memcard example and photographing it. Every part of the gate that could
-be closed by engineering has been — `0.4.0` is on both registries and
+be closed by engineering has been — `0.10.0` is on both registries and
 F26 put the C runtime in the wheel, so `pip install ophtml` and
 `ps2ui vendor-runtime` now reach the console side without a clone.
 

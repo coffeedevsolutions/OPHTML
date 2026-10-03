@@ -63,7 +63,7 @@ and GS alpha domain the console uses. It can also put
 [every focus state on one sheet](examples/memcard/screenshots/states.png),
 which is how you review a whole screen's navigation without a console.
 
-Three shipped examples, each buildable in one command:
+Four shipped examples, each buildable in one command:
 
 - **[`examples/opl-env`](examples/opl-env)** is the largest: six screens,
   a windowed library, filters, a detail view, a confirm dialog, two themes.
@@ -72,6 +72,8 @@ Three shipped examples, each buildable in one command:
 - **[`examples/channel6`](examples/channel6)** is an overlay that draws
   over a live game frame, plus the `probe` screen this project uses as its
   console conformance target.
+- **[`examples/console`](examples/console)** is the game list the console
+  launcher, `ophtml.elf`, draws when no theme of yours is on the drive.
 
 ## Quick start
 
@@ -97,15 +99,17 @@ baked theme and hands the chosen game to Neutrino. It boots and draws
 in an emulator in CI, and it has not yet been run on a console, so
 treat it as experimental: [console/README.md](console/README.md) lists
 the bench cases still open.
-`ps2ui check --console` and `ps2ui serve --console` hold a theme to the
+`ps2ui check` and `ps2ui serve --console` hold a theme to the
 names it fills, hard caps bound what an untrusted theme may ask of the
 compilers, and the runtime refuses the misaligned blobs a fuzzer found
-could crash it. The blobs this release bakes are format **v7**, as
-0.9.0's were: zero moves of the `.uib` format have landed
-since 0.9.0. That is the stability pledge, made at v7 and enforced
-by `tools/check-format-frozen.py` rather than announced, so a blob
-either release writes loads under the other's runtime. Every CLI
-answers `--version`. What is left of Phase 4's exit gate in
+could crash it. This tree has since moved on to `0.11.0.dev0`
+(`0.11.0-dev.0` on npm), a prerelease on neither registry. The two
+still understand each other: the blobs baked here are format **v7**,
+and zero moves of the `.uib` format have landed since 0.10.0. That
+is the stability pledge, made at v7 and enforced by
+`tools/check-format-frozen.py` rather than announced, so a blob this
+tree writes loads under a 0.10.0 runtime and the other way round.
+Every CLI answers `--version`. What is left of Phase 4's exit gate in
 [docs/PLAN.md](docs/PLAN.md) is the half that always needed a console;
 [docs/releasing.md](docs/releasing.md) is the procedure, and
 `tools/check-versions.py` keeps this paragraph honest.
@@ -587,12 +591,14 @@ It prints one line per elapsed second on stdout: measured frame rate, missed vsy
 | `packages/layout` | HTML/CSS to `ui.json`. Node, zero dependencies. |
 | `packages/baker`  | `ui.json` to `ui.uib` plus PNG previews. Python, Pillow and uharfbuzz. |
 | `runtime`         | `.uib` loader, gsKit replay, D-pad nav. C99, no allocation. |
+| `console`         | `ophtml.elf`, the launcher: scans drives for ISOs, fills a theme, boots the pick through Neutrino. Emulator-tested only. |
 | `fonts`           | metrics JSON (the layout/baker seam) and `ps2ui-fontgen`. |
 | `docs`            | everything below, see [Documentation](#documentation). |
 | `fixtures`        | measurement fixtures, not shipped examples; see [opl-scope](fixtures/opl-scope/README.md) |
 | `examples/memcard`| the two-screen memory card browser from the screenshots. |
 | `examples/opl-env`| the largest example: six screens, a windowed library, filters, a detail view, a confirm dialog, two themes. |
 | `examples/channel6`| a [game browser for a PSxMemCard GEN2 channel](examples/channel6/README.md), plus a feature probe screen for console bring-up. |
+| `examples/console`| the launcher's built-in theme. |
 
 The two interchange formats are fully documented, so any stage can be swapped out for another implementation.
 
@@ -659,10 +665,10 @@ ps2ui serve examples/memcard       # or a directory containing one
 ps2ui serve --uib build/ui.uib     # a pre-baked blob: no project, no Node
 ```
 
-`[--port 8080] [--screen NAME] [--theme N] [--no-watch] [--selftest]` is
-the whole option list. Everything else (canvas, mode, display aspect,
-fonts, output) comes from `ps2ui.json`, because that is what the
-project file is for.
+`[--uib BLOB] [--port 8080] [--screen NAME] [--theme N] [--console]
+[--no-watch] [--selftest]` is the whole option list. Everything else
+(canvas, mode, display aspect, fonts, output) comes from `ps2ui.json`,
+because that is what the project file is for.
 
 | in the page | what it drives |
 |------|------|
@@ -742,6 +748,8 @@ check it, then look at what passed.
 cd packages/layout && npm test
 cd packages/baker  && python3 -m unittest discover -s tests
 cd runtime         && make test
+make -C console/tests test          # the launcher's portable C
+make -C runtime fuzz                # libFuzzer over the loader; needs clang
 ```
 
 The runtime test compiles the real `ps2ui.c` with `-Werror` against a stub gsKit and runs it over a real baked blob. It checks struct layouts against the file format, blob validation, CRC, the CSM1 permutation, focus-state draw cost, screen switching, and the D-pad walk. `make syntax-check` compiles it under every build variant, and `make test-narrow` runs the 32-bit host case.
@@ -764,6 +772,12 @@ Emulator measurements below, under Play! 0.72 (`Play!-8de4a71f-x86_64.AppImage`)
 - **Solid fills at alpha `0x7f` and `0x80` did not appear.** `0x80` is the value every opaque quad in a `.uib` carries, which is why the UI frame came back 92.8% black with its text intact. Text survives because its alpha comes from the atlas, not from `0x80`. This was recorded as a possible Play! HLE artifact. **It was not.** Real silicon does the same thing, for the reason above, and the frame was black because the render loop clears with blending on: under the inverted equation a clear at `0x80` resolves to the *destination*.
 - **With the blend asserted**, the same capture returns 52.8% `#0a0e1a` against an expected 58.6%, means within one unit per channel, and global RMSE 22.89 down from 72.89. Of that 22.89, **6.40 is the capture pipeline's own resampling floor**, measured on the runner by round-tripping the previewer PNG through the same resizes with no renderer involved.
 
+**The console launcher, `ophtml.elf`, has not run on hardware.** It
+boots, fills its list and follows the pad in Play!, which emulates no
+USB, HDD or memory-card drive, so no real drive has been read and no
+game started. Its bench cases are in [console/README.md](console/README.md),
+and each is open.
+
 **Getting this onto a console:** [docs/deploying.md](docs/deploying.md) covers memory cards, multi-channel devices like the PSxMemCard GEN2 and SD2PSX, Open PS2 Loader, and autoboot. For a first console or emulator run, work [docs/bringup.md](docs/bringup.md) in order. `runtime/sample/` is the standalone ELF. Start with `make -C runtime/sample MINIMAL=1`, which is step 1 alone (clear, hold, exit, three gsKit calls), so that if nothing appears you already know whether the boot path or the drawing failed. `PROBE=1` then builds the step 2 instrument, and `tools/make_testcard.py` builds a texel-alignment card.
 
 See [docs/architecture.md](docs/architecture.md) for the decision log.
@@ -775,6 +789,9 @@ What has shipped and what has not. Detail lives in
 sequencing is [docs/PLAN.md](docs/PLAN.md) §6.
 
 - [x] Hardware bring-up ([docs/bringup.md](docs/bringup.md) carries the log; step 8 stays open for a CRT, non-blocking)
+- [x] A console launcher, `ophtml.elf`, that fills any theme with the ISOs on the console's drives (0.10.0)
+- [ ] The launcher on real hardware: bench cases C1–C8 in [console/README.md](console/README.md)
+- [ ] Launcher cover art, per-game settings, and APA-formatted HDDs
 - [x] Browser previewer with D-pad navigation, theme and aspect switching (`ps2ui serve`)
 - [x] Emulator screenshot job in CI (Play!, headless, image-diffed against the previewer, and gating)
 - [ ] Precompiled GIF/DMA chains for near-zero CPU per frame

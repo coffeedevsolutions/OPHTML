@@ -86,8 +86,8 @@ ok 179 - stats.prims still agrees after hiding a node
 ok 180 - hidden records are counted, not lost
 ok 181 - stats reset every frame
 ...
-1..410
-PASS: 410 checks, 0 failure(s)
+1..418
+PASS: 418 checks, 0 failure(s)
 ```
 
 Hiding a focus node moves its records from `prims` to `skipped_hidden`

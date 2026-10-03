@@ -8,18 +8,18 @@ the page's own tables.
 
 Session commands, all from the repository root unless noted:
 
-- `cd packages/layout && npm test` : 122 tests, `pass 122`, `fail 0`, exit 0.
+- `cd packages/layout && npm test` : 162 tests, `pass 162`, `fail 0`, exit 0.
 - `cd packages/baker && PS2UI_REQUIRE_CROSSCHECK=1 PS2UI_REQUIRE_EXAMPLES=1
-  PS2UI_REQUIRE_FONTS=1 python3 -m unittest discover -s tests` : `Ran 277
-  tests in 18.948s`, `OK`, exit 0.
+  PS2UI_REQUIRE_FONTS=1 python3 -m unittest discover -s tests` : `Ran 359
+  tests in 26.858s`, `OK`, exit 0.
 - `./examples/memcard/build.sh` : builds the blob, then runs `make -C
-  runtime UIB=<blob> test` inline (`PASS: 410 checks, 0 failure(s)`), then
+  runtime UIB=<blob> test` inline (`PASS: 418 checks, 0 failure(s)`), then
   overwrites `examples/memcard/screenshots/{preview,saves,states}.png`. Exit
   0.
 - `git diff --exit-code examples/memcard/screenshots` after the build above:
   no output, exit 0. The overwritten screenshots are byte-identical to the
   committed ones.
-- `make -C runtime test` : 465 lines, `PASS: 410 checks, 0 failure(s)`, exit
+- `make -C runtime test` : 476 lines, `PASS: 418 checks, 0 failure(s)`, exit
   0.
 - `make -C runtime syntax-check CC=clang` : 27 `ok -` lines, exit 0.
 - `ls tools/` : lists every script named in the Checks table on the page,
@@ -28,7 +28,7 @@ Session commands, all from the repository root unless noted:
 | id | fact | source | verified by | status |
 |---|---|---|---|---|
 | integrate.test-targets | `runtime/Makefile` declares five targets: `test`, `test-narrow`, `syntax-check`, `timing-check`, `clean`. No `test-compat` target exists. | runtime/integrating (parent) | `make -C runtime test` and `make -C runtime syntax-check CC=clang`, both re-run in this session, exit 0; `make -C runtime test-compat` was not re-run here (parent already recorded its failure) | verified |
-| integrate.test.output | `make -C runtime test` prints `syntax-check`, `timing-check`, `test-narrow`, then `test_runtime`, ending `PASS: 5 checks` before `PASS: 410 checks`. | runtime/integrating (parent) | this session's `make -C runtime test` run, 465 lines, matches the parent's line count and both PASS lines | verified |
+| integrate.test.output | `make -C runtime test` prints `syntax-check`, `timing-check`, `test-narrow`, then `test_runtime`, ending `PASS: 5 checks` before `PASS: 418 checks`. | runtime/integrating (parent) | this session's `make -C runtime test` run, 465 lines, matches the parent's line count and both PASS lines | verified |
 | integrate.syntax-check.dash-s | `syntax-check` compiles with `-S`, and `CC=clang` parses the sample's MIPS inline asm without an x86 assembler rejecting it. | runtime/integrating (parent) | this session's `make -C runtime syntax-check CC=clang` printed the same 27 `ok -` lines as the parent's run, exit 0 | verified |
 | integrate.gskit.no-tfx | gsKit declares no per-texture TFX field; there is no `PS2UI_GSKIT_HAS_FUNCTION` macro and no second build arm gated on one. | runtime/integrating (parent) | restated on this page from the parent's `grep -n Function runtime/vendor/gsKit/*.h` (no match); not re-run here | code-only |
 | compat.platforms | Node 18 or newer, Python 3.9 or newer, Pillow 9 or newer, and `uharfbuzz` 0.51.7 or newer since F47. | reference/compatibility (parent) | read directly from packages/layout/package.json and packages/baker/pyproject.toml by the parent; packages/layout/package.json re-read in this session and shows `"node": ">=18"` | verified |

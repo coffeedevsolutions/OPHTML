@@ -463,6 +463,15 @@ written twice to avoid.
      command had genuinely never been run. Same symptom, opposite
      causes, and only the log tells them apart.
 
+   - **And do not poll with `npm view` while you wait.** npm keeps only
+     its ten newest debug logs, and every `npm view` writes one, so a
+     polling loop evicts the publish log -- the one file the paragraph
+     above says to read. Poll the registry with `curl` instead, which
+     writes nothing there. Found at 0.10.0, where the window ran about
+     two and a half minutes, not ninety seconds: the registry document
+     still read `modified: 2026-09-23` with 0.10.0 absent, and it
+     landed on its own without a second publish.
+
    - **Verify the pip resolve with `--no-cache-dir`.** A warm local pip
      HTTP cache serves a stale index page: after 0.4.0 was live, `pip
      install ophtml` in a fresh venv resolved **0.3.0** while `pip index
@@ -633,6 +642,10 @@ written twice to avoid.
    above, and the record ended at **32: 14 release and 18 tree**, the
    extra tree banners being the changelog page's `compat.versions` row,
    which now names both spellings of `0.10.0.dev0`.
+
+   Step 9 after 0.10.0 held too: the cut collapsed the record to 30, all
+   tree, and step 9 brought it back to **32: 14 release and 18 tree**,
+   the release group exactly as listed above.
 
    The first draft of this note listed ten banners copied from the
    record before the cut. Review of #170 found one of them no longer

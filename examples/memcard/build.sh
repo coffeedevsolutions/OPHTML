@@ -8,8 +8,9 @@
 # that once. What is left below is what is genuinely this example's:
 # the runtime tests, and the screenshots the README embeds.
 #
-# `python3 -m ps2ui_bake.ps2ui` rather than `ps2ui` because nothing is
-# published yet; the tutorial's last section carries the same table.
+# `python3 -m ps2ui_bake.ps2ui` rather than `ps2ui` so this runs the
+# checkout, not whatever release is installed; the tutorial's last
+# section carries the same table.
 set -eu
 
 here=$(dirname "$0")
