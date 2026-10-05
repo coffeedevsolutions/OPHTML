@@ -105,10 +105,10 @@ The launcher waits for the drives before it draws anything, because the
 theme may be on one of them. The wait ends once the drives stop changing,
 and is capped at 300 frames: five seconds at 60 Hz, six on a PAL console. The screen stays plain
 dark while it waits. The wait is
-[wait_for_drives](repo:console/main.c#L304).
+[wait_for_drives](repo:console/main.c#L305).
 
 It then picks the theme once, in this order:
-[choose_theme](repo:console/main.c#L201).
+[choose_theme](repo:console/main.c#L202).
 
 | order | where |
 |---|---|
@@ -136,7 +136,7 @@ MX4SIO and MMCE both drive the memory card port, so only one is loaded. MMCE
 is the default. To load MX4SIO instead, rename the ELF so its name contains
 `m4s` or `M4S`, such as `ophtml-m4s.elf`, or start it with the argument
 `-mx4sio`:
-[wants_mx4sio](repo:console/main.c#L436).
+[wants_mx4sio](repo:console/main.c#L461).
 
 ## Limits and errors
 
@@ -152,7 +152,7 @@ A problem the launcher can report goes to the `status` slot in words.
 | `<path> refused (<code>); built-in theme` | your `theme.uib` failed to load | run `ps2ui check` on it, and read the code on [Errors and constants](page:runtime/errors-and-constants) |
 
 Before a theme draws, a solid colour is the only signal:
-[main](repo:console/main.c#L466).
+[main](repo:console/main.c#L491).
 
 | screen | meaning |
 |---|---|

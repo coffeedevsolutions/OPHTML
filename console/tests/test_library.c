@@ -14,6 +14,7 @@
 #include "../library.h"
 #include "../scan.h"
 #include "../resolver.h"
+#include "../state.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -446,6 +447,88 @@ static void test_opl_cfg(void)
           "a path with no /DVD/ or /CD/ has no CFG path");
 }
 
+static void test_state(void)
+{
+    console_state s, r;
+    char buf[128];
+    int n;
+
+    /* A full record round-trips: format then parse gives it back. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    strcpy(s.pending, "SCES_503.61");
+    s.pending_profile = 2;
+    n = console_state_format(&s, buf, sizeof buf);
+    CHECK(n > 0, "format writes a non-empty record");
+    CHECK(console_state_parse(buf, (size_t)n, &r) == 1 &&
+          strcmp(r.last, "SLUS_200.02") == 0 &&
+          strcmp(r.pending, "SCES_503.61") == 0 && r.pending_profile == 2,
+          "a full state round-trips through format and parse");
+
+    /* last only: no pending lines are written, and the profile does not
+     * leak out without a pending to carry it. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    s.pending_profile = 5;   /* set, but pending is empty */
+    n = console_state_format(&s, buf, sizeof buf);
+    CHECK(strcmp(buf, "last=SLUS_200.02\n") == 0,
+          "an empty pending omits both pending lines");
+    console_state_parse(buf, (size_t)n, &r);
+    CHECK(r.pending[0] == '\0' && r.pending_profile == 0,
+          "a record with no pending parses no profile");
+
+    /* Unknown keys and blank lines are ignored; known keys still found.
+     * parse zeroes first, so a prior value does not survive. */
+    memset(&r, 0xff, sizeof r);
+    CHECK(console_state_parse("junk\n\nfoo=bar\nlast=SLES_500.00\n", 31, &r) == 1 &&
+          strcmp(r.last, "SLES_500.00") == 0 && r.pending[0] == '\0',
+          "unknown keys ignored, known key found, rest zeroed");
+
+    /* Nothing recognised: found 0, all empty. */
+    CHECK(console_state_parse("x=1\n", 4, &r) == 0 && r.last[0] == '\0',
+          "no recognised key resolves nothing");
+
+    /* A buffer too small is refused, not truncated. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    CHECK(console_state_format(&s, buf, 8) == -1,
+          "a record that does not fit is refused");
+}
+
+/* The state file I/O over a temp directory, the way state.c reads and
+ * writes a memory card -- save_dir/load_dir are the path-taking forms
+ * the mc0:/mc1: wrappers call. */
+static void test_state_io(void)
+{
+    console_state s, r;
+    char root[] = "/tmp/console-state-XXXXXX";
+
+    if (mkdtemp(root) == NULL) { perror("mkdtemp"); exit(2); }
+
+    /* No file yet: zeroed, returns 0. */
+    CHECK(console_state_load_dir(root, &r) == 0 && r.last[0] == '\0',
+          "load with no state file yields empty and 0");
+
+    /* save_dir creates OPHTML/ and writes; load_dir reads it back. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    strcpy(s.pending, "SLUS_200.02");
+    s.pending_profile = 3;
+    CHECK(console_state_save_dir(root, &s) == 1, "save_dir writes the state");
+    CHECK(console_state_load_dir(root, &r) == 1 &&
+          strcmp(r.last, "SLUS_200.02") == 0 &&
+          strcmp(r.pending, "SLUS_200.02") == 0 && r.pending_profile == 3,
+          "save_dir then load_dir round-trips through the file");
+
+    /* A second save replaces the file (O_TRUNC), not appends. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SCES_503.61");
+    console_state_save_dir(root, &s);
+    console_state_load_dir(root, &r);
+    CHECK(strcmp(r.last, "SCES_503.61") == 0 && r.pending[0] == '\0',
+          "a second save replaces the file rather than appending");
+}
+
 /* Defined with the scan helpers further down; used here too. */
 static void touch(const char *path, const void *data, size_t len);
 
@@ -608,6 +691,8 @@ int main(void)
     test_neutrino();
     test_resolver();
     test_opl_cfg();
+    test_state();
+    test_state_io();
     test_opl_resolver();
     test_scan();
     test_mock_sorted();
