@@ -1,7 +1,15 @@
 # A minimal out-of-tree consumer of libophtml-console.a. It exists to
-# prove the core archive links and boots against a main the console's
-# own Makefile did not build. Needs the ps2dev toolchain, and the
-# built-in theme blob (examples/console/build.sh bakes it):
+# prove the core archive links against a main the console's own Makefile
+# did not build (compiled and link-checked in CI, not booted). Needs the
+# ps2dev toolchain, and the built-in theme blob (examples/console/build.sh
+# bakes it):
+#
+# Build flags are not tracked across trees: after a
+# `make -C console MOCK=1 ROMPAD=1`, the console tree holds ROM-pad
+# objects, and a plain archive wants `make -C console objclean` first
+# (CI does this before the gate). The $(CORE_LIB) rule below always
+# delegates to the console Makefile so it, not a stale timestamp here,
+# decides whether to rebuild.
 #
 #   ./examples/console/build.sh
 #   make -C examples/console-min
@@ -35,8 +43,13 @@ EE_LIBS     = -lophtml-console -lgskit -ldmakit -lpad -lpatches \
 all: $(EE_BIN)
 
 # Build the core archive in the console tree, then link against it.
-$(CORE_LIB):
+# FORCE so the console Makefile is always asked (see the header note):
+# this rule has no view of the flags storage.o was built with, so it
+# must not treat an existing archive as up to date.
+$(CORE_LIB): FORCE
 	$(MAKE) -C $(CORE) libophtml-console.a
+
+FORCE:
 
 $(EE_BIN): $(CORE_LIB)
 

@@ -1208,7 +1208,7 @@ _facts/runtime/console-launcher	.github/workflows/console-release.yml	24	    tag
 _facts/runtime/console-launcher	.github/workflows/console-release.yml	98	          cp console/ophtml.elf console/ophtml-mock.elf dist/	          mkdir -p dist	          cd dist && sha256sum ophtml.elf ophtml-mock.elf > SHA256SUMS
 _facts/runtime/console-launcher	.github/workflows/console-release.yml	127	            gh release create "$TAG" --draft --verify-tag --title "$TAG" \\	            # the dispatch input must not mint a new tag on main.	              --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
 _facts/runtime/console-launcher	.github/workflows/console-release.yml	134	          gh release upload "$TAG" dist/ophtml.elf dist/ophtml-mock.elf \\	          fi	            dist/SHA256SUMS --clobber
-_facts/runtime/console-launcher	console/README.md	282	## Bench cases		
+_facts/runtime/console-launcher	console/README.md	284	## Bench cases		
 _facts/runtime/console-launcher	console/launch.c	52	int console_find_neutrino(const char *launch_dir,		                          const console_device *devs, int n_devs,
 _facts/runtime/console-launcher	console/launch.c	67	    for (d = 0; d < n_devs; d++)	    }	        if (try_path(out, cap, devs[d].mount, "/neutrino/neutrino.elf"))
 _facts/runtime/console-launcher	console/launch.c	70	    for (i = 0; i < sizeof cards / sizeof cards[0]; i++)	            return 1;	        if (try_path(out, cap, cards[i], "")) return 1;
@@ -1680,7 +1680,7 @@ runtime/api-reference	runtime/ps2ui.c	1597	static uint16_t focus_index_by_name(c
 runtime/api-reference	runtime/ps2ui.c	1686	 * string.h only, and the digit loop bounds itself -- row is a uint16_t,	 * convention lives in exactly one place. No snprintf: the runtime is	 * so five digits and a terminator always fit `digits`, and every write
 runtime/console-launcher	console/README.md	152	## What the screen says		
 runtime/console-launcher	console/README.md	186	## Building		
-runtime/console-launcher	console/README.md	282	## Bench cases		
+runtime/console-launcher	console/README.md	284	## Bench cases		
 runtime/console-launcher	console/launch.c	52	int console_find_neutrino(const char *launch_dir,		                          const console_device *devs, int n_devs,
 runtime/console-launcher	console/main.c	201	static void choose_theme(char *note, size_t cap)	 * status line can say why the built-in one is showing. */	{
 runtime/console-launcher	console/main.c	304	static void wait_for_drives(int have)	 * it will settle for what it has; the whole wait is capped at 5 s. */	{

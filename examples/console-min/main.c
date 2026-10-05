@@ -1,8 +1,9 @@
 /* A deliberately tiny launcher built on libophtml-console.a.
  *
- * Its only job is to prove the console core links and boots against a
- * `main` the console's own Makefile did not build: it brings up
- * storage, scans, resolves and draws the built-in theme. console/main.c
+ * Its only job is to prove the console core links against a `main` the
+ * console's own Makefile did not build: it brings up storage, scans,
+ * resolves and draws the built-in theme. It is compiled and
+ * link-checked in CI, not booted (the PR for it says why). console/main.c
  * is the full-featured consumer -- input, paging, the launch handoff,
  * the status channel; this one leaves all of that out. It references
  * one symbol from each core object so the whole archive is exercised at
@@ -19,6 +20,7 @@
  */
 
 #include <kernel.h>
+#include <malloc.h>
 #include <gsKit.h>
 #include <dmaKit.h>
 
