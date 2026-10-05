@@ -27,6 +27,11 @@ Unreleased; 0.10.0, below, is what installs.
   emulate DVD-DL) launches with the matching `-gc`; a game with no CFG
   launches as before. A downstream launcher can register its own
   resolver to read a database instead.
+- The console's launcher core is a linkable library,
+  `libophtml-console.a`. A downstream launcher includes
+  `ophtml_console.h`, links the archive, and supplies its own `main`,
+  theme and module table without forking; `console/main.c` is its first
+  consumer. `examples/console-min` is a minimal out-of-tree one.
 
 ### Fixed
 

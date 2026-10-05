@@ -211,11 +211,11 @@ has no memory card, MMCE or MX4SIO. Never ship it: the real ELF uses
 
 ## Building a launcher on the core
 
-**Not yet exercised by an out-of-tree build.** F56's open gate is a
-consumer that links the archive with its own `main`; until it lands,
-`console/` itself is the only thing proven to link `libophtml-console.a`
-(end to end, in CI's `elf` job). The recipe below is that build,
-described for a second consumer.
+[examples/console-min](../examples/console-min) is a minimal
+out-of-tree launcher that follows this recipe: its own `main` and
+`Makefile`, neither built by `console/`, linking `libophtml-console.a`.
+CI's `elf` job builds it, so a second consumer linking the archive is
+checked, not just `console/`'s own build.
 
 `make -C console` first archives the reusable launcher core into
 `libophtml-console.a` -- `library.o scan.o storage.o launch.o
@@ -238,8 +238,10 @@ contain:
 | the `ps2ui` runtime + a theme blob | `ps2ui vendor-runtime <dir>` writes the runtime in; `ps2ui build` bakes a theme, `bin2c` embeds it |
 | the IOP module table | `sh console/embed_irx.sh . <modules…>` generates `irx_table.c`, defining the `irx_modules`/`n_irx_modules` that `storage.o` resolves by name at run time. Use **this tree's** `embed_irx.sh`: the archive's `storage.o` is compiled against the `irx_table.h` it generates, so a table from another copy is only ABI-safe if the header matches |
 
-**Which modules the table must contain.** Pass `console/Makefile`'s
-`IRX =` list verbatim -- it is the set `storage.c` expects. A missing
+**Which modules the table must contain.** Get the list with
+`make -s -C console print-irx` -- the set `storage.c` expects, read from
+`console/Makefile` so it can't drift from what the archive was built
+against (this is what `examples/console-min` does). A missing
 module does **not** fail the link; `storage.c` finds each by name at run
 time, so an omission shows only on a console. The mandatory set is
 `iomanX fileXio sio2man mcman mcserv freepad bdm bdmfs_fatfs` -- drop any
