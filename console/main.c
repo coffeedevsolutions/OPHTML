@@ -52,6 +52,7 @@
 #include "scan.h"
 #include "launch.h"
 #include "resolver.h"
+#include "state.h"
 
 /* The built-in theme, examples/console, linked in by bin2c. */
 extern unsigned char theme_uib[];
@@ -401,6 +402,20 @@ static void launch_selected(void)
      * the back one when the loader takes over the screen. */
     for (i = 0; i < 2; i++) frame();
 
+    /* Record the breadcrumb before the one-way handoff: last-played,
+     * and the game this launch is for. A downstream resolver's retry
+     * policy reads `pending` on the next boot; the console itself only
+     * persists it. pending_profile is 0 -- the default resolver has no
+     * ladder. Loading first keeps any fields a future writer added. */
+    {
+        console_state st;
+        console_state_load(&st);
+        snprintf(st.last, sizeof st.last, "%s", g->id);
+        snprintf(st.pending, sizeof st.pending, "%s", g->id);
+        st.pending_profile = 0;
+        console_state_save(&st);
+    }
+
     input_end();
     /* Resolve the game's settings through the registered resolver.
      * main() registers console_opl_resolver, so by default this reads
@@ -487,6 +502,20 @@ int main(int argc, char *argv[])
         status("This theme has no game-0 row to list games in");
 
     ps2ui_list_set_count(&ui, &list, (uint16_t)n_games);
+
+    /* Put the cursor on the last-played game, read from the memory
+     * card. The breadcrumb half of the state is written at launch and
+     * read by a resolver's policy, not acted on here. */
+    {
+        console_state st;
+        int i;
+        if (console_state_load(&st) && st.last[0])
+            for (i = 0; i < n_games; i++)
+                if (strcmp(games[i].id, st.last) == 0) {
+                    ps2ui_list_select(&ui, &list, (uint16_t)i);
+                    break;
+                }
+    }
     fill();
 
     for (;;) {

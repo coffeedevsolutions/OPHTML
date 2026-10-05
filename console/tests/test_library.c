@@ -14,6 +14,7 @@
 #include "../library.h"
 #include "../scan.h"
 #include "../resolver.h"
+#include "../state.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -494,6 +495,40 @@ static void test_state(void)
           "a record that does not fit is refused");
 }
 
+/* The state file I/O over a temp directory, the way state.c reads and
+ * writes a memory card -- save_dir/load_dir are the path-taking forms
+ * the mc0:/mc1: wrappers call. */
+static void test_state_io(void)
+{
+    console_state s, r;
+    char root[] = "/tmp/console-state-XXXXXX";
+
+    if (mkdtemp(root) == NULL) { perror("mkdtemp"); exit(2); }
+
+    /* No file yet: zeroed, returns 0. */
+    CHECK(console_state_load_dir(root, &r) == 0 && r.last[0] == '\0',
+          "load with no state file yields empty and 0");
+
+    /* save_dir creates OPHTML/ and writes; load_dir reads it back. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    strcpy(s.pending, "SLUS_200.02");
+    s.pending_profile = 3;
+    CHECK(console_state_save_dir(root, &s) == 1, "save_dir writes the state");
+    CHECK(console_state_load_dir(root, &r) == 1 &&
+          strcmp(r.last, "SLUS_200.02") == 0 &&
+          strcmp(r.pending, "SLUS_200.02") == 0 && r.pending_profile == 3,
+          "save_dir then load_dir round-trips through the file");
+
+    /* A second save replaces the file (O_TRUNC), not appends. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SCES_503.61");
+    console_state_save_dir(root, &s);
+    console_state_load_dir(root, &r);
+    CHECK(strcmp(r.last, "SCES_503.61") == 0 && r.pending[0] == '\0',
+          "a second save replaces the file rather than appending");
+}
+
 /* Defined with the scan helpers further down; used here too. */
 static void touch(const char *path, const void *data, size_t len);
 
@@ -657,6 +692,7 @@ int main(void)
     test_resolver();
     test_opl_cfg();
     test_state();
+    test_state_io();
     test_opl_resolver();
     test_scan();
     test_mock_sorted();
