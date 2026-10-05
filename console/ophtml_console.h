@@ -10,6 +10,9 @@
  *   storage.h   bringing up the IOP storage modules (PS2-only).
  *   launch.h    handing a game to Neutrino (PS2-only).
  *   resolver.h  the default resolver: read a game's OPL CFG file.
+ *   state.h     persist last-played and the launch breadcrumb to a
+ *               memory card (PS2-only I/O; pure parse/format is in
+ *               library.h).
  *
  * A downstream launcher links the archive and supplies the three
  * things it does NOT contain:
@@ -41,5 +44,6 @@
 #include "storage.h"
 #include "launch.h"
 #include "resolver.h"
+#include "state.h"
 
 #endif /* OPHTML_CONSOLE_H */

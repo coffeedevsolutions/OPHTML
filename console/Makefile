@@ -15,7 +15,7 @@ EE_BIN = ophtml.elf
 # downstream launcher links against. No UI and no main of its own; see
 # ophtml_console.h and README.md's "Building a launcher on the core".
 CORE_LIB  = libophtml-console.a
-CORE_OBJS = library.o scan.o storage.o launch.o resolver.o
+CORE_OBJS = library.o scan.o storage.o launch.o resolver.o state.o
 
 # The built-in theme. examples/console/build.sh bakes it; a theme.uib
 # on a drive overrides it at run time, so this only decides what shows

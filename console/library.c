@@ -404,3 +404,85 @@ int console_opl_cfg_path(const console_game *game, char *out, size_t cap)
     out[rl + 5 + idl + 4] = '\0';
     return 1;
 }
+
+int console_state_parse(const char *buf, size_t len, console_state *out)
+{
+    size_t i = 0;
+    int found = 0;
+
+    memset(out, 0, sizeof *out);
+    while (i < len) {
+        size_t line = i, end = i, eq;
+
+        while (end < len && buf[end] != '\n' && buf[end] != '\r') end++;
+        for (eq = line; eq < end && buf[eq] != '='; eq++) ;
+        if (eq < end) {
+            size_t klen = eq - line;
+            const char *v = buf + eq + 1;
+            size_t vlen = end - (eq + 1);
+            if (key_is(buf + line, klen, "last")) {
+                put(out->last, sizeof out->last, v, vlen);
+                found = 1;
+            } else if (key_is(buf + line, klen, "pending")) {
+                put(out->pending, sizeof out->pending, v, vlen);
+                found = 1;
+            } else if (key_is(buf + line, klen, "pending_profile")) {
+                out->pending_profile = (int)parse_uint(v, buf + end);
+                found = 1;
+            }
+        }
+        i = end;
+        while (i < len && (buf[i] == '\n' || buf[i] == '\r')) i++;
+    }
+    return found;
+}
+
+/* Append `s` to buf[*used], keeping a NUL. Returns 0, or -1 if full. */
+static int append(char *buf, size_t cap, size_t *used, const char *s)
+{
+    size_t n = strlen(s);
+    if (*used + n + 1 > cap) return -1;
+    memcpy(buf + *used, s, n);
+    *used += n;
+    buf[*used] = '\0';
+    return 0;
+}
+
+/* Append `v` as decimal. No stdio, to keep this file's no-file promise
+ * literal. */
+static int append_uint(char *buf, size_t cap, size_t *used, unsigned v)
+{
+    char rev[12], out[12];
+    int m = 0, n = 0;
+
+    if (v == 0) out[n++] = '0';
+    else {
+        while (v) { rev[m++] = (char)('0' + v % 10u); v /= 10u; }
+        while (m) out[n++] = rev[--m];
+    }
+    out[n] = '\0';
+    return append(buf, cap, used, out);
+}
+
+int console_state_format(const console_state *st, char *buf, size_t cap)
+{
+    size_t used = 0;
+
+    if (cap == 0) return -1;
+    buf[0] = '\0';
+    if (st->last[0]) {
+        if (append(buf, cap, &used, "last=") ||
+            append(buf, cap, &used, st->last) ||
+            append(buf, cap, &used, "\n")) return -1;
+    }
+    if (st->pending[0]) {
+        if (append(buf, cap, &used, "pending=") ||
+            append(buf, cap, &used, st->pending) ||
+            append(buf, cap, &used, "\npending_profile=") ||
+            append_uint(buf, cap, &used,
+                        st->pending_profile < 0 ? 0u
+                                                : (unsigned)st->pending_profile) ||
+            append(buf, cap, &used, "\n")) return -1;
+    }
+    return (int)used;
+}
