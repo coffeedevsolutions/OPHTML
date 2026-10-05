@@ -446,6 +446,54 @@ static void test_opl_cfg(void)
           "a path with no /DVD/ or /CD/ has no CFG path");
 }
 
+static void test_state(void)
+{
+    console_state s, r;
+    char buf[128];
+    int n;
+
+    /* A full record round-trips: format then parse gives it back. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    strcpy(s.pending, "SCES_503.61");
+    s.pending_profile = 2;
+    n = console_state_format(&s, buf, sizeof buf);
+    CHECK(n > 0, "format writes a non-empty record");
+    CHECK(console_state_parse(buf, (size_t)n, &r) == 1 &&
+          strcmp(r.last, "SLUS_200.02") == 0 &&
+          strcmp(r.pending, "SCES_503.61") == 0 && r.pending_profile == 2,
+          "a full state round-trips through format and parse");
+
+    /* last only: no pending lines are written, and the profile does not
+     * leak out without a pending to carry it. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    s.pending_profile = 5;   /* set, but pending is empty */
+    n = console_state_format(&s, buf, sizeof buf);
+    CHECK(strcmp(buf, "last=SLUS_200.02\n") == 0,
+          "an empty pending omits both pending lines");
+    console_state_parse(buf, (size_t)n, &r);
+    CHECK(r.pending[0] == '\0' && r.pending_profile == 0,
+          "a record with no pending parses no profile");
+
+    /* Unknown keys and blank lines are ignored; known keys still found.
+     * parse zeroes first, so a prior value does not survive. */
+    memset(&r, 0xff, sizeof r);
+    CHECK(console_state_parse("junk\n\nfoo=bar\nlast=SLES_500.00\n", 31, &r) == 1 &&
+          strcmp(r.last, "SLES_500.00") == 0 && r.pending[0] == '\0',
+          "unknown keys ignored, known key found, rest zeroed");
+
+    /* Nothing recognised: found 0, all empty. */
+    CHECK(console_state_parse("x=1\n", 4, &r) == 0 && r.last[0] == '\0',
+          "no recognised key resolves nothing");
+
+    /* A buffer too small is refused, not truncated. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    CHECK(console_state_format(&s, buf, 8) == -1,
+          "a record that does not fit is refused");
+}
+
 /* Defined with the scan helpers further down; used here too. */
 static void touch(const char *path, const void *data, size_t len);
 
@@ -608,6 +656,7 @@ int main(void)
     test_neutrino();
     test_resolver();
     test_opl_cfg();
+    test_state();
     test_opl_resolver();
     test_scan();
     test_mock_sorted();

@@ -223,4 +223,41 @@ int console_opl_cfg(const char *cfg, size_t len, console_settings *out);
  * which touches no files (see the header at the top). */
 int console_opl_cfg_path(const console_game *game, char *out, size_t cap);
 
+/* The console's small writable state, persisted to OPHTML/state on a
+ * drive so a boot is no longer amnesiac. Pure parse/format lives here
+ * (buffer in and out, host-testable); the file read and write that use
+ * it live outside this file, which touches none.
+ *
+ *   last     the last-played game's title ID, so the launcher can put
+ *            the cursor back on it, or "".
+ *   pending  a launch breadcrumb: the title ID a launch was started for
+ *            and that has not been cleared since, or "". Written just
+ *            before the one-way handoff to Neutrino (console_launch
+ *            never returns), so on the next boot a still-set `pending`
+ *            says which game last took the machine. OPHTML only
+ *            persists and reports it; what to make of it -- a hang, a
+ *            cue to try the next settings profile -- is the launcher's
+ *            policy, not this file's.
+ *   pending_profile  which settings profile that launch used, for a
+ *            policy that steps through profiles. Meaningful only when
+ *            `pending` is set.
+ */
+typedef struct {
+    char last[CONSOLE_ID_MAX];
+    char pending[CONSOLE_ID_MAX];
+    int  pending_profile;
+} console_state;
+
+/* Parse OPHTML/state's text. Zeroes `out`, then sets the keys it finds.
+ * Returns 1 if a recognised key was present, else 0. Unknown keys and
+ * malformed lines are ignored, so a newer writer's extra keys do not
+ * break an older reader. */
+int console_state_parse(const char *buf, size_t len, console_state *out);
+
+/* Format `st` into `buf` as the key=value text console_state_parse
+ * reads back; empty fields are omitted, and `pending_profile` is
+ * written only alongside a set `pending`. Returns the length written
+ * (excluding the NUL), or -1 if it would not fit. */
+int console_state_format(const console_state *st, char *buf, size_t cap);
+
 #endif /* CONSOLE_LIBRARY_H */
