@@ -230,14 +230,17 @@ int console_opl_cfg_path(const console_game *game, char *out, size_t cap);
  *
  *   last     the last-played game's title ID, so the launcher can put
  *            the cursor back on it, or "".
- *   pending  a launch breadcrumb: the title ID a launch was started for
- *            and that has not been cleared since, or "". Written just
- *            before the one-way handoff to Neutrino (console_launch
- *            never returns), so on the next boot a still-set `pending`
- *            says which game last took the machine. OPHTML only
- *            persists and reports it; what to make of it -- a hang, a
- *            cue to try the next settings profile -- is the launcher's
- *            policy, not this file's.
+ *   pending  a launch breadcrumb: the title ID a launch was started for,
+ *            or "". Written just before the one-way handoff to Neutrino,
+ *            and cleared only when a launch fails to start (the console
+ *            regains control then); a launch that succeeds never returns
+ *            to clear it. So it is set on EVERY successful launch and is
+ *            NOT a hang signal by itself -- the handoff is one-way, so
+ *            the console cannot tell a hang from a clean power-off. It
+ *            is the substrate a downstream retry policy reads (which
+ *            game was last launched, with which profile), and that
+ *            policy must clear it once it has acted; OPHTML does not
+ *            interpret it.
  *   pending_profile  which settings profile that launch used, for a
  *            policy that steps through profiles. Meaningful only when
  *            `pending` is set.

@@ -34,9 +34,10 @@ Unreleased; 0.10.0, below, is what installs.
   consumer. `examples/console-min` is a minimal out-of-tree one.
 - The console launcher remembers the last-played game and persists a
   launch breadcrumb to a memory card (`mc0:/OPHTML/state`, then `mc1:`),
-  so the cursor opens on the last game played. The breadcrumb is the
-  substrate for a downstream auto-retry policy; the console only
-  persists it.
+  so the cursor opens on the last game played. The breadcrumb is set on
+  every launch and cleared only when a launch fails to start, so it is
+  not a hang signal by itself; it is the substrate a downstream
+  auto-retry policy reads and must clear once it has acted.
 
 ### Fixed
 

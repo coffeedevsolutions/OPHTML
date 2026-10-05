@@ -34,7 +34,9 @@ int console_state_save_dir(const char *base, const console_state *st);
 int console_state_load(console_state *out);
 
 /* Save to the first memory card that accepts the write (mc0: then
- * mc1:). Returns 1 on success, 0 if neither card took it. */
+ * mc1:). Returns 1 on success, 0 if neither card took it -- a launch
+ * proceeds either way, so the 0 is silent to the user; a consumer that
+ * relies on the breadcrumb having been written must check it. */
 int console_state_save(const console_state *st);
 
 #endif /* CONSOLE_STATE_H */

@@ -425,6 +425,16 @@ static void launch_selected(void)
     console_resolve(g, &settings);
     rc = console_launch(path, g, &settings);
     input_init();
+    /* console_launch only returns on failure, so the launch did not
+     * happen: clear the breadcrumb we wrote above. Leaving it would
+     * blame this game on the next boot for a launch that never took the
+     * machine (a missing neutrino/, bad arguments). */
+    {
+        console_state st;
+        console_state_load(&st);
+        st.pending[0] = '\0';
+        console_state_save(&st);
+    }
     snprintf(line, sizeof line, "Could not start Neutrino (%d)", rc);
     status(line);
 }

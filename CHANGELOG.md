@@ -47,9 +47,12 @@ without moving this line.
   store independent of which game drive is attached -- holding the
   last-played title ID and the game a launch was last started for. On
   the next boot the cursor opens on the last-played game. The breadcrumb
-  is the substrate for an auto-retry policy a downstream launcher reads;
-  the console itself only persists it, since the launch is a one-way
-  handoff the console never returns from.
+  is set on every launch and cleared only when a launch fails to start;
+  a successful launch never returns to clear it, and the one-way handoff
+  means the console cannot tell a hang from a clean power-off, so it is
+  not a hang signal by itself. It is the substrate a downstream
+  auto-retry policy reads (which game, which profile) and must clear
+  once it has acted; the console only persists it.
 
 ### Fixed
 
