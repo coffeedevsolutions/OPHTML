@@ -41,6 +41,15 @@ without moving this line.
   `main`, theme and `irx_table`; it never forks the core. `console/README.md`
   carries the link recipe, and `examples/console-min/` is a minimal
   out-of-tree consumer that CI's `elf` job links against the archive.
+- **The console launcher remembers the last-played game, and persists a
+  launch breadcrumb.** It writes a small state file to a memory card
+  (`mc0:/OPHTML/state`, falling back to `mc1:`) -- the one writable
+  store independent of which game drive is attached -- holding the
+  last-played title ID and the game a launch was last started for. On
+  the next boot the cursor opens on the last-played game. The breadcrumb
+  is the substrate for an auto-retry policy a downstream launcher reads;
+  the console itself only persists it, since the launch is a one-way
+  handoff the console never returns from.
 
 ### Fixed
 

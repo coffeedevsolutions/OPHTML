@@ -32,6 +32,11 @@ Unreleased; 0.10.0, below, is what installs.
   `ophtml_console.h`, links the archive, and supplies its own `main`,
   theme and module table without forking; `console/main.c` is its first
   consumer. `examples/console-min` is a minimal out-of-tree one.
+- The console launcher remembers the last-played game and persists a
+  launch breadcrumb to a memory card (`mc0:/OPHTML/state`, then `mc1:`),
+  so the cursor opens on the last game played. The breadcrumb is the
+  substrate for a downstream auto-retry policy; the console only
+  persists it.
 
 ### Fixed
 
