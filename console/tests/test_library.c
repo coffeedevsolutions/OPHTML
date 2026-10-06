@@ -15,6 +15,9 @@
 #include "../scan.h"
 #include "../resolver.h"
 #include "../state.h"
+#include "../cover.h"
+
+#include <zlib.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -593,6 +596,275 @@ static void test_mock_sorted(void)
     CHECK(N > 10, "the mock list is longer than the built-in theme's ten rows");
 }
 
+/* --------------------------------------------------------- cover art */
+
+/* A PNG builder that mirrors the decoder: it applies a chosen PNG
+ * filter to each scanline forward, so decode must reverse it to recover
+ * the raw pixels. Building valid blobs in C (rather than committing
+ * binary fixtures or needing Pillow) keeps the round-trip test over the
+ * same zlib stream the console will meet, and lets a malformed case be
+ * one patched byte away from a good one. */
+
+static void be32_put(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)(v >> 24); p[1] = (uint8_t)(v >> 16);
+    p[2] = (uint8_t)(v >> 8);  p[3] = (uint8_t)v;
+}
+
+static size_t chunk_put(uint8_t *out, size_t off, const char *type,
+                        const uint8_t *data, size_t dlen)
+{
+    uLong c;
+    be32_put(out + off, (uint32_t)dlen); off += 4;
+    memcpy(out + off, type, 4);
+    c = crc32(crc32(0, Z_NULL, 0), (const Bytef *)type, 4);
+    if (dlen) { memcpy(out + off + 4, data, dlen); c = crc32(c, data, (uInt)dlen); }
+    off += 4 + dlen;
+    be32_put(out + off, (uint32_t)c); off += 4;
+    return off;
+}
+
+static int fwd_paeth(int a, int b, int c)
+{
+    int p = a + b - c, pa = p > a ? p - a : a - p,
+        pb = p > b ? p - b : b - p, pc = p > c ? p - c : c - p;
+    if (pa <= pb && pa <= pc) return a;
+    return pb <= pc ? b : c;
+}
+
+/* Build sig+IHDR[+PLTE][+tRNS]+IDAT+IEND. `raw` is h rows of `stride`
+ * bytes, no filter bytes; each row gets filter `filters[y]` applied
+ * forward. `bpp` is the left-neighbour byte step. */
+static size_t png_build(uint8_t *out, uint32_t w, uint32_t h, int color,
+                        int depth, uint8_t interlace,
+                        const uint8_t *raw, size_t stride, size_t bpp,
+                        const uint8_t *filters,
+                        const uint8_t *plte, size_t plte_len,
+                        const uint8_t *trns, size_t trns_len)
+{
+    static const uint8_t sig[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
+    uint8_t ihdr[13];
+    size_t off, flen = (stride + 1) * h, i;
+    uint8_t *filt = (uint8_t *)malloc(flen);
+    uint8_t *comp;
+    uLongf clen;
+    uint32_t y;
+
+    memcpy(out, sig, 8); off = 8;
+    be32_put(ihdr, w); be32_put(ihdr + 4, h);
+    ihdr[8] = (uint8_t)depth; ihdr[9] = (uint8_t)color;
+    ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = interlace;
+    off = chunk_put(out, off, "IHDR", ihdr, 13);
+    if (plte) off = chunk_put(out, off, "PLTE", plte, plte_len);
+    if (trns) off = chunk_put(out, off, "tRNS", trns, trns_len);
+
+    for (y = 0; y < h; y++) {
+        const uint8_t *r = raw + (size_t)y * stride;
+        const uint8_t *prev = y ? raw + (size_t)(y - 1) * stride : NULL;
+        uint8_t f = filters ? filters[y] : 0;
+        uint8_t *o = filt + (size_t)y * (stride + 1);
+        o[0] = f;
+        for (i = 0; i < stride; i++) {
+            int a = i >= bpp ? r[i - bpp] : 0;
+            int b = prev ? prev[i] : 0;
+            int c = (prev && i >= bpp) ? prev[i - bpp] : 0;
+            int v = r[i];
+            switch (f) {
+            case 1: v -= a; break;
+            case 2: v -= b; break;
+            case 3: v -= (a + b) / 2; break;
+            case 4: v -= fwd_paeth(a, b, c); break;
+            default: break;
+            }
+            o[1 + i] = (uint8_t)v;
+        }
+    }
+    clen = compressBound((uLong)flen);
+    comp = (uint8_t *)malloc(clen);
+    compress(comp, &clen, filt, (uLong)flen);
+    off = chunk_put(out, off, "IDAT", comp, clen);
+    off = chunk_put(out, off, "IEND", (const uint8_t *)"", 0);
+    free(filt); free(comp);
+    return off;
+}
+
+/* Does decode recover `raw` expanded to the RGBA we expect? */
+static int rgba_eq(const console_image *img, uint32_t w, uint32_t h,
+                   const uint8_t *expect)
+{
+    return img->rgba && img->w == w && img->h == h &&
+           memcmp(img->rgba, expect, (size_t)w * h * 4) == 0;
+}
+
+static void test_cover(void)
+{
+    uint8_t buf[4096];
+    console_image img;
+    size_t n;
+
+    /* Truecolour 2x2, every filter, round-trips to opaque RGBA. */
+    {
+        /* two reds, two blues, laid so neighbours differ (exercises the
+         * filters' predictors rather than all-equal rows). */
+        static const uint8_t rgb[2 * 2 * 3] = {
+            255, 0, 0,   0, 0, 255,
+            0, 255, 0,   9, 9, 9,
+        };
+        static const uint8_t want[2 * 2 * 4] = {
+            255, 0, 0, 255,   0, 0, 255, 255,
+            0, 255, 0, 255,   9, 9, 9, 255,
+        };
+        uint8_t f;
+        for (f = 0; f <= 4; f++) {
+            uint8_t fs[2] = { f, f };
+            char name[48];
+            n = png_build(buf, 2, 2, 2, 8, 0, rgb, 6, 3, fs,
+                          NULL, 0, NULL, 0);
+            CHECK(console_png_decode(buf, n, &img) == 0 &&
+                  rgba_eq(&img, 2, 2, want),
+                  (snprintf(name, sizeof name,
+                            "truecolour round-trips under filter %d", f), name));
+            console_image_free(&img);
+        }
+    }
+
+    /* Truecolour+alpha keeps the alpha channel. */
+    {
+        static const uint8_t rgba[1 * 2 * 4] = {
+            10, 20, 30, 40,   50, 60, 70, 255,
+        };
+        n = png_build(buf, 2, 1, 6, 8, 0, rgba, 8, 4, NULL, NULL, 0, NULL, 0);
+        CHECK(console_png_decode(buf, n, &img) == 0 && rgba_eq(&img, 2, 1, rgba),
+              "truecolour+alpha preserves the alpha channel");
+        console_image_free(&img);
+    }
+
+    /* Grayscale replicates into RGB, alpha opaque. */
+    {
+        static const uint8_t g[2] = { 64, 200 };
+        static const uint8_t want[2 * 4] = {
+            64, 64, 64, 255,   200, 200, 200, 255,
+        };
+        n = png_build(buf, 2, 1, 0, 8, 0, g, 2, 1, NULL, NULL, 0, NULL, 0);
+        CHECK(console_png_decode(buf, n, &img) == 0 && rgba_eq(&img, 2, 1, want),
+              "grayscale replicates into RGB");
+        console_image_free(&img);
+    }
+
+    /* Grayscale+alpha: gray into RGB, its own alpha. */
+    {
+        static const uint8_t ga[2 * 2] = { 100, 128,   0, 255 };
+        static const uint8_t want[2 * 4] = {
+            100, 100, 100, 128,   0, 0, 0, 255,
+        };
+        n = png_build(buf, 2, 1, 4, 8, 0, ga, 4, 2, NULL, NULL, 0, NULL, 0);
+        CHECK(console_png_decode(buf, n, &img) == 0 && rgba_eq(&img, 2, 1, want),
+              "grayscale+alpha keeps its alpha");
+        console_image_free(&img);
+    }
+
+    /* Indexed, 8-bit, with a tRNS palette-alpha for index 0. */
+    {
+        static const uint8_t idx[3] = { 0, 1, 2 };
+        static const uint8_t plte[3 * 3] = {
+            11, 12, 13,   21, 22, 23,   31, 32, 33,
+        };
+        static const uint8_t trns[1] = { 0x80 };   /* index 0 is semi-opaque */
+        static const uint8_t want[3 * 4] = {
+            11, 12, 13, 0x80,   21, 22, 23, 255,   31, 32, 33, 255,
+        };
+        n = png_build(buf, 3, 1, 3, 8, 0, idx, 3, 1, NULL,
+                      plte, sizeof plte, trns, sizeof trns);
+        CHECK(console_png_decode(buf, n, &img) == 0 && rgba_eq(&img, 3, 1, want),
+              "indexed maps through the palette, tRNS sets per-index alpha");
+        console_image_free(&img);
+    }
+
+    /* Indexed at 2 bits/pixel: four indices packed into one byte. */
+    {
+        /* w=4, depth 2 -> stride 1 byte holding indices 0,1,2,3 (MSB first). */
+        static const uint8_t packed[1] = { 0x1B };   /* 00 01 10 11 */
+        static const uint8_t plte[4 * 3] = {
+            0, 0, 0,   1, 1, 1,   2, 2, 2,   3, 3, 3,
+        };
+        static const uint8_t want[4 * 4] = {
+            0, 0, 0, 255,   1, 1, 1, 255,   2, 2, 2, 255,   3, 3, 3, 255,
+        };
+        n = png_build(buf, 4, 1, 3, 2, 0, packed, 1, 1, NULL,
+                      plte, sizeof plte, NULL, 0);
+        CHECK(console_png_decode(buf, n, &img) == 0 && rgba_eq(&img, 4, 1, want),
+              "indexed unpacks sub-byte (2bpp) indices MSB-first");
+        console_image_free(&img);
+    }
+
+    /* ---- malformed and unsupported input is refused, never decoded ---- */
+
+    {   /* good blob, then one byte flipped in each spot */
+        static const uint8_t rgb[3] = { 1, 2, 3 };
+        n = png_build(buf, 1, 1, 2, 8, 0, rgb, 3, 3, NULL, NULL, 0, NULL, 0);
+
+        CHECK(console_png_decode(buf, n, &img) == 0,
+              "the control blob decodes");
+        console_image_free(&img);
+
+        {   /* corrupt the signature */
+            uint8_t bad[4096]; memcpy(bad, buf, n); bad[1] ^= 0xFF;
+            CHECK(console_png_decode(bad, n, &img) == CONSOLE_PNG_ERR_SIG,
+                  "a bad signature is rejected");
+        }
+        {   /* truncate mid-stream */
+            CHECK(console_png_decode(buf, n - 5, &img) == CONSOLE_PNG_ERR_TRUNC ||
+                  console_png_decode(buf, n - 5, &img) == CONSOLE_PNG_ERR_CHUNK,
+                  "a truncated blob is rejected, not read past");
+        }
+        {   /* flip a byte inside IHDR data -> its CRC no longer matches */
+            uint8_t bad[4096]; memcpy(bad, buf, n); bad[20] ^= 0xFF;
+            CHECK(console_png_decode(bad, n, &img) == CONSOLE_PNG_ERR_CHUNK,
+                  "a chunk whose CRC fails is rejected");
+        }
+    }
+
+    {   /* IHDR-only blobs reject before any image data is needed */
+        uint8_t ihdr[13];
+        size_t off;
+        static const uint8_t sig[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
+
+        /* oversize: past CONSOLE_COVER_MAX_DIM */
+        memcpy(buf, sig, 8); off = 8;
+        be32_put(ihdr, CONSOLE_COVER_MAX_DIM + 1); be32_put(ihdr + 4, 1);
+        ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = ihdr[11] = ihdr[12] = 0;
+        off = chunk_put(buf, off, "IHDR", ihdr, 13);
+        off = chunk_put(buf, off, "IEND", (const uint8_t *)"", 0);
+        CHECK(console_png_decode(buf, off, &img) == CONSOLE_PNG_ERR_SIZE,
+              "an oversized image is refused before allocation");
+
+        /* 16-bit depth: unsupported */
+        memcpy(buf, sig, 8); off = 8;
+        be32_put(ihdr, 2); be32_put(ihdr + 4, 2);
+        ihdr[8] = 16; ihdr[9] = 2; ihdr[10] = ihdr[11] = ihdr[12] = 0;
+        off = chunk_put(buf, off, "IHDR", ihdr, 13);
+        off = chunk_put(buf, off, "IEND", (const uint8_t *)"", 0);
+        CHECK(console_png_decode(buf, off, &img) == CONSOLE_PNG_ERR_COLOR,
+              "16-bit depth is refused, not mis-read");
+
+        /* interlaced: unsupported */
+        memcpy(buf, sig, 8); off = 8;
+        be32_put(ihdr, 2); be32_put(ihdr + 4, 2);
+        ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = ihdr[11] = 0; ihdr[12] = 1;
+        off = chunk_put(buf, off, "IHDR", ihdr, 13);
+        off = chunk_put(buf, off, "IEND", (const uint8_t *)"", 0);
+        CHECK(console_png_decode(buf, off, &img) == CONSOLE_PNG_ERR_IHDR,
+              "an interlaced image is refused");
+    }
+
+    {   /* indexed with no PLTE */
+        static const uint8_t idx[1] = { 0 };
+        n = png_build(buf, 1, 1, 3, 8, 0, idx, 1, 1, NULL, NULL, 0, NULL, 0);
+        CHECK(console_png_decode(buf, n, &img) == CONSOLE_PNG_ERR_PLTE,
+              "indexed colour with no palette is refused");
+    }
+}
+
 /* ------------------------------------------------------ a real tree */
 
 static void touch(const char *path, const void *data, size_t len)
@@ -694,6 +966,7 @@ int main(void)
     test_state();
     test_state_io();
     test_opl_resolver();
+    test_cover();
     test_scan();
     test_mock_sorted();
     printf("1..%d\n", checks);
