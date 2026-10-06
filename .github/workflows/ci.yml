@@ -324,6 +324,20 @@ jobs:
       - name: Console theme end to end
         run: ./examples/console/build.sh
 
+      # The cover decoder (console/cover.c) inflates PNGs with zlib
+      # rather than a hand-rolled DEFLATE, because a cover is untrusted
+      # input off a drive. The host test links -lz, so it needs the dev
+      # headers. ubuntu-24.04 ships them, but name the dependency
+      # explicitly the way the fuzz step names its own -- so a runner
+      # image that drops it fails here with a clear cause, not a cryptic
+      # missing-zlib.h from the compiler.
+      - name: Ensure zlib for the cover decoder
+        run: |
+          dpkg -s zlib1g-dev >/dev/null 2>&1 || {
+            sudo apt-get update -q
+            sudo apt-get install -y -q zlib1g-dev
+          }
+
       - name: Console library tests
         run: make -C console/tests test
 
