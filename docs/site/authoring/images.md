@@ -143,11 +143,11 @@ Art the app supplies at runtime is a streamed slot rather than a baked image. Wr
 
 ## Limits and errors
 
-Any format other than PNG is refused at compile time, with the resolved path in the message:
+Any format other than PNG is refused at compile time, with the resolved path in the message. `<scratch>` below stands in for the directory the run happened in; every other character is the compiler's own output:
 
 ```
 $ ps2ui-layout jpg.html ui.css --fonts fonts/fonts.json -o jpg.json
-error: image: "/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring/images/mini/assets/cover.jpg" is not a PNG — only PNG is supported at build time; convert other formats before compiling
+error: image: "<scratch>/mini/assets/cover.jpg" is not a PNG — only PNG is supported at build time; convert other formats before compiling
 ```
 
 The first seven messages below are compile errors from `ps2ui-layout`. The last three come from `ps2ui-bake`.

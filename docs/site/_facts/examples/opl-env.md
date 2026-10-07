@@ -1,7 +1,6 @@
 # facts: examples/opl-env
 
-Session commands ran from the repository root, `/home/user/OPHTML`. `<scratch>`
-is `/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/examples-opl-env`.
+Session commands ran from the repository root, `/home/user/OPHTML`. `<scratch>` is a scratch directory outside the repository.
 `./examples/opl-env/build.sh` was run exactly once, per this brief's explicit
 exception to the standing "never run examples/*/build.sh" rule. `git status
 --porcelain examples/opl-env` was empty before and after (`examples/opl-env/build/`

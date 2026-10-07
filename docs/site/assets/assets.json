@@ -79,7 +79,7 @@
   {
     "path": "assets/authoring/focus-and-navigation/graph.png",
     "page": "authoring/focus-and-navigation",
-    "command": "ps2ui serve examples/memcard --port 8137, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8137/, waits for #frame to report a naturalWidth, clicks #btnGraph and screenshots to OUT",
+    "command": "ps2ui serve examples/memcard --port 8137, then Playwright (executablePath $PLAYWRIGHT_BROWSERS_PATH/chromium, viewport 1280x800) loads http://127.0.0.1:8137/, waits for #frame to report a naturalWidth, clicks #btnGraph and screenshots to OUT",
     "alt": "The memcard library screen in ps2ui serve, Focus graph toggled on, blue arrows drawn between the nine focusables",
     "checked": false,
     "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py"
@@ -108,7 +108,7 @@
   {
     "path": "assets/authoring/video-modes/serve-forced-4x3.png",
     "page": "authoring/video-modes",
-    "command": "ps2ui serve --uib examples/channel6/build/ui-16x9.uib --port 8237 & sleep 4; NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8237/',{waitUntil:'load'});await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0;},null,{timeout:30000});await p.selectOption('#aspectSel','force-4:3');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth===597;},null,{timeout:30000});await p.waitForTimeout(1200);await p.screenshot({path:'OUT'});await b.close();})();\"; kill %1",
+    "command": "ps2ui serve --uib examples/channel6/build/ui-16x9.uib --port 8237 & sleep 4; NODE_PATH=\"$(npm root -g)\" node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:process.env.PLAYWRIGHT_BROWSERS_PATH+'/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8237/',{waitUntil:'load'});await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0;},null,{timeout:30000});await p.selectOption('#aspectSel','force-4:3');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth===597;},null,{timeout:30000});await p.waitForTimeout(1200);await p.screenshot({path:'OUT'});await b.close();})();\"; kill %1",
     "alt": "the ps2ui serve previewer at 1280x800, channel6 16:9 blob served with --uib, Aspect set to force-4:3, the games-16x9 screen squeezed to 597 pixels wide",
     "checked": false,
     "note": "browser capture of the ps2ui serve page chrome; browser text rendering is not byte-stable, so this is not re-rendered by the checker"
@@ -137,7 +137,7 @@
   {
     "path": "assets/authoring/crt-linter/warning.png",
     "page": "authoring/crt-linter",
-    "command": "ps2ui serve docs/site/assets/authoring/crt-linter/demo --port 8317, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8317/, waits for #frame to report a naturalWidth and for #diags to hold a warning row, clicks that row, clicks .el[data-i=\"13\"] and screenshots to OUT",
+    "command": "ps2ui serve docs/site/assets/authoring/crt-linter/demo --port 8317, then Playwright (executablePath $PLAYWRIGHT_BROWSERS_PATH/chromium, viewport 1280x800) loads http://127.0.0.1:8317/, waits for #frame to report a naturalWidth and for #diags to hold a warning row, clicks that row, clicks .el[data-i=\"13\"] and screenshots to OUT",
     "alt": "ps2ui serve on the crt-linter demo project: the library screen in the root theme at 4:3, the contrast warning listed under Warnings, command 013 selected in the command list and shown in the inspector",
     "checked": false,
     "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Serving the demo writes docs/site/assets/authoring/crt-linter/demo/build/, which is not committed."
@@ -173,7 +173,7 @@
   {
     "path": "assets/cli/previewer/page.png",
     "page": "cli/previewer",
-    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=\"$(npm root -g)\" node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:process.env.PLAYWRIGHT_BROWSERS_PATH+'/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
     "alt": "The previewer on the memcard project, library screen, root theme, as authored at 4:3, initial focus on Games: the toolbar, the command list, the frame, the slot box, an empty inspector and 45 warnings",
     "checked": false,
     "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written."
@@ -181,7 +181,7 @@
   {
     "path": "assets/cli/previewer/inspector.png",
     "page": "cli/previewer",
-    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.click('.el[data-i=\\\"14\\\"]');await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=\"$(npm root -g)\" node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:process.env.PLAYWRIGHT_BROWSERS_PATH+'/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.click('.el[data-i=\\\"14\\\"]');await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
     "alt": "The previewer on the memcard library screen, root theme, as authored at 4:3, with command 14 selected: the inspector reads index 14, op texquad, position 28 92, size 7 x 7, rgba #0a0d16, tex 2, state 1 unfocused, focus nav-games, drawn now no",
     "checked": false,
     "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command clicks command row 14 in the Commands list."
@@ -189,7 +189,7 @@
   {
     "path": "assets/cli/previewer/aspect-16x9.png",
     "page": "cli/previewer",
-    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.selectOption('#aspectSel','force-16:9');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>700});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && NODE_PATH=\"$(npm root -g)\" node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:process.env.PLAYWRIGHT_BROWSERS_PATH+'/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.selectOption('#aspectSel','force-16:9');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>700});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
     "alt": "The memcard library screen, root theme, forced to 16:9: the same 640x448 framebuffer resampled narrower, with the text and the covers squeezed",
     "checked": false,
     "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command sets the Aspect menu to force-16:9."
@@ -197,7 +197,7 @@
   {
     "path": "assets/cli/previewer/error-banner.png",
     "page": "cli/previewer",
-    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && printf '\\n.tile { background: #12g4f6; }\\n' >> /tmp/prev/ui/library.css && sleep 6 && NODE_PATH=/opt/node22/lib/node_modules node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForFunction(()=>{const n=document.getElementById('banner');return n&&n.classList.contains('on')},null,{timeout:60000});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
+    "command": "rm -rf /tmp/prev && cp -r examples/memcard /tmp/prev && rm -rf /tmp/prev/build && (cd /tmp/prev && ps2ui serve --port 8501 >/tmp/prev-serve.log 2>&1 &) && sleep 14 && printf '\\n.tile { background: #12g4f6; }\\n' >> /tmp/prev/ui/library.css && sleep 6 && NODE_PATH=\"$(npm root -g)\" node -e \"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({executablePath:process.env.PLAYWRIGHT_BROWSERS_PATH+'/chromium'});const p=await b.newPage({viewport:{width:1280,height:800}});await p.goto('http://127.0.0.1:8501/');await p.waitForFunction(()=>{const f=document.getElementById('frame');return f&&f.naturalWidth>0});await p.waitForFunction(()=>{const n=document.getElementById('banner');return n&&n.classList.contains('on')},null,{timeout:60000});await p.waitForTimeout(800);await p.screenshot({path:'OUT'});await b.close()})()\" ; pkill -f 'ps2ui serve --port 8501'",
     "alt": "The previewer on the memcard library screen, root theme, as authored at 4:3, showing the last good frame under a banner reading ps2ui-layout failed on ui/library.html (exit 1), at revision 2",
     "checked": false,
     "note": "Playwright capture of the ps2ui serve page chrome, not a preview render. checked: false because browser text rendering is not byte-stable across Chromium versions. Captured against a scratch copy of examples/memcard; nothing under examples/ was written. The command appends an invalid colour to the scratch project's library.css so the watched rebuild fails."
@@ -212,7 +212,7 @@
   {
     "path": "assets/getting-started/quickstart/serve.png",
     "page": "getting-started/quickstart",
-    "command": "cd <scratch>/browser && ps2ui serve --port 8600, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8600/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
+    "command": "cd <scratch>/browser && ps2ui serve --port 8600, then Playwright (executablePath $PLAYWRIGHT_BROWSERS_PATH/chromium, viewport 1280x800) loads http://127.0.0.1:8600/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
     "alt": "the ps2ui serve page for the quick start project: the library screen with row 0 focused, the command list, the focusables list and the slots panel, no warnings",
     "checked": false,
     "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Served from the tutorial's scratch project, not from the committed demo/ sources."
@@ -234,7 +234,7 @@
   {
     "path": "assets/getting-started/tutorial-game-browser/serve.png",
     "page": "getting-started/tutorial-game-browser",
-    "command": "cd <scratch>/browser (the tutorial's own steps 1-4) && ps2ui serve --port 8700, then Playwright (executablePath /opt/pw-browsers/chromium, viewport 1280x800) loads http://127.0.0.1:8700/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
+    "command": "cd <scratch>/browser (the tutorial's own steps 1-4) && ps2ui serve --port 8700, then Playwright (executablePath $PLAYWRIGHT_BROWSERS_PATH/chromium, viewport 1280x800) loads http://127.0.0.1:8700/, waits for #frame to report a naturalWidth, screenshots full-page to OUT",
     "alt": "the served page after the tutorial's step 7: the library screen, row 0 focused, no warnings",
     "checked": false,
     "note": "browser chrome capture; browser text rendering is not byte-stable across versions, so this is not re-run by tools/check-site-assets.py. Server was stopped and port 8700 confirmed closed after the capture."

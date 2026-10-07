@@ -216,7 +216,7 @@ reruns the parent, then the child.
   flags. The browser never draws UI pixels, in the docs as in the tool.
 - Browser captures are allowed only for the `ps2ui serve` page chrome. Take
   them with Playwright against the preinstalled Chromium
-  (`executablePath: '/opt/pw-browsers/chromium'`, viewport 1280x800). They
+  (`executablePath: process.env.PLAYWRIGHT_BROWSERS_PATH + '/chromium'`, viewport 1280x800). They
   are `checked: false` in the manifest, because browser text rendering is
   not byte-stable across versions.
 - Theme rows: `preview.render(uib, screen=NAME, theme=N)`. Focus states:

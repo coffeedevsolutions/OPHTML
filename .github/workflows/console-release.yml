@@ -11,10 +11,19 @@ name: console-release
 # THE RELEASE IS A DRAFT, AND A PERSON PUBLISHES IT. Pushing the tag is
 # docs/releasing.md step 7, done by hand, and so is publishing the
 # release: this workflow creates a draft when the tag has no release
-# yet, and adds files to the release when it has one. It never publishes
-# and never edits notes a person wrote. Re-running it for the same tag
-# replaces the files (`--clobber`), so a failed run can simply be run
-# again.
+# yet, and adds files to a DRAFT when it has one. It never publishes and
+# never edits notes a person wrote. Re-running it for a tag whose
+# release is still a draft replaces the files (`--clobber`), so a failed
+# run can simply be run again.
+#
+# IT REFUSES A PUBLISHED RELEASE. That refusal is new: the draft gate
+# used to be a side effect of the create path, so `gh release view`
+# succeeding -- which is what a human publishing it looks like -- fell
+# straight through to `--clobber` against a live public release with no
+# gate at all. A re-dispatch could replace a binary people had already
+# downloaded, under the same version number, leaving one workflow run as
+# the only trace. `replace_published: true` is the way to say you meant
+# it.
 #
 # workflow_dispatch takes an existing tag, for a tag pushed before this
 # workflow existed or a run that failed partway.
@@ -27,6 +36,13 @@ on:
       tag:
         description: An existing tag to build the launcher from and attach it to
         required: true
+      replace_published:
+        description: >-
+          Replace the files on an ALREADY PUBLISHED release. Off by
+          default, because a published release is a download people
+          may already have.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -66,7 +82,33 @@ jobs:
   elf:
     needs: theme
     runs-on: ubuntu-24.04
-    container: ghcr.io/ps2dev/ps2dev:latest
+    # PINNED BY DIGEST, and hw.yml's identical container deliberately is
+    # not. The two jobs want opposite things from the same image:
+    #
+    #   * hw.yml compiles on every push and its TFX probe exists to
+    #     notice gsKit moving, so freezing that container would freeze
+    #     the watch. It stays on `:latest` (see the comment above its
+    #     runner pin).
+    #   * this job produces a public download that nothing downstream
+    #     re-verifies. No emulator gate runs on the released ELF, and
+    #     the `SHA256SUMS` beside it is computed by this very job, so it
+    #     attests to the bytes it just built and not to the toolchain
+    #     that built them. On `:latest` the compiler for a tagged
+    #     release would be whatever ghcr.io served the minute the tag
+    #     was pushed, and a release cannot be rebuilt afterwards from
+    #     the tag alone.
+    #
+    # This is ghcr.io/ps2dev/ps2dev:latest as it stood on 2026-09-26:
+    # the multi-arch index, whose linux/amd64 image was built
+    # 2026-09-25 from ps2dev/ps2dev revision 0463697. Bumping it is a
+    # deliberate edit -- re-resolve the tag, then read the compiler
+    # version this job prints against the last release's run log. If
+    # ghcr.io ever stops serving this manifest the job fails on the
+    # pull, which is the right way round: a release that cannot name
+    # its toolchain should not be built, and re-resolving the tag is
+    # then the fix. tools/check-workflow-pins.py fails if this loses
+    # its digest, and fails if hw.yml gains one.
+    container: ghcr.io/ps2dev/ps2dev@sha256:1511fde1e42e2c8c192e08a308d9c90d3d69613f6c8022ec71aac7202d477336
     steps:
       - uses: actions/checkout@v7
         with:
@@ -81,12 +123,13 @@ jobs:
           mips64r5900el-ps2-elf-gcc --version | head -1
           test -f examples/console/build/ui.uib
           # The same build lines hw.yml runs on every push. Not
-          # necessarily the same binary: the ps2dev image is unpinned in
-          # both workflows, and this runs at tag time, so gsKit or the
-          # SDK can differ from the image hw.yml booted in Play!. The
-          # "Initialize containers" step logs the image digest, and the
-          # compiler's version is printed below, so docs/releasing.md
-          # step 8b can say which toolchain built the release.
+          # necessarily the same binary: this job's container is pinned
+          # by digest and hw.yml's is `:latest`, so on the same commit
+          # hw.yml can boot a newer gsKit or SDK in Play! than the one
+          # this builds the release with. The "Initialize containers"
+          # step logs the image digest, and the compiler's version is
+          # printed below, so docs/releasing.md step 8b can say which
+          # toolchain built the release.
           # ophtml-nav.elf is left
           # out: it loads the ROM's pad modules for the emulator, which
           # costs the memory card, MMCE and MX4SIO drivers, and
@@ -118,19 +161,80 @@ jobs:
           name: console-release
           path: dist
       - name: Attach to the tag's release, creating a draft if it has none
+        env:
+          # false for a tag push, where `inputs` is empty. Only a
+          # deliberate dispatch can turn it on.
+          REPLACE_PUBLISHED: ${{ inputs.replace_published || false }}
+        # tools/check-workflow-pins.py extracts this script and runs it
+        # against a stub `gh` in all four states, so the gate below is
+        # executed rather than read.
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "release $TAG exists; adding the launcher to it"
+          # WHICH OF THE THREE STATES THE TAG IS IN. The old script asked
+          # only "does a release exist", which cannot tell a draft this
+          # workflow made from a release a person published.
+          if is_draft=$(gh release view "$TAG" --json isDraft --jq '.isDraft' 2>/dev/null); then
+            case "$is_draft" in
+              true)  state=draft ;;
+              false) state=published ;;
+              *)
+                echo "::error::could not read isDraft for $TAG (got '$is_draft')"
+                exit 1 ;;
+            esac
           else
-            # --verify-tag: refuse rather than create a tag. A typo in
-            # the dispatch input must not mint a new tag on main.
-            gh release create "$TAG" --draft --verify-tag --title "$TAG" \
-              --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
+            state=missing
+          fi
+          echo "release $TAG: $state"
+
+          case "$state" in
+            missing)
+              # --verify-tag: refuse rather than create a tag. A typo in
+              # the dispatch input must not mint a new tag on main.
+              gh release create "$TAG" --draft --verify-tag --title "$TAG" \
+                --notes "Draft created by console-release.yml. Write the notes from the matching CHANGELOG.md section, then publish.
 
           ophtml.elf is the console launcher: copy it to a memory card or USB stick and start it from your launcher. https://coffeedevsolutions.github.io/OPHTML/runtime/console-launcher/ covers the drive layout, Neutrino and your own theme, and console/README.md lists the bench cases that have and have not been run on a console.
 
           ophtml-mock.elf lists invented games without reading a drive, to see a theme filled in an emulator."
+              ;;
+            draft)
+              echo "it is still a draft; adding the launcher to it"
+              ;;
+            published)
+              if [ "$REPLACE_PUBLISHED" != "true" ]; then
+                echo "::error::$TAG is PUBLISHED. Uploading would replace files people can already download, under the same version number, and the old bytes would be gone. If that is really what you want, dispatch this workflow again with replace_published=true."
+                exit 1
+              fi
+              echo "::warning::$TAG is published and replace_published=true, so its files are being replaced"
+              ;;
+          esac
+
+          # WHAT IS BEING REPLACED, IN THE LOG. Nothing compared the
+          # checksums already attached, so a re-run overwrote SHA256SUMS
+          # with a new self-consistent one and the previous bytes left no
+          # record anywhere.
+          #
+          # A difference is a warning and not a failure, and the reason
+          # is worth stating: whether this ELF builds bit-for-bit
+          # identically from the same tag and the same pinned container
+          # has never been measured here, so failing on a mismatch would
+          # gate on a property nobody has checked. Both lists are in the
+          # log either way, which is what was missing.
+          if [ "$state" != "missing" ] &&
+             gh release download "$TAG" --pattern SHA256SUMS \
+               --dir "$RUNNER_TEMP/prev" --clobber >/dev/null 2>&1; then
+            echo "--- already attached to $TAG ---"
+            cat "$RUNNER_TEMP/prev/SHA256SUMS"
+            echo "--- built by this run ---"
+            cat dist/SHA256SUMS
+            if cmp -s "$RUNNER_TEMP/prev/SHA256SUMS" dist/SHA256SUMS; then
+              echo "identical: this run rebuilt the same bytes"
+            else
+              echo "::warning::the checksums differ from the ones already on $TAG. Read the two lists above before publishing."
+            fi
+          else
+            echo "no SHA256SUMS on $TAG yet; nothing to compare"
           fi
+
           gh release upload "$TAG" dist/ophtml.elf dist/ophtml-mock.elf \
             dist/SHA256SUMS --clobber
           gh release view "$TAG" --json assets --jq '.assets[].name'

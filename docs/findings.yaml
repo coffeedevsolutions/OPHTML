@@ -1417,7 +1417,7 @@ findings:
     rule stays live below it. A UI that wants 8px still fails.
 
     S15 CLOSED IT, AND THE READING SCORED ITSELF. oplenv-scr-library at
-    9 ft (2.74 m), Hisense 58R6+, glasses on and off. The operator read
+    9 ft (2.74 m), a 58-inch 4K LCD, with and without refractive correction. The operator read
     `c694 g382 u9` off the 11px telemetry line; g382 derives exactly
     from the blob -- static 321 plus a 9-glyph [library] tag plus 52 --
     and had appeared in no document and no earlier photograph. n3505

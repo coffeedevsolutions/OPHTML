@@ -1,0 +1,21 @@
+# The commit identities this repository accepts, one shell glob per line.
+# Read by BOTH tools/git-hooks/pre-commit and
+# tools/check-commit-identities.py, so the hook and the check cannot
+# drift apart -- which is the fault this project keeps finding, and the
+# reason this is a file rather than two copies of a list.
+#
+# WHY IT EXISTS. An exposure audit found a work email on 3 commits and
+# `<account>@<hostname>.lan` on 26 more, in a public repository. Commit
+# metadata is published the moment it is pushed and is indexed from
+# there, so the only real fix is upstream of the push. This list is that
+# fix; the history itself was left alone deliberately, because rewriting
+# it changes all 394 SHAs, dangles every SHA citation in these docs, and
+# still would not reach anyone's existing clone or fork.
+#
+# GitHub's own two settings are the stronger half and are not in this
+# repository: "Keep my email addresses private" and "Block command line
+# pushes that expose my email". The second one would have prevented both
+# findings on its own. CONTRIBUTING.md says so.
+*@users.noreply.github.com
+noreply@github.com
+noreply@anthropic.com

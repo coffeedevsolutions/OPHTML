@@ -1,8 +1,7 @@
 # facts: authoring/crt-linter
 
 Every command was run from the repository root in this session.
-`<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring/crt-linter`.
+`<scratch>` is a scratch directory outside the repository.
 The compile command is
 `ps2ui-layout <file>.html <file>.css --fonts fonts/fonts.json -o <scratch>/<name>.json`
 unless a row says otherwise. `<scratch>/kitchen.html` and `kitchen.css` are one

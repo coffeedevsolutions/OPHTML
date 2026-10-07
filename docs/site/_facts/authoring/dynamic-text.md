@@ -1,7 +1,6 @@
 # facts: authoring/dynamic-text
 
-Session commands were run from the repository root. `<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring-dynamic-text`.
+Session commands were run from the repository root. `<scratch>` is a scratch directory outside the repository.
 Compiles are `ps2ui-layout <html> <css> --fonts fonts/fonts.json -o <scratch>/<name>.json`.
 Bakes are `ps2ui-bake <json...> -o <scratch>/<name>.uib --fonts fonts/fonts.json`.
 `make -C runtime test` printed `PASS: 418 checks, 0 failure(s)`; "ok N" below is that

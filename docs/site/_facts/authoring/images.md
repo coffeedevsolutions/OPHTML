@@ -1,8 +1,7 @@
 # facts: authoring/images
 
 Every command was run from the repository root in this session unless a row
-says otherwise. `<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring/images`.
+says otherwise. `<scratch>` is a scratch directory outside the repository.
 Three scratch projects live there: `mini` (one cover, one CSS width), `idx`
 (a 32x24 indexed PNG laid out at 64x48) and `sizes` (one PNG at two sizes).
 `channel6-ui` is a copy of `examples/channel6/ui` with the `palettize`

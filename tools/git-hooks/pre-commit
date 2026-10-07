@@ -1,0 +1,56 @@
+#!/bin/sh
+# Refuse a commit whose author or committer email is not one this
+# repository accepts. See tools/git-hooks/allowed-emails for the list
+# and for why it exists.
+#
+# THIS IS THE ONLY PREVENTIVE HALF THAT LIVES IN THE REPOSITORY. By the
+# time CI sees a commit, the address is already on GitHub and already
+# indexed; a check there can only tell you it happened. So this runs
+# before the object exists.
+#
+# Install it once, per clone:
+#
+#     git config core.hooksPath tools/git-hooks
+#
+# Which is itself the weakness worth stating plainly: a hook is opt-in
+# per clone and `--no-verify` skips it. It catches the accident it was
+# written for -- a fresh machine with a default `user.email` -- and
+# stops nothing deliberate.
+set -eu
+root=$(git rev-parse --show-toplevel)
+list="$root/tools/git-hooks/allowed-emails"
+[ -f "$list" ] || { echo "pre-commit: $list is missing" >&2; exit 1; }
+
+fail=0
+for who in AUTHOR COMMITTER; do
+    ident=$(git var "GIT_${who}_IDENT")
+    email=$(printf '%s' "$ident" | sed -n 's/.*<\(.*\)>.*/\1/p')
+    ok=0
+    # A `case` per line, so the file holds globs and this holds no list.
+    while IFS= read -r glob; do
+        case "$glob" in ''|\#*) continue ;; esac
+        # shellcheck disable=SC2254
+        case "$email" in $glob) ok=1; break ;; esac
+    done < "$list"
+    if [ "$ok" -eq 0 ]; then
+        echo "pre-commit: GIT_${who}_IDENT is <$email>, which this" >&2
+        echo "  repository does not accept. It is a PUBLIC repository and" >&2
+        echo "  commit metadata is published the moment it is pushed." >&2
+        fail=1
+    fi
+done
+
+if [ "$fail" -ne 0 ]; then
+    echo "" >&2
+    echo "  Accepted patterns (tools/git-hooks/allowed-emails):" >&2
+    grep -v '^#' "$list" | grep -v '^$' | sed 's/^/    /' >&2
+    echo "" >&2
+    echo "  Fix it for every repository on this machine:" >&2
+    echo "    git config --global user.email <id>+<user>@users.noreply.github.com" >&2
+    echo "" >&2
+    echo "  And on github.com, under Settings -> Emails, turn on" >&2
+    echo "  'Keep my email addresses private' and 'Block command line" >&2
+    echo "  pushes that expose my email'. That second setting is the one" >&2
+    echo "  that would have caught this without a hook." >&2
+    exit 1
+fi

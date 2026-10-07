@@ -1,7 +1,6 @@
 # facts: authoring/html
 
-Session commands were run from the repository root. `<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring-html`.
+Session commands were run from the repository root. `<scratch>` is a scratch directory outside the repository.
 Every compile below is `ps2ui-layout <html> <css> --fonts fonts/fonts.json -o <scratch>/<name>.json`.
 Parent facts reused without restatement: `ir.schema.slot.capacity`, `ir.schema.focus`,
 `ir.schema.rect.keep`, `ir.schema.text.nocontrast`, `ir.schema.image`, `cli.layout.exit-codes`,

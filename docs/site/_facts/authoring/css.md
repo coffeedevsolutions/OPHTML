@@ -1,8 +1,7 @@
 # facts: authoring/css
 
 Every command was run from the repository root in this session.
-`<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring/css`.
+`<scratch>` is a scratch directory outside the repository.
 The compile command is
 `ps2ui-layout <scratch>/<name>.html <scratch>/<name>.css --fonts fonts/fonts.json -o <scratch>/x.json`
 unless a row says otherwise. The command blocks on the page were re-run from

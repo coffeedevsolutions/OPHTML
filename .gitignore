@@ -42,3 +42,31 @@ console/irx_table.c
 console/irx_table.h
 console/*.o
 console/*.elf
+
+# THE GENERIC ACCIDENT CLASSES, which this file had no rule for at all.
+# Every rule above is for a file this project generates on purpose;
+# nothing below has ever been committed here, across 394 commits and 495
+# distinct paths, so the gap was carried by discipline alone. These are
+# the accidents: editor and OS droppings, crash and log output, and a
+# virtualenv or .env someone makes inside the checkout.
+#
+# Worth closing because the exposure path is already demonstrated one
+# directory over: the gitignored examples/channel6/build/*.json embed
+# absolute `"src":` paths, so a file that reaches a commit by accident
+# can carry a machine path in with it.
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.bak
+*.log
+.vscode/
+.idea/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+venv/
+.venv/
+.env
+.env.*

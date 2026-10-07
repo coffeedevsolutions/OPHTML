@@ -2,8 +2,7 @@
 
 Session: all eight `docs/tutorial-uc3.md` blocks (fontgen, the three
 heredocs, build, check, `serve --selftest`, `vendor-runtime`) ran in one
-shell under `sh -e` from an empty scratch directory,
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/getting-started/tutorial-game-browser/run/work/browser`,
+shell under `sh -e` from an empty scratch directory outside the repository,
 with `TTF_REGULAR=/home/user/OPHTML/fonts/vendor/DejaVuSans.ttf` and
 `TTF_BOLD=/home/user/OPHTML/fonts/vendor/DejaVuSans-Bold.ttf`. Exit 0.
 Nothing under `examples/*/build/` was touched. A copy of
@@ -35,7 +34,7 @@ Parent facts reused without restatement: `quickstart.blocks`,
 | tutorial.step8.list-refill | The page's refill loop is the tutorial's own step 8 snippet, unchanged, binding `ps2ui_list_init(&list, "row-", 6)` to the six rows `data-repeat="6"` stamped in step 2. | docs/tutorial-uc3.md step 8; parent fact `list.refill.loop` | this session's step-2 and step-5 builds: `build/library.json` carries focus nodes `row-0`..`row-5`; parent `list.refill.loop` ran the same loop against this project's blob | verified |
 | tutorial.assets.preview | `preview.png` is a previewer render of the same committed sources quickstart's own `preview.png` uses (`docs/site/assets/getting-started/quickstart/demo/ui/library.html`, `.css`), and is byte-identical to it. | packages/layout/bin/ps2ui-layout.js; packages/baker/ps2ui_bake/preview.py | this session: `cmp` between `docs/site/assets/getting-started/quickstart/preview.png` and the freshly rendered `docs/site/assets/getting-started/tutorial-game-browser/preview.png` reported no difference | verified |
 | tutorial.assets.states | `states.png` is `preview.montage` over a blob baked from the same committed sources, via `ps2ui-bake --montage`, run outside the tutorial's own `sh` blocks so the montage step is not asserted output. | packages/baker/ps2ui_bake/preview.py `montage`; packages/baker/ps2ui_bake/cli.py (`--montage`) | this session: `ps2ui-bake ... --montage docs/site/assets/getting-started/tutorial-game-browser/states.png` wrote a 19382-byte PNG | verified |
-| tutorial.assets.serve | `serve.png` is a Playwright capture of `ps2ui serve --port 8700` against the scratch project this session built from the tutorial's own steps 1-4, taken after step 7's `--selftest` run, with no warnings shown. The server was stopped afterward and port 8700 confirmed closed. | packages/baker/ps2ui_bake/serve_page.html | this session: Playwright (`executablePath: /opt/pw-browsers/chromium`, viewport 1280x800) waited for `#frame` to report a `naturalWidth`, then screenshotted; `kill` on the server, then a `curl` to `127.0.0.1:8700` timed out | verified (checked: false per the manifest, browser-chrome capture) |
+| tutorial.assets.serve | `serve.png` is a Playwright capture of `ps2ui serve --port 8700` against the scratch project this session built from the tutorial's own steps 1-4, taken after step 7's `--selftest` run, with no warnings shown. The server was stopped afterward and port 8700 confirmed closed. | packages/baker/ps2ui_bake/serve_page.html | this session: Playwright (`executablePath` set to the installed Chromium, viewport 1280x800) waited for `#frame` to report a `naturalWidth`, then screenshotted; `kill` on the server, then a `curl` to `127.0.0.1:8700` timed out | verified (checked: false per the manifest, browser-chrome capture) |
 
 ## disputes
 

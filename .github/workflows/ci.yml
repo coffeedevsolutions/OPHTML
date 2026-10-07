@@ -604,6 +604,45 @@ jobs:
             examples/channel6/build/probe.png
             examples/channel6/build/probe-states.png
 
+      # The container images CI builds in, and the one variable a
+      # workflow input reaches a shell through. Both were decisions the
+      # tree had made correctly and nothing held: console-release.yml
+      # built the released ELF in an unpinned image, and FUZZ_TIME went
+      # into libFuzzer's command line unquoted, so a dispatch input of
+      # `1; touch x` ran `touch`. The checker asserts the pin and the
+      # UNpin separately -- hw.yml's copy of the same image must stay
+      # floating or its gsKit watch freezes -- and it RUNS the FUZZ_TIME
+      # guard rather than grepping for it, because a version that only
+      # read the file reported PASS with the guard deleted.
+      - name: Container pins, write scopes and the fuzz variables
+        run: python3 tools/check-workflow-pins.py
+
+      # What the tree says about the machine it was written on. This
+      # project's practice is to paste real command output into the fact
+      # tables, because a transcript nobody ran is a document that was
+      # true on the day it was written -- and real output carries real
+      # paths. An audit found 362 occurrences of an agent container's
+      # scratchpad, two of them on PUBLISHED pages, and a PNG carrying
+      # the XMP packet of the tool that drew it. None of it was ever
+      # going to be caught by review: each is one field inside a
+      # transcript that is otherwise exactly what a reader wants.
+      - name: No tracked file names the machine it was written on
+        run: python3 tools/check-host-paths.py
+
+      # And the same class in commit metadata, which is worse because it
+      # cannot be edited afterwards. This is a DETECTOR, not a
+      # preventer -- by the time it runs the address is on GitHub -- so
+      # it checks the RANGE a branch adds, to find the next one while it
+      # is still cheap to amend. The preventive half is
+      # tools/git-hooks/pre-commit, and --selftest asserts the hook and
+      # the checker read the one allowlist the same way.
+      - name: No new commit carries a personal email address
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          python3 tools/check-commit-identities.py --selftest
+          python3 tools/check-commit-identities.py --base "$BASE"
+
       # THE AUTHORITATIVE RUN, unflagged, after every check it could
       # otherwise have masked. The early step is a strict subset of
       # this one, so a rule added to check-versions.py later is

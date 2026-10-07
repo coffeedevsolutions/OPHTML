@@ -1,6 +1,6 @@
 # facts: reference/ir-format
 
-Session commands were run from the repository root. `<scratch>` is `/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/reference/ir-format`. The memcard screen was compiled with `ps2ui-layout examples/memcard/ui/library.html examples/memcard/ui/library.css --fonts fonts/fonts.json -o <scratch>/library.json`; the themed screens with the same command over `examples/opl-env/ui/landing.html` and `examples/opl-env/ui/library.html` against `examples/opl-env/ui/opl.css`.
+Session commands were run from the repository root. `<scratch>` is a scratch directory outside the repository. The memcard screen was compiled with `ps2ui-layout examples/memcard/ui/library.html examples/memcard/ui/library.css --fonts fonts/fonts.json -o <scratch>/library.json`; the themed screens with the same command over `examples/opl-env/ui/landing.html` and `examples/opl-env/ui/library.html` against `examples/opl-env/ui/opl.css`.
 
 | id | fact | source | verified by | status |
 |---|---|---|---|---|

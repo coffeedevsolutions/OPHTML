@@ -1,7 +1,6 @@
 # facts: authoring/text-and-fonts
 
-Session commands were run from the repository root. `<scratch>` is
-`/tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/authoring/text-and-fonts`.
+Session commands were run from the repository root. `<scratch>` is a scratch directory outside the repository.
 The demo screen is committed at `docs/site/assets/authoring/text-and-fonts/demo/sizes.html`
 and `sizes.css`. Scratch screens compiled in this session: `weights.html`/`weights.css`
 (font-weight 500 and 700), `ell.html`/`ell.css` (text-overflow with and without

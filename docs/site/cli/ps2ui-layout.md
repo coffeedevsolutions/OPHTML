@@ -96,7 +96,7 @@ Every line except `--version` goes to stderr. The IR is the only thing written t
 | `error: <message>` | a compile failure; nothing is written |
 | `ps2ui-layout: --min-font-size takes a positive integer` | the flag's value is not a positive integer |
 
-The memcard library screen compiles with 28 warnings:
+The memcard library screen compiles with 28 warnings. `<scratch>` in the output below stands in for the directory the run happened in; every other character is the tool's own:
 
 ```sh
 ps2ui-layout examples/memcard/ui/library.html examples/memcard/ui/library.css -o out/nested/library.json
@@ -109,7 +109,7 @@ warning: overscan: text "MEMORY CARD" at (28,59) leaves the title-safe area; a C
 warning: min-font-size: "CARD 1" is 13px; below 14px is unreadable from a couch
 ...
 warning: min-font-size: "△ Options" is 13px; below 14px is unreadable from a couch
-ps2ui-layout: 89 paint commands, 9 focusables -> /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/out/nested/library.json
+ps2ui-layout: 89 paint commands, 9 focusables -> <scratch>/out/nested/library.json
 ```
 
 A screen with one 10px text run, compiled with `--strict`, prints the extra last line and exits 1:
@@ -117,7 +117,7 @@ A screen with one 10px text run, compiled with `--strict`, prints the extra last
 ```
 warning: min-font-size: "Tiny text" is 10px; below 14px is unreadable from a couch
 warning: overscan: text "Tiny text" at (0,1) leaves the title-safe area; a CRT may crop it
-ps2ui-layout: 2 paint commands, 0 focusables -> /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/small/small.json
+ps2ui-layout: 2 paint commands, 0 focusables -> <scratch>/small/small.json
 ps2ui-layout: --strict: 2 warning(s)
 ```
 
@@ -244,10 +244,10 @@ The `--once` run above, with the baker's texture and budget lines and the warnin
 ```
 warning (layout library): overscan: text "PS2" at (28,25) leaves the title-safe area; a CRT may crop it
 ...
-ps2ui-bake: 1 screen(s), 686 records, 10 textures (112 KiB baked), 1 CLUTs -> /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/dev/ui.uib
+ps2ui-bake: 1 screen(s), 686 records, 10 textures (112 KiB baked), 1 CLUTs -> <scratch>/dev/ui.uib
 ps2ui-bake: arena 1451 bytes (static uint8_t arena[1451] __attribute__((aligned(16))))
-ps2ui-bake: preview -> /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/dev/preview.png
-built in 183ms — 89 commands, 9 focusables, 28 warnings -> /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/dev/preview.png
+ps2ui-bake: preview -> <scratch>/dev/preview.png
+built in 183ms — 89 commands, 9 focusables, 28 warnings -> <scratch>/dev/preview.png
   warning: overscan: text "PS2" at (28,25) leaves the title-safe area; a CRT may crop it
   warning: min-font-size: "MEMORY CARD" is 12px; below 14px is unreadable from a couch
 ...
@@ -256,12 +256,12 @@ built in 183ms — 89 commands, 9 focusables, 28 warnings -> /tmp/claude-0/-home
 A watch run on the 10px screen, with a line appended to its CSS after the first build:
 
 ```
-built in 113ms — 2 commands, 0 focusables, 2 warnings -> /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/watch2-out/preview.png
+built in 113ms — 2 commands, 0 focusables, 2 warnings -> <scratch>/watch2-out/preview.png
   warning: min-font-size: "Tiny text" is 10px; below 14px is unreadable from a couch
   warning: overscan: text "Tiny text" at (0,1) leaves the title-safe area; a CRT may crop it
-watching /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/watch2 — ctrl-c to stop
+watching <scratch>/watch2 — ctrl-c to stop
 small.css changed
-built in 84ms — 2 commands, 0 focusables, 1 warning -> /tmp/claude-0/-home-user-OPHTML/6b0c72b8-d98f-5f58-b749-f9808bb620d6/scratchpad/cli/ps2ui-layout/watch2-out/preview.png
+built in 84ms — 2 commands, 0 focusables, 1 warning -> <scratch>/watch2-out/preview.png
   warning: overscan: text "Tiny text" at (0,0) leaves the title-safe area; a CRT may crop it
 ```
 

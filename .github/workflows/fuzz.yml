@@ -19,12 +19,26 @@ on:
         description: How long to fuzz, in seconds
         required: false
         default: '1800'
+        # A UI hint and nothing more: Actions renders a number field and
+        # does not reject what is typed into it, so this value still
+        # reaches the job as free text. The guard that matters is in
+        # runtime/Makefile, which refuses a FUZZ_TIME that is not a
+        # whole number at parse time -- it used to substitute this into
+        # libFuzzer's command line unquoted, so `1; touch x` ran
+        # `touch`. tools/check-workflow-pins.py runs that guard.
+        type: number
 
+# NO WRITE SCOPE AT THE WORKFLOW LEVEL. `actions: write` used to sit
+# here, so the apt-get, the pip install, five build.sh scripts and half
+# an hour of libFuzzer all ran in a job whose token could delete workflow
+# runs and their logs, delete artifacts, and create workflow dispatches.
+# The first two make it an anti-forensics tool -- the opening move after
+# abusing this job is to delete the run that shows it -- and the third
+# reaches console-release.yml, so the two workflows were enlarging each
+# other's blast radius. One step needed the scope; it lives in the
+# rotate-corpus job below and holds nothing else.
 permissions:
   contents: read
-  # To delete last night's corpus cache before saving tonight's: cache
-  # keys are immutable, so one fixed key has to be freed to be reused.
-  actions: write
 
 concurrency:
   group: fuzz
@@ -54,29 +68,75 @@ jobs:
           ./examples/console/build.sh
           ./fixtures/bench-stream/build.sh
       - name: Restore the corpus the last run kept
+        id: corpus
         uses: actions/cache/restore@v6
         with:
           path: runtime/build/fuzz-corpus
           key: fuzz-corpus
+      # A MISS HAD TO BE READ OFF THE LOG TO BE NOTICED. cache/restore
+      # sets no fail-on-cache-miss, so an evicted entry quietly
+      # downgraded the night to the seed blobs with the run still green
+      # -- the configured-but-unexecuted shape this repository's own CI
+      # comments keep warning about. A miss is legitimate (first run,
+      # eviction), so it annotates. A HIT that restored nothing is not,
+      # and fails: an empty corpus makes half an hour look healthy while
+      # exercising almost nothing, which is the one way this security
+      # tool can report success and mean it least.
+      - name: Say what the corpus arrived as
+        env:
+          CACHE_HIT: ${{ steps.corpus.outputs.cache-hit }}
+        run: |
+          dir=runtime/build/fuzz-corpus
+          n=0; bytes=0
+          if [ -d "$dir" ]; then
+            n=$(find "$dir" -type f | wc -l)
+            bytes=$(du -sb "$dir" | cut -f1)
+          fi
+          echo "CORPUS_BEFORE_FILES=$n" >> "$GITHUB_ENV"
+          echo "restored: cache-hit=$CACHE_HIT, $n file(s), $bytes byte(s)"
+          echo "corpus restored: $n file(s), $bytes byte(s), cache-hit=$CACHE_HIT" \
+            >> "$GITHUB_STEP_SUMMARY"
+          if [ "$CACHE_HIT" != "true" ]; then
+            echo "::warning::no fuzz-corpus cache entry, so tonight starts from the seed blobs alone and does not build on last night's coverage"
+          elif [ "$n" -eq 0 ]; then
+            echo "::error::the fuzz-corpus cache was restored and holds no files. Either the entry is empty or something replaced it; a run from an empty corpus looks healthy and tests almost nothing."
+            exit 1
+          fi
       - name: Fuzz
         env:
           SECONDS_TO_RUN: ${{ inputs.seconds || '1800' }}
         run: make -C runtime fuzz FUZZ_CC=clang-18 FUZZ_TIME="$SECONDS_TO_RUN"
-      # ONE ENTRY, NOT ONE A NIGHT. The corpus is 24-42 MB, and a key
-      # per run_id left a new entry every night for LRU eviction to
-      # clear (review of #182). Delete-then-save keeps exactly one.
-      - name: Free the corpus key
+      # AND THE CORPUS ONLY EVER GROWS. libFuzzer adds to the corpus
+      # directory and never prunes it, so fewer files out than in means
+      # something else removed them, and the entry saved below would
+      # carry that loss into every following night.
+      - name: The corpus did not shrink
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: gh cache delete fuzz-corpus || true
-      - name: Keep the corpus for the next run
+        run: |
+          dir=runtime/build/fuzz-corpus
+          n=0; bytes=0
+          if [ -d "$dir" ]; then
+            n=$(find "$dir" -type f | wc -l)
+            bytes=$(du -sb "$dir" | cut -f1)
+          fi
+          echo "after the run: $n file(s), $bytes byte(s)"
+          echo "corpus kept: $n file(s), $bytes byte(s)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$n" -lt "$CORPUS_BEFORE_FILES" ]; then
+            echo "::error::the corpus lost files during the run: $CORPUS_BEFORE_FILES in, $n out"
+            exit 1
+          fi
+      # HANDED TO rotate-corpus RATHER THAN SAVED HERE, because saving
+      # it needs the key freed first and freeing the key needs a token
+      # this job must not hold. One day of retention: the cache entry is
+      # the durable copy and this is only the hop between two jobs.
+      - name: Hand the corpus to the job that may rotate the key
         if: always()
-        uses: actions/cache/save@v6
+        uses: actions/upload-artifact@v7
         with:
+          name: fuzz-corpus
+          retention-days: 1
           path: runtime/build/fuzz-corpus
-          key: fuzz-corpus
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -84,3 +144,62 @@ jobs:
           retention-days: 30
           path: runtime/build/fuzz-crashes/
           if-no-files-found: ignore
+
+  # THE ONLY JOB WITH A WRITE SCOPE, and it does two things: free the
+  # fixed cache key and save tonight's corpus under it.
+  #
+  # ONE ENTRY, NOT ONE A NIGHT. The corpus is 24-42 MB, and a key per
+  # run_id left a new entry every night for LRU eviction to clear
+  # (review of #182), so the key is fixed and cache keys are immutable,
+  # which is what makes a delete necessary at all. GitHub offers no
+  # narrower scope than `actions: write` for it.
+  #
+  # WHY THE ARTIFACT HOP EXISTS. `actions/cache/save` needs the corpus
+  # on the runner it runs on, and a dependent job gets a fresh one, so
+  # moving only the `gh cache delete` line out of the fuzz job does not
+  # work -- there would be nothing left to save it beside. The corpus
+  # therefore travels as an artifact, and the guard below is the whole
+  # reason this is not a straight swap.
+  rotate-corpus:
+    needs: uib-loader
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+    steps:
+      - name: Take the corpus the fuzz job handed over
+        id: hop
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: fuzz-corpus
+          path: runtime/build/fuzz-corpus
+      # DELETING THE KEY IS THE DESTRUCTIVE HALF, and it must never run
+      # on an empty hand. If the fuzz job died before its corpus
+      # existed, or the upload was skipped by if-no-files-found, then
+      # deleting the key throws away every night of accumulated coverage
+      # and saves nothing in its place. The old shape could not have
+      # this fault, because the corpus was always on the same runner; the
+      # hop introduces it, so the hop has to answer for it.
+      - name: Rotate the key, but only with a corpus in hand
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          dir=runtime/build/fuzz-corpus
+          n=0
+          [ -d "$dir" ] && n=$(find "$dir" -type f | wc -l)
+          echo "corpus to keep: $n file(s)"
+          if [ "$n" -eq 0 ]; then
+            echo "::warning::no corpus came over from the fuzz job, so last night's cache entry is left exactly as it is. Nothing was deleted and nothing was saved."
+            echo "ROTATE=no" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "ROTATE=yes" >> "$GITHUB_ENV"
+          gh cache delete fuzz-corpus || true
+      - name: Keep the corpus for the next run
+        if: env.ROTATE == 'yes'
+        uses: actions/cache/save@v6
+        with:
+          path: runtime/build/fuzz-corpus
+          key: fuzz-corpus
