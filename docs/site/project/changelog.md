@@ -14,6 +14,40 @@ The 0.10.0 section of `CHANGELOG.md`, restated by category, one bullet
 here for each entry there. The file carries the reasoning and the
 measurements; this page carries what changed.
 
+## 0.11.0.dev0
+
+Unreleased; 0.10.0, below, is what installs.
+
+### Added
+
+- The console launcher hands Neutrino per-game settings, chosen by a
+  resolver it calls for each game, and reads them by default from an
+  existing OPL library's `CFG/<ID>.cfg`. A game whose CFG sets a
+  `$Compatibility` mode Neutrino also has (sync reads, unhook syscalls,
+  emulate DVD-DL) launches with the matching `-gc`; a game with no CFG
+  launches as before. A downstream launcher can register its own
+  resolver to read a database instead.
+- The console's launcher core is a linkable library,
+  `libophtml-console.a`. A downstream launcher includes
+  `ophtml_console.h`, links the archive, and supplies its own `main`,
+  theme and module table without forking; `console/main.c` is its first
+  consumer. `examples/console-min` is a minimal out-of-tree one.
+- The console launcher remembers the last-played game and persists a
+  launch breadcrumb to a memory card (`mc0:/OPHTML/state`, then `mc1:`),
+  so the cursor opens on the last game played. The breadcrumb is set on
+  every launch and cleared only when a launch fails to start, so it is
+  not a hang signal by itself; it is the substrate a downstream
+  auto-retry policy reads and must clear once it has acted.
+
+### Fixed
+
+- `ps2ui-layout` refuses a tree nested past the depth cap with its own
+  message on every machine. 0.10.0 could still die of `Maximum call
+  stack size exceeded` before the cap was checked, for a tree thousands
+  deep under a `data-repeat`.
+- The baker test suite passes on a clean checkout, before the examples
+  are built.
+
 ## 0.10.0
 
 `ophtml` 0.10.0, `@ophtml/layout` 0.10.0, tagged `v0.10.0`. `pip install

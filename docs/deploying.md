@@ -5,6 +5,11 @@ covers memory cards (including the multi-channel devices most homebrew
 setups use now), Open PS2 Loader, and starting your UI automatically at
 power-on.
 
+To run a theme as a game launcher without building an ELF, use
+`ophtml.elf` from a GitHub Release instead: it reads `theme.uib` from a
+drive. [console/README.md](../console/README.md) covers it, and it has
+run only in an emulator so far.
+
 **How to read the claims in this file.** This project distinguishes what
 it has measured from what it has not, so each path below carries one of
 two markers:
@@ -240,7 +245,8 @@ environment.
 ## If the screen is one flat colour
 
 A full-screen flat colour is always a status, never a UI. Four exist and
-they are readable across every ELF this project ships: **[bench]**
+they are readable across the sample and starter ELFs: **[bench]**
+(`ophtml.elf` has its own, in [console/README.md](../console/README.md))
 
 | fill | means |
 |---|---|

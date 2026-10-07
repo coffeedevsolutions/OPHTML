@@ -1,5 +1,93 @@
 # Changelog
 
+## Unreleased — 0.11.0.dev0
+
+`.uib` format **version 7**, unchanged from the release below.
+Zero format moves have landed since 0.10.0, which is what a section
+opened straight after a release should say: the release under it
+shipped the format this tree still writes, so a blob baked here loads
+under a 0.10.0 runtime and the other way round.
+
+That count is the one number in this file that starts correct and
+decays. It becomes one the moment a format move lands, and
+`tools/check-versions.py` derives it from the section below rather than
+reading it back, so the check fails the change that moves the format
+without moving this line.
+
+### Added
+
+- **The console launcher applies per-game settings, and reads them from an
+  existing OPL library by default.** The launcher can now hand Neutrino
+  per-game options (`-gc`, `-gsm`, `-mc0`/`-mc1`) instead of only
+  `-bsd`/`-dvd`/`-qb`, chosen by a resolver the launcher calls for each
+  game. A downstream launcher registers its own resolver
+  (`console_set_resolver`) to read a database; OPHTML's console registers
+  a default that reads OPL's `CFG/<ID>.cfg`. So an existing OPL library's
+  per-game compatibility now takes effect: a game whose CFG sets a
+  `$Compatibility` mode Neutrino also has -- sync reads, unhook syscalls,
+  or emulate DVD-DL -- launches with the matching `-gc` digit. Other OPL
+  modes, and GSM and VMC, are not mapped yet; OPL Mode 7 is deliberately
+  not mapped, since it is not Neutrino's mode 7. A game with no CFG, or
+  none OPHTML maps, launches exactly as it did before. The portable half
+  (the argument builder, the resolver seam, the CFG mapping and path
+  derivation) is covered by the console host tests.
+- **The console's launcher core is a linkable library, `libophtml-console.a`.**
+  The reusable machinery -- drive scan, title-ID parsing, the Neutrino
+  command-line builder, the settings struct and resolver seam, OPL CFG
+  mapping, storage bring-up and the launch handoff -- is archived from
+  `console/`, and `console/main.c` links it as its first consumer rather
+  than compiling it in. A downstream launcher includes the one umbrella
+  header `ophtml_console.h` and links the archive, supplying its own
+  `main`, theme and `irx_table`; it never forks the core. `console/README.md`
+  carries the link recipe, and `examples/console-min/` is a minimal
+  out-of-tree consumer that CI's `elf` job links against the archive.
+- **The console launcher remembers the last-played game, and persists a
+  launch breadcrumb.** It writes a small state file to a memory card
+  (`mc0:/OPHTML/state`, falling back to `mc1:`) -- the one writable
+  store independent of which game drive is attached -- holding the
+  last-played title ID and the game a launch was last started for. On
+  the next boot the cursor opens on the last-played game. The breadcrumb
+  is set on every launch and cleared only when a launch fails to start;
+  a successful launch never returns to clear it, and the one-way handoff
+  means the console cannot tell a hang from a clean power-off, so it is
+  not a hang signal by itself. It is the substrate a downstream
+  auto-retry policy reads (which game, which profile) and must clear
+  once it has acted; the console only persists it.
+
+### Fixed
+
+- **A tree too deep could still overflow V8's stack in `ps2ui-layout`.**
+  0.10.0 made the depth cap an iterative walk so it could report a tree
+  nested thousands deep instead of dying in one, and then ran it after
+  `expandRepeats`, whose walk is recursive. So a tree thousands deep
+  under a `data-repeat` still died in `repeat.js` with `Maximum call
+  stack size exceeded` -- the exact failure the 0.10.0 entry says was
+  closed -- on any platform, at Node's default stack on Linux too. The
+  test 0.10.0 shipped used a bare tree, which `repeat.js` walks less
+  deeply per level, so it passed on Linux; macOS arm64 gives out sooner
+  and failed even on that, which is how `registry.yml`'s contributor
+  leg on `macos-15` found it after the release (review of #184 found
+  the `data-repeat` case). The cap now also runs before expansion,
+  which is safe because `data-repeat` adds siblings and never depth,
+  and only ever adds nodes (a count below 1 is refused), so the early
+  check refuses nothing the later one accepts. A new test compiles the
+  tree, bare and under a `data-repeat`, in a child process with a
+  quarter of V8's default stack: against 0.10.0's order it fails in
+  `repeat.js`, and it passes at 120 KB with this one. And `ci.yml`'s
+  `macos-15` job now runs the layout suite on every pull request, so
+  this class of failure no longer waits for the weekly registry run.
+
+- **The baker suite failed on a clean checkout.** The test that holds
+  the image cap to the corpus it was derived from walked `examples/`
+  including each example's gitignored `build/` output, and its guard
+  against a vacuous walk wanted 30 images. The repository ships 28;
+  the example builds add 16. `ci.yml` builds the examples before the
+  suite, so it passed there, and CONTRIBUTING.md's order runs the
+  suite first, so it failed for a contributor -- found by
+  `registry.yml`'s contributor leg on `macos-15-intel`, 28 of 30. The
+  walk now skips `build/`, so it counts the same 28 on either tree,
+  and the guard is 25.
+
 ## 0.10.0 — 2026-09-26
 
 `.uib` format **version 7**, unchanged from the release below.

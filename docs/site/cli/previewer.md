@@ -312,7 +312,7 @@ PASS: 6 route(s)
 
 | cannot show | why |
 |---|---|
-| `ps2ui_visible_set` and the list window | the renderer takes no visibility parameter, so the page draws the baked state |
+| `ps2ui_visible_set`, and the list window outside `--console` | the renderer takes no visibility parameter, so the page draws the baked state; `--console` walks a console theme's `game-N` list |
 | a hardware fault the command list is innocent of | the previewer replays that list faithfully; F-048 lived in a GS register the runtime never writes |
 | two screens composited in one frame | the renderer takes one screen, and `/state` publishes one screen's records |
 | a streamed texture's pixels | the server supplies no texels, so a streamed slot draws nothing |

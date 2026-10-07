@@ -13,6 +13,8 @@
 
 #include "../library.h"
 #include "../scan.h"
+#include "../resolver.h"
+#include "../state.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -255,6 +257,7 @@ static void test_sort(void)
 static void test_neutrino(void)
 {
     console_game g;
+    console_settings s;
     char store[512], tiny[16];
     char *argv[8];
     int argc;
@@ -262,22 +265,304 @@ static void test_neutrino(void)
     memset(&g, 0, sizeof g);
     strcpy(g.path, "mass0:/DVD/Shadow of the Colossus.iso");
     g.bsd = CONSOLE_BSD_ATA;
-    argc = console_neutrino_args(&g, store, sizeof store, argv, 8);
+
+    /* NULL settings is the plain three-argument launch, unchanged. */
+    argc = console_neutrino_args(&g, NULL, store, sizeof store, argv, 8);
     CHECK(argc == 3, "three arguments");
     CHECK(argc == 3 && strcmp(argv[0], "-bsd=ata") == 0, "-bsd= names the device");
     CHECK(argc == 3 && strcmp(argv[1], "-dvd=mass0:/DVD/Shadow of the Colossus.iso") == 0,
           "-dvd= carries the full path, spaces and all, as one argument");
     CHECK(argc == 3 && strcmp(argv[2], "-qb") == 0, "quick boot");
 
+    /* All-empty settings is identical to NULL: no option is emitted. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_neutrino_args(&g, &s, store, sizeof store, argv, 8) == 3,
+          "empty settings emit the same three arguments as NULL");
+
+    /* A field that is set adds its option, between -dvd and -qb, with
+     * the option's "-flag=" prefix and the field's value. */
+    strcpy(s.gc, "23");
+    argc = console_neutrino_args(&g, &s, store, sizeof store, argv, 8);
+    CHECK(argc == 4 && strcmp(argv[2], "-gc=23") == 0,
+          "-gc= carries the compat digits and sits before -qb");
+    CHECK(argc == 4 && strcmp(argv[3], "-qb") == 0, "-qb stays last");
+
+    /* Every option, in struct order: gc, gsm, mc0, mc1. */
+    strcpy(s.gsm, "fp2:1");
+    strcpy(s.vmc0, "mass0:/VMC/a.bin");
+    strcpy(s.vmc1, "mass0:/VMC/b.bin");
+    argc = console_neutrino_args(&g, &s, store, sizeof store, argv, 8);
+    CHECK(argc == 7, "bsd, dvd, gc, gsm, mc0, mc1, qb");
+    CHECK(argc == 7 && strcmp(argv[2], "-gc=23") == 0 &&
+          strcmp(argv[3], "-gsm=fp2:1") == 0 &&
+          strcmp(argv[4], "-mc0=mass0:/VMC/a.bin") == 0 &&
+          strcmp(argv[5], "-mc1=mass0:/VMC/b.bin") == 0 &&
+          strcmp(argv[6], "-qb") == 0,
+          "options appear in struct order with their prefixes");
+
+    /* gsm without gc: the gap is closed, not left as an empty slot. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.gsm, "fp1");
+    argc = console_neutrino_args(&g, &s, store, sizeof store, argv, 8);
+    CHECK(argc == 4 && strcmp(argv[2], "-gsm=fp1") == 0,
+          "an unset earlier field leaves no hole");
+
     g.bsd = CONSOLE_BSD_NONE;
-    CHECK(console_neutrino_args(&g, store, sizeof store, argv, 8) == -1,
+    CHECK(console_neutrino_args(&g, NULL, store, sizeof store, argv, 8) == -1,
           "an unknown device is refused, not launched as something else");
 
     g.bsd = CONSOLE_BSD_USB;
-    CHECK(console_neutrino_args(&g, tiny, sizeof tiny, argv, 8) == -1,
+    CHECK(console_neutrino_args(&g, NULL, tiny, sizeof tiny, argv, 8) == -1,
           "a command line that does not fit is refused, not truncated");
-    CHECK(console_neutrino_args(&g, store, sizeof store, argv, 2) == -1,
+    CHECK(console_neutrino_args(&g, NULL, store, sizeof store, argv, 2) == -1,
           "too few argv slots is refused");
+
+    /* argv overflow counts the option arguments too: seven needed, six
+     * offered, refused rather than written past the array. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.gc, "3"); strcpy(s.gsm, "fp2");
+    strcpy(s.vmc0, "mass0:/VMC/a.bin"); strcpy(s.vmc1, "mass0:/VMC/b.bin");
+    CHECK(console_neutrino_args(&g, &s, store, sizeof store, argv, 6) == -1,
+          "an option that would overflow argv is refused, not truncated");
+}
+
+/* A resolver a launcher could register: it sets gc for one id and
+ * leaves every other game alone, so the test sees both a hit and a
+ * miss through the same seam. */
+static int stub_resolver(const console_game *game, console_settings *out)
+{
+    if (strcmp(game->id, "SLUS_200.02") == 0) {
+        strcpy(out->gc, "3");
+        return 1;
+    }
+    return 0;
+}
+
+static void test_resolver(void)
+{
+    console_game g;
+    console_settings s;
+
+    memset(&g, 0, sizeof g);
+
+    /* No resolver: resolve yields all-empty settings, a plain launch.
+     * The 0xff poison proves resolve zeroes the struct rather than
+     * trusting the caller to. */
+    console_set_resolver(NULL);
+    memset(&s, 0xff, sizeof s);
+    console_resolve(&g, &s);
+    CHECK(s.gc[0] == '\0' && s.gsm[0] == '\0' && s.vmc0[0] == '\0' &&
+          s.vmc1[0] == '\0', "no resolver: settings come back all-empty");
+
+    /* A registered resolver fills what it knows for a game it knows. */
+    console_set_resolver(stub_resolver);
+    strcpy(g.id, "SLUS_200.02");
+    memset(&s, 0xff, sizeof s);
+    console_resolve(&g, &s);
+    CHECK(strcmp(s.gc, "3") == 0, "a known game gets the resolver's settings");
+    CHECK(s.gsm[0] == '\0', "fields the resolver did not set stay empty");
+
+    /* A game the resolver does not know comes back empty, not poisoned
+     * and not carrying the previous game's settings. */
+    strcpy(g.id, "SLES_500.00");
+    memset(&s, 0xff, sizeof s);
+    console_resolve(&g, &s);
+    CHECK(s.gc[0] == '\0',
+          "an unknown game gets empty settings, not stale ones");
+
+    console_set_resolver(NULL);   /* leave the global clean for later tests */
+}
+
+static void test_opl_cfg(void)
+{
+    console_settings s;
+    console_game g;
+    char path[CONSOLE_PATH_MAX];
+
+    /* Mode 2 | Mode 3 == 0x06 == 6: both map, ascending. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$Compatibility=6\n", 17, &s) == 1 &&
+          strcmp(s.gc, "23") == 0, "$Compatibility 6 -> gc 23");
+
+    /* Mode 2 | Mode 5 == 0x12 == 18: digits stay in ascending order. */
+    memset(&s, 0, sizeof s);
+    console_opl_cfg("$Compatibility=18\n", 18, &s);
+    CHECK(strcmp(s.gc, "25") == 0, "$Compatibility 18 -> gc 25, in order");
+
+    /* Mode 7 alone (0x40 == 64): recognised, but mapped to nothing --
+     * OPL Mode 7 is not Neutrino 7. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$Compatibility=64\n", 18, &s) == 1 &&
+          s.gc[0] == '\0', "OPL Mode 7 is dropped, not mapped to -gc 7");
+
+    /* Mode 1 alone (0x01): no -gc counterpart, dropped. */
+    memset(&s, 0, sizeof s);
+    console_opl_cfg("$Compatibility=1\n", 17, &s);
+    CHECK(s.gc[0] == '\0', "OPL Mode 1 has no -gc counterpart");
+
+    /* All eight bits set (255): only 2, 3, 5 survive. */
+    memset(&s, 0, sizeof s);
+    console_opl_cfg("$Compatibility=255\n", 19, &s);
+    CHECK(strcmp(s.gc, "235") == 0, "every bit set maps to exactly 235");
+
+    /* Value 0 is a present key with no modes: recognised, empty gc. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$Compatibility=0\n", 17, &s) == 1 &&
+          s.gc[0] == '\0', "$Compatibility 0 is found but maps to nothing");
+
+    /* Other keys are ignored; the compat line is still found among them,
+     * and CRLF line endings parse. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$DMA=1\r\n$Compatibility=4\r\n", 26, &s) == 1 &&
+          strcmp(s.gc, "3") == 0, "other keys ignored, CRLF fine");
+
+    /* No compat key at all: nothing found, nothing set. */
+    memset(&s, 0, sizeof s);
+    CHECK(console_opl_cfg("$DMA=1\n", 7, &s) == 0 && s.gc[0] == '\0',
+          "a CFG with no $Compatibility resolves nothing");
+
+    /* Path derivation from a DVD game with an ID. */
+    memset(&g, 0, sizeof g);
+    strcpy(g.path, "mass0:/DVD/Shadow of the Colossus.iso");
+    strcpy(g.id, "SLUS_200.02");
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 1 &&
+          strcmp(path, "mass0:/CFG/SLUS_200.02.cfg") == 0,
+          "CFG path is root + /CFG/<ID>.cfg");
+
+    /* A CD game roots off "/CD/" the same way. */
+    strcpy(g.path, "mass1:/CD/Ape Escape.iso");
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 1 &&
+          strcmp(path, "mass1:/CFG/SLUS_200.02.cfg") == 0,
+          "a CD game roots off /CD/");
+
+    /* No ID: no CFG to find. */
+    g.id[0] = '\0';
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 0,
+          "a game with no ID has no CFG path");
+
+    /* A path with no media folder cannot be rooted. */
+    strcpy(g.id, "SLUS_200.02");
+    strcpy(g.path, "mass0:/loose/Game.iso");
+    CHECK(console_opl_cfg_path(&g, path, sizeof path) == 0,
+          "a path with no /DVD/ or /CD/ has no CFG path");
+}
+
+static void test_state(void)
+{
+    console_state s, r;
+    char buf[128];
+    int n;
+
+    /* A full record round-trips: format then parse gives it back. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    strcpy(s.pending, "SCES_503.61");
+    s.pending_profile = 2;
+    n = console_state_format(&s, buf, sizeof buf);
+    CHECK(n > 0, "format writes a non-empty record");
+    CHECK(console_state_parse(buf, (size_t)n, &r) == 1 &&
+          strcmp(r.last, "SLUS_200.02") == 0 &&
+          strcmp(r.pending, "SCES_503.61") == 0 && r.pending_profile == 2,
+          "a full state round-trips through format and parse");
+
+    /* last only: no pending lines are written, and the profile does not
+     * leak out without a pending to carry it. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    s.pending_profile = 5;   /* set, but pending is empty */
+    n = console_state_format(&s, buf, sizeof buf);
+    CHECK(strcmp(buf, "last=SLUS_200.02\n") == 0,
+          "an empty pending omits both pending lines");
+    console_state_parse(buf, (size_t)n, &r);
+    CHECK(r.pending[0] == '\0' && r.pending_profile == 0,
+          "a record with no pending parses no profile");
+
+    /* Unknown keys and blank lines are ignored; known keys still found.
+     * parse zeroes first, so a prior value does not survive. */
+    memset(&r, 0xff, sizeof r);
+    CHECK(console_state_parse("junk\n\nfoo=bar\nlast=SLES_500.00\n", 31, &r) == 1 &&
+          strcmp(r.last, "SLES_500.00") == 0 && r.pending[0] == '\0',
+          "unknown keys ignored, known key found, rest zeroed");
+
+    /* Nothing recognised: found 0, all empty. */
+    CHECK(console_state_parse("x=1\n", 4, &r) == 0 && r.last[0] == '\0',
+          "no recognised key resolves nothing");
+
+    /* A buffer too small is refused, not truncated. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    CHECK(console_state_format(&s, buf, 8) == -1,
+          "a record that does not fit is refused");
+}
+
+/* The state file I/O over a temp directory, the way state.c reads and
+ * writes a memory card -- save_dir/load_dir are the path-taking forms
+ * the mc0:/mc1: wrappers call. */
+static void test_state_io(void)
+{
+    console_state s, r;
+    char root[] = "/tmp/console-state-XXXXXX";
+
+    if (mkdtemp(root) == NULL) { perror("mkdtemp"); exit(2); }
+
+    /* No file yet: zeroed, returns 0. */
+    CHECK(console_state_load_dir(root, &r) == 0 && r.last[0] == '\0',
+          "load with no state file yields empty and 0");
+
+    /* save_dir creates OPHTML/ and writes; load_dir reads it back. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SLUS_200.02");
+    strcpy(s.pending, "SLUS_200.02");
+    s.pending_profile = 3;
+    CHECK(console_state_save_dir(root, &s) == 1, "save_dir writes the state");
+    CHECK(console_state_load_dir(root, &r) == 1 &&
+          strcmp(r.last, "SLUS_200.02") == 0 &&
+          strcmp(r.pending, "SLUS_200.02") == 0 && r.pending_profile == 3,
+          "save_dir then load_dir round-trips through the file");
+
+    /* A second save replaces the file (O_TRUNC), not appends. */
+    memset(&s, 0, sizeof s);
+    strcpy(s.last, "SCES_503.61");
+    console_state_save_dir(root, &s);
+    console_state_load_dir(root, &r);
+    CHECK(strcmp(r.last, "SCES_503.61") == 0 && r.pending[0] == '\0',
+          "a second save replaces the file rather than appending");
+}
+
+/* Defined with the scan helpers further down; used here too. */
+static void touch(const char *path, const void *data, size_t len);
+
+/* The OPL resolver end to end, reading a real CFG off a temp tree the
+ * same way scan.c reads a drive -- so the file read, the path
+ * derivation and the compat mapping are exercised together, through
+ * console_resolve, exactly as main.c calls it. */
+static void test_opl_resolver(void)
+{
+    console_game g;
+    console_settings s;
+    char root[] = "/tmp/console-cfg-XXXXXX", p[512];
+
+    if (mkdtemp(root) == NULL) { perror("mkdtemp"); exit(2); }
+    snprintf(p, sizeof p, "%s/CFG", root); mkdir(p, 0755);
+    snprintf(p, sizeof p, "%s/CFG/SLUS_200.02.cfg", root);
+    touch(p, "$Compatibility=6\n", 17);
+
+    memset(&g, 0, sizeof g);
+    snprintf(g.path, sizeof g.path, "%s/DVD/Ico.iso", root);
+    strcpy(g.id, "SLUS_200.02");
+
+    console_set_resolver(console_opl_resolver);
+    console_resolve(&g, &s);
+    CHECK(strcmp(s.gc, "23") == 0,
+          "the OPL resolver reads CFG/<ID>.cfg and maps its compat");
+
+    /* A game with no CFG file resolves to empty, not an error, and
+     * console_resolve's zeroing means no stale settings leak in. */
+    strcpy(g.id, "SLES_999.99");
+    console_resolve(&g, &s);
+    CHECK(s.gc[0] == '\0', "a game with no CFG file resolves to empty");
+
+    console_set_resolver(NULL);
 }
 
 /* The MOCK=1 build's list, as main.c builds it. The previewer takes
@@ -404,6 +689,11 @@ int main(void)
     test_iso_id();
     test_sort();
     test_neutrino();
+    test_resolver();
+    test_opl_cfg();
+    test_state();
+    test_state_io();
+    test_opl_resolver();
     test_scan();
     test_mock_sorted();
     printf("1..%d\n", checks);

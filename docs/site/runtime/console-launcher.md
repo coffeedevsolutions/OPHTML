@@ -20,7 +20,7 @@ boots it. The theme is an ordinary `.uib`. Nothing in C is yours to write.
 **It has not yet been run on a console.** CI boots it in the Play! emulator,
 where it draws, fills its list and follows the pad. Play! has no USB, HDD or
 memory card slot, so no real drive has been read and no game has been started.
-The bench cases in [console/README.md](repo:console/README.md#L225) are the
+The bench cases in [console/README.md](repo:console/README.md#L284) are the
 hardware checks, and each stays open until a sitting reports it. Treat any
 failure on a console as a gap in the launcher, and report it as an issue.
 
@@ -48,6 +48,7 @@ frame with this one:
   DVD/                  Name.iso, or SLUS_200.02.Name.iso
   CD/                   the same, for CD games
   neutrino/             Neutrino's release folder, unzipped as-is
+  CFG/<ID>.cfg          optional: OPL per-game settings, read if present
   OPHTML/theme.uib      optional: your theme
 ```
 
@@ -62,7 +63,7 @@ and the [previewer](page:cli/previewer#options).
 
 A release with no `ophtml.elf` among its assets predates the launcher.
 Build it from a checkout instead, with the Docker line in
-[console/README.md](repo:console/README.md#L179).
+[console/README.md](repo:console/README.md#L186).
 
 ## Reference table
 
@@ -104,10 +105,10 @@ The launcher waits for the drives before it draws anything, because the
 theme may be on one of them. The wait ends once the drives stop changing,
 and is capped at 300 frames: five seconds at 60 Hz, six on a PAL console. The screen stays plain
 dark while it waits. The wait is
-[wait_for_drives](repo:console/main.c#L303).
+[wait_for_drives](repo:console/main.c#L305).
 
 It then picks the theme once, in this order:
-[choose_theme](repo:console/main.c#L200).
+[choose_theme](repo:console/main.c#L202).
 
 | order | where |
 |---|---|
@@ -135,7 +136,7 @@ MX4SIO and MMCE both drive the memory card port, so only one is loaded. MMCE
 is the default. To load MX4SIO instead, rename the ELF so its name contains
 `m4s` or `M4S`, such as `ophtml-m4s.elf`, or start it with the argument
 `-mx4sio`:
-[wants_mx4sio](repo:console/main.c#L428).
+[wants_mx4sio](repo:console/main.c#L461).
 
 ## Limits and errors
 
@@ -147,11 +148,11 @@ A problem the launcher can report goes to the `status` slot in words.
 | `No ISOs in DVD/ or CD/` | drives mounted, none with ISOs in those folders | move the ISOs into `DVD/` or `CD/` at the drive's root |
 | `Neutrino not found: put neutrino/ at a drive's root` | ✕ pressed, Neutrino in none of the places above | unzip Neutrino's `neutrino/` folder at a drive's root |
 | `Could not start Neutrino (<code>)` | Neutrino was found, and the loader returned instead of starting it | check that `neutrino/` is Neutrino's release folder unzipped as-is, with its modules beside `neutrino.elf` |
-| `This theme has no game-0 row to list games in` | games were found, and the theme has no `game-0` row to show them in | add rows with `id="game-{i}"` under `data-repeat`, and run `ps2ui check --console` on the blob |
+| `This theme has no game-0 row to list games in` | games were found, and the theme has no `game-0` row to show them in | add rows with `id="game-{i}"` under `data-repeat`, and run `ps2ui-check --console` on the blob |
 | `<path> refused (<code>); built-in theme` | your `theme.uib` failed to load | run `ps2ui check` on it, and read the code on [Errors and constants](page:runtime/errors-and-constants) |
 
 Before a theme draws, a solid colour is the only signal:
-[main](repo:console/main.c#L453).
+[main](repo:console/main.c#L491).
 
 | screen | meaning |
 |---|---|
@@ -162,10 +163,16 @@ Before a theme draws, a solid colour is the only signal:
 After ✕, the PS2SDK loader that starts Neutrino paints its own colours. Red
 at that point is the loader refusing its arguments, not the launcher. The
 full list of the loader's colours is in
-[console/README.md](repo:console/README.md#L145).
+[console/README.md](repo:console/README.md#L152).
 
 An HDD formatted for HDLoader, the APA format OPL uses, is not read. Only
-exFAT is. The launcher has no cover art and no per-game settings yet.
+exFAT is. The launcher has no cover art yet.
+
+Per-game settings are read from an existing OPL library: if a drive has
+`CFG/<ID>.cfg` for the game, its `$Compatibility` modes that Neutrino also
+has (sync reads, unhook syscalls, emulate DVD-DL) are applied as `-gc`.
+Other OPL compatibility modes, and its GSM and VMC settings, are not mapped
+yet. A game with no CFG, or none OPHTML maps, launches exactly as before.
 
 ## Related pages
 

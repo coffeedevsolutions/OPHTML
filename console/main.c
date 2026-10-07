@@ -51,6 +51,8 @@
 #include "storage.h"
 #include "scan.h"
 #include "launch.h"
+#include "resolver.h"
+#include "state.h"
 
 /* The built-in theme, examples/console, linked in by bin2c. */
 extern unsigned char theme_uib[];
@@ -387,6 +389,7 @@ static void launch_selected(void)
 {
     char path[CONSOLE_PATH_MAX], line[80];
     const console_game *g = &games[list.sel];
+    console_settings settings;
     int i, rc;
 
     if (!console_find_neutrino(launch_dir, devs, n_devs, path, sizeof path)) {
@@ -399,9 +402,39 @@ static void launch_selected(void)
      * the back one when the loader takes over the screen. */
     for (i = 0; i < 2; i++) frame();
 
+    /* Record the breadcrumb before the one-way handoff: last-played,
+     * and the game this launch is for. A downstream resolver's retry
+     * policy reads `pending` on the next boot; the console itself only
+     * persists it. pending_profile is 0 -- the default resolver has no
+     * ladder. Loading first keeps any fields a future writer added. */
+    {
+        console_state st;
+        console_state_load(&st);
+        snprintf(st.last, sizeof st.last, "%s", g->id);
+        snprintf(st.pending, sizeof st.pending, "%s", g->id);
+        st.pending_profile = 0;
+        console_state_save(&st);
+    }
+
     input_end();
-    rc = console_launch(path, g);
+    /* Resolve the game's settings through the registered resolver.
+     * main() registers console_opl_resolver, so by default this reads
+     * the game's OPL CFG and a game with a mapped compat mode launches
+     * with -gc set. A downstream launcher registers its own resolver
+     * (console_set_resolver) to read a database instead. */
+    console_resolve(g, &settings);
+    rc = console_launch(path, g, &settings);
     input_init();
+    /* console_launch only returns on failure, so the launch did not
+     * happen: clear the breadcrumb we wrote above. Leaving it would
+     * blame this game on the next boot for a launch that never took the
+     * machine (a missing neutrino/, bad arguments). */
+    {
+        console_state st;
+        console_state_load(&st);
+        st.pending[0] = '\0';
+        console_state_save(&st);
+    }
     snprintf(line, sizeof line, "Could not start Neutrino (%d)", rc);
     status(line);
 }
@@ -446,6 +479,11 @@ int main(int argc, char *argv[])
 
     set_launch_dir(argc > 0 ? argv[0] : NULL);
 
+    /* The default resolver: an existing OPL library's per-game CFG
+     * files. A downstream launcher overrides it by registering its own
+     * after this (console_set_resolver, last wins). */
+    console_set_resolver(console_opl_resolver);
+
     gs_init();
     blank();
 
@@ -474,6 +512,20 @@ int main(int argc, char *argv[])
         status("This theme has no game-0 row to list games in");
 
     ps2ui_list_set_count(&ui, &list, (uint16_t)n_games);
+
+    /* Put the cursor on the last-played game, read from the memory
+     * card. The breadcrumb half of the state is written at launch and
+     * read by a resolver's policy, not acted on here. */
+    {
+        console_state st;
+        int i;
+        if (console_state_load(&st) && st.last[0])
+            for (i = 0; i < n_games; i++)
+                if (strcmp(games[i].id, st.last) == 0) {
+                    ps2ui_list_select(&ui, &list, (uint16_t)i);
+                    break;
+                }
+    }
     fill();
 
     for (;;) {
